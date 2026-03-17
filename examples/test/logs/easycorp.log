@@ -1,0 +1,23 @@
+2026-02-28T22:27:33	guidelines.docx	conversion_failed	sh: flexiconv: command not found
+2026-02-28T23:17:50	(startup)	paths	project_root=/Library/WebServer/Documents/teitok/test log_file=/Library/WebServer/Documents/teitok/test/logs/easycorp.log hashes_file=/Library/WebServer/Documents/teitok/test/logs/easycorp_hashes.txt
+2026-02-28T23:17:50	(rebuild)	rebuild_hashes	files=33 registered=0 skipped=33 duplicates=0 | flexiconv: sh: duplicates: command not found
+2026-02-28T23:18:15	(startup)	paths	project_root=/Library/WebServer/Documents/teitok/test log_file=/Library/WebServer/Documents/teitok/test/logs/easycorp.log hashes_file=/Library/WebServer/Documents/teitok/test/logs/easycorp_hashes.txt
+2026-02-28T23:18:15	(rebuild)	rebuild_hashes	files=33 registered=0 skipped=33 duplicates=0 | flexiconv: sh: duplicates: command not found
+2026-02-28T23:20:06	(startup)	paths	project_root=/Library/WebServer/Documents/teitok/test log_file=/Library/WebServer/Documents/teitok/test/logs/easycorp.log hashes_file=/Library/WebServer/Documents/teitok/test/logs/easycorp_hashes.txt
+2026-02-28T23:20:06	(rebuild)	rebuild_hashes	files=33 registered=0 skipped=33 duplicates=0 | flexiconv: sh: duplicates: command not found
+2026-02-28T23:20:14	(startup)	paths	project_root=/Library/WebServer/Documents/teitok/test log_file=/Library/WebServer/Documents/teitok/test/logs/easycorp.log hashes_file=/Library/WebServer/Documents/teitok/test/logs/easycorp_hashes.txt
+2026-02-28T23:20:14	(rebuild)	rebuild_hashes	files=33 registered=0 skipped=33 duplicates=0 | flexiconv: sh: duplicates: command not found
+2026-02-28T23:22:55	(startup)	paths	project_root=/Library/WebServer/Documents/teitok/test log_file=/Library/WebServer/Documents/teitok/test/logs/easycorp.log hashes_file=/Library/WebServer/Documents/teitok/test/logs/easycorp_hashes.txt
+2026-02-28T23:22:55	(rebuild)	rebuild_hashes	files=33 registered=0 skipped=33 duplicates=0 | flexiconv: sh: duplicates: command not found
+2026-02-28T23:23:05	(startup)	paths	project_root=/Library/WebServer/Documents/teitok/test log_file=/Library/WebServer/Documents/teitok/test/logs/easycorp.log hashes_file=/Library/WebServer/Documents/teitok/test/logs/easycorp_hashes.txt
+2026-02-28T23:23:05	(rebuild)	rebuild_hashes	files=33 registered=0 skipped=33 duplicates=0 | flexiconv: sh: duplicates: command not found
+2026-02-28T23:30:13	(startup)	paths	project_root=/Library/WebServer/Documents/teitok/test log_file=/Library/WebServer/Documents/teitok/test/logs/easycorp.log hashes_file=/Library/WebServer/Documents/teitok/test/logs/easycorp_hashes.txt
+2026-02-28T23:30:13	(rebuild)	rebuild_hashes	files=33 registered=0 skipped=33 duplicates=0 | flexiconv: sh: duplicates: command not found
+2026-02-28T23:30:26	(startup)	paths	project_root=/Library/WebServer/Documents/teitok/test log_file=/Library/WebServer/Documents/teitok/test/logs/easycorp.log hashes_file=/Library/WebServer/Documents/teitok/test/logs/easycorp_hashes.txt
+2026-02-28T23:30:26	(rebuild)	rebuild_hashes	files=33 registered=0 skipped=33 duplicates=0 | flexiconv: sh: duplicates: command not found
+2026-03-01T10:20:13	(startup)	paths	project_root=/Library/WebServer/Documents/teitok/test log_file=/Library/WebServer/Documents/teitok/test/logs/easycorp.log hashes_file=/Library/WebServer/Documents/teitok/test/logs/easycorp_hashes.txt
+2026-03-01T10:20:13	(rebuild)	rebuild_hashes	files=33 registered=0 skipped=33 duplicates=0 | flexiconv: sh: duplicates: command not found
+2026-03-01T10:20:21	(startup)	paths	project_root=/Library/WebServer/Documents/teitok/test log_file=/Library/WebServer/Documents/teitok/test/logs/easycorp.log hashes_file=/Library/WebServer/Documents/teitok/test/logs/easycorp_hashes.sqlite
+2026-03-01T10:20:21	(rebuild)	rebuild_hashes	files=33 registered=0 skipped=33 duplicates=0 | flexiconv: sh: duplicates: command not found
+2026-03-01T10:20:29	(startup)	paths	project_root=/Library/WebServer/Documents/teitok/test log_file=/Library/WebServer/Documents/teitok/test/logs/easycorp.log hashes_file=/Library/WebServer/Documents/teitok/test/logs/easycorp_hashes.sqlite
+2026-03-01T10:20:29	(rebuild)	rebuild_hashes	files=33 registered=0 skipped=33 duplicates=0 | flexiconv: sh: duplicates: command not found

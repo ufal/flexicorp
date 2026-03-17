@@ -1,0 +1,1305 @@
+<?xml version="1.0"?>
+<TEI>
+  <teiHeader>
+    <recordingStmt>
+      <recording>
+        <media url="doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2.wav" mimeType="audio/x-wav"/>
+      </recording>
+    </recordingStmt>
+    <revisionDesc>
+      <change who="eaf2teitok" when="2024-12-19">Converted from ELAN file doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2.eaf</change>
+    </revisionDesc>
+  </teiHeader>
+  <text><u tier="ref@VNS" start="0" end="2.45" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="0" end="2.45" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="2.45" end="4.572" ftVNS="My father called me to the settlement [Sovetskaya Rechka]." txVNS="&#x410;&#x43C;&#x4E3; &#x43C;&#x438;&#x43D;&#x44D; &#x442;&#x44D;&#x440;&#x4EF;&#x442;&#x442;&#x430;&#x43D; &#x433;&#x443;&#x43B;&#x44D;&#x43B;&#x434;&#x443;&#x43B;&#x43E;&#x304;." VNS="am&#x12B;" psVNS="n">0001_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="2.45" end="2.71" dorecombalgnVNS="****" glVNS="&#x43E;&#x442;&#x435;&#x446;" VNS="a">am&#x12B;</u>
+<u tier="ph@VNS" start="2.52" end="2.65">m</u>
+<u tier="ph@VNS" start="2.65" end="2.71">i:</u>
+<u tier="wd@VNS" start="2.71" end="2.851" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="2.71" end="2.851">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="2.851" end="3.05" psVNS="****" VNS="****" glVNS="****" dorecombalgnVNS="****">&lt;&lt;fs&gt;&gt;</u>
+<u tier="ph@VNS" start="2.851" end="3.05">&lt;&lt;fs&gt;&gt;</u>
+<u tier="wd@VNS" start="3.05" end="3.28" psVNS="pro-pers" VNS="min&#x259;" dorecombalgnVNS="****" glVNS="1SG.ACC">min&#x259;</u>
+<u tier="ph@VNS" start="3.05" end="3.08">m</u>
+<u tier="ph@VNS" start="3.08" end="3.15">i</u>
+<u tier="ph@VNS" start="3.15" end="3.24">n</u>
+<u tier="ph@VNS" start="3.24" end="3.28">@</u>
+<u tier="wd@VNS" start="3.28" end="3.94" psVNS="v" VNS="t&#x259;r&#x16B;t" glVNS="&#x43D;&#x430;&#x437;&#x43D;&#x430;&#x447;&#x438;&#x442;&#x44C;.&#x43C;&#x435;&#x441;&#x442;&#x43E;.&#x438;.&#x432;&#x440;&#x435;&#x43C;&#x44F;" dorecombalgnVNS="****">t&#x259;r&#x16B;ttan</u>
+<u tier="ph@VNS" start="3.28" end="3.4">t</u>
+<u tier="ph@VNS" start="3.4" end="3.43">@</u>
+<u tier="ph@VNS" start="3.43" end="3.51">r</u>
+<u tier="ph@VNS" start="3.51" end="3.54">u:</u>
+<u tier="ph@VNS" start="3.54" end="3.67">t</u>
+<u tier="mb@VNS" start="3.67" end="3.81" glVNS="NFUT" dorecombalgnVNS="****" VNS="t">-ta</u>
+<u tier="ph@VNS" start="3.77" end="3.81">a</u>
+<u tier="mb@VNS" start="3.81" end="3.94" dorecombalgnVNS="****" glVNS="3SG" VNS="n">-n</u>
+<u tier="wd@VNS" start="3.94" end="4.572" psVNS="n" VNS="gul&#x259;" glVNS="&#x434;&#x435;&#x440;&#x435;&#x432;&#x44F;&#x43D;&#x43D;&#x44B;&#x439;.&#x434;&#x43E;&#x43C;" dorecombalgnVNS="****">gul&#x259;ldul&#x14D;</u>
+<u tier="ph@VNS" start="3.94" end="3.98">g</u>
+<u tier="ph@VNS" start="3.98" end="4.24">u</u>
+<u tier="ph@VNS" start="4.24" end="4.27">l</u>
+<u tier="ph@VNS" start="4.27" end="4.3">@</u>
+<u tier="mb@VNS" start="4.3" end="4.33" glVNS="PL" dorecombalgnVNS="****" VNS="l">-l</u>
+<u tier="mb@VNS" start="4.33" end="4.572" dorecombalgnVNS="****" glVNS="LOCALL" VNS="d">-dul&#x14D;</u>
+<u tier="ph@VNS" start="4.36" end="4.46">u</u>
+<u tier="ph@VNS" start="4.46" end="4.49">l</u>
+<u tier="ph@VNS" start="4.49" end="4.572">o:</u>
+<u tier="ref@VNS" start="4.572" end="5.428" txVNS="&lt;p:&gt;" ftVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="4.572" end="5.428" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="5.428" end="6.08" txVNS="&#x413;&#x443;&#x43D;&#x44D;&#x43D; &#x44D;&#x43C;&#x44D;&#x434;&#x43E;&#x304;&#x432;." ftVNS="He told me to come." VNS="gun&#x259;n" psVNS="v">0002_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="5.428" end="5.598" dorecombalgnVNS="****" glVNS="&#x441;&#x43A;&#x430;&#x437;&#x430;&#x442;&#x44C;" VNS="g">gun</u>
+<u tier="ph@VNS" start="5.458" end="5.508">u</u>
+<u tier="ph@VNS" start="5.508" end="5.598">n</u>
+<u tier="mb@VNS" start="5.598" end="5.628" dorecombalgnVNS="****" glVNS="NFUT" VNS="@">-&#x259;</u>
+<u tier="mb@VNS" start="5.628" end="5.701" dorecombalgnVNS="****" glVNS="3SG" VNS="n">-n</u>
+<u tier="wd@VNS" start="5.701" end="6.08" psVNS="v" VNS="&#x259;m&#x259;" glVNS="&#x43F;&#x440;&#x438;&#x439;&#x442;&#x438;" dorecombalgnVNS="****">&#x259;m&#x259;d&#x14D;w</u>
+<u tier="ph@VNS" start="5.701" end="5.731">@</u>
+<u tier="ph@VNS" start="5.731" end="5.841">m</u>
+<u tier="ph@VNS" start="5.841" end="5.931">@</u>
+<u tier="mb@VNS" start="5.931" end="5.991" glVNS="CVPURP" dorecombalgnVNS="****" VNS="d">-d&#x14D;</u>
+<u tier="ph@VNS" start="5.961" end="5.991">o:</u>
+<u tier="mb@VNS" start="5.991" end="6.08" dorecombalgnVNS="****" glVNS="1SG" VNS="w">-w</u>
+<u tier="ref@VNS" start="6.08" end="7.643" txVNS="&lt;p:&gt;" ftVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="6.08" end="7.643" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="7.643" end="14.312" txVNS="h&#x443;&#x440;&#x443;&#x440;&#x44D;&#x432;&#x443;&#x43D; &#x44D;&#x434;&#x443;&#x43A; &#x434;&#x44E;&#x43A;&#x442;&#x44D; &#x44D;&#x440; &#x433;&#x443;&#x43B;&#x44D;&#x43B;&#x434;&#x443;&#x43B;&#x43E;&#x304; &#x43D;&#x44C;&#x113;&#x441;&#x43A;&#x4E3;." ftVNS="The two of us went from here to the settlement [=to the houses] downhill." VNS="hurur&#x259;wun" psVNS="v">0003_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="7.643" end="7.903" dorecombalgnVNS="****" glVNS="&#x43F;&#x43E;&#x439;&#x442;&#x438;" VNS="h">huru</u>
+<u tier="ph@VNS" start="7.673" end="7.773">u</u>
+<u tier="ph@VNS" start="7.773" end="7.803">r</u>
+<u tier="ph@VNS" start="7.803" end="7.903">u</u>
+<u tier="mb@VNS" start="7.903" end="7.963" glVNS="NFUT" dorecombalgnVNS="****" VNS="r">-r&#x259;</u>
+<u tier="ph@VNS" start="7.933" end="7.963">@</u>
+<u tier="mb@VNS" start="7.963" end="8.215" glVNS="1PL(EXCL)" dorecombalgnVNS="****" VNS="w">-wun</u>
+<u tier="ph@VNS" start="7.993" end="8.173">u</u>
+<u tier="ph@VNS" start="8.173" end="8.215">n</u>
+<u tier="wd@VNS" start="8.215" end="8.537" psVNS="pro-adv" VNS="&#x259;duk" dorecombalgnVNS="****" glVNS="&#x43E;&#x442;&#x441;&#x44E;&#x434;&#x430;">&lt;&lt;ui&gt;&#x259;duk&gt;</u>
+<u tier="ph@VNS" start="8.215" end="8.537">&lt;&lt;ui&gt;&#x259;duk&gt;</u>
+<u tier="wd@VNS" start="8.537" end="11.009" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="8.537" end="11.009">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="11.009" end="11.525" psVNS="num" VNS="&#x10F;ukt&#x259;" dorecombalgnVNS="****" glVNS="&#x434;&#x432;&#x43E;&#x435;">&#x10F;ukt&#x259;</u>
+<u tier="ph@VNS" start="11.009" end="11.129">d_j</u>
+<u tier="ph@VNS" start="11.129" end="11.189">u</u>
+<u tier="ph@VNS" start="11.189" end="11.439">k</u>
+<u tier="ph@VNS" start="11.439" end="11.469">t</u>
+<u tier="ph@VNS" start="11.469" end="11.525">@</u>
+<u tier="wd@VNS" start="11.525" end="13.098" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="11.525" end="13.098">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="13.098" end="13.221" psVNS="pro-adj" VNS="&#x259;r" dorecombalgnVNS="****" glVNS="&#x44D;&#x442;&#x43E;&#x442;">&#x259;r</u>
+<u tier="ph@VNS" start="13.098" end="13.128">@</u>
+<u tier="ph@VNS" start="13.128" end="13.221">r</u>
+<u tier="wd@VNS" start="13.221" end="13.805" psVNS="n" VNS="gul&#x259;" dorecombalgnVNS="****" glVNS="&#x434;&#x435;&#x440;&#x435;&#x432;&#x44F;&#x43D;&#x43D;&#x44B;&#x439;.&#x434;&#x43E;&#x43C;">gul&#x259;ldul&#x14D;</u>
+<u tier="ph@VNS" start="13.221" end="13.291">g</u>
+<u tier="ph@VNS" start="13.291" end="13.501">u</u>
+<u tier="ph@VNS" start="13.501" end="13.531">l</u>
+<u tier="ph@VNS" start="13.531" end="13.571">@</u>
+<u tier="mb@VNS" start="13.571" end="13.601" dorecombalgnVNS="****" glVNS="PL" VNS="l">-l</u>
+<u tier="mb@VNS" start="13.601" end="13.805" glVNS="LOCALL" dorecombalgnVNS="****" VNS="d">-dul&#x14D;</u>
+<u tier="ph@VNS" start="13.631" end="13.711">u</u>
+<u tier="ph@VNS" start="13.711" end="13.741">l</u>
+<u tier="ph@VNS" start="13.741" end="13.805">o:</u>
+<u tier="wd@VNS" start="13.805" end="14.312" psVNS="adv" VNS="&#x144;&#x113;sk&#x12B;" glVNS="&#x432;&#x43D;&#x438;&#x437;.&#x43F;&#x43E;.&#x441;&#x43A;&#x43B;&#x43E;&#x43D;&#x443;" dorecombalgnVNS="****">&#x144;&#x113;sk&#x12B;</u>
+<u tier="ph@VNS" start="13.805" end="13.915">n_j</u>
+<u tier="ph@VNS" start="13.915" end="13.965">e:</u>
+<u tier="ph@VNS" start="13.965" end="14.105">s</u>
+<u tier="ph@VNS" start="14.105" end="14.175">k</u>
+<u tier="ph@VNS" start="14.175" end="14.312">i:</u>
+<u tier="ref@VNS" start="14.312" end="17.25" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="14.312" end="17.25" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="17.25" end="19.77" txVNS="&#x422;&#x430;&#x440; &#x43A;&#x443;&#x4C8;&#x430;&#x43A;&#x430;&#x440; &#x44D;&#x43C;&#x43E;&#x43D;&#x43C;&#x443;&#x447;&#x43E;&#x304;&#x442;&#x44B;&#x43D; &#x434;&#x44E;&#x434;&#x4EF;." ftVNS="That is, the children stayed in the chum [tent]." VNS="tar" psVNS="pro-adj">0004_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="17.25" end="17.333" dorecombalgnVNS="****" glVNS="&#x442;&#x43E;&#x442;" VNS="t">tar</u>
+<u tier="ph@VNS" start="17.278" end="17.305">a</u>
+<u tier="ph@VNS" start="17.305" end="17.333">r</u>
+<u tier="wd@VNS" start="17.333" end="17.833" psVNS="n" VNS="ku&#x14B;aka" glVNS="&#x440;&#x435;&#x431;&#x435;&#x43D;&#x43E;&#x43A;" dorecombalgnVNS="****">ku&#x14B;akar</u>
+<u tier="ph@VNS" start="17.333" end="17.403">k</u>
+<u tier="ph@VNS" start="17.403" end="17.523">u</u>
+<u tier="ph@VNS" start="17.523" end="17.553">N</u>
+<u tier="ph@VNS" start="17.553" end="17.613">a</u>
+<u tier="ph@VNS" start="17.613" end="17.723">k</u>
+<u tier="ph@VNS" start="17.723" end="17.793">a</u>
+<u tier="mb@VNS" start="17.793" end="17.833" glVNS="PL" dorecombalgnVNS="****" VNS="r">-r</u>
+<u tier="wd@VNS" start="17.833" end="18.682" psVNS="v" VNS="&#x259;mon" dorecombalgnVNS="****" glVNS="&#x43E;&#x441;&#x442;&#x430;&#x432;&#x438;&#x442;&#x44C;">&#x259;monmu&#x10D;&#x14D;tin</u>
+<u tier="ph@VNS" start="17.833" end="17.883">@</u>
+<u tier="ph@VNS" start="17.883" end="17.953">m</u>
+<u tier="ph@VNS" start="17.953" end="18.053">o</u>
+<u tier="ph@VNS" start="18.053" end="18.093">n</u>
+<u tier="mb@VNS" start="18.093" end="18.243" dorecombalgnVNS="****" glVNS="PASS" VNS="m">-mu</u>
+<u tier="ph@VNS" start="18.123" end="18.243">u</u>
+<u tier="mb@VNS" start="18.243" end="18.433" glVNS="PST" dorecombalgnVNS="****" VNS="tS">-&#x10D;&#x14D;</u>
+<u tier="ph@VNS" start="18.393" end="18.433">o:</u>
+<u tier="mb@VNS" start="18.433" end="18.682" glVNS="3PL" dorecombalgnVNS="****" VNS="t">-tin</u>
+<u tier="ph@VNS" start="18.593" end="18.623">i</u>
+<u tier="ph@VNS" start="18.623" end="18.682">n</u>
+<u tier="wd@VNS" start="18.682" end="19.365" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="18.682" end="19.365">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="19.365" end="19.77" psVNS="n" VNS="&#x10F;&#x16B;" glVNS="&#x434;&#x43E;&#x43C;.&#x447;&#x443;&#x43C;" dorecombalgnVNS="****">&#x10F;&#x16B;d&#x16B;</u>
+<u tier="ph@VNS" start="19.365" end="19.485">d_j</u>
+<u tier="ph@VNS" start="19.485" end="19.555">u:</u>
+<u tier="mb@VNS" start="19.555" end="19.77" glVNS="DATLOC" dorecombalgnVNS="****" VNS="d">-d&#x16B;</u>
+<u tier="ph@VNS" start="19.665" end="19.77">u:</u>
+<u tier="ref@VNS" start="19.77" end="23.734" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="19.77" end="23.734" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="23.734" end="25.583" txVNS="&#x427;&#x438;&#x43F;&#x43A;&#x430;&#x304;&#x440; &#x434;&#x43E; &#x44D;&#x442;&#x43E;&#x433;&#x43E; &#x433;&#x438;&#x440;&#x43A;&#x443;&#x438;&#x448;&#x430;&#x304;&#x442;&#x44B;&#x43D;." ftVNS="The wolves had been coming before." VNS="&#x10D;ipk&#x101;r" psVNS="n">0005_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="23.734" end="24.114" dorecombalgnVNS="****" glVNS="&#x432;&#x43E;&#x43B;&#x43A;" VNS="tS">&#x10D;ipk&#x101;</u>
+<u tier="ph@VNS" start="23.784" end="23.824">i</u>
+<u tier="ph@VNS" start="23.824" end="23.934">p</u>
+<u tier="ph@VNS" start="23.934" end="23.974">k</u>
+<u tier="ph@VNS" start="23.974" end="24.114">a:</u>
+<u tier="mb@VNS" start="24.114" end="24.183" dorecombalgnVNS="****" glVNS="PL" VNS="r">-r</u>
+<u tier="wd@VNS" start="24.183" end="24.322" psVNS="RUS" VNS="da" dorecombalgnVNS="****" glVNS="&#x434;&#x43E;">da</u>
+<u tier="ph@VNS" start="24.183" end="24.263">d</u>
+<u tier="ph@VNS" start="24.263" end="24.322">a</u>
+<u tier="wd@VNS" start="24.322" end="24.674" psVNS="RUS" VNS="&#x259;tawa" dorecombalgnVNS="****" glVNS="&#x44D;&#x442;&#x43E;&#x433;&#x43E;">&#x259;tawa</u>
+<u tier="ph@VNS" start="24.322" end="24.412">@</u>
+<u tier="ph@VNS" start="24.412" end="24.552">t</u>
+<u tier="ph@VNS" start="24.552" end="24.582">a</u>
+<u tier="ph@VNS" start="24.582" end="24.632">w</u>
+<u tier="ph@VNS" start="24.632" end="24.674">a</u>
+<u tier="wd@VNS" start="24.674" end="25.583" psVNS="v" VNS="girku" dorecombalgnVNS="****" glVNS="&#x445;&#x43E;&#x434;&#x438;&#x442;&#x44C;">girkuji&#x161;&#x101;tin</u>
+<u tier="ph@VNS" start="24.674" end="24.764">g</u>
+<u tier="ph@VNS" start="24.764" end="24.814">i</u>
+<u tier="ph@VNS" start="24.814" end="24.854">r</u>
+<u tier="ph@VNS" start="24.854" end="24.994">k</u>
+<u tier="ph@VNS" start="24.994" end="25.044">u</u>
+<u tier="mb@VNS" start="25.044" end="25.164" dorecombalgnVNS="****" glVNS="IPFV" VNS="j">-ji</u>
+<u tier="ph@VNS" start="25.074" end="25.164">i</u>
+<u tier="mb@VNS" start="25.164" end="25.344" dorecombalgnVNS="****" glVNS="PST" VNS="S">-&#x161;&#x101;</u>
+<u tier="ph@VNS" start="25.234" end="25.344">a:</u>
+<u tier="mb@VNS" start="25.344" end="25.583" glVNS="3PL" dorecombalgnVNS="****" VNS="t">-tin</u>
+<u tier="ph@VNS" start="25.504" end="25.534">i</u>
+<u tier="ph@VNS" start="25.534" end="25.583">n</u>
+<u tier="ref@VNS" start="25.583" end="26.052" txVNS="&lt;p:&gt;" ftVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="25.583" end="26.052" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="26.052" end="27.079" txVNS="&#x423;&#x434;&#x44F;&#x43B;&#x442;&#x44B;&#x43D; &#x431;&#x438;&#x447;&#x43E;&#x304;&#x442;&#x44B;&#x43D;." ftVNS="There were traces of them." VNS="u&#x10F;altin" psVNS="n">0006_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="26.052" end="26.222" glVNS="&#x441;&#x43B;&#x435;&#x434;" dorecombalgnVNS="****" VNS="u">u&#x10F;a</u>
+<u tier="ph@VNS" start="26.102" end="26.192">d_j</u>
+<u tier="ph@VNS" start="26.192" end="26.222">a</u>
+<u tier="mb@VNS" start="26.222" end="26.252" glVNS="PL" dorecombalgnVNS="****" VNS="l">-l</u>
+<u tier="mb@VNS" start="26.252" end="26.449" dorecombalgnVNS="****" glVNS="PS3PL" VNS="t">-tin</u>
+<u tier="ph@VNS" start="26.362" end="26.402">i</u>
+<u tier="ph@VNS" start="26.402" end="26.449">n</u>
+<u tier="wd@VNS" start="26.449" end="27.079" psVNS="v" VNS="bi" dorecombalgnVNS="****" glVNS="&#x431;&#x44B;&#x442;&#x44C;">bi&#x10D;&#x14D;tin</u>
+<u tier="ph@VNS" start="26.449" end="26.479">b</u>
+<u tier="ph@VNS" start="26.479" end="26.579">i</u>
+<u tier="mb@VNS" start="26.579" end="26.789" dorecombalgnVNS="****" glVNS="PST" VNS="tS">-&#x10D;&#x14D;</u>
+<u tier="ph@VNS" start="26.719" end="26.789">o:</u>
+<u tier="mb@VNS" start="26.789" end="27.079" glVNS="PS3PL" dorecombalgnVNS="****" VNS="t">-tin</u>
+<u tier="ph@VNS" start="26.969" end="27.039">i</u>
+<u tier="ph@VNS" start="27.039" end="27.079">n</u>
+<u tier="ref@VNS" start="27.079" end="31.086" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="27.079" end="31.086" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="31.086" end="35.146" txVNS="&#x413;&#x443;&#x43B;&#x44D;&#x43B;&#x434;&#x4EF;, &#x442;&#x430;&#x43C; &#x43E;&#x304;&#x43A;&#x4E3; &#x2014; &#x442;&#x440;&#x438;, &#x438;&#x43B;&#x430;&#x43B;&#x434;&#x430;&#x432;&#x430; &#x431;&#x438;&#x447;&#x43E;&#x304;&#x432;&#x443;&#x43D;." ftVNS="In the settlement, there how many &#x2014; three, three days we were there." VNS="gul&#x259;ld&#x16B;" psVNS="n">0007_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="31.086" end="31.386" glVNS="&#x434;&#x435;&#x440;&#x435;&#x432;&#x44F;&#x43D;&#x43D;&#x44B;&#x439;.&#x434;&#x43E;&#x43C;" dorecombalgnVNS="****" VNS="g">gul&#x259;</u>
+<u tier="ph@VNS" start="31.116" end="31.326">u</u>
+<u tier="ph@VNS" start="31.326" end="31.356">l</u>
+<u tier="ph@VNS" start="31.356" end="31.386">@</u>
+<u tier="mb@VNS" start="31.386" end="31.436" dorecombalgnVNS="****" glVNS="PL" VNS="l">-l</u>
+<u tier="mb@VNS" start="31.436" end="31.529" glVNS="DATLOC" dorecombalgnVNS="****" VNS="d">-d&#x16B;</u>
+<u tier="ph@VNS" start="31.476" end="31.529">u:</u>
+<u tier="wd@VNS" start="31.529" end="31.779" psVNS="adv" VNS="tam" dorecombalgnVNS="****" glVNS="&#x442;&#x430;&#x43C;">tam</u>
+<u tier="ph@VNS" start="31.529" end="31.609">t</u>
+<u tier="ph@VNS" start="31.609" end="31.669">a</u>
+<u tier="ph@VNS" start="31.669" end="31.779">m</u>
+<u tier="wd@VNS" start="31.779" end="32.092" psVNS="adv" VNS="&#x14D;k&#x12B;" dorecombalgnVNS="****" glVNS="&#x441;&#x43A;&#x43E;&#x43B;&#x44C;&#x43A;&#x43E;">&#x14D;k&#x12B;</u>
+<u tier="ph@VNS" start="31.779" end="31.829">o:</u>
+<u tier="ph@VNS" start="31.829" end="32.009">k</u>
+<u tier="ph@VNS" start="32.009" end="32.092">i:</u>
+<u tier="wd@VNS" start="32.092" end="33.601" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="32.092" end="33.601">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="33.601" end="33.813" psVNS="num" VNS="tri" dorecombalgnVNS="****" glVNS="&#x442;&#x440;&#x438;">tri</u>
+<u tier="ph@VNS" start="33.601" end="33.671">t</u>
+<u tier="ph@VNS" start="33.671" end="33.701">r</u>
+<u tier="ph@VNS" start="33.701" end="33.813">i</u>
+<u tier="wd@VNS" start="33.813" end="34.088" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="33.813" end="34.088">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="34.088" end="34.669" psVNS="n" VNS="ila" glVNS="&#x442;&#x440;&#x438;" dorecombalgnVNS="****">ilaldawa</u>
+<u tier="ph@VNS" start="34.088" end="34.198">i</u>
+<u tier="ph@VNS" start="34.198" end="34.298">l</u>
+<u tier="ph@VNS" start="34.298" end="34.368">a</u>
+<u tier="mb@VNS" start="34.368" end="34.538" dorecombalgnVNS="****" glVNS="NMLZ.SET" VNS="l">-lda</u>
+<u tier="ph@VNS" start="34.428" end="34.498">d</u>
+<u tier="ph@VNS" start="34.498" end="34.538">a</u>
+<u tier="mb@VNS" start="34.538" end="34.669" dorecombalgnVNS="****" glVNS="ACC" VNS="w">-wa</u>
+<u tier="ph@VNS" start="34.628" end="34.669">a</u>
+<u tier="wd@VNS" start="34.669" end="35.146" psVNS="v" VNS="bi" dorecombalgnVNS="****" glVNS="&#x431;&#x44B;&#x442;&#x44C;">bi&#x10D;&#x14D;wun</u>
+<u tier="ph@VNS" start="34.669" end="34.749">b</u>
+<u tier="ph@VNS" start="34.749" end="34.799">i</u>
+<u tier="mb@VNS" start="34.799" end="34.949" glVNS="PST" dorecombalgnVNS="****" VNS="tS">-&#x10D;&#x14D;</u>
+<u tier="ph@VNS" start="34.919" end="34.949">o:</u>
+<u tier="mb@VNS" start="34.949" end="35.146" glVNS="1PL(EXCL)" dorecombalgnVNS="****" VNS="w">-wun</u>
+<u tier="ph@VNS" start="34.979" end="35.059">u</u>
+<u tier="ph@VNS" start="35.059" end="35.146">n</u>
+<u tier="ref@VNS" start="35.146" end="36.319" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="35.146" end="36.319" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="36.319" end="36.489" txVNS="****" ftVNS="****" VNS="&lt;&lt;fm&gt;&gt;" psVNS="****">0008_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="36.319" end="36.489" glVNS="****" dorecombalgnVNS="****" VNS="&lt;&lt;fm&gt;&gt;">****</u>
+<u tier="ref@VNS" start="36.489" end="37.589" txVNS="&#x41F;&#x43E;&#x442;&#x43E;&#x43C; &#x432;&#x435;&#x440;&#x442;&#x43E;&#x43B;&#x435;&#x442;&#x44B;&#x442; &#x434;&#x44D;&#x433;&#x440;&#x44D;&#x432;&#x443;&#x43D;." ftVNS="Then we arrived by helicopter." VNS="wirto&#x13E;otit" psVNS="n">0009_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="36.489" end="37.029" dorecombalgnVNS="****" glVNS="&#x432;&#x435;&#x440;&#x442;&#x43E;&#x43B;&#x435;&#x442;" VNS="w">wirto&#x13E;oti</u>
+<u tier="ph@VNS" start="36.519" end="36.559">i</u>
+<u tier="ph@VNS" start="36.559" end="36.589">r</u>
+<u tier="ph@VNS" start="36.589" end="36.649">t</u>
+<u tier="ph@VNS" start="36.649" end="36.719">o</u>
+<u tier="ph@VNS" start="36.719" end="36.779">l_j</u>
+<u tier="ph@VNS" start="36.779" end="36.859">o</u>
+<u tier="ph@VNS" start="36.859" end="36.929">t</u>
+<u tier="ph@VNS" start="36.929" end="37.029">i</u>
+<u tier="mb@VNS" start="37.029" end="37.087" dorecombalgnVNS="****" glVNS="INSTR" VNS="t">-t</u>
+<u tier="wd@VNS" start="37.087" end="37.589" psVNS="v" VNS="d&#x259;&#x3B3;i" dorecombalgnVNS="****" glVNS="&#x43F;&#x440;&#x438;&#x43B;&#x435;&#x442;&#x435;&#x442;&#x44C;">d&#x259;&#x3B3;r&#x259;wun</u>
+<u tier="ph@VNS" start="37.087" end="37.137">d</u>
+<u tier="ph@VNS" start="37.137" end="37.197">@</u>
+<u tier="ph@VNS" start="37.197" end="37.247">G</u>
+<u tier="mb@VNS" start="37.247" end="37.327" dorecombalgnVNS="****" glVNS="NFUT" VNS="r">-r&#x259;</u>
+<u tier="ph@VNS" start="37.297" end="37.327">@</u>
+<u tier="mb@VNS" start="37.327" end="37.589" dorecombalgnVNS="****" glVNS="1PL(EXCL)" VNS="w">-wun</u>
+<u tier="ph@VNS" start="37.357" end="37.437">u</u>
+<u tier="ph@VNS" start="37.437" end="37.589">n</u>
+<u tier="ref@VNS" start="37.589" end="39.053" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="37.589" end="39.053" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="39.053" end="41.89" ftVNS="There were no children in the chum." txVNS="&#x41A;&#x443;&#x4C8;&#x430;&#x43A;&#x430;&#x440; h&#x430;&#x44F;&#x43B;&#x44D; &#x434;&#x44E;&#x434;&#x4EF;&#x432;&#x44D;&#x440;." VNS="ku&#x14B;akar" psVNS="n">0010_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="39.053" end="39.403" dorecombalgnVNS="****" glVNS="&#x440;&#x435;&#x431;&#x435;&#x43D;&#x43E;&#x43A;" VNS="k">ku&#x14B;aka</u>
+<u tier="ph@VNS" start="39.083" end="39.183">u</u>
+<u tier="ph@VNS" start="39.183" end="39.213">N</u>
+<u tier="ph@VNS" start="39.213" end="39.243">a</u>
+<u tier="ph@VNS" start="39.243" end="39.363">k</u>
+<u tier="ph@VNS" start="39.363" end="39.403">a</u>
+<u tier="mb@VNS" start="39.403" end="39.443" dorecombalgnVNS="****" glVNS="PL" VNS="r">-r</u>
+<u tier="wd@VNS" start="39.443" end="39.798" psVNS="adj" VNS="hajal&#x259;" dorecombalgnVNS="****" glVNS="&#x43E;&#x442;&#x441;&#x443;&#x442;&#x441;&#x442;&#x432;&#x443;&#x44E;&#x449;&#x438;&#x439;">hajal&#x259;</u>
+<u tier="ph@VNS" start="39.443" end="39.493">h</u>
+<u tier="ph@VNS" start="39.493" end="39.553">a</u>
+<u tier="ph@VNS" start="39.553" end="39.673">j</u>
+<u tier="ph@VNS" start="39.673" end="39.703">a</u>
+<u tier="ph@VNS" start="39.703" end="39.733">l</u>
+<u tier="ph@VNS" start="39.733" end="39.798">@</u>
+<u tier="wd@VNS" start="39.798" end="41.293" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="39.798" end="41.293">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="41.293" end="41.89" psVNS="n" VNS="&#x10F;&#x16B;" glVNS="&#x434;&#x43E;&#x43C;.&#x447;&#x443;&#x43C;" dorecombalgnVNS="****">&#x10F;&#x16B;d&#x16B;w&#x259;r</u>
+<u tier="ph@VNS" start="41.293" end="41.403">d_j</u>
+<u tier="ph@VNS" start="41.403" end="41.443">u:</u>
+<u tier="mb@VNS" start="41.443" end="41.643" glVNS="DATLOC" dorecombalgnVNS="****" VNS="d">-d&#x16B;</u>
+<u tier="ph@VNS" start="41.573" end="41.643">u:</u>
+<u tier="mb@VNS" start="41.643" end="41.89" dorecombalgnVNS="****" glVNS="ACC.RFL.PL" VNS="w">-w&#x259;r</u>
+<u tier="ph@VNS" start="41.713" end="41.753">@</u>
+<u tier="ph@VNS" start="41.753" end="41.89">r</u>
+<u tier="ref@VNS" start="41.89" end="42.647" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="41.89" end="42.647" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="42.647" end="44.041" ftVNS="My dog [was lying there]." txVNS="&#x4C7;&#x438;&#x43D;&#x430;&#x43A;&#x438;&#x43D;&#x43C;&#x438; h&#x443;&#x43A;&#x443;&#x43B;&#x44D;&#x304;..." VNS="&#x14B;inakinmi" psVNS="n">0011_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="42.647" end="43.217" dorecombalgnVNS="****" glVNS="&#x441;&#x43E;&#x431;&#x430;&#x43A;&#x430;" VNS="N">&#x14B;inakin</u>
+<u tier="ph@VNS" start="42.677" end="42.787">i</u>
+<u tier="ph@VNS" start="42.787" end="42.857">n</u>
+<u tier="ph@VNS" start="42.857" end="42.887">a</u>
+<u tier="ph@VNS" start="42.887" end="43.007">k</u>
+<u tier="ph@VNS" start="43.007" end="43.077">i</u>
+<u tier="ph@VNS" start="43.077" end="43.217">n</u>
+<u tier="mb@VNS" start="43.217" end="43.296" dorecombalgnVNS="****" glVNS="PS1SG" VNS="m">-mi</u>
+<u tier="ph@VNS" start="43.247" end="43.296">i</u>
+<u tier="wd@VNS" start="43.296" end="43.753" psVNS="SLIP" VNS="hukul&#x259;&#x304;" dorecombalgnVNS="****" glVNS="&#x43B;&#x435;&#x447;&#x44C;.SLIP">&lt;&lt;fs&gt;hukul&#x259;&#x304;&gt;</u>
+<u tier="ph@VNS" start="43.296" end="43.753">&lt;&lt;fs&gt;hukul&#x259;&#x304;&gt;</u>
+<u tier="wd@VNS" start="43.753" end="44.041" psVNS="SLIP" VNS="&#x259;ji" dorecombalgnVNS="****" glVNS="SLIP">&lt;&lt;fs&gt;&#x259;ji&gt;</u>
+<u tier="ph@VNS" start="43.753" end="44.041">&lt;&lt;fs&gt;&#x259;ji&gt;</u>
+<u tier="ref@VNS" start="44.041" end="46.705" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="44.041" end="46.705" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="46.705" end="47.975" ftVNS="I came over there." txVNS="&#x42D;&#x442;&#x438;&#x43A;&#x443;&#x43D;&#x43A;&#x430; &#x44D;&#x43C;&#x44D;&#x447;&#x43E; &#x442;&#x430;&#x434;&#x4EF;." VNS="&#x259;&#x165;ikunka" psVNS="****">0012_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="46.705" end="47.235" dorecombalgnVNS="****" glVNS="****" VNS="@">&#x259;&#x165;ikunka</u>
+<u tier="ph@VNS" start="46.735" end="46.765">t_j</u>
+<u tier="ph@VNS" start="46.765" end="46.855">i</u>
+<u tier="ph@VNS" start="46.855" end="47.005">k</u>
+<u tier="ph@VNS" start="47.005" end="47.035">u</u>
+<u tier="ph@VNS" start="47.035" end="47.095">n</u>
+<u tier="ph@VNS" start="47.095" end="47.195">k</u>
+<u tier="ph@VNS" start="47.195" end="47.235">a</u>
+<u tier="wd@VNS" start="47.235" end="47.565" psVNS="v" VNS="&#x259;m&#x259;" dorecombalgnVNS="****" glVNS="&#x43F;&#x440;&#x438;&#x439;&#x442;&#x438;">&#x259;m&#x259;&#x10D;o</u>
+<u tier="ph@VNS" start="47.235" end="47.265">@</u>
+<u tier="ph@VNS" start="47.265" end="47.325">m</u>
+<u tier="ph@VNS" start="47.325" end="47.355">@</u>
+<u tier="mb@VNS" start="47.355" end="47.565" glVNS="PANT" dorecombalgnVNS="****" VNS="tS">-&#x10D;o</u>
+<u tier="ph@VNS" start="47.515" end="47.565">o</u>
+<u tier="wd@VNS" start="47.565" end="47.975" psVNS="adv" VNS="tad&#x16B;" glVNS="&#x442;&#x430;&#x43C;" dorecombalgnVNS="****">tad&#x16B;</u>
+<u tier="ph@VNS" start="47.565" end="47.665">t</u>
+<u tier="ph@VNS" start="47.665" end="47.725">a</u>
+<u tier="ph@VNS" start="47.725" end="47.795">d</u>
+<u tier="ph@VNS" start="47.795" end="47.975">u:</u>
+<u tier="ref@VNS" start="47.975" end="48.063" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="47.975" end="48.063" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="48.063" end="48.168" ftVNS="****" txVNS="****" VNS="&lt;&lt;fs&gt;&gt;" psVNS="****">0013_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="48.063" end="48.168" glVNS="****" dorecombalgnVNS="****" VNS="&lt;&lt;fs&gt;&gt;">****</u>
+<u tier="ref@VNS" start="48.168" end="50.297" txVNS="&#x2014; h&#x430;&#x442;&#x430;, &#x2014; &#x433;&#x443;&#x43D;&#x434;&#x435;&#x43C;, &#x2014; &#x432;&#x435;&#x440;&#x442;&#x43E;&#x43B;&#x435;&#x442;&#x442;&#x443;&#x43B;&#x430;&#x304; &#x44D;&#x434;&#x430;&#x304;&#x438; &#x44D;&#x447;&#x44D; &#x44D;&#x43C;&#x44D;&#x440;&#x44D;?" ftVNS="&#x201C;Well&#x201D;, I thought, &#x201C;why didn't [the dog] come to the helicopter?&#x201D;" VNS="hata" psVNS="interj">0014_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="48.168" end="48.458" glVNS="&#x432;&#x435;&#x440;&#x43E;&#x44F;&#x442;&#x43D;&#x43E;" dorecombalgnVNS="****" VNS="h">hata</u>
+<u tier="ph@VNS" start="48.258" end="48.328">a</u>
+<u tier="ph@VNS" start="48.328" end="48.408">t</u>
+<u tier="ph@VNS" start="48.408" end="48.458">a</u>
+<u tier="wd@VNS" start="48.458" end="48.768" psVNS="v" VNS="gun" dorecombalgnVNS="****" glVNS="&#x441;&#x43A;&#x430;&#x437;&#x430;&#x442;&#x44C;">gun&#x10F;&#x259;m</u>
+<u tier="ph@VNS" start="48.458" end="48.488">g</u>
+<u tier="ph@VNS" start="48.488" end="48.568">u</u>
+<u tier="ph@VNS" start="48.568" end="48.638">n</u>
+<u tier="mb@VNS" start="48.638" end="48.718" glVNS="IPFV" dorecombalgnVNS="****" VNS="d_j">-&#x10F;&#x259;</u>
+<u tier="ph@VNS" start="48.688" end="48.718">@</u>
+<u tier="mb@VNS" start="48.718" end="48.768" glVNS="1SG" dorecombalgnVNS="****" VNS="m">-m</u>
+<u tier="wd@VNS" start="48.768" end="49.468" psVNS="n" VNS="wirto&#x13E;ot" glVNS="&#x432;&#x435;&#x440;&#x442;&#x43E;&#x43B;&#x435;&#x442;" dorecombalgnVNS="****">wirto&#x13E;ottul&#x101;</u>
+<u tier="ph@VNS" start="48.768" end="48.798">w</u>
+<u tier="ph@VNS" start="48.798" end="48.848">i</u>
+<u tier="ph@VNS" start="48.848" end="48.878">r</u>
+<u tier="ph@VNS" start="48.878" end="48.968">t</u>
+<u tier="ph@VNS" start="48.968" end="49.008">o</u>
+<u tier="ph@VNS" start="49.008" end="49.058">l_j</u>
+<u tier="ph@VNS" start="49.058" end="49.128">o</u>
+<u tier="ph@VNS" start="49.128" end="49.238">t</u>
+<u tier="mb@VNS" start="49.238" end="49.468" glVNS="LOCALL" dorecombalgnVNS="****" VNS="t">-tul&#x101;</u>
+<u tier="ph@VNS" start="49.278" end="49.388">u</u>
+<u tier="ph@VNS" start="49.388" end="49.418">l</u>
+<u tier="ph@VNS" start="49.418" end="49.468">a:</u>
+<u tier="wd@VNS" start="49.468" end="49.8" psVNS="v" VNS="&#x259;" dorecombalgnVNS="****" glVNS="&#x447;&#x442;&#x43E;">&#x259;d&#x101;ji</u>
+<u tier="ph@VNS" start="49.468" end="49.518">@</u>
+<u tier="mb@VNS" start="49.518" end="49.658" glVNS="CVPURP" dorecombalgnVNS="****" VNS="d">-d&#x101;</u>
+<u tier="ph@VNS" start="49.628" end="49.658">a:</u>
+<u tier="mb@VNS" start="49.658" end="49.8" glVNS="RFL" dorecombalgnVNS="****" VNS="j">-ji</u>
+<u tier="ph@VNS" start="49.688" end="49.8">i</u>
+<u tier="wd@VNS" start="49.8" end="50.038" psVNS="v" VNS="&#x259;" dorecombalgnVNS="****" glVNS="NEG">&#x259;&#x10D;&#x259;</u>
+<u tier="ph@VNS" start="49.8" end="49.83">@</u>
+<u tier="mb@VNS" start="49.83" end="50.038" dorecombalgnVNS="****" glVNS="PANT" VNS="tS">-&#x10D;&#x259;</u>
+<u tier="ph@VNS" start="49.99" end="50.038">@</u>
+<u tier="wd@VNS" start="50.038" end="50.297" psVNS="v" VNS="&#x259;m&#x259;" dorecombalgnVNS="****" glVNS="&#x43F;&#x440;&#x438;&#x439;&#x442;&#x438;">&#x259;m&#x259;r&#x259;</u>
+<u tier="ph@VNS" start="50.038" end="50.068">@</u>
+<u tier="ph@VNS" start="50.068" end="50.168">m</u>
+<u tier="ph@VNS" start="50.168" end="50.198">@</u>
+<u tier="mb@VNS" start="50.198" end="50.297" dorecombalgnVNS="****" glVNS="PNEG" VNS="r">-r&#x259;</u>
+<u tier="ph@VNS" start="50.238" end="50.297">@</u>
+<u tier="ref@VNS" start="50.297" end="53.46" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="50.297" end="53.46" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="53.46" end="54.128" ftVNS="****" txVNS="****" VNS="&lt;&lt;fm&gt;&gt;" psVNS="****">0015_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="53.46" end="53.718" dorecombalgnVNS="****" glVNS="****" VNS="&lt;&lt;fm&gt;&gt;">****</u>
+<u tier="wd@VNS" start="53.718" end="54.128" psVNS="****" VNS="****" dorecombalgnVNS="****" glVNS="****">&lt;&lt;fm&gt;&gt;</u>
+<u tier="ph@VNS" start="53.718" end="54.128">&lt;&lt;fm&gt;&gt;</u>
+<u tier="ref@VNS" start="54.128" end="58.003" ftVNS="Then, when the helicopter flew away, I went &#x2014; next to the lean-to, by the lean-to [the dog] was lying." txVNS="&#x41F;&#x43E;&#x442;&#x43E;&#x43C;, &#x432;&#x435;&#x440;&#x442;&#x43E;&#x43B;&#x435;&#x442; &#x434;&#x44D;&#x433;&#x438;&#x43B;&#x447;&#x430;&#x43B;&#x430;&#x43D;, h&#x443;&#x440;&#x443;&#x43C; &#x2014; &#x43D;&#x44D;&#x304;&#x43A;&#x443;, &#x43D;&#x44D;&#x304;&#x43A;&#x443; &#x434;&#x430;&#x433;&#x438;&#x43D; h&#x443;&#x43A;&#x443;&#x43B;&#x44D;&#x304;&#x434;&#x438;&#x440;&#x44D;&#x43D;." VNS="d&#x259;&#x3B3;il&#x10D;alan" psVNS="v">0016_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="54.128" end="54.318" glVNS="&#x43F;&#x440;&#x438;&#x43B;&#x435;&#x442;&#x435;&#x442;&#x44C;" dorecombalgnVNS="****" VNS="d">d&#x259;&#x3B3;i</u>
+<u tier="ph@VNS" start="54.178" end="54.208">@</u>
+<u tier="ph@VNS" start="54.208" end="54.238">G</u>
+<u tier="ph@VNS" start="54.238" end="54.318">i</u>
+<u tier="mb@VNS" start="54.318" end="54.348" glVNS="INCH" dorecombalgnVNS="****" VNS="l">-l</u>
+<u tier="mb@VNS" start="54.348" end="54.658" glVNS="CVANT" dorecombalgnVNS="****" VNS="tS">-&#x10D;ala</u>
+<u tier="ph@VNS" start="54.488" end="54.518">a</u>
+<u tier="ph@VNS" start="54.518" end="54.618">l</u>
+<u tier="ph@VNS" start="54.618" end="54.658">a</u>
+<u tier="mb@VNS" start="54.658" end="54.85" glVNS="3SG" dorecombalgnVNS="****" VNS="n">-n</u>
+<u tier="wd@VNS" start="54.85" end="55.248" psVNS="v" VNS="huru" dorecombalgnVNS="****" glVNS="&#x43F;&#x43E;&#x439;&#x442;&#x438;">hurum</u>
+<u tier="ph@VNS" start="54.85" end="54.88">h</u>
+<u tier="ph@VNS" start="54.88" end="54.93">u</u>
+<u tier="ph@VNS" start="54.93" end="54.97">r</u>
+<u tier="ph@VNS" start="54.97" end="55.13">u</u>
+<u tier="mb@VNS" start="55.13" end="55.248" glVNS="1SG" dorecombalgnVNS="****" VNS="m">-m</u>
+<u tier="wd@VNS" start="55.248" end="55.606" psVNS="n" VNS="n&#x259;&#x304;ku" glVNS="&#x43B;&#x430;&#x431;&#x430;&#x437;" dorecombalgnVNS="****">n&#x259;&#x304;ku</u>
+<u tier="ph@VNS" start="55.248" end="55.368">n</u>
+<u tier="ph@VNS" start="55.368" end="55.398">@:</u>
+<u tier="ph@VNS" start="55.398" end="55.528">k</u>
+<u tier="ph@VNS" start="55.528" end="55.606">u</u>
+<u tier="wd@VNS" start="55.606" end="55.817" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="55.606" end="55.817">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="55.817" end="56.158" psVNS="n" VNS="n&#x259;&#x304;ku" glVNS="&#x43B;&#x430;&#x431;&#x430;&#x437;" dorecombalgnVNS="****">n&#x259;&#x304;ku</u>
+<u tier="ph@VNS" start="55.817" end="55.927">n</u>
+<u tier="ph@VNS" start="55.927" end="55.957">@:</u>
+<u tier="ph@VNS" start="55.957" end="56.077">k</u>
+<u tier="ph@VNS" start="56.077" end="56.158">u</u>
+<u tier="wd@VNS" start="56.158" end="56.482" psVNS="adv" VNS="da&#x3B3;i" glVNS="&#x440;&#x44F;&#x434;&#x43E;&#x43C;" dorecombalgnVNS="****">da&#x3B3;in</u>
+<u tier="ph@VNS" start="56.158" end="56.218">d</u>
+<u tier="ph@VNS" start="56.218" end="56.248">a</u>
+<u tier="ph@VNS" start="56.248" end="56.278">G</u>
+<u tier="ph@VNS" start="56.278" end="56.388">i</u>
+<u tier="mb@VNS" start="56.388" end="56.482" dorecombalgnVNS="****" glVNS="PS3SG" VNS="n">-n</u>
+<u tier="wd@VNS" start="56.482" end="56.613" psVNS="****" VNS="****" glVNS="****" dorecombalgnVNS="****">&lt;&lt;fs&gt;&gt;</u>
+<u tier="ph@VNS" start="56.482" end="56.613">&lt;&lt;fs&gt;&gt;</u>
+<u tier="wd@VNS" start="56.613" end="57.454" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="56.613" end="57.454">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="57.454" end="58.003" psVNS="v" VNS="hukul&#x259;&#x304;" dorecombalgnVNS="****" glVNS="&#x43B;&#x435;&#x447;&#x44C;">hukul&#x259;&#x304;&#x10F;ir</u>
+<u tier="ph@VNS" start="57.454" end="57.484">h</u>
+<u tier="ph@VNS" start="57.484" end="57.514">u</u>
+<u tier="ph@VNS" start="57.514" end="57.574">k</u>
+<u tier="ph@VNS" start="57.574" end="57.764">u</u>
+<u tier="ph@VNS" start="57.764" end="57.794">l</u>
+<u tier="ph@VNS" start="57.794" end="57.824">@:</u>
+<u tier="mb@VNS" start="57.824" end="57.954" glVNS="IPFV" dorecombalgnVNS="****" VNS="d_j">-&#x10F;i</u>
+<u tier="ph@VNS" start="57.854" end="57.954">i</u>
+<u tier="mb@VNS" start="57.954" end="58.003" glVNS="NFUT" dorecombalgnVNS="****" VNS="r">-r&#x259;</u>
+<u tier="ref@VNS" start="58.003" end="58.705" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="58.003" end="58.705" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="58.705" end="59.555" txVNS="h&#x443;&#x440;&#x443;&#x43C; &#x438;&#x447;&#x44D;&#x442;&#x43D;&#x43E;&#x304;&#x43C;." ftVNS="I went, went to look." VNS="hurum" psVNS="v">0017_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="58.705" end="58.955" glVNS="&#x43F;&#x43E;&#x439;&#x442;&#x438;" dorecombalgnVNS="****" VNS="h">huru</u>
+<u tier="ph@VNS" start="58.735" end="58.805">u</u>
+<u tier="ph@VNS" start="58.805" end="58.835">r</u>
+<u tier="ph@VNS" start="58.835" end="58.955">u</u>
+<u tier="mb@VNS" start="58.955" end="58.995" glVNS="1SG" dorecombalgnVNS="****" VNS="m">-m</u>
+<u tier="wd@VNS" start="58.995" end="59.555" psVNS="v" VNS="i&#x10D;&#x259;" glVNS="&#x443;&#x432;&#x438;&#x434;&#x435;&#x442;&#x44C;" dorecombalgnVNS="****">i&#x10D;&#x259;tn&#x14D;m</u>
+<u tier="ph@VNS" start="58.995" end="59.195">i</u>
+<u tier="ph@VNS" start="59.195" end="59.265">tS</u>
+<u tier="ph@VNS" start="59.265" end="59.295">@</u>
+<u tier="mb@VNS" start="59.295" end="59.325" glVNS="DUR" dorecombalgnVNS="****" VNS="t">-t</u>
+<u tier="mb@VNS" start="59.325" end="59.445" dorecombalgnVNS="****" glVNS="PRGRN" VNS="n">-n&#x14D;</u>
+<u tier="ph@VNS" start="59.355" end="59.445">o:</u>
+<u tier="mb@VNS" start="59.445" end="59.555" dorecombalgnVNS="****" glVNS="1SG" VNS="m">-m</u>
+<u tier="ref@VNS" start="59.555" end="62.476" txVNS="&lt;p:&gt;" ftVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="59.555" end="62.476" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="62.476" end="63.278" txVNS="&#x41A;&#x438;&#x43A;&#x438;&#x43F;&#x447;&#x430;." ftVNS="It was bitten." VNS="kikip&#x10D;a" psVNS="v">0018_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="62.476" end="62.826" glVNS="&#x443;&#x43A;&#x443;&#x441;&#x438;&#x442;&#x44C;" dorecombalgnVNS="****" VNS="k">kiki</u>
+<u tier="ph@VNS" start="62.536" end="62.646">i</u>
+<u tier="ph@VNS" start="62.646" end="62.696">k</u>
+<u tier="ph@VNS" start="62.696" end="62.826">i</u>
+<u tier="mb@VNS" start="62.826" end="63.016" glVNS="PASS" dorecombalgnVNS="****" VNS="p">-p</u>
+<u tier="mb@VNS" start="63.016" end="63.278" dorecombalgnVNS="****" glVNS="PANT" VNS="tS">-&#x10D;a</u>
+<u tier="ph@VNS" start="63.186" end="63.278">a</u>
+<u tier="ref@VNS" start="63.278" end="63.756" txVNS="&lt;p:&gt;" ftVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="63.278" end="63.756" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="63.756" end="64.844" ftVNS="I didn't look at anything on it." txVNS="&#x42D;&#x432;&#x430;&#x43D;&#x434;&#x430; &#x44D;&#x447;&#x44D;&#x304;&#x432; &#x438;&#x447;&#x44D;&#x442;&#x442;&#x44D;." VNS="&#x259;wanda" psVNS="pro">0019_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="63.756" end="63.786" glVNS="&#x447;&#x442;&#x43E;" dorecombalgnVNS="****" VNS="@">&#x259;</u>
+<u tier="mb@VNS" start="63.786" end="63.986" glVNS="ACC" dorecombalgnVNS="****" VNS="w">-wa</u>
+<u tier="ph@VNS" start="63.956" end="63.986">a</u>
+<u tier="mb@VNS" start="63.986" end="64.056" dorecombalgnVNS="****" glVNS="PS3SG" VNS="n">-n</u>
+<u tier="mb@VNS" start="64.056" end="64.131" dorecombalgnVNS="****" glVNS="=FOC" VNS="d">=da</u>
+<u tier="ph@VNS" start="64.086" end="64.131">a</u>
+<u tier="wd@VNS" start="64.131" end="64.341" psVNS="v" VNS="&#x259;" glVNS="NEG" dorecombalgnVNS="****">&#x259;&#x10D;&#x259;&#x304;w</u>
+<u tier="ph@VNS" start="64.131" end="64.161">@</u>
+<u tier="mb@VNS" start="64.161" end="64.301" dorecombalgnVNS="****" glVNS="PST" VNS="tS">-&#x10D;&#x259;&#x304;</u>
+<u tier="ph@VNS" start="64.271" end="64.301">@:</u>
+<u tier="mb@VNS" start="64.301" end="64.341" glVNS="1SG" dorecombalgnVNS="****" VNS="w">-w</u>
+<u tier="wd@VNS" start="64.341" end="64.844" psVNS="v" VNS="i&#x10D;&#x259;" dorecombalgnVNS="****" glVNS="&#x443;&#x432;&#x438;&#x434;&#x435;&#x442;&#x44C;">i&#x10D;&#x259;tt&#x259;</u>
+<u tier="ph@VNS" start="64.341" end="64.401">i</u>
+<u tier="ph@VNS" start="64.401" end="64.521">tS</u>
+<u tier="ph@VNS" start="64.521" end="64.551">@</u>
+<u tier="mb@VNS" start="64.551" end="64.711" dorecombalgnVNS="****" glVNS="DISTR" VNS="t">-t</u>
+<u tier="mb@VNS" start="64.711" end="64.844" glVNS="PNEG" dorecombalgnVNS="****" VNS="t">-t&#x259;</u>
+<u tier="ph@VNS" start="64.761" end="64.844">@</u>
+<u tier="ref@VNS" start="64.844" end="65.23" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="64.844" end="65.23" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="65.23" end="66.23" ftVNS="****" txVNS="****" VNS="&lt;&lt;ui&gt;&gt;" psVNS="****">0020_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="65.23" end="65.925" glVNS="****" dorecombalgnVNS="****" VNS="&lt;&lt;ui&gt;&gt;">****</u>
+<u tier="wd@VNS" start="65.925" end="66.23" psVNS="****" VNS="****" glVNS="****" dorecombalgnVNS="****">&lt;&lt;fm&gt;&gt;</u>
+<u tier="ph@VNS" start="65.925" end="66.23">&lt;&lt;fm&gt;&gt;</u>
+<u tier="ref@VNS" start="66.23" end="67.915" txVNS="&#x112;&#x43A;&#x443;&#x43D;&#x43A;&#x430;, &#x43D;&#x430;&#x432;&#x435;&#x440;&#x43D;&#x43E;&#x435;, &#x4C8;&#x438;&#x43D;&#x430;&#x43A;&#x438;&#x440; &#x43A;&#x438;&#x43A;&#x438;&#x440;&#x43A;&#x430;&#x43B;, &#x43A;&#x443;&#x4E3;&#x43A;&#x43E;&#x304;&#x442;&#x447;&#x44D;&#x43D;&#x44D;&#x43B;." ftVNS="Thing is, probably the dogs had bitten it when they fought." VNS="&#x14B;inakir" psVNS="n">0021_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="66.23" end="66.61" glVNS="&#x441;&#x43E;&#x431;&#x430;&#x43A;&#x430;" dorecombalgnVNS="****" VNS="N">&#x14B;inaki</u>
+<u tier="ph@VNS" start="66.32" end="66.36">i</u>
+<u tier="ph@VNS" start="66.36" end="66.41">n</u>
+<u tier="ph@VNS" start="66.41" end="66.44">a</u>
+<u tier="ph@VNS" start="66.44" end="66.52">k</u>
+<u tier="ph@VNS" start="66.52" end="66.61">i</u>
+<u tier="mb@VNS" start="66.61" end="66.65" glVNS="PL" dorecombalgnVNS="****" VNS="r">-r</u>
+<u tier="wd@VNS" start="66.65" end="67.11" psVNS="v" VNS="kiki" dorecombalgnVNS="****" glVNS="&#x443;&#x43A;&#x443;&#x441;&#x438;&#x442;&#x44C;">kikirkal</u>
+<u tier="ph@VNS" start="66.65" end="66.73">k</u>
+<u tier="ph@VNS" start="66.73" end="66.82">i</u>
+<u tier="ph@VNS" start="66.82" end="66.85">k</u>
+<u tier="ph@VNS" start="66.85" end="66.94">i</u>
+<u tier="mb@VNS" start="66.94" end="67.07" dorecombalgnVNS="****" glVNS="PROB" VNS="r">-rka</u>
+<u tier="ph@VNS" start="66.97" end="67.04">k</u>
+<u tier="ph@VNS" start="67.04" end="67.07">a</u>
+<u tier="mb@VNS" start="67.07" end="67.11" glVNS="3PL" dorecombalgnVNS="****" VNS="l">-l</u>
+<u tier="wd@VNS" start="67.11" end="67.915" psVNS="v" VNS="kuj&#x12B;" dorecombalgnVNS="****" glVNS="&#x43F;&#x43E;&#x434;&#x440;&#x430;&#x442;&#x44C;&#x441;&#x44F;">kuj&#x12B;k&#x14D;t&#x10D;&#x259;n&#x259;l</u>
+<u tier="ph@VNS" start="67.11" end="67.25">k</u>
+<u tier="ph@VNS" start="67.25" end="67.31">u</u>
+<u tier="ph@VNS" start="67.31" end="67.34">j</u>
+<u tier="ph@VNS" start="67.34" end="67.38">i:</u>
+<u tier="mb@VNS" start="67.38" end="67.67" dorecombalgnVNS="****" glVNS="INTS" VNS="k">-k&#x14D;t</u>
+<u tier="ph@VNS" start="67.48" end="67.56">o:</u>
+<u tier="ph@VNS" start="67.56" end="67.67">t</u>
+<u tier="mb@VNS" start="67.67" end="67.8" dorecombalgnVNS="****" glVNS="IPFV" VNS="tS">-&#x10D;&#x259;</u>
+<u tier="ph@VNS" start="67.77" end="67.8">@</u>
+<u tier="mb@VNS" start="67.8" end="67.86" glVNS="CVSIM" dorecombalgnVNS="****" VNS="n">-n&#x259;</u>
+<u tier="ph@VNS" start="67.83" end="67.86">@</u>
+<u tier="mb@VNS" start="67.86" end="67.915" dorecombalgnVNS="****" glVNS="PL" VNS="l">-l</u>
+<u tier="ref@VNS" start="67.915" end="71.47" txVNS="&lt;p:&gt;" ftVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="67.915" end="71.47" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="71.47" end="75.225" ftVNS="At Gosha's place, they probably fought and bit it." txVNS="&#x413;&#x43E;&#x448;&#x430;&#x44F;&#x434;&#x4EF;, &#x43D;&#x430;&#x432;&#x435;&#x440;&#x43D;&#x43E;&#x435;, &#x442;&#x430;&#x434;&#x4EF; &#x43A;&#x443;&#x4E3;&#x43A;&#x43E;&#x304;&#x442;&#x447;&#x44D;&#x440;&#x43A;&#x44D;&#x43B;, &#x43A;&#x438;&#x43A;&#x438;&#x442;&#x447;&#x430;&#x43B;." VNS="go&#x161;ajad" psVNS="n">0022_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="71.47" end="71.77" glVNS="&#x413;&#x43E;&#x448;&#x430;" dorecombalgnVNS="****" VNS="g">go&#x161;a</u>
+<u tier="ph@VNS" start="71.52" end="71.61">o</u>
+<u tier="ph@VNS" start="71.61" end="71.73">S</u>
+<u tier="ph@VNS" start="71.73" end="71.77">a</u>
+<u tier="mb@VNS" start="71.77" end="71.97" glVNS="COLL" dorecombalgnVNS="****" VNS="j">-ja</u>
+<u tier="ph@VNS" start="71.94" end="71.97">a</u>
+<u tier="mb@VNS" start="71.97" end="72.113" glVNS="DATLOC" dorecombalgnVNS="****" VNS="d">-d&#x16B;</u>
+<u tier="wd@VNS" start="72.113" end="72.485" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="72.113" end="72.485">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="72.485" end="72.785" psVNS="adv" VNS="nawerna" glVNS="&#x43D;&#x430;&#x432;&#x435;&#x440;&#x43D;&#x43E;&#x435;" dorecombalgnVNS="****">&lt;&lt;fm&gt;nawerna&gt;</u>
+<u tier="ph@VNS" start="72.485" end="72.785">&lt;&lt;fm&gt;nawerna&gt;</u>
+<u tier="wd@VNS" start="72.785" end="73.114" psVNS="SLIP" VNS="kuji" glVNS="&#x43F;&#x43E;&#x434;&#x440;&#x430;&#x442;&#x44C;&#x441;&#x44F;.SLIP" dorecombalgnVNS="****">&lt;&lt;fs&gt;kuji&gt;</u>
+<u tier="ph@VNS" start="72.785" end="73.114">&lt;&lt;fs&gt;kuji&gt;</u>
+<u tier="wd@VNS" start="73.114" end="73.425" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="73.114" end="73.425">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="73.425" end="73.615" psVNS="adv" VNS="tad&#x16B;" glVNS="&#x442;&#x430;&#x43C;" dorecombalgnVNS="****">tad&#x16B;</u>
+<u tier="ph@VNS" start="73.425" end="73.455">t</u>
+<u tier="ph@VNS" start="73.455" end="73.505">a</u>
+<u tier="ph@VNS" start="73.505" end="73.565">d</u>
+<u tier="ph@VNS" start="73.565" end="73.615">u:</u>
+<u tier="wd@VNS" start="73.615" end="74.37" psVNS="v" VNS="kuj&#x12B;" glVNS="&#x43F;&#x43E;&#x434;&#x440;&#x430;&#x442;&#x44C;&#x441;&#x44F;" dorecombalgnVNS="****">kuj&#x12B;k&#x14D;t&#x10D;&#x259;rk&#x259;l</u>
+<u tier="ph@VNS" start="73.615" end="73.695">k</u>
+<u tier="ph@VNS" start="73.695" end="73.745">u</u>
+<u tier="ph@VNS" start="73.745" end="73.775">j</u>
+<u tier="ph@VNS" start="73.775" end="73.825">i:</u>
+<u tier="mb@VNS" start="73.825" end="74.045" dorecombalgnVNS="****" glVNS="INTS" VNS="k">-k&#x14D;t</u>
+<u tier="ph@VNS" start="73.855" end="73.975">o:</u>
+<u tier="ph@VNS" start="73.975" end="74.045">t</u>
+<u tier="mb@VNS" start="74.045" end="74.225" dorecombalgnVNS="****" glVNS="IPFV" VNS="tS">-&#x10D;&#x259;</u>
+<u tier="ph@VNS" start="74.195" end="74.225">@</u>
+<u tier="mb@VNS" start="74.225" end="74.325" glVNS="PROB" dorecombalgnVNS="****" VNS="r">-rk&#x259;</u>
+<u tier="ph@VNS" start="74.255" end="74.285">k</u>
+<u tier="ph@VNS" start="74.285" end="74.325">@</u>
+<u tier="mb@VNS" start="74.325" end="74.37" glVNS="3PL" dorecombalgnVNS="****" VNS="l">-l</u>
+<u tier="wd@VNS" start="74.37" end="74.565" psVNS="****" VNS="****" glVNS="****" dorecombalgnVNS="****">&lt;&lt;fs&gt;&gt;</u>
+<u tier="ph@VNS" start="74.37" end="74.565">&lt;&lt;fs&gt;&gt;</u>
+<u tier="wd@VNS" start="74.565" end="75.225" psVNS="v" VNS="kiki" dorecombalgnVNS="****" glVNS="&#x443;&#x43A;&#x443;&#x441;&#x438;&#x442;&#x44C;">kikit&#x10D;al</u>
+<u tier="ph@VNS" start="74.565" end="74.595">k</u>
+<u tier="ph@VNS" start="74.595" end="74.665">i</u>
+<u tier="ph@VNS" start="74.665" end="74.835">k</u>
+<u tier="ph@VNS" start="74.835" end="74.915">i</u>
+<u tier="mb@VNS" start="74.915" end="75.065" glVNS="DISTR" dorecombalgnVNS="****" VNS="t">-t</u>
+<u tier="mb@VNS" start="75.065" end="75.185" dorecombalgnVNS="****" glVNS="PANT" VNS="tS">-&#x10D;a</u>
+<u tier="ph@VNS" start="75.155" end="75.185">a</u>
+<u tier="mb@VNS" start="75.185" end="75.225" glVNS="PL" dorecombalgnVNS="****" VNS="l">-l</u>
+<u tier="ref@VNS" start="75.225" end="77.5" txVNS="&lt;p:&gt;" ftVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="75.225" end="77.5" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="77.5" end="84.343" txVNS="&#x41F;&#x43E;&#x442;&#x43E;&#x43C; &#x430;&#x44F;&#x43C;&#x430;&#x43C;&#x430;&#x442;, &#x113;&#x43A;&#x443;&#x43D;&#x43A;&#x430;, &#x434;&#x43E;&#x43B;&#x431;&#x43E;&#x43B;&#x442;&#x43E;&#x43D;&#x43E; &#x438;&#x447;&#x44D;&#x442;&#x447;&#x438;&#x43B;&#x438;&#x43C;." ftVNS="So, then I took a good look at it that night:" VNS="&lt;&lt;fm&gt;potom&gt;" psVNS="adv">0023_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="77.5" end="78.19" glVNS="&#x43F;&#x43E;&#x442;&#x43E;&#x43C;" dorecombalgnVNS="****" VNS="&lt;&lt;fm&gt;potom&gt;">potom</u>
+<u tier="wd@VNS" start="78.19" end="80.74" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="78.19" end="80.74">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="80.74" end="81.328" psVNS="adv" VNS="aja" dorecombalgnVNS="****" glVNS="&#x445;&#x43E;&#x440;&#x43E;&#x448;&#x438;&#x439;">ajamamat</u>
+<u tier="ph@VNS" start="80.74" end="80.8">a</u>
+<u tier="ph@VNS" start="80.8" end="80.89">j</u>
+<u tier="ph@VNS" start="80.89" end="80.92">a</u>
+<u tier="mb@VNS" start="80.92" end="81.22" glVNS="INTS" dorecombalgnVNS="****" VNS="m">-mama</u>
+<u tier="ph@VNS" start="81.02" end="81.05">a</u>
+<u tier="ph@VNS" start="81.05" end="81.17">m</u>
+<u tier="ph@VNS" start="81.17" end="81.22">a</u>
+<u tier="mb@VNS" start="81.22" end="81.328" dorecombalgnVNS="****" glVNS="ADVZ" VNS="t">-t</u>
+<u tier="wd@VNS" start="81.328" end="81.76" psVNS="pro" VNS="&#x113;kun" dorecombalgnVNS="****" glVNS="&#x447;&#x442;&#x43E;">&#x113;kunka</u>
+<u tier="ph@VNS" start="81.328" end="81.438">e:</u>
+<u tier="ph@VNS" start="81.438" end="81.508">k</u>
+<u tier="ph@VNS" start="81.508" end="81.588">u</u>
+<u tier="ph@VNS" start="81.588" end="81.628">n</u>
+<u tier="mb@VNS" start="81.628" end="81.76" dorecombalgnVNS="****" glVNS="=FOC" VNS="k">=ka</u>
+<u tier="ph@VNS" start="81.698" end="81.76">a</u>
+<u tier="wd@VNS" start="81.76" end="82.461" psVNS="adv" VNS="dolboltono" dorecombalgnVNS="****" glVNS="&#x432;&#x435;&#x447;&#x435;&#x440;&#x43E;&#x43C;">dolboltono</u>
+<u tier="ph@VNS" start="81.76" end="81.83">d</u>
+<u tier="ph@VNS" start="81.83" end="81.9">o</u>
+<u tier="ph@VNS" start="81.9" end="81.93">l</u>
+<u tier="ph@VNS" start="81.93" end="82.01">b</u>
+<u tier="ph@VNS" start="82.01" end="82.04">o</u>
+<u tier="ph@VNS" start="82.04" end="82.08">l</u>
+<u tier="ph@VNS" start="82.08" end="82.15">t</u>
+<u tier="ph@VNS" start="82.15" end="82.22">o</u>
+<u tier="ph@VNS" start="82.22" end="82.4">n</u>
+<u tier="ph@VNS" start="82.4" end="82.461">o</u>
+<u tier="wd@VNS" start="82.461" end="83.58" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="82.461" end="83.58">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="83.58" end="84.343" psVNS="v" VNS="i&#x10D;&#x259;" glVNS="&#x443;&#x432;&#x438;&#x434;&#x435;&#x442;&#x44C;" dorecombalgnVNS="****">i&#x10D;&#x259;t&#x10D;ilim</u>
+<u tier="ph@VNS" start="83.58" end="83.68">i</u>
+<u tier="ph@VNS" start="83.68" end="83.78">tS</u>
+<u tier="ph@VNS" start="83.78" end="83.81">@</u>
+<u tier="mb@VNS" start="83.81" end="83.86" glVNS="DUR" dorecombalgnVNS="****" VNS="t">-t</u>
+<u tier="mb@VNS" start="83.86" end="83.96" glVNS="IPFV" dorecombalgnVNS="****" VNS="tS">-&#x10D;i</u>
+<u tier="ph@VNS" start="83.92" end="83.96">i</u>
+<u tier="mb@VNS" start="83.96" end="84.12" dorecombalgnVNS="****" glVNS="INCH" VNS="l">-li</u>
+<u tier="ph@VNS" start="83.99" end="84.12">i</u>
+<u tier="mb@VNS" start="84.12" end="84.343" glVNS="1SG" dorecombalgnVNS="****" VNS="m">-m</u>
+<u tier="ref@VNS" start="84.343" end="84.882" txVNS="&lt;p:&gt;" ftVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="84.343" end="84.882" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="84.882" end="86.972" ftVNS="The thing is with her, she's torn, she's done what-do-you-call-it." txVNS="&#x112;&#x43A;&#x443;&#x43A;&#x430;&#x43D;&#x447;&#x44D;&#x43A;&#x44D;, &#x43A;&#x430;h&#x438;&#x440;&#x433;&#x44D;&#x447;&#x430;, &#x44D;&#x440;&#x44D;&#x43D;&#x43A;&#x430;." VNS="&#x113;kukan&#x10D;&#x259;k&#x259;" psVNS="v">0024_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="84.882" end="85.032" dorecombalgnVNS="****" glVNS="&#x447;&#x442;&#x43E;" VNS="e:">&#x113;ku</u>
+<u tier="ph@VNS" start="84.912" end="84.942">k</u>
+<u tier="ph@VNS" start="84.942" end="85.032">u</u>
+<u tier="mb@VNS" start="85.032" end="85.352" dorecombalgnVNS="****" glVNS="ATTEN" VNS="k">-k&#x101;n</u>
+<u tier="ph@VNS" start="85.242" end="85.272">a</u>
+<u tier="ph@VNS" start="85.272" end="85.352">n</u>
+<u tier="mb@VNS" start="85.352" end="85.502" dorecombalgnVNS="****" glVNS="PANT" VNS="tS">-&#x10D;&#x259;</u>
+<u tier="ph@VNS" start="85.472" end="85.502">@</u>
+<u tier="mb@VNS" start="85.502" end="85.659" dorecombalgnVNS="****" glVNS="FOC" VNS="k">=k&#x259;</u>
+<u tier="ph@VNS" start="85.612" end="85.659">@</u>
+<u tier="wd@VNS" start="85.659" end="86.51" psVNS="v" VNS="kahi" glVNS="&#x43F;&#x43E;&#x440;&#x432;&#x430;&#x442;&#x44C;" dorecombalgnVNS="****">kahirg&#x259;&#x10D;a</u>
+<u tier="ph@VNS" start="85.659" end="85.809">k</u>
+<u tier="ph@VNS" start="85.809" end="85.899">a</u>
+<u tier="ph@VNS" start="85.899" end="85.989">h</u>
+<u tier="ph@VNS" start="85.989" end="86.159">i</u>
+<u tier="mb@VNS" start="86.159" end="86.259" glVNS="DECAUS" dorecombalgnVNS="****" VNS="r">-rg&#x259;</u>
+<u tier="ph@VNS" start="86.189" end="86.229">g</u>
+<u tier="ph@VNS" start="86.229" end="86.259">@</u>
+<u tier="mb@VNS" start="86.259" end="86.51" dorecombalgnVNS="****" glVNS="PANT" VNS="tS">-&#x10D;a</u>
+<u tier="ph@VNS" start="86.469" end="86.51">a</u>
+<u tier="wd@VNS" start="86.51" end="86.972" psVNS="v" VNS="&#x259;" dorecombalgnVNS="****" glVNS="&#x447;&#x442;&#x43E;">&#x259;r&#x259;nka</u>
+<u tier="ph@VNS" start="86.51" end="86.54">@</u>
+<u tier="mb@VNS" start="86.54" end="86.64" dorecombalgnVNS="****" glVNS="NFUT" VNS="r">-r&#x259;</u>
+<u tier="ph@VNS" start="86.6" end="86.64">@</u>
+<u tier="mb@VNS" start="86.64" end="86.74" glVNS="3SG" dorecombalgnVNS="****" VNS="n">-n</u>
+<u tier="mb@VNS" start="86.74" end="86.972" dorecombalgnVNS="****" glVNS="FOC" VNS="k">=ka</u>
+<u tier="ph@VNS" start="86.93" end="86.972">a</u>
+<u tier="ref@VNS" start="86.972" end="88.648" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="86.972" end="88.648" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="88.648" end="89.01" ftVNS="Done???" txVNS="&#x41E;&#x433;&#x43E;&#x43D;." VNS="o&#x3B3;on" psVNS="****">0025_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="88.648" end="88.798" glVNS="&#x441;&#x434;&#x435;&#x43B;&#x430;&#x442;&#x44C;" dorecombalgnVNS="****" VNS="o">o</u>
+<u tier="mb@VNS" start="88.798" end="89.01" glVNS="ATR.STAT" dorecombalgnVNS="****" VNS="G">-&#x3B3;on</u>
+<u tier="ph@VNS" start="88.888" end="88.968">o</u>
+<u tier="ph@VNS" start="88.968" end="89.01">n</u>
+<u tier="ref@VNS" start="89.01" end="96.507" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="89.01" end="96.507" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="96.507" end="97.881" txVNS="&#x42D;&#x432;&#x430;&#x43D;&#x434;&#x44D;&#x304; &#x44D;&#x447;&#x44D;&#x304;&#x432; &#x44D;&#x440;&#x430;&#x43A;&#x430;&#x434;&#x44D;&#x304;." ftVNS="I didn't get it." VNS="&#x259;wand&#x259;&#x304;" psVNS="pro">0026_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="96.507" end="96.537" glVNS="&#x447;&#x442;&#x43E;" dorecombalgnVNS="****" VNS="@">&#x259;</u>
+<u tier="mb@VNS" start="96.537" end="96.797" dorecombalgnVNS="****" glVNS="ACC" VNS="w">-wa</u>
+<u tier="ph@VNS" start="96.767" end="96.797">a</u>
+<u tier="mb@VNS" start="96.797" end="96.887" glVNS="PS3SG" dorecombalgnVNS="****" VNS="n">-n</u>
+<u tier="mb@VNS" start="96.887" end="96.964" glVNS="=FOC" dorecombalgnVNS="****" VNS="d">=d&#x259;&#x304;</u>
+<u tier="ph@VNS" start="96.917" end="96.964">@:</u>
+<u tier="wd@VNS" start="96.964" end="97.312" psVNS="v" VNS="&#x259;" dorecombalgnVNS="****" glVNS="NEG">&#x259;&#x10D;&#x259;&#x304;w</u>
+<u tier="ph@VNS" start="96.964" end="96.994">@</u>
+<u tier="mb@VNS" start="96.994" end="97.194" glVNS="PST" dorecombalgnVNS="****" VNS="tS">-&#x10D;&#x259;&#x304;</u>
+<u tier="ph@VNS" start="97.164" end="97.194">@:</u>
+<u tier="mb@VNS" start="97.194" end="97.312" glVNS="1SG" dorecombalgnVNS="****" VNS="w">-w</u>
+<u tier="wd@VNS" start="97.312" end="97.881" psVNS="v" VNS="&#x259;" dorecombalgnVNS="****" glVNS="&#x447;&#x442;&#x43E;">&#x259;rakad&#x259;&#x304;</u>
+<u tier="ph@VNS" start="97.312" end="97.342">@</u>
+<u tier="mb@VNS" start="97.342" end="97.482" dorecombalgnVNS="****" glVNS="PNEG" VNS="r">-ra</u>
+<u tier="ph@VNS" start="97.432" end="97.482">a</u>
+<u tier="mb@VNS" start="97.482" end="97.702" dorecombalgnVNS="****" glVNS="=FOC" VNS="k">=ka</u>
+<u tier="ph@VNS" start="97.622" end="97.702">a</u>
+<u tier="mb@VNS" start="97.702" end="97.881" glVNS="=FOC" dorecombalgnVNS="****" VNS="d">=d&#x259;&#x304;</u>
+<u tier="ph@VNS" start="97.792" end="97.881">@:</u>
+<u tier="ref@VNS" start="97.881" end="98.314" ftVNS="****" txVNS="****" VNS="&lt;&lt;fs&gt;&gt;" psVNS="****">0027_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="97.881" end="98.314" dorecombalgnVNS="****" glVNS="****" VNS="&lt;&lt;fs&gt;&gt;">****</u>
+<u tier="ref@VNS" start="98.314" end="98.416" txVNS="&lt;p:&gt;" ftVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="98.314" end="98.416" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="98.416" end="100.944" txVNS="&#x413;&#x4E3;&#x43B; &#x4C8;&#x438;&#x43D;&#x430;&#x43A;&#x438;&#x440;&#x432;&#x438;, &#x438;&#x43B;&#x430;&#x43D; &#x431;&#x438;&#x447;&#x43E;&#x304;&#x442;&#x44B;&#x43D; &#x4C8;&#x438;&#x43D;&#x430;&#x43A;&#x438;&#x440;&#x432;&#x443;&#x43D;." ftVNS="I had other dogs, we had three dogs." VNS="g&#x12B;l" psVNS="adj">0028_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="98.416" end="98.536" dorecombalgnVNS="****" glVNS="&#x434;&#x440;&#x443;&#x433;&#x43E;&#x439;" VNS="g">g&#x12B;</u>
+<u tier="ph@VNS" start="98.456" end="98.536">i:</u>
+<u tier="mb@VNS" start="98.536" end="98.623" glVNS="PL" dorecombalgnVNS="****" VNS="l">-l</u>
+<u tier="wd@VNS" start="98.623" end="99.399" psVNS="n" VNS="&#x14B;inaki" dorecombalgnVNS="****" glVNS="&#x441;&#x43E;&#x431;&#x430;&#x43A;&#x430;">&#x14B;inakirwi</u>
+<u tier="ph@VNS" start="98.623" end="98.673">N</u>
+<u tier="ph@VNS" start="98.673" end="98.763">i</u>
+<u tier="ph@VNS" start="98.763" end="98.813">n</u>
+<u tier="ph@VNS" start="98.813" end="98.853">a</u>
+<u tier="ph@VNS" start="98.853" end="98.933">k</u>
+<u tier="ph@VNS" start="98.933" end="99.033">i</u>
+<u tier="mb@VNS" start="99.033" end="99.083" glVNS="PL" dorecombalgnVNS="****" VNS="r">-r</u>
+<u tier="mb@VNS" start="99.083" end="99.399" dorecombalgnVNS="****" glVNS="PS1SG" VNS="w">-wi</u>
+<u tier="ph@VNS" start="99.123" end="99.399">i</u>
+<u tier="wd@VNS" start="99.399" end="99.881" psVNS="num" VNS="ilan" glVNS="&#x442;&#x440;&#x438;" dorecombalgnVNS="****">ilan</u>
+<u tier="ph@VNS" start="99.399" end="99.659">i</u>
+<u tier="ph@VNS" start="99.659" end="99.739">l</u>
+<u tier="ph@VNS" start="99.739" end="99.789">a</u>
+<u tier="ph@VNS" start="99.789" end="99.881">n</u>
+<u tier="wd@VNS" start="99.881" end="100.331" psVNS="v" VNS="bi" dorecombalgnVNS="****" glVNS="&#x431;&#x44B;&#x442;&#x44C;">bi&#x10D;&#x14D;tin</u>
+<u tier="ph@VNS" start="99.881" end="99.921">b</u>
+<u tier="ph@VNS" start="99.921" end="99.971">i</u>
+<u tier="mb@VNS" start="99.971" end="100.151" dorecombalgnVNS="****" glVNS="PST" VNS="tS">-&#x10D;&#x14D;</u>
+<u tier="ph@VNS" start="100.071" end="100.151">o:</u>
+<u tier="mb@VNS" start="100.151" end="100.331" dorecombalgnVNS="****" glVNS="3PL" VNS="t">-tin</u>
+<u tier="ph@VNS" start="100.211" end="100.271">i</u>
+<u tier="ph@VNS" start="100.271" end="100.331">n</u>
+<u tier="wd@VNS" start="100.331" end="100.944" psVNS="n" VNS="&#x14B;inaki" dorecombalgnVNS="****" glVNS="&#x441;&#x43E;&#x431;&#x430;&#x43A;&#x430;">&#x14B;inakirwun</u>
+<u tier="ph@VNS" start="100.331" end="100.381">N</u>
+<u tier="ph@VNS" start="100.381" end="100.431">i</u>
+<u tier="ph@VNS" start="100.431" end="100.481">n</u>
+<u tier="ph@VNS" start="100.481" end="100.511">a</u>
+<u tier="ph@VNS" start="100.511" end="100.631">k</u>
+<u tier="ph@VNS" start="100.631" end="100.711">i</u>
+<u tier="mb@VNS" start="100.711" end="100.741" dorecombalgnVNS="****" glVNS="PL" VNS="r">-r</u>
+<u tier="mb@VNS" start="100.741" end="100.944" glVNS="PS1PL(EXCL)" dorecombalgnVNS="****" VNS="w">-wun</u>
+<u tier="ph@VNS" start="100.771" end="100.891">u</u>
+<u tier="ph@VNS" start="100.891" end="100.944">n</u>
+<u tier="ref@VNS" start="100.944" end="104.579" ftVNS="One, the biggest one, was there, the others were not there." txVNS="&#x423;&#x43C;&#x443;&#x43A;&#x43E;&#x43D;, h&#x430;&#x433;&#x434;&#x44B;&#x442;&#x43C;&#x44D;&#x440;, &#x431;&#x438;&#x434;&#x438;&#x440;&#x44D;&#x43D;, &#x433;&#x4E3;&#x43B; h&#x430;&#x44F;&#x43B;&#x44D;." VNS="&lt;&lt;pr&gt;umukon&gt;" psVNS="num">0029_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="100.944" end="101.65" glVNS="&#x43E;&#x434;&#x438;&#x43D;" dorecombalgnVNS="****" VNS="&lt;&lt;pr&gt;umukon&gt;">umuk&#x14D;n</u>
+<u tier="wd@VNS" start="101.65" end="102.76" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="101.65" end="102.76">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="102.76" end="103.359" psVNS="adj" VNS="hagdi" dorecombalgnVNS="****" glVNS="&#x441;&#x442;&#x430;&#x440;&#x44B;&#x439;">hagditm&#x259;r</u>
+<u tier="ph@VNS" start="102.76" end="102.82">h</u>
+<u tier="ph@VNS" start="102.82" end="102.88">a</u>
+<u tier="ph@VNS" start="102.88" end="102.96">g</u>
+<u tier="ph@VNS" start="102.96" end="102.99">d</u>
+<u tier="ph@VNS" start="102.99" end="103.1">i</u>
+<u tier="mb@VNS" start="103.1" end="103.359" glVNS="COMP" dorecombalgnVNS="****" VNS="t">-tm&#x259;r</u>
+<u tier="ph@VNS" start="103.2" end="103.28">m</u>
+<u tier="ph@VNS" start="103.28" end="103.31">@</u>
+<u tier="ph@VNS" start="103.31" end="103.359">r</u>
+<u tier="wd@VNS" start="103.359" end="103.909" psVNS="v" VNS="bi" dorecombalgnVNS="****" glVNS="&#x431;&#x44B;&#x442;&#x44C;">bi&#x10F;ir&#x259;n</u>
+<u tier="ph@VNS" start="103.359" end="103.439">b</u>
+<u tier="ph@VNS" start="103.439" end="103.509">i</u>
+<u tier="mb@VNS" start="103.509" end="103.649" glVNS="IPFV" dorecombalgnVNS="****" VNS="d_j">-&#x10F;i</u>
+<u tier="ph@VNS" start="103.559" end="103.649">i</u>
+<u tier="mb@VNS" start="103.649" end="103.709" dorecombalgnVNS="****" glVNS="NFUT" VNS="r">-r&#x259;</u>
+<u tier="ph@VNS" start="103.679" end="103.709">@</u>
+<u tier="mb@VNS" start="103.709" end="103.909" dorecombalgnVNS="****" glVNS="3SG" VNS="n">-n</u>
+<u tier="wd@VNS" start="103.909" end="104.139" psVNS="adj" VNS="g&#x12B;" dorecombalgnVNS="****" glVNS="&#x434;&#x440;&#x443;&#x433;&#x43E;&#x439;">g&#x12B;l</u>
+<u tier="ph@VNS" start="103.909" end="103.939">g</u>
+<u tier="ph@VNS" start="103.939" end="104.069">i:</u>
+<u tier="mb@VNS" start="104.069" end="104.139" dorecombalgnVNS="****" glVNS="PL" VNS="l">-l</u>
+<u tier="wd@VNS" start="104.139" end="104.579" psVNS="adj" VNS="hajal&#x259;" glVNS="&#x43E;&#x442;&#x441;&#x443;&#x442;&#x441;&#x442;&#x432;&#x443;&#x44E;&#x449;&#x438;&#x439;" dorecombalgnVNS="****">hajal&#x259;</u>
+<u tier="ph@VNS" start="104.139" end="104.189">h</u>
+<u tier="ph@VNS" start="104.189" end="104.259">a</u>
+<u tier="ph@VNS" start="104.259" end="104.389">j</u>
+<u tier="ph@VNS" start="104.389" end="104.419">a</u>
+<u tier="ph@VNS" start="104.419" end="104.529">l</u>
+<u tier="ph@VNS" start="104.529" end="104.579">@</u>
+<u tier="ref@VNS" start="104.579" end="104.61" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="104.579" end="104.61" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="104.61" end="106.688" ftVNS="&#x201C;Well&#x201D;, I thought, &#x201C;Gosha probably has them.&#x201D;" txVNS="&#x2014; &#x41D;&#x443;, &#x2014; &#x433;&#x443;&#x43D;&#x44D;&#x43C;, &#x2014; &#x413;&#x43E;&#x448;&#x430;&#x44F;&#x434;&#x4EF; &#x431;&#x438;&#x434;&#x435;&#x43D;&#x43E;&#x440;&#x44D;, &#x43D;&#x430;&#x432;&#x435;&#x440;&#x43D;&#x43E;&#x435;." VNS="&lt;&lt;fm&gt;nu&gt;" psVNS="interj">0030_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="104.61" end="104.786" glVNS="&#x43D;&#x443;" dorecombalgnVNS="****" VNS="&lt;&lt;fm&gt;nu&gt;">nu</u>
+<u tier="wd@VNS" start="104.786" end="105.153" psVNS="v" VNS="gun&#x259;" dorecombalgnVNS="****" glVNS="&#x441;&#x43A;&#x430;&#x437;&#x430;&#x442;&#x44C;">gun&#x259;m</u>
+<u tier="ph@VNS" start="104.786" end="104.856">g</u>
+<u tier="ph@VNS" start="104.856" end="104.966">u</u>
+<u tier="ph@VNS" start="104.966" end="105.016">n</u>
+<u tier="ph@VNS" start="105.016" end="105.046">@</u>
+<u tier="mb@VNS" start="105.046" end="105.153" dorecombalgnVNS="****" glVNS="1SG" VNS="m">-m</u>
+<u tier="wd@VNS" start="105.153" end="105.663" psVNS="n" VNS="go&#x161;a" dorecombalgnVNS="****" glVNS="&#x413;&#x43E;&#x448;&#x430;">go&#x161;ajad&#x16B;</u>
+<u tier="ph@VNS" start="105.153" end="105.203">g</u>
+<u tier="ph@VNS" start="105.203" end="105.303">o</u>
+<u tier="ph@VNS" start="105.303" end="105.353">S</u>
+<u tier="ph@VNS" start="105.353" end="105.403">a</u>
+<u tier="mb@VNS" start="105.403" end="105.593" glVNS="COLL" dorecombalgnVNS="****" VNS="j">-ja</u>
+<u tier="ph@VNS" start="105.503" end="105.593">a</u>
+<u tier="mb@VNS" start="105.593" end="105.663" glVNS="DATLOC" dorecombalgnVNS="****" VNS="d">-d&#x16B;</u>
+<u tier="ph@VNS" start="105.623" end="105.663">u:</u>
+<u tier="wd@VNS" start="105.663" end="106.183" psVNS="v" VNS="bi" glVNS="&#x431;&#x44B;&#x442;&#x44C;" dorecombalgnVNS="****">bi&#x10F;&#x259;nor&#x259;</u>
+<u tier="ph@VNS" start="105.663" end="105.743">b</u>
+<u tier="ph@VNS" start="105.743" end="105.823">i</u>
+<u tier="mb@VNS" start="105.823" end="105.913" dorecombalgnVNS="****" glVNS="IPFV" VNS="d_j">-&#x10F;&#x259;</u>
+<u tier="ph@VNS" start="105.883" end="105.913">@</u>
+<u tier="mb@VNS" start="105.913" end="106.073" dorecombalgnVNS="****" glVNS="PROB" VNS="n">-no</u>
+<u tier="ph@VNS" start="106.013" end="106.073">o</u>
+<u tier="mb@VNS" start="106.073" end="106.183" dorecombalgnVNS="****" glVNS="NFUT" VNS="r">-r&#x259;</u>
+<u tier="ph@VNS" start="106.143" end="106.183">@</u>
+<u tier="wd@VNS" start="106.183" end="106.688" psVNS="adv" VNS="nawerna" glVNS="&#x43D;&#x430;&#x432;&#x435;&#x440;&#x43D;&#x43E;&#x435;" dorecombalgnVNS="****">&lt;&lt;fm&gt;nawerna&gt;</u>
+<u tier="ph@VNS" start="106.183" end="106.688">&lt;&lt;fm&gt;nawerna&gt;</u>
+<u tier="ref@VNS" start="106.688" end="107.64" txVNS="&lt;p:&gt;" ftVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="106.688" end="107.64" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="107.64" end="110.601" txVNS="&#x413;&#x43E;&#x448;&#x430;&#x44F;&#x434;&#x4EF; &#x431;&#x438;&#x434;&#x438;&#x447;&#x43E;&#x304;&#x442;&#x44B;&#x43D;." ftVNS="Gosha had them." VNS="go&#x161;ajad&#x16B;" psVNS="n">0031_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="107.64" end="107.96" dorecombalgnVNS="****" glVNS="&#x413;&#x43E;&#x448;&#x430;" VNS="g">go&#x161;a</u>
+<u tier="ph@VNS" start="107.69" end="107.81">o</u>
+<u tier="ph@VNS" start="107.81" end="107.89">S</u>
+<u tier="ph@VNS" start="107.89" end="107.96">a</u>
+<u tier="mb@VNS" start="107.96" end="108.16" dorecombalgnVNS="****" glVNS="COLL" VNS="j">-ja</u>
+<u tier="ph@VNS" start="108.09" end="108.16">a</u>
+<u tier="mb@VNS" start="108.16" end="108.278" glVNS="DATLOC" dorecombalgnVNS="****" VNS="d">-d&#x16B;</u>
+<u tier="ph@VNS" start="108.22" end="108.278">u:</u>
+<u tier="wd@VNS" start="108.278" end="108.536" psVNS="SLIP" VNS="bi" glVNS="&#x431;&#x44B;&#x442;&#x44C;.SLIP" dorecombalgnVNS="****">&lt;&lt;fs&gt;bi&gt;</u>
+<u tier="ph@VNS" start="108.278" end="108.536">&lt;&lt;fs&gt;bi&gt;</u>
+<u tier="wd@VNS" start="108.536" end="109.478" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="108.536" end="109.478">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="109.478" end="109.96" psVNS="SLIP" VNS="go&#x161;a" glVNS="&#x413;&#x43E;&#x448;&#x430;" dorecombalgnVNS="****">&lt;&lt;fs&gt;go&#x161;aja&gt;</u>
+<u tier="ph@VNS" start="109.478" end="109.96">&lt;&lt;fs&gt;go&#x161;aja&gt;</u>
+<u tier="wd@VNS" start="109.96" end="110.601" psVNS="v" VNS="bi" glVNS="&#x431;&#x44B;&#x442;&#x44C;" dorecombalgnVNS="****">bi&#x10F;i&#x10D;&#x14D;tin</u>
+<u tier="ph@VNS" start="109.96" end="110.02">b</u>
+<u tier="ph@VNS" start="110.02" end="110.21">i</u>
+<u tier="mb@VNS" start="110.21" end="110.33" glVNS="IPFV" dorecombalgnVNS="****" VNS="d_j">-&#x10F;i</u>
+<u tier="ph@VNS" start="110.29" end="110.33">i</u>
+<u tier="mb@VNS" start="110.33" end="110.39" glVNS="PST" dorecombalgnVNS="****" VNS="tS">-&#x10D;&#x14D;</u>
+<u tier="ph@VNS" start="110.36" end="110.39">o:</u>
+<u tier="mb@VNS" start="110.39" end="110.601" glVNS="3PL" dorecombalgnVNS="****" VNS="t">-tin</u>
+<u tier="ph@VNS" start="110.53" end="110.56">i</u>
+<u tier="ph@VNS" start="110.56" end="110.601">n</u>
+<u tier="ref@VNS" start="110.601" end="112.778" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="110.601" end="112.778" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="112.778" end="114.067" ftVNS="They stayed in the settlement." txVNS="&#x42D;&#x43C;&#x43E;&#x43D;&#x43C;&#x443;&#x447;&#x43E;&#x304;&#x442;&#x44B;&#x43D; &#x433;&#x443;&#x43B;&#x44D;&#x43B;&#x434;&#x4EF;." VNS="&#x259;monmu&#x10D;&#x14D;tin" psVNS="v">0032_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="112.778" end="113.008" dorecombalgnVNS="****" glVNS="&#x43E;&#x441;&#x442;&#x430;&#x432;&#x438;&#x442;&#x44C;" VNS="@">&#x259;mon</u>
+<u tier="ph@VNS" start="112.808" end="112.858">m</u>
+<u tier="ph@VNS" start="112.858" end="112.948">o</u>
+<u tier="ph@VNS" start="112.948" end="113.008">n</u>
+<u tier="mb@VNS" start="113.008" end="113.118" dorecombalgnVNS="****" glVNS="PASS" VNS="m">-mu</u>
+<u tier="ph@VNS" start="113.048" end="113.118">u</u>
+<u tier="mb@VNS" start="113.118" end="113.258" dorecombalgnVNS="****" glVNS="PST" VNS="tS">-&#x10D;&#x14D;</u>
+<u tier="ph@VNS" start="113.208" end="113.258">o:</u>
+<u tier="mb@VNS" start="113.258" end="113.508" dorecombalgnVNS="****" glVNS="3PL" VNS="t">-tin</u>
+<u tier="ph@VNS" start="113.328" end="113.448">i</u>
+<u tier="ph@VNS" start="113.448" end="113.508">n</u>
+<u tier="wd@VNS" start="113.508" end="114.067" psVNS="n" VNS="gul&#x259;" glVNS="&#x434;&#x435;&#x440;&#x435;&#x432;&#x44F;&#x43D;&#x43D;&#x44B;&#x439;.&#x434;&#x43E;&#x43C;" dorecombalgnVNS="****">gul&#x259;ld&#x16B;</u>
+<u tier="ph@VNS" start="113.508" end="113.538">g</u>
+<u tier="ph@VNS" start="113.538" end="113.828">u</u>
+<u tier="ph@VNS" start="113.828" end="113.908">l</u>
+<u tier="ph@VNS" start="113.908" end="113.938">@</u>
+<u tier="mb@VNS" start="113.938" end="113.978" dorecombalgnVNS="****" glVNS="PL" VNS="l">-l</u>
+<u tier="mb@VNS" start="113.978" end="114.067" dorecombalgnVNS="****" glVNS="DATLOC" VNS="d">-d&#x16B;</u>
+<u tier="ph@VNS" start="114.008" end="114.067">u:</u>
+<u tier="ref@VNS" start="114.067" end="117.391" txVNS="&lt;p:&gt;" ftVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="114.067" end="117.391" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="117.391" end="131.317" txVNS="&#x41F;&#x43E;&#x442;&#x43E;&#x43C;, &#x43F;&#x43E;&#x442;&#x43E;&#x43C; &#x443;&#x436;&#x435; &#x442;&#x44B;&#x43B;&#x438;&#x43C;, &#x442;&#x44B;&#x43B;&#x438;&#x43C;, &#x43A;&#x430;&#x43A; &#x442;&#x43E;&#x43B;&#x44C;&#x43A;&#x43E; &#x433;&#x443;&#x43D;&#x44D; &#x440;&#x430;&#x446;&#x438;&#x44F;&#x43B;&#x4E3;, h&#x430;&#x43D;&#x4C8;&#x4EF;&#x43A;&#x442;&#x430;&#x43C;." ftVNS="Then, later I realized, realized, as soon as they said on the walkie-talkie, I asked." VNS="&lt;&lt;fm&gt;patom&gt;" psVNS="adv">0033_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="117.391" end="117.825" dorecombalgnVNS="****" glVNS="&#x43F;&#x43E;&#x442;&#x43E;&#x43C;" VNS="&lt;&lt;fm&gt;patom&gt;">patom</u>
+<u tier="wd@VNS" start="117.825" end="118.018" psVNS="****" VNS="****" glVNS="****" dorecombalgnVNS="****">&lt;&lt;fp&gt;&gt;</u>
+<u tier="ph@VNS" start="117.825" end="118.018">&lt;&lt;fp&gt;&gt;</u>
+<u tier="wd@VNS" start="118.018" end="119.456" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="118.018" end="119.456">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="119.456" end="120.367" psVNS="****" VNS="****" dorecombalgnVNS="****" glVNS="****">&lt;&lt;fm&gt;&gt;</u>
+<u tier="ph@VNS" start="119.456" end="120.367">&lt;&lt;fm&gt;&gt;</u>
+<u tier="wd@VNS" start="120.367" end="121.361" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="120.367" end="121.361">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="121.361" end="121.746" psVNS="v" VNS="tili" glVNS="&#x43F;&#x43E;&#x43D;&#x44F;&#x442;&#x44C;" dorecombalgnVNS="****">tilim</u>
+<u tier="ph@VNS" start="121.361" end="121.421">t</u>
+<u tier="ph@VNS" start="121.421" end="121.511">i</u>
+<u tier="ph@VNS" start="121.511" end="121.541">l</u>
+<u tier="ph@VNS" start="121.541" end="121.701">i</u>
+<u tier="mb@VNS" start="121.701" end="121.746" glVNS="1SG" dorecombalgnVNS="****" VNS="m">-m</u>
+<u tier="wd@VNS" start="121.746" end="124.954" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="121.746" end="124.954">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="124.954" end="125.242" psVNS="v" VNS="tili" glVNS="&#x43F;&#x43E;&#x43D;&#x44F;&#x442;&#x44C;" dorecombalgnVNS="****">tilim</u>
+<u tier="ph@VNS" start="124.954" end="124.994">t</u>
+<u tier="ph@VNS" start="124.994" end="125.084">i</u>
+<u tier="ph@VNS" start="125.084" end="125.114">l</u>
+<u tier="ph@VNS" start="125.114" end="125.194">i</u>
+<u tier="mb@VNS" start="125.194" end="125.242" dorecombalgnVNS="****" glVNS="1SG" VNS="m">-m</u>
+<u tier="wd@VNS" start="125.242" end="125.893" psVNS="****" VNS="****" dorecombalgnVNS="****" glVNS="****">&lt;&lt;fm&gt;&gt;</u>
+<u tier="ph@VNS" start="125.242" end="125.893">&lt;&lt;fm&gt;&gt;</u>
+<u tier="wd@VNS" start="125.893" end="126.235" psVNS="v" VNS="gun" dorecombalgnVNS="****" glVNS="&#x441;&#x43A;&#x430;&#x437;&#x430;&#x442;&#x44C;">gun&#x259;</u>
+<u tier="ph@VNS" start="125.893" end="125.923">g</u>
+<u tier="ph@VNS" start="125.923" end="126.143">u</u>
+<u tier="ph@VNS" start="126.143" end="126.173">n</u>
+<u tier="mb@VNS" start="126.173" end="126.235" glVNS="NFUT" dorecombalgnVNS="****" VNS="@">-&#x259;</u>
+<u tier="wd@VNS" start="126.235" end="128.626" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="126.235" end="128.626">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="128.626" end="129.252" psVNS="n" VNS="ratsija" glVNS="&#x440;&#x430;&#x446;&#x438;&#x44F;" dorecombalgnVNS="****">ratsijal&#x12B;</u>
+<u tier="ph@VNS" start="128.626" end="128.726">r</u>
+<u tier="ph@VNS" start="128.726" end="128.826">a</u>
+<u tier="ph@VNS" start="128.826" end="128.936">t</u>
+<u tier="ph@VNS" start="128.936" end="129.026">s</u>
+<u tier="ph@VNS" start="129.026" end="129.096">i</u>
+<u tier="ph@VNS" start="129.096" end="129.126">j</u>
+<u tier="ph@VNS" start="129.126" end="129.156">a</u>
+<u tier="mb@VNS" start="129.156" end="129.252" dorecombalgnVNS="****" glVNS="PROL" VNS="l">-l&#x12B;</u>
+<u tier="ph@VNS" start="129.186" end="129.252">i:</u>
+<u tier="wd@VNS" start="129.252" end="130.745" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="129.252" end="130.745">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="130.745" end="131.317" psVNS="adv" VNS="han&#x14B;&#x16B;kta" glVNS="&#x441;&#x43F;&#x440;&#x43E;&#x441;&#x438;&#x442;&#x44C;" dorecombalgnVNS="****">han&#x14B;&#x16B;ktam</u>
+<u tier="ph@VNS" start="130.745" end="130.775">h</u>
+<u tier="ph@VNS" start="130.775" end="130.805">a</u>
+<u tier="ph@VNS" start="130.805" end="130.845">n</u>
+<u tier="ph@VNS" start="130.845" end="130.925">N</u>
+<u tier="ph@VNS" start="130.925" end="130.955">u:</u>
+<u tier="ph@VNS" start="130.955" end="131.075">k</u>
+<u tier="ph@VNS" start="131.075" end="131.195">t</u>
+<u tier="ph@VNS" start="131.195" end="131.225">a</u>
+<u tier="mb@VNS" start="131.225" end="131.317" glVNS="1SG" dorecombalgnVNS="****" VNS="m">-m</u>
+<u tier="ref@VNS" start="131.317" end="131.713" txVNS="****" ftVNS="****" VNS="gun&#x259;m" psVNS="****">0034_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="131.317" end="131.713" dorecombalgnVNS="****" glVNS="****" VNS="g">****</u>
+<u tier="ph@VNS" start="131.397" end="131.507">u</u>
+<u tier="ph@VNS" start="131.507" end="131.587">n</u>
+<u tier="ph@VNS" start="131.587" end="131.617">@</u>
+<u tier="ph@VNS" start="131.617" end="131.713">m</u>
+<u tier="ref@VNS" start="131.713" end="133.103" txVNS="&lt;p:&gt;" ftVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="131.713" end="133.103" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="133.103" end="135.603" txVNS="h&#x430;&#x44F;&#x43B;&#x44D; &#x442;&#x430;&#x304;&#x43B;&#x430;&#x304; &#x4C8;&#x438;&#x43D;&#x430;&#x43A;&#x438;&#x440;, &#x413;&#x43E;&#x448;&#x430;&#x44F;&#x434;&#x4EF;." ftVNS="Are there any dogs, at Gosha's place?" VNS="hajal&#x259;" psVNS="adj">0035_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="133.103" end="133.501" dorecombalgnVNS="****" glVNS="&#x43E;&#x442;&#x441;&#x443;&#x442;&#x441;&#x442;&#x432;&#x443;&#x44E;&#x449;&#x438;&#x439;" VNS="h">hajal&#x259;</u>
+<u tier="ph@VNS" start="133.153" end="133.183">a</u>
+<u tier="ph@VNS" start="133.183" end="133.303">j</u>
+<u tier="ph@VNS" start="133.303" end="133.383">a</u>
+<u tier="ph@VNS" start="133.383" end="133.453">l</u>
+<u tier="ph@VNS" start="133.453" end="133.501">@</u>
+<u tier="wd@VNS" start="133.501" end="133.788" psVNS="adv" VNS="t&#x101;l&#x101;" glVNS="&#x442;&#x443;&#x434;&#x430;" dorecombalgnVNS="****">t&#x101;l&#x101;</u>
+<u tier="ph@VNS" start="133.501" end="133.571">t</u>
+<u tier="ph@VNS" start="133.571" end="133.671">a:</u>
+<u tier="ph@VNS" start="133.671" end="133.701">l</u>
+<u tier="ph@VNS" start="133.701" end="133.788">a:</u>
+<u tier="wd@VNS" start="133.788" end="134.288" psVNS="n" VNS="&#x14B;inaki" glVNS="&#x441;&#x43E;&#x431;&#x430;&#x43A;&#x430;" dorecombalgnVNS="****">&#x14B;inakir</u>
+<u tier="ph@VNS" start="133.788" end="133.848">N</u>
+<u tier="ph@VNS" start="133.848" end="133.918">i</u>
+<u tier="ph@VNS" start="133.918" end="133.998">n</u>
+<u tier="ph@VNS" start="133.998" end="134.028">a</u>
+<u tier="ph@VNS" start="134.028" end="134.188">k</u>
+<u tier="ph@VNS" start="134.188" end="134.248">i</u>
+<u tier="mb@VNS" start="134.248" end="134.288" dorecombalgnVNS="****" glVNS="PL" VNS="r">-r</u>
+<u tier="wd@VNS" start="134.288" end="134.868" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="134.288" end="134.868">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="134.868" end="135.603" psVNS="n" VNS="go&#x161;a" glVNS="&#x413;&#x43E;&#x448;&#x430;" dorecombalgnVNS="****">go&#x161;ajad&#x16B;</u>
+<u tier="ph@VNS" start="134.868" end="134.918">g</u>
+<u tier="ph@VNS" start="134.918" end="135.018">o</u>
+<u tier="ph@VNS" start="135.018" end="135.108">S</u>
+<u tier="ph@VNS" start="135.108" end="135.158">a</u>
+<u tier="mb@VNS" start="135.158" end="135.378" dorecombalgnVNS="****" glVNS="COLL" VNS="j">-ja</u>
+<u tier="ph@VNS" start="135.308" end="135.378">a</u>
+<u tier="mb@VNS" start="135.378" end="135.603" glVNS="DATLOC" dorecombalgnVNS="****" VNS="d">-d&#x16B;</u>
+<u tier="ph@VNS" start="135.408" end="135.603">u:</u>
+<u tier="ref@VNS" start="135.603" end="137.459" txVNS="&lt;p:&gt;" ftVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="135.603" end="137.459" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="137.459" end="139.303" txVNS="h&#x430;&#x43D;&#x4C8;&#x4EF;&#x43A;&#x442;&#x430;&#x43C; &#x2014; &#x432;&#x435;&#x437;&#x434;&#x435; h&#x430;&#x44F;&#x43B;&#x44D;." ftVNS="I asked &#x2014; nowhere there were any dogs." VNS="han&#x14B;&#x16B;ktam" psVNS="v">0036_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="137.459" end="138.149" glVNS="&#x441;&#x43F;&#x440;&#x43E;&#x441;&#x438;&#x442;&#x44C;" dorecombalgnVNS="****" VNS="h">han&#x14B;&#x16B;kta</u>
+<u tier="ph@VNS" start="137.549" end="137.579">a</u>
+<u tier="ph@VNS" start="137.579" end="137.689">n</u>
+<u tier="ph@VNS" start="137.689" end="137.749">N</u>
+<u tier="ph@VNS" start="137.749" end="137.829">u:</u>
+<u tier="ph@VNS" start="137.829" end="137.899">k</u>
+<u tier="ph@VNS" start="137.899" end="138.099">t</u>
+<u tier="ph@VNS" start="138.099" end="138.149">a</u>
+<u tier="mb@VNS" start="138.149" end="138.233" glVNS="1SG" dorecombalgnVNS="****" VNS="m">-m</u>
+<u tier="wd@VNS" start="138.233" end="138.713" psVNS="adv" VNS="wiz&#x10F;&#x259;" dorecombalgnVNS="****" glVNS="&#x432;&#x435;&#x437;&#x434;&#x435;">&lt;&lt;fm&gt;wiz&#x10F;&#x259;&gt;</u>
+<u tier="ph@VNS" start="138.233" end="138.713">&lt;&lt;fm&gt;wiz&#x10F;&#x259;&gt;</u>
+<u tier="wd@VNS" start="138.713" end="139.303" psVNS="adj" VNS="hajal&#x259;" dorecombalgnVNS="****" glVNS="&#x43E;&#x442;&#x441;&#x443;&#x442;&#x441;&#x442;&#x432;&#x443;&#x44E;&#x449;&#x438;&#x439;">hajal&#x259;</u>
+<u tier="ph@VNS" start="138.713" end="138.773">h</u>
+<u tier="ph@VNS" start="138.773" end="138.823">a</u>
+<u tier="ph@VNS" start="138.823" end="139.043">j</u>
+<u tier="ph@VNS" start="139.043" end="139.073">a</u>
+<u tier="ph@VNS" start="139.073" end="139.253">l</u>
+<u tier="ph@VNS" start="139.253" end="139.303">@</u>
+<u tier="ref@VNS" start="139.303" end="142.982" txVNS="&lt;p:&gt;" ftVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="139.303" end="142.982" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="142.982" end="144.394" ftVNS="Then I went along the shore of the Soviet lake." txVNS="&#x41F;&#x43E;&#x442;&#x43E;&#x43C; h&#x443;&#x440;&#x443;&#x43C; &#x411;&#x43E;&#x433; &#x434;&#x44F;&#x43F;&#x43A;&#x430;&#x43B;&#x4E3;&#x43D;." VNS="&lt;&lt;fm&gt;potom&gt;" psVNS="adv">0037_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="142.982" end="143.282" dorecombalgnVNS="****" glVNS="&#x43F;&#x43E;&#x442;&#x43E;&#x43C;" VNS="&lt;&lt;fm&gt;potom&gt;">potom</u>
+<u tier="wd@VNS" start="143.282" end="143.602" psVNS="v" VNS="huru" dorecombalgnVNS="****" glVNS="&#x43F;&#x43E;&#x439;&#x442;&#x438;">hurum</u>
+<u tier="ph@VNS" start="143.282" end="143.312">h</u>
+<u tier="ph@VNS" start="143.312" end="143.412">u</u>
+<u tier="ph@VNS" start="143.412" end="143.442">r</u>
+<u tier="ph@VNS" start="143.442" end="143.562">u</u>
+<u tier="mb@VNS" start="143.562" end="143.602" dorecombalgnVNS="****" glVNS="1SG" VNS="m">-m</u>
+<u tier="wd@VNS" start="143.602" end="143.792" psVNS="n" VNS="bo&#x3B3;" dorecombalgnVNS="****" glVNS="&#x421;&#x43E;&#x432;&#x435;&#x442;&#x441;&#x43A;&#x43E;&#x435;.&#x41E;&#x437;&#x435;&#x440;&#x43E;">bo&#x3B3;</u>
+<u tier="ph@VNS" start="143.602" end="143.652">b</u>
+<u tier="ph@VNS" start="143.652" end="143.752">o</u>
+<u tier="ph@VNS" start="143.752" end="143.792">G</u>
+<u tier="wd@VNS" start="143.792" end="144.394" psVNS="n" VNS="&#x10F;apka" dorecombalgnVNS="****" glVNS="&#x431;&#x435;&#x440;&#x435;&#x433;">&#x10F;apkal&#x12B;n</u>
+<u tier="ph@VNS" start="143.792" end="143.912">d_j</u>
+<u tier="ph@VNS" start="143.912" end="143.952">a</u>
+<u tier="ph@VNS" start="143.952" end="144.042">p</u>
+<u tier="ph@VNS" start="144.042" end="144.122">k</u>
+<u tier="ph@VNS" start="144.122" end="144.182">a</u>
+<u tier="mb@VNS" start="144.182" end="144.302" glVNS="PROL" dorecombalgnVNS="****" VNS="l">-l&#x12B;</u>
+<u tier="ph@VNS" start="144.212" end="144.302">i:</u>
+<u tier="mb@VNS" start="144.302" end="144.394" glVNS="PS3SG" dorecombalgnVNS="****" VNS="n">-n</u>
+<u tier="ref@VNS" start="144.394" end="144.819" txVNS="&lt;p:&gt;" ftVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="144.394" end="144.819" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="144.819" end="146.84" ftVNS="I set out to see their tracks." txVNS="&#x418;&#x447;&#x44D;&#x442;&#x43D;&#x43E;&#x304;&#x433;&#x438;&#x43D;&#x438;&#x43C; &#x443;&#x434;&#x44F;&#x43B;&#x432;&#x430;&#x442;&#x44B;&#x43D;." VNS="i&#x10D;&#x259;tn&#x14D;&#x3B3;inim" psVNS="v">0038_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="144.819" end="144.989" dorecombalgnVNS="****" glVNS="&#x443;&#x432;&#x438;&#x434;&#x435;&#x442;&#x44C;" VNS="i">i&#x10D;&#x259;</u>
+<u tier="ph@VNS" start="144.869" end="144.959">tS</u>
+<u tier="ph@VNS" start="144.959" end="144.989">@</u>
+<u tier="mb@VNS" start="144.989" end="145.069" dorecombalgnVNS="****" glVNS="DUR" VNS="t">-t</u>
+<u tier="mb@VNS" start="145.069" end="145.249" glVNS="PRGRN" dorecombalgnVNS="****" VNS="n">-n&#x14D;</u>
+<u tier="ph@VNS" start="145.109" end="145.249">o:</u>
+<u tier="mb@VNS" start="145.249" end="145.399" glVNS="INCEP" dorecombalgnVNS="****" VNS="G">-&#x3B3;ini</u>
+<u tier="ph@VNS" start="145.279" end="145.319">i</u>
+<u tier="ph@VNS" start="145.319" end="145.349">n</u>
+<u tier="ph@VNS" start="145.349" end="145.399">i</u>
+<u tier="mb@VNS" start="145.399" end="145.485" dorecombalgnVNS="****" glVNS="1SG" VNS="m">-m</u>
+<u tier="wd@VNS" start="145.485" end="145.83" psVNS="n" VNS="u&#x10F;a" glVNS="&#x441;&#x43B;&#x435;&#x434;" dorecombalgnVNS="****">u&#x10F;al</u>
+<u tier="ph@VNS" start="145.485" end="145.615">u</u>
+<u tier="ph@VNS" start="145.615" end="145.725">d_j</u>
+<u tier="ph@VNS" start="145.725" end="145.755">a</u>
+<u tier="mb@VNS" start="145.755" end="145.83" dorecombalgnVNS="****" glVNS="PL" VNS="l">-l</u>
+<u tier="wd@VNS" start="145.83" end="145.962" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="145.83" end="145.962">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="145.962" end="146.84" psVNS="n" VNS="u&#x10F;a" dorecombalgnVNS="****" glVNS="&#x441;&#x43B;&#x435;&#x434;">u&#x10F;alwatin</u>
+<u tier="ph@VNS" start="145.962" end="146.162">u</u>
+<u tier="ph@VNS" start="146.162" end="146.262">d_j</u>
+<u tier="ph@VNS" start="146.262" end="146.292">a</u>
+<u tier="mb@VNS" start="146.292" end="146.422" glVNS="PL" dorecombalgnVNS="****" VNS="l">-l</u>
+<u tier="mb@VNS" start="146.422" end="146.592" dorecombalgnVNS="****" glVNS="ACC" VNS="w">-wa</u>
+<u tier="ph@VNS" start="146.562" end="146.592">a</u>
+<u tier="mb@VNS" start="146.592" end="146.84" dorecombalgnVNS="****" glVNS="PS3PL" VNS="t">-tin</u>
+<u tier="ph@VNS" start="146.762" end="146.792">i</u>
+<u tier="ph@VNS" start="146.792" end="146.84">n</u>
+<u tier="ref@VNS" start="146.84" end="147.877" txVNS="&lt;p:&gt;" ftVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="146.84" end="147.877" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="147.877" end="154.575" txVNS="&#x418;&#x447;&#x44D;&#x43C;: &#x432;&#x43E;&#x43B;&#x43A;&#x430; &#x443;&#x434;&#x44F;&#x43B;&#x438;&#x43D; &#x442;&#x430;&#x434;&#x4EF; &#x432;&#x435;&#x437;&#x434;&#x435; &#x447;&#x430;&#x304;&#x433;&#x438;&#x442;." ftVNS="I saw it: the wolf tracks are everywhere, on that side not far away." VNS="i&#x10D;&#x259;m" psVNS="v">0039_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="147.877" end="148.117" dorecombalgnVNS="****" glVNS="&#x443;&#x432;&#x438;&#x434;&#x435;&#x442;&#x44C;" VNS="i">i&#x10D;&#x259;</u>
+<u tier="ph@VNS" start="147.937" end="148.067">tS</u>
+<u tier="ph@VNS" start="148.067" end="148.117">@</u>
+<u tier="mb@VNS" start="148.117" end="148.195" glVNS="1SG" dorecombalgnVNS="****" VNS="m">-m</u>
+<u tier="wd@VNS" start="148.195" end="148.319" psVNS="****" VNS="****" dorecombalgnVNS="****" glVNS="****">&lt;&lt;fp&gt;&gt;</u>
+<u tier="ph@VNS" start="148.195" end="148.319">&lt;&lt;fp&gt;&gt;</u>
+<u tier="wd@VNS" start="148.319" end="149.989" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="148.319" end="149.989">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="149.989" end="150.609" psVNS="n.RUSS" VNS="wolka" dorecombalgnVNS="****" glVNS="&#x432;&#x43E;&#x43B;&#x43A;&#x430;">wolka</u>
+<u tier="ph@VNS" start="149.989" end="150.239">w</u>
+<u tier="ph@VNS" start="150.239" end="150.269">o</u>
+<u tier="ph@VNS" start="150.269" end="150.299">l</u>
+<u tier="ph@VNS" start="150.299" end="150.499">k</u>
+<u tier="ph@VNS" start="150.499" end="150.609">a</u>
+<u tier="wd@VNS" start="150.609" end="151.179" psVNS="n" VNS="u&#x10F;a" dorecombalgnVNS="****" glVNS="&#x441;&#x43B;&#x435;&#x434;">u&#x10F;alin</u>
+<u tier="ph@VNS" start="150.609" end="150.689">u</u>
+<u tier="ph@VNS" start="150.689" end="150.799">d_j</u>
+<u tier="ph@VNS" start="150.799" end="150.829">a</u>
+<u tier="mb@VNS" start="150.829" end="151.009" dorecombalgnVNS="****" glVNS="PL" VNS="l">-li</u>
+<u tier="ph@VNS" start="150.859" end="151.009">i</u>
+<u tier="mb@VNS" start="151.009" end="151.179" glVNS="PS3SG" dorecombalgnVNS="****" VNS="n">-n</u>
+<u tier="wd@VNS" start="151.179" end="151.699" psVNS="adv" VNS="tad&#x16B;" glVNS="&#x442;&#x430;&#x43C;" dorecombalgnVNS="****">tad&#x16B;</u>
+<u tier="ph@VNS" start="151.179" end="151.269">t</u>
+<u tier="ph@VNS" start="151.269" end="151.339">a</u>
+<u tier="ph@VNS" start="151.339" end="151.489">d</u>
+<u tier="ph@VNS" start="151.489" end="151.699">u:</u>
+<u tier="wd@VNS" start="151.699" end="152.259" psVNS="adv" VNS="wiz&#x10F;&#x259;" dorecombalgnVNS="****" glVNS="&#x432;&#x435;&#x437;&#x434;&#x435;">&lt;&lt;fm&gt;wiz&#x10F;&#x259;&gt;</u>
+<u tier="ph@VNS" start="151.699" end="152.259">&lt;&lt;fm&gt;wiz&#x10F;&#x259;&gt;</u>
+<u tier="wd@VNS" start="152.259" end="153.816" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="152.259" end="153.816">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="153.816" end="154.575" psVNS="adv" VNS="&#x10D;&#x101;" glVNS="&#x43C;&#x435;&#x441;&#x442;&#x43E;.&#x43D;&#x435;&#x434;&#x430;&#x43B;&#x435;&#x43A;&#x43E;" dorecombalgnVNS="****">&#x10D;&#x101;&#x3B3;it</u>
+<u tier="ph@VNS" start="153.816" end="153.926">tS</u>
+<u tier="ph@VNS" start="153.926" end="154.156">a:</u>
+<u tier="mb@VNS" start="154.156" end="154.575" glVNS="ELAT" dorecombalgnVNS="****" VNS="G">-&#x3B3;it</u>
+<u tier="ph@VNS" start="154.186" end="154.346">i</u>
+<u tier="ph@VNS" start="154.346" end="154.575">t</u>
+<u tier="ref@VNS" start="154.575" end="156.864" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="154.575" end="156.864" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="156.864" end="157.805" ftVNS="I was walking along the shore." txVNS="&#x414;&#x44F;&#x43F;&#x43A;&#x430;&#x43B;&#x4E3; &#x433;&#x438;&#x440;&#x43A;&#x443;&#x43C;." VNS="&#x10F;apkal&#x12B;" psVNS="n">0040_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="156.864" end="157.234" dorecombalgnVNS="****" glVNS="&#x431;&#x435;&#x440;&#x435;&#x433;" VNS="d_j">&#x10F;apka</u>
+<u tier="ph@VNS" start="156.934" end="156.984">a</u>
+<u tier="ph@VNS" start="156.984" end="157.124">p</u>
+<u tier="ph@VNS" start="157.124" end="157.184">k</u>
+<u tier="ph@VNS" start="157.184" end="157.234">a</u>
+<u tier="mb@VNS" start="157.234" end="157.355" dorecombalgnVNS="****" glVNS="PROL" VNS="l">-l&#x12B;</u>
+<u tier="ph@VNS" start="157.284" end="157.355">i:</u>
+<u tier="wd@VNS" start="157.355" end="157.805" psVNS="v" VNS="girku" dorecombalgnVNS="****" glVNS="&#x445;&#x43E;&#x434;&#x438;&#x442;&#x44C;">girkum</u>
+<u tier="ph@VNS" start="157.355" end="157.435">g</u>
+<u tier="ph@VNS" start="157.435" end="157.515">i</u>
+<u tier="ph@VNS" start="157.515" end="157.545">r</u>
+<u tier="ph@VNS" start="157.545" end="157.705">k</u>
+<u tier="ph@VNS" start="157.705" end="157.755">u</u>
+<u tier="mb@VNS" start="157.755" end="157.805" glVNS="1SG" dorecombalgnVNS="****" VNS="m">-m</u>
+<u tier="ref@VNS" start="157.805" end="157.87" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="157.805" end="157.87" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="157.87" end="158.97" txVNS="&#x427;&#x430;&#x304;&#x441;&#x43A;&#x4E3; &#x433;&#x438;&#x440;&#x43A;&#x443;&#x43C;." ftVNS="I went farther." VNS="&#x10D;&#x101;sk&#x12B;" psVNS="adv">0041_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="157.87" end="158.467" glVNS="&#x43F;&#x43E;&#x434;&#x430;&#x43B;&#x44C;&#x448;&#x435;" dorecombalgnVNS="****" VNS="tS">&#x10D;&#x101;sk&#x12B;</u>
+<u tier="ph@VNS" start="157.96" end="158.14">a:</u>
+<u tier="ph@VNS" start="158.14" end="158.28">s</u>
+<u tier="ph@VNS" start="158.28" end="158.39">k</u>
+<u tier="ph@VNS" start="158.39" end="158.467">i:</u>
+<u tier="wd@VNS" start="158.467" end="158.97" psVNS="v" VNS="girku" glVNS="&#x445;&#x43E;&#x434;&#x438;&#x442;&#x44C;" dorecombalgnVNS="****">girkum</u>
+<u tier="ph@VNS" start="158.467" end="158.537">g</u>
+<u tier="ph@VNS" start="158.537" end="158.677">i</u>
+<u tier="ph@VNS" start="158.677" end="158.707">r</u>
+<u tier="ph@VNS" start="158.707" end="158.807">k</u>
+<u tier="ph@VNS" start="158.807" end="158.927">u</u>
+<u tier="mb@VNS" start="158.927" end="158.97" glVNS="1SG" dorecombalgnVNS="****" VNS="m">-m</u>
+<u tier="ref@VNS" start="158.97" end="160.002" ftVNS="He came [=walked] from there." txVNS="&#x422;&#x430;&#x440;&#x438;&#x433;&#x438;&#x442; &#x433;&#x438;&#x440;&#x43A;&#x443;&#x447;&#x430;." VNS="tari&#x3B3;it" psVNS="adv">0042_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="158.97" end="159.19" dorecombalgnVNS="****" glVNS="&#x442;&#x43E;&#x442;" VNS="t">tari</u>
+<u tier="ph@VNS" start="159.06" end="159.13">a</u>
+<u tier="ph@VNS" start="159.13" end="159.16">r</u>
+<u tier="ph@VNS" start="159.16" end="159.19">i</u>
+<u tier="mb@VNS" start="159.19" end="159.391" glVNS="ELAT" dorecombalgnVNS="****" VNS="G">-&#x3B3;it</u>
+<u tier="ph@VNS" start="159.22" end="159.34">i</u>
+<u tier="ph@VNS" start="159.34" end="159.391">t</u>
+<u tier="wd@VNS" start="159.391" end="160.002" psVNS="n" VNS="girku" dorecombalgnVNS="****" glVNS="&#x445;&#x43E;&#x434;&#x438;&#x442;&#x44C;">girku&#x10D;a</u>
+<u tier="ph@VNS" start="159.391" end="159.471">g</u>
+<u tier="ph@VNS" start="159.471" end="159.581">i</u>
+<u tier="ph@VNS" start="159.581" end="159.621">r</u>
+<u tier="ph@VNS" start="159.621" end="159.721">k</u>
+<u tier="ph@VNS" start="159.721" end="159.801">u</u>
+<u tier="mb@VNS" start="159.801" end="160.002" glVNS="PANT" dorecombalgnVNS="****" VNS="tS">-&#x10D;a</u>
+<u tier="ph@VNS" start="159.961" end="160.002">a</u>
+<u tier="ref@VNS" start="160.002" end="161.263" txVNS="h&#x43E;&#x440;&#x43E;&#x43B;&#x438;&#x43A;&#x442;&#x44D;&#x434;&#x435;&#x447;&#x430; &#x431;&#x438;&#x447;&#x43E;." ftVNS="He was circling." VNS="horolikt&#x259;&#x10F;&#x259;&#x10D;a" psVNS="v">0043_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="160.002" end="160.392" glVNS="&#x43A;&#x440;&#x443;&#x436;&#x438;&#x442;&#x44C;&#x441;&#x44F;" dorecombalgnVNS="****" VNS="h">horoli</u>
+<u tier="ph@VNS" start="160.042" end="160.102">o</u>
+<u tier="ph@VNS" start="160.102" end="160.142">r</u>
+<u tier="ph@VNS" start="160.142" end="160.222">o</u>
+<u tier="ph@VNS" start="160.222" end="160.262">l</u>
+<u tier="ph@VNS" start="160.262" end="160.392">i</u>
+<u tier="mb@VNS" start="160.392" end="160.552" dorecombalgnVNS="****" glVNS="DSPRS" VNS="k">-kt&#x259;</u>
+<u tier="ph@VNS" start="160.432" end="160.522">t</u>
+<u tier="ph@VNS" start="160.522" end="160.552">@</u>
+<u tier="mb@VNS" start="160.552" end="160.612" dorecombalgnVNS="****" glVNS="IPFV" VNS="d_j">-&#x10F;&#x259;</u>
+<u tier="ph@VNS" start="160.582" end="160.612">@</u>
+<u tier="mb@VNS" start="160.612" end="160.888" glVNS="PANT" dorecombalgnVNS="****" VNS="tS">-&#x10D;a</u>
+<u tier="ph@VNS" start="160.842" end="160.888">a</u>
+<u tier="wd@VNS" start="160.888" end="161.263" psVNS="v" VNS="bi" dorecombalgnVNS="****" glVNS="&#x431;&#x44B;&#x442;&#x44C;">bi&#x10D;o</u>
+<u tier="ph@VNS" start="160.888" end="160.978">b</u>
+<u tier="ph@VNS" start="160.978" end="161.018">i</u>
+<u tier="mb@VNS" start="161.018" end="161.263" glVNS="PANT" dorecombalgnVNS="****" VNS="tS">-&#x10D;o</u>
+<u tier="ph@VNS" start="161.218" end="161.263">o</u>
+<u tier="ref@VNS" start="161.263" end="169.819" txVNS="&lt;p:&gt;" ftVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="161.263" end="169.819" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="169.819" end="170.776" txVNS="****" ftVNS="****" VNS="&lt;&lt;fm&gt;&gt;" psVNS="****">0044_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="169.819" end="170.776" glVNS="****" dorecombalgnVNS="****" VNS="&lt;&lt;fm&gt;&gt;">****</u>
+<u tier="ref@VNS" start="170.776" end="171.52" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="170.776" end="171.52" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="171.52" end="172.595" ftVNS="Then later there I started asking." txVNS="&#x41F;&#x43E;&#x442;&#x43E;&#x43C; &#x443;&#x436;&#x435; &#x442;&#x430;&#x304;&#x43B;&#x430;&#x304; h&#x430;&#x43D;&#x4C8;&#x4EF;&#x43A;&#x442;&#x430;&#x43B;&#x438;&#x43C;." VNS="t&#x101;l&#x101;" psVNS="adv">0045_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="171.52" end="171.821" dorecombalgnVNS="****" glVNS="&#x442;&#x443;&#x434;&#x430;" VNS="t">t&#x101;l&#x101;</u>
+<u tier="ph@VNS" start="171.55" end="171.66">a:</u>
+<u tier="ph@VNS" start="171.66" end="171.69">l</u>
+<u tier="ph@VNS" start="171.69" end="171.821">a:</u>
+<u tier="wd@VNS" start="171.821" end="172.595" psVNS="v" VNS="han&#x14B;&#x16B;kta" glVNS="&#x441;&#x43F;&#x440;&#x43E;&#x441;&#x438;&#x442;&#x44C;" dorecombalgnVNS="****">han&#x14B;&#x16B;ktalim</u>
+<u tier="ph@VNS" start="171.821" end="171.891">h</u>
+<u tier="ph@VNS" start="171.891" end="171.931">a</u>
+<u tier="ph@VNS" start="171.931" end="171.971">n</u>
+<u tier="ph@VNS" start="171.971" end="172.041">N</u>
+<u tier="ph@VNS" start="172.041" end="172.081">u:</u>
+<u tier="ph@VNS" start="172.081" end="172.131">k</u>
+<u tier="ph@VNS" start="172.131" end="172.291">t</u>
+<u tier="ph@VNS" start="172.291" end="172.321">a</u>
+<u tier="mb@VNS" start="172.321" end="172.551" glVNS="INCH" dorecombalgnVNS="****" VNS="l">-li</u>
+<u tier="ph@VNS" start="172.371" end="172.551">i</u>
+<u tier="mb@VNS" start="172.551" end="172.595" glVNS="1SG" dorecombalgnVNS="****" VNS="m">-m</u>
+<u tier="ref@VNS" start="172.595" end="173.314" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="172.595" end="173.314" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="173.314" end="175.629" ftVNS="And Gosha doesn't have my dogs there." txVNS="&#x418; &#x413;&#x43E;&#x448;&#x430;&#x44F;&#x434;&#x4EF; &#x4C8;&#x438;&#x43D;&#x430;&#x43A;&#x438;&#x440;&#x432;&#x438; &#x430;&#x447;&#x438;&#x440; &#x442;&#x430;&#x434;&#x4EF;." VNS="i" psVNS="conj">0046_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="173.314" end="173.464" glVNS="&#x438;" dorecombalgnVNS="****" VNS="i">i</u>
+<u tier="wd@VNS" start="173.464" end="174.174" psVNS="n" VNS="go&#x161;a" dorecombalgnVNS="****" glVNS="&#x413;&#x43E;&#x448;&#x430;">go&#x161;ajad&#x16B;</u>
+<u tier="ph@VNS" start="173.464" end="173.494">g</u>
+<u tier="ph@VNS" start="173.494" end="173.674">o</u>
+<u tier="ph@VNS" start="173.674" end="173.734">S</u>
+<u tier="ph@VNS" start="173.734" end="173.824">a</u>
+<u tier="mb@VNS" start="173.824" end="174.024" glVNS="COLL" dorecombalgnVNS="****" VNS="j">-ja</u>
+<u tier="ph@VNS" start="173.934" end="174.024">a</u>
+<u tier="mb@VNS" start="174.024" end="174.174" glVNS="DATLOC" dorecombalgnVNS="****" VNS="d">-d&#x16B;</u>
+<u tier="ph@VNS" start="174.094" end="174.174">u:</u>
+<u tier="wd@VNS" start="174.174" end="174.969" psVNS="n" VNS="&#x14B;inaki" glVNS="&#x441;&#x43E;&#x431;&#x430;&#x43A;&#x430;" dorecombalgnVNS="****">&#x14B;inakirwi</u>
+<u tier="ph@VNS" start="174.174" end="174.204">N</u>
+<u tier="ph@VNS" start="174.204" end="174.254">i</u>
+<u tier="ph@VNS" start="174.254" end="174.294">n</u>
+<u tier="ph@VNS" start="174.294" end="174.324">a</u>
+<u tier="ph@VNS" start="174.324" end="174.424">k</u>
+<u tier="ph@VNS" start="174.424" end="174.584">i</u>
+<u tier="mb@VNS" start="174.584" end="174.614" dorecombalgnVNS="****" glVNS="PL" VNS="r">-r</u>
+<u tier="mb@VNS" start="174.614" end="174.969" glVNS="PS1SG" dorecombalgnVNS="****" VNS="w">-wi</u>
+<u tier="ph@VNS" start="174.824" end="174.969">i</u>
+<u tier="wd@VNS" start="174.969" end="175.355" psVNS="n" VNS="a&#x10D;i" dorecombalgnVNS="****" glVNS="NEG">a&#x10D;ir</u>
+<u tier="ph@VNS" start="174.969" end="175.099">a</u>
+<u tier="ph@VNS" start="175.099" end="175.239">tS</u>
+<u tier="ph@VNS" start="175.239" end="175.309">i</u>
+<u tier="mb@VNS" start="175.309" end="175.355" dorecombalgnVNS="****" glVNS="PL" VNS="r">-r</u>
+<u tier="wd@VNS" start="175.355" end="175.629" psVNS="adv" VNS="tad&#x16B;" dorecombalgnVNS="****" glVNS="&#x442;&#x430;&#x43C;">tad&#x16B;</u>
+<u tier="ph@VNS" start="175.355" end="175.445">t</u>
+<u tier="ph@VNS" start="175.445" end="175.515">a</u>
+<u tier="ph@VNS" start="175.515" end="175.555">d</u>
+<u tier="ph@VNS" start="175.555" end="175.629">u:</u>
+<u tier="ref@VNS" start="175.629" end="177.391" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="175.629" end="177.391" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="177.391" end="178.191" ftVNS="****" txVNS="****" VNS="&lt;&lt;fm&gt;&gt;" psVNS="****">0047_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="177.391" end="178.191" glVNS="****" dorecombalgnVNS="****" VNS="&lt;&lt;fm&gt;&gt;">****</u>
+<u tier="ref@VNS" start="178.191" end="180.471" txVNS="&#x41D;&#x443;, &#x437;&#x43D;&#x430;&#x447;&#x438;&#x442;, &#x433;&#x443;&#x43D;&#x438;&#x43C;, &#x442;&#x430;&#x440; &#x447;&#x438;&#x43F;&#x43A;&#x430;&#x304;&#x43D; &#x434;&#x44F;&#x432;&#x430;&#x442;&#x442;&#x44D;&#x43D;." ftVNS="So, I thought, that wolf had snatched them." VNS="gunim" psVNS="v">0048_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="178.191" end="178.481" glVNS="&#x441;&#x43A;&#x430;&#x437;&#x430;&#x442;&#x44C;" dorecombalgnVNS="****" VNS="g">guni</u>
+<u tier="ph@VNS" start="178.221" end="178.331">u</u>
+<u tier="ph@VNS" start="178.331" end="178.361">n</u>
+<u tier="ph@VNS" start="178.361" end="178.481">i</u>
+<u tier="mb@VNS" start="178.481" end="178.525" glVNS="1SG" dorecombalgnVNS="****" VNS="m">-m</u>
+<u tier="wd@VNS" start="178.525" end="178.916" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="178.525" end="178.916">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="178.916" end="179.116" psVNS="pro-adj" VNS="tar" dorecombalgnVNS="****" glVNS="&#x442;&#x43E;&#x442;">tar</u>
+<u tier="ph@VNS" start="178.916" end="178.986">t</u>
+<u tier="ph@VNS" start="178.986" end="179.036">a</u>
+<u tier="ph@VNS" start="179.036" end="179.116">r</u>
+<u tier="wd@VNS" start="179.116" end="179.761" psVNS="n" VNS="&#x10D;ipk&#x101;n" glVNS="&#x432;&#x43E;&#x43B;&#x43A;" dorecombalgnVNS="****">&#x10D;ipk&#x101;n</u>
+<u tier="ph@VNS" start="179.116" end="179.226">tS</u>
+<u tier="ph@VNS" start="179.226" end="179.276">i</u>
+<u tier="ph@VNS" start="179.276" end="179.386">p</u>
+<u tier="ph@VNS" start="179.386" end="179.446">k</u>
+<u tier="ph@VNS" start="179.446" end="179.546">a:</u>
+<u tier="ph@VNS" start="179.546" end="179.761">n</u>
+<u tier="wd@VNS" start="179.761" end="179.921" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="179.761" end="179.921">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="179.921" end="180.471" psVNS="v" VNS="&#x10F;awa" glVNS="&#x441;&#x445;&#x432;&#x430;&#x442;&#x438;&#x442;&#x44C;" dorecombalgnVNS="****">&#x10F;awatt&#x259;n</u>
+<u tier="ph@VNS" start="179.921" end="180.001">d_j</u>
+<u tier="ph@VNS" start="180.001" end="180.041">a</u>
+<u tier="ph@VNS" start="180.041" end="180.111">w</u>
+<u tier="ph@VNS" start="180.111" end="180.141">a</u>
+<u tier="mb@VNS" start="180.141" end="180.171" glVNS="DISTR" dorecombalgnVNS="****" VNS="t">-t</u>
+<u tier="mb@VNS" start="180.171" end="180.381" glVNS="NFUT" dorecombalgnVNS="****" VNS="t">-t&#x259;</u>
+<u tier="ph@VNS" start="180.351" end="180.381">@</u>
+<u tier="mb@VNS" start="180.381" end="180.471" glVNS="3SG" dorecombalgnVNS="****" VNS="n">-n</u>
+<u tier="ref@VNS" start="180.471" end="183.097" txVNS="&#x41F;&#x43E;&#x442;&#x43E;&#x43C;&#x443; &#x447;&#x442;&#x43E; &#x438;&#x43B;&#x43C;&#x430;&#x43A;&#x442;&#x430;&#x43B; &#x431;&#x438;&#x447;&#x43E;&#x304;&#x442;&#x44B;&#x43D; &#x441;&#x430;&#x43C;&#x438; &#x4C8;&#x438;&#x43D;&#x430;&#x43A;&#x438;&#x440;." ftVNS="Because they were the youngest dogs." VNS="patamu&#x161;ta" psVNS="adv">0049_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="180.471" end="181.227" dorecombalgnVNS="****" glVNS="&#x43F;&#x43E;&#x442;&#x43E;&#x43C;&#x443;.&#x447;&#x442;&#x43E;" VNS="p">patamu&#x161;ta</u>
+<u tier="ph@VNS" start="180.601" end="180.631">a</u>
+<u tier="ph@VNS" start="180.631" end="180.751">t</u>
+<u tier="ph@VNS" start="180.751" end="180.781">a</u>
+<u tier="ph@VNS" start="180.781" end="180.811">m</u>
+<u tier="ph@VNS" start="180.811" end="181.021">u</u>
+<u tier="ph@VNS" start="181.021" end="181.091">S</u>
+<u tier="ph@VNS" start="181.091" end="181.181">t</u>
+<u tier="ph@VNS" start="181.181" end="181.227">a</u>
+<u tier="wd@VNS" start="181.227" end="181.713" psVNS="adj" VNS="ilmakta" glVNS="&#x43C;&#x43E;&#x43B;&#x43E;&#x434;&#x43E;&#x439;" dorecombalgnVNS="****">ilmaktal</u>
+<u tier="ph@VNS" start="181.227" end="181.297">i</u>
+<u tier="ph@VNS" start="181.297" end="181.327">l</u>
+<u tier="ph@VNS" start="181.327" end="181.417">m</u>
+<u tier="ph@VNS" start="181.417" end="181.447">a</u>
+<u tier="ph@VNS" start="181.447" end="181.477">k</u>
+<u tier="ph@VNS" start="181.477" end="181.637">t</u>
+<u tier="ph@VNS" start="181.637" end="181.667">a</u>
+<u tier="mb@VNS" start="181.667" end="181.713" dorecombalgnVNS="****" glVNS="PL" VNS="l">-l</u>
+<u tier="wd@VNS" start="181.713" end="182.253" psVNS="v" VNS="bi" dorecombalgnVNS="****" glVNS="&#x431;&#x44B;&#x442;&#x44C;">bi&#x10D;&#x14D;tin</u>
+<u tier="ph@VNS" start="181.713" end="181.803">b</u>
+<u tier="ph@VNS" start="181.803" end="181.853">i</u>
+<u tier="mb@VNS" start="181.853" end="182.033" glVNS="PST" dorecombalgnVNS="****" VNS="tS">-&#x10D;&#x14D;</u>
+<u tier="ph@VNS" start="181.983" end="182.033">o:</u>
+<u tier="mb@VNS" start="182.033" end="182.253" dorecombalgnVNS="****" glVNS="3PL" VNS="t">-tin</u>
+<u tier="ph@VNS" start="182.183" end="182.213">i</u>
+<u tier="ph@VNS" start="182.213" end="182.253">n</u>
+<u tier="wd@VNS" start="182.253" end="182.583" psVNS="adj" VNS="samij" dorecombalgnVNS="****" glVNS="&#x441;&#x430;&#x43C;&#x44B;&#x439;">samij</u>
+<u tier="ph@VNS" start="182.253" end="182.363">s</u>
+<u tier="ph@VNS" start="182.363" end="182.403">a</u>
+<u tier="ph@VNS" start="182.403" end="182.463">m</u>
+<u tier="ph@VNS" start="182.463" end="182.543">i</u>
+<u tier="ph@VNS" start="182.543" end="182.583">j</u>
+<u tier="wd@VNS" start="182.583" end="183.097" psVNS="n" VNS="&#x14B;inaki" glVNS="&#x441;&#x43E;&#x431;&#x430;&#x43A;&#x430;" dorecombalgnVNS="****">&#x14B;inakir</u>
+<u tier="ph@VNS" start="182.583" end="182.613">N</u>
+<u tier="ph@VNS" start="182.613" end="182.763">i</u>
+<u tier="ph@VNS" start="182.763" end="182.803">n</u>
+<u tier="ph@VNS" start="182.803" end="182.833">a</u>
+<u tier="ph@VNS" start="182.833" end="182.973">k</u>
+<u tier="ph@VNS" start="182.973" end="183.053">i</u>
+<u tier="mb@VNS" start="183.053" end="183.097" dorecombalgnVNS="****" glVNS="PL" VNS="r">-r</u>
+<u tier="ref@VNS" start="183.097" end="184.599" txVNS="&lt;p:&gt;" ftVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="183.097" end="184.599" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="184.599" end="185.985" txVNS="h&#x430;&#x44F;&#x43B;&#x44D; &#x438;&#x434;&#x4EF;&#x434;&#x43E;&#x304; &#x442;&#x443;&#x43A;&#x434;&#x43E;&#x304;." ftVNS="They're nowhere to be found." VNS="hajal&#x259;" psVNS="adj">0050_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="184.599" end="184.97" glVNS="&#x43E;&#x442;&#x441;&#x443;&#x442;&#x441;&#x442;&#x432;&#x443;&#x44E;&#x449;&#x438;&#x439;" dorecombalgnVNS="****" VNS="h">hajal&#x259;</u>
+<u tier="ph@VNS" start="184.629" end="184.659">a</u>
+<u tier="ph@VNS" start="184.659" end="184.799">j</u>
+<u tier="ph@VNS" start="184.799" end="184.869">a</u>
+<u tier="ph@VNS" start="184.869" end="184.929">l</u>
+<u tier="ph@VNS" start="184.929" end="184.97">@</u>
+<u tier="wd@VNS" start="184.97" end="185.405" psVNS="adv" VNS="id&#x16B;" glVNS="&#x433;&#x434;&#x435;" dorecombalgnVNS="****">id&#x16B;d&#x14D;</u>
+<u tier="ph@VNS" start="184.97" end="185.26">i</u>
+<u tier="ph@VNS" start="185.26" end="185.29">d</u>
+<u tier="ph@VNS" start="185.29" end="185.32">u:</u>
+<u tier="mb@VNS" start="185.32" end="185.405" glVNS="=FOC" dorecombalgnVNS="****" VNS="d">=d&#x14D;</u>
+<u tier="ph@VNS" start="185.35" end="185.405">o:</u>
+<u tier="wd@VNS" start="185.405" end="185.635" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="185.405" end="185.635">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="185.635" end="185.985" psVNS="adv" VNS="tuk" dorecombalgnVNS="****" glVNS="&#x442;&#x430;&#x43A;">tukd&#x14D;</u>
+<u tier="ph@VNS" start="185.635" end="185.665">t</u>
+<u tier="ph@VNS" start="185.665" end="185.825">u</u>
+<u tier="ph@VNS" start="185.825" end="185.915">k</u>
+<u tier="mb@VNS" start="185.915" end="185.985" glVNS="=FOC" dorecombalgnVNS="****" VNS="d">=d&#x14D;</u>
+<u tier="ph@VNS" start="185.945" end="185.985">o:</u>
+<u tier="ref@VNS" start="185.985" end="188.135" ftVNS="The wolf must have killed them." txVNS="&#x427;&#x438;&#x43F;&#x43A;&#x430;&#x304;&#x43D;, &#x43D;&#x430;&#x432;&#x435;&#x440;&#x43D;&#x43E;&#x435;, &#x432;&#x430;&#x440;&#x43A;&#x44D;." VNS="&#x10D;ipk&#x101;n" psVNS="n">0051_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="185.985" end="186.737" glVNS="&#x432;&#x43E;&#x43B;&#x43A;" dorecombalgnVNS="****" VNS="tS">&#x10D;ipk&#x101;n</u>
+<u tier="ph@VNS" start="186.195" end="186.245">i</u>
+<u tier="ph@VNS" start="186.245" end="186.365">p</u>
+<u tier="ph@VNS" start="186.365" end="186.415">k</u>
+<u tier="ph@VNS" start="186.415" end="186.495">a:</u>
+<u tier="ph@VNS" start="186.495" end="186.737">n</u>
+<u tier="wd@VNS" start="186.737" end="186.999" psVNS="****" VNS="****" dorecombalgnVNS="****" glVNS="****">&lt;&lt;ui&gt;&gt;</u>
+<u tier="ph@VNS" start="186.737" end="186.999">&lt;&lt;ui&gt;&gt;</u>
+<u tier="wd@VNS" start="186.999" end="187.213" psVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ph@VNS" start="186.999" end="187.213">&lt;p:&gt;</u>
+<u tier="wd@VNS" start="187.213" end="187.623" psVNS="adv" VNS="nawerna" glVNS="&#x43D;&#x430;&#x432;&#x435;&#x440;&#x43D;&#x43E;&#x435;" dorecombalgnVNS="****">&lt;&lt;fm&gt;nawerna&gt;</u>
+<u tier="ph@VNS" start="187.213" end="187.623">&lt;&lt;fm&gt;nawerna&gt;</u>
+<u tier="wd@VNS" start="187.623" end="188.135" psVNS="v" VNS="wa" glVNS="&#x443;&#x431;&#x438;&#x442;&#x44C;" dorecombalgnVNS="****">wark&#x259;</u>
+<u tier="ph@VNS" start="187.623" end="187.723">w</u>
+<u tier="ph@VNS" start="187.723" end="187.793">a</u>
+<u tier="mb@VNS" start="187.793" end="188.135" dorecombalgnVNS="****" glVNS="PROB" VNS="r">-rk&#x259;</u>
+<u tier="ph@VNS" start="187.873" end="188.093">k</u>
+<u tier="ph@VNS" start="188.093" end="188.135">@</u>
+<u tier="ref@VNS" start="188.135" end="188.458" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="188.135" end="188.458" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="188.458" end="190.026" txVNS="&#x414;&#x435;&#x432;&#x443;&#x440;&#x43A;&#x44D;&#x43B;&#x442;&#x44B;&#x43D; &#x442;&#x430;&#x440; &#x43D;&#x443;&#x4C8;&#x430;&#x440;&#x432;&#x430;&#x442;&#x44B;&#x43D;." ftVNS="Probably ate them one by one." VNS="&#x10F;&#x259;wurk&#x259;ltin" psVNS="v">0052_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="188.458" end="188.688" dorecombalgnVNS="****" glVNS="&#x441;&#x44A;&#x435;&#x441;&#x442;&#x44C;" VNS="d_j">&#x10F;&#x259;wu</u>
+<u tier="ph@VNS" start="188.528" end="188.568">@</u>
+<u tier="ph@VNS" start="188.568" end="188.598">w</u>
+<u tier="ph@VNS" start="188.598" end="188.688">u</u>
+<u tier="mb@VNS" start="188.688" end="188.908" dorecombalgnVNS="****" glVNS="PROB" VNS="r">-rk&#x259;</u>
+<u tier="ph@VNS" start="188.738" end="188.878">k</u>
+<u tier="ph@VNS" start="188.878" end="188.908">@</u>
+<u tier="mb@VNS" start="188.908" end="189.178" dorecombalgnVNS="****" glVNS="ADVZ.ORDER" VNS="l">-lti</u>
+<u tier="ph@VNS" start="188.948" end="189.038">t</u>
+<u tier="ph@VNS" start="189.038" end="189.118">i</u>
+<u tier="ph@VNS" start="189.118" end="189.178">n</u>
+<u tier="wd@VNS" start="189.178" end="189.478" psVNS="pro-adj" VNS="tar" dorecombalgnVNS="****" glVNS="&#x442;&#x43E;&#x442;">tar</u>
+<u tier="ph@VNS" start="189.178" end="189.398">t</u>
+<u tier="ph@VNS" start="189.398" end="189.428">a</u>
+<u tier="ph@VNS" start="189.428" end="189.478">r</u>
+<u tier="wd@VNS" start="189.478" end="190.026" psVNS="pro-pers" VNS="nu&#x14B;ar" dorecombalgnVNS="****" glVNS="3PL">nu&#x14B;arwatin</u>
+<u tier="ph@VNS" start="189.478" end="189.558">n</u>
+<u tier="ph@VNS" start="189.558" end="189.678">u</u>
+<u tier="ph@VNS" start="189.678" end="189.708">N</u>
+<u tier="ph@VNS" start="189.708" end="189.738">a</u>
+<u tier="ph@VNS" start="189.738" end="189.768">r</u>
+<u tier="mb@VNS" start="189.768" end="189.838" dorecombalgnVNS="****" glVNS="ACC" VNS="w">-wa</u>
+<u tier="ph@VNS" start="189.808" end="189.838">a</u>
+<u tier="mb@VNS" start="189.838" end="190.026" dorecombalgnVNS="****" glVNS="PS3PL" VNS="t">-tin</u>
+<u tier="ph@VNS" start="189.938" end="189.968">i</u>
+<u tier="ph@VNS" start="189.968" end="190.026">n</u>
+<u tier="ref@VNS" start="190.026" end="195.609" txVNS="&lt;p:&gt;" ftVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="190.026" end="195.609" glVNS="&lt;p:&gt;" dorecombalgnVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="ref@VNS" start="195.609" end="196.686" ftVNS="Where else would they go?" txVNS="&#x418;&#x43B;&#x43E;&#x304; &#x431;&#x43E;&#x43B;&#x44C;&#x448;&#x435; &#x43E;&#x434;&#x435;&#x440;&#x44D;?" VNS="il&#x14D;" psVNS="adv">0053_doreco_even1259_2006_Ozero_Bolshoe_Sovetskoe_Saygotin_LO2</u>
+<u tier="mb@VNS" start="195.609" end="195.899" glVNS="&#x43A;&#x443;&#x434;&#x430;" dorecombalgnVNS="****" VNS="i">il&#x14D;</u>
+<u tier="ph@VNS" start="195.779" end="195.809">l</u>
+<u tier="ph@VNS" start="195.809" end="195.899">o:</u>
+<u tier="wd@VNS" start="195.899" end="196.271" psVNS="adv" VNS="bol&#x161;&#x259;" glVNS="&#x431;&#x43E;&#x43B;&#x44C;&#x448;&#x435;" dorecombalgnVNS="****">&lt;&lt;fm&gt;bol&#x161;&#x259;&gt;</u>
+<u tier="ph@VNS" start="195.899" end="196.271">&lt;&lt;fm&gt;bol&#x161;&#x259;&gt;</u>
+<u tier="wd@VNS" start="196.271" end="196.686" psVNS="v" VNS="o" dorecombalgnVNS="****" glVNS="&#x441;&#x442;&#x430;&#x442;&#x44C;">o&#x10F;&#x259;r&#x259;</u>
+<u tier="ph@VNS" start="196.271" end="196.371">o</u>
+<u tier="mb@VNS" start="196.371" end="196.561" dorecombalgnVNS="****" glVNS="IPFV" VNS="d_j">-&#x10F;&#x259;</u>
+<u tier="ph@VNS" start="196.531" end="196.561">@</u>
+<u tier="mb@VNS" start="196.561" end="196.686" glVNS="NFUT" dorecombalgnVNS="****" VNS="r">-r&#x259;</u>
+<u tier="ph@VNS" start="196.641" end="196.686">@</u>
+<u tier="ref@VNS" start="196.686" end="197.479" ftVNS="&lt;p:&gt;" txVNS="&lt;p:&gt;" VNS="&lt;p:&gt;" psVNS="&lt;p:&gt;">&lt;p:&gt;</u>
+<u tier="mb@VNS" start="196.686" end="197.479" dorecombalgnVNS="&lt;p:&gt;" glVNS="&lt;p:&gt;" VNS="&lt;p:&gt;">&lt;p:&gt;</u>
+</text>
+</TEI>
+

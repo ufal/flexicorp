@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TEI>
+  <teiHeader>
+    <fileDesc>
+      <notesStmt>
+        <note n="orgfile">Originals/docs/15094-1.pdf</note>
+      </notesStmt>
+    </fileDesc>
+    <revisionDesc>
+      <change who="pdftohtml + html2tei" when="2025-03-15">Converted from PDF via HTML</change>
+    </revisionDesc>
+  </teiHeader>
+  <text xml:space="preserve">
+    <body bgcolor="#A0A0A0" vlink="blue" link="blue">
+<!-- Page 1 -->
+<pb n="1"/>
+
+<div id="page1-div" style="">
+<figure><graphic width="892" height="1262" alt="background image" url="15094-1001.png"/></figure>
+<p style="top:107px;left:194px;white-space:nowrap;font-size:33px;font-family:Times New Roman,Bold;color:#df2812;" class="ft10"><b>Má pravdu děda. Přeji hezký den!!! </b></p>
+<p style="top:145px;left:446px;white-space:nowrap;font-size:18px;font-family:Comic Sans MS;color:#000000;" class="ft11"> </p>
+<p style="top:171px;left:106px;white-space:nowrap;font-size:30px;line-height:41px;font-family:Comic Sans MS;color:#000000;" class="ft111">Komando městských strážníků rozehnalo hlouček <br/>čumilů před nádražím, v jehož<b> </b>středu<b> </b>seděl <br/>jakýsi děda na schodech a pohazoval si v <br/>dlani<b> </b>dvoukorunou. </p>
+<p style="top:338px;left:446px;white-space:nowrap;font-size:30px;font-family:Comic Sans MS,Bold;color:#000000;" class="ft13"><b> </b></p>
+<p style="top:380px;left:138px;white-space:nowrap;font-size:33px;font-family:Times New Roman,Bold;color:#006fc0;" class="ft14"><b>"Co to tu vyvádíte dědku."zahřímal velitel. </b> </p>
+<p style="top:420px;left:106px;white-space:nowrap;font-size:30px;line-height:55px;font-family:Arial Unicode MS;color:#000000;" class="ft114"> <br/>„Jen jsem tu lidem povídal, že si vzpomínám, že za <br/>tuhletu dvoukorunu jsem za 1. republiky koupil 20 <br/>dkg salámu, za komunistů litr mléka, 1 pivo, <br/>krabičku cigaret, nebo 1/2 chleba a teď - přemýšlím,</p>
+<p style="top:601px;left:728px;white-space:nowrap;font-size:30px;font-family:Arial Unicode MS;color:#000000;" class="ft17">  </p>
+<p style="top:654px;left:135px;white-space:nowrap;font-size:39px;font-family:Arial Unicode MS;color:#974705;" class="ft19">kde sehnat ještě 3 koruny, abych se </p>
+<p style="top:726px;left:262px;white-space:nowrap;font-size:54px;font-family:Arial Unicode MS;color:#974705;" class="ft110">mohl jít vysrat." </p>
+<p style="top:815px;left:106px;white-space:nowrap;font-size:30px;font-family:Arial Unicode MS;color:#000000;" class="ft17"> </p>
+<p style="top:940px;left:693px;white-space:nowrap;font-size:30px;font-family:Arial Unicode MS;color:#000000;" class="ft17"> </p>
+</div>
+</body>
+  </text>
+</TEI>
+

@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<userlist>
+<user short="AGDC" permissions="admin" email="anicetog@unav.es" group="" password="$2y$10$NLD6BqoeWABCKEjB/ZafX.yTufaUIWl6ZAxbWdtieZzYXtaq2L8Am" enc="1" projects="all">Aniceto Go&#xF1;i</user>
+<user short="MCTS" permissions="admin" email="ctabernero@unav.es" group="" password="$2y$10$x/wUWOhTx1pKt471q.029eXtYLrKeCMjZptIhIfSvcmrDZ5ITQZEe" enc="1" projects="all">Cristina Tabernero</user><user short="VCG" permissions="admin" email="victorcaballero@ucm.es" group="" password="$2y$10$yJpaS7HZARWNHeOzmoczJObeekGIZwNKE0/zpVXLl1Vu.W2obKH3." enc="1">V&#xED;ctor Caballero G&#xF3;mez</user>
+<user short="MJLOCAL" permissions="admin" email="maarten@teitok.org" group="" password="$2y$10$0ikQ3qqxQtxlRyzSkay7tuYrqtlNUDMo2kRkxtzUeUTexLjgXTcWq" enc="1" projects="all">Maarten LOCAL</user>
+<user short="MJ" permissions="admin" email="maartenpt@gmail.com" group="" password="$2y$10$EzAWtcMxJYq.BJdr6NeBru2xtZvhvz5OPi61Max62845XRBAVWZ8q" tochange="1">Maarten Janssen</user></userlist>

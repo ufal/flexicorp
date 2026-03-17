@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI>
+<teiHeader><revisionDesc><change when="2024-12-04" who="MJLOCAL">XML file created</change></revisionDesc></teiHeader>
+<text id="" xml:space="preserve">
+<p id="p-1">Eso es un test pequeño. En este test miramos como funciona awesome-align para el Holandes con el Español.</p>
+<p id="p-2">Miramos al nivel de palabras. Y miramos también al nivel de paragrafos.</p>
+</text>
+
+
+</TEI>

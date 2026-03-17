@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI>
+<teiHeader><revisionDesc><change when="2024-10-15" who="VCG">XML file created</change></revisionDesc></teiHeader>
+<text id="" xml:space="preserve">
+<pb n="1r" id="e-1"/> <lb n="1" id="e-2"/> <foreign xml:lang="la"><tok form="Esto" id="w-1" mform="" lemma="" pos="">Esto</tok></foreign> <tok id="w-2" mform="es" lemma="ser" pos="VSIP3S0">es</tok> <tok id="w-3" mform="una" lemma="uno" pos="PI0FS00">una</tok> <tok id="w-4" nform="prueva" mform="prueba" lemma="prueba" pos="NCFS000">prueua</tok>
+</text>
+
+</TEI>
+

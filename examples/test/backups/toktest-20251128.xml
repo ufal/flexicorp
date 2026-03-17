@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI>
+<teiHeader><revisionDesc><change when="2024-12-04" who="MJLOCAL">XML file created</change></revisionDesc></teiHeader>
+<text id="" xml:space="preserve">
+<p><s><hi><tok>Eso</tok></hi> <tok>es</tok> <tok>un</tok> <tok>test</tok> <tok>pequeño</tok><tok>.</tok></s> <s><tok>En</tok> <tok>este</tok> <tok>test</tok> <tok>miramos</tok> <tok>como</tok> <tok>funciona</tok> <tok>awesome-align</tok> <tok>para</tok> <tok>el</tok> <tok>Holandes</tok> <tok>con</tok> <tok>el</tok> <tok>Español</tok><tok>.</tok></s></p>
+<p><s><tok>Miramos</tok> <tok>al</tok> <tok>nivel</tok> <tok>de</tok> <tok>palabras</tok><tok>.</tok></s> <s><tok>Y</tok> <tok>miramos</tok> <tok>también</tok> <tok>al</tok> <tok>nivel</tok> <tok>de</tok> <tok>paragrafos</tok><tok>.</tok></s></p>
+</text>
+
+
+
+</TEI>

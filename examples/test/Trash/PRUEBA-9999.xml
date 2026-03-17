@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI>
+<teiHeader><revisionDesc><change when="2024-08-22" who="MCTS">XML file created</change></revisionDesc><fileDesc><sourceDesc><msDesc><msContents><summary>Este es el título</summary></msContents><history><origin><origPlace><placeName>Localización</placeName><geo>40 -3</geo></origPlace></origin></history></msDesc></sourceDesc></fileDesc></teiHeader>
+<text id="" xml:space="preserve">
+<pb n="1r" id="e-1"/> <lb n="1" id="e-2"/> <tok id="w-1" mform="">Esto</tok> <tok id="w-2" mform="es">es</tok> <tok id="w-3" mform="una">una</tok> <tok id="w-4" nform="prueva" mform="prueba">prueua</tok><tok id="w-6" nform="."><ee/></tok><tok id="w-5"><ee/></tok>
+</text>
+
+</TEI>

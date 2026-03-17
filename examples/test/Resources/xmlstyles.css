@@ -1,0 +1,282 @@
+/* Paleographic styles 
+#mtxt, #mtxt p { font-size: 14pt; line-height: 20pt; }
+#mtxt s { text-decoration: none; }
+#mtxt u { text-decoration: none; }
+#mtxt note { color: #0000aa; display: none; font-size: 10pt; vertical-align: super; }
+ex { color: #aaaaaa; }
+add { color: #0000ff; }
+hi[rend=underlined] { text-decoration: underline;  }
+hi[rend=red] { color: #C00000;  }
+*[rend=center] { text-align: center; display: block; }
+hi[rend=italic] { font-style: italic;  }
+supplied { color: #200099;  }
+#mtxt tok { font-size: 14pt; }
+#mtxt tok:hover { text-shadow: 1pt 1pt #994444;}
+#mtxt hr { background-color: #aaaaaa; }
+unclear { background-color: #cceecc; }
+
+/* Spoken specific CSS */
+
+/* Utterance display 
+#mtxt u { text-decoration: none;  display: block; font-size: 12pt; clear: both; margin-bottom: 10px; vertical-align: center; }  
+#mtxt u[who]:before { content: attr(who) ' - '; color: #000077; }
+
+/* Pauses 
+pause::before { color: #ffaaaa; content: "/"; }
+pause[type=long]::before { content: "//"; }
+
+/* "deleted" elements 
+del { color: #cccccc; text-decoration: none;  }
+del[type="truncated"]::after { content: "@";  }
+del[type="repetition"]::before { content: "[";  }
+del[type="repetition"]::after { content: "]";  }
+del[type="reformulation"]::before { content: "<";  }
+del[type="reformulation"]::after { content: ">";  }
+
+/* extralinguistic elements 
+vocal desc { color: #C0C000; font-style: italic;  }
+kinesic desc { color: #C000C0; font-style: italic; }
+foreign { color: #00C0C0; }
+
+/*
+
+
+/*CHARTA*/
+/* Paleographic styles */
+#mtxt, #mtxt p { font-size: 14pt; line-height: 20pt; }
+#mtxt s { text-decoration: none; }
+#mtxt u { text-decoration: none; }
+#mtxt note { color: #0000aa; display: none; font-size: 10pt; vertical-align: super; }
+/* ex { color: #aaaaaa; }
+add { color: #0000ff; }
+hi[rend=underlined] { text-decoration: underline;  }
+hi[rend=red] { color: #C00000;  }
+*[rend=center] { text-align: center; display: block; }
+hi[rend=italic] { font-style: italic;  }
+supplied { color: #200099;  } */
+#mtxt tok { font-size: 14pt; }
+#mtxt tok:hover { text-shadow: 1pt 1pt #994444;}
+#mtxt hr { background-color: #aaaaaa; }
+unclear { background-color: #cceecc; }
+
+/* Spoken specific CSS */
+
+/* Utterance display */
+#mtxt u { text-decoration: none;  display: block; font-size: 12pt; clear: both; margin-bottom: 10px; /*vertical-align: central;*/ }  /* disable underline */
+#mtxt u[who]:before { content: attr(who) ' - '; color: #000077; }
+
+/* Pauses */
+pause::before { color: #ffaaaa; content: "/"; }
+pause[type=long]::before { content: "//"; }
+
+/* "deleted" elements */
+del { color: #cccccc; text-decoration: none;  }
+del[type="truncated"]::after { content: "@";  }
+del[type="repetition"]::before { content: "[";  }
+del[type="repetition"]::after { content: "]";  }
+del[type="reformulation"]::before { content: "<";  }
+del[type="reformulation"]::after { content: ">";  } 
+
+/* extralinguistic elements */
+vocal desc { color: #C0C000; font-style: italic;  }
+kinesic desc { color: #C000C0; font-style: italic; }
+foreign { color: #aaaaaa; }
+
+/* CHARTA 3.0 */
+
+/* Paleographic styles */
+#mtxt, #mtxt p { font-size: 13pt; line-height: 19pt; }
+#mtxt s { text-decoration: none; }
+#mtxt note { color: #0000aa; display: none; font-size: 10pt; vertical-align: super; }
+#mtxt ex { color: #aaaaaa; }
+/* #mtxt ex::before { content: '<'; }
+#mtxt ex::after { content: '>'; } */
+/* #mtxt add { color: #013ADF; text-decoration: none; } */
+#mtxt del { color: #aaaaaa;  }
+
+#mtxt[show="pform"] del { color: #aaaaaa; }
+#mtxt[show="pform"] del::before { content: '['  attr(type) attr(rend)  ': '; }
+#mtxt[show="pform"] del::after { content: ']'; }
+#mtxt[show="pform"] del:empty { color: #aaaaaa; }
+#mtxt[show="pform"] del:empty::before { content: '[' attr(type); }
+#mtxt[show="pform"] del:empty::after { content: ']'; }
+
+
+#mtxt hi[rend*='underlined'] { text-decoration: underline;  }
+
+#mtxt ex { font-style: italic; }
+
+/* #mtxt figure::before { content: '[' attr(type) ']'; color: #aaaaaa; } */
+
+#mtxt p { color: #000000; }
+
+#mtxt figure { color: #aaaaaa; }
+#mtxt figure { display: contents; margin: 0; white-space: nowrap; overflow: hidden; width: 100%; }
+#mtxt figure[type]:empty::before { content: '[' attr(type); }
+#mtxt figure[type]:empty::after { content: ']'; }
+#mtxt figure[type]::before { content: '['  attr(type) ': '; }
+#mtxt figure[type]::after { content: ']'; }
+#mtxt figure { margin-top: 0; margin-bottom: 0; margin-left: 0; margin-right: 0; width: 100%; }
+
+
+
+#mtxt[show="pform"] signed { color: #aaaaaa; }
+#mtxt[show="pform"] signed::before { content: '[firma: '; }
+#mtxt[show="pform"] signed::after { content: ']'; }
+#mtxt[show="pform"] signed:empty { color: #aaaaaa; }
+#mtxt[show="pform"] signed:empty::before { content: '[firma'; }
+#mtxt[show="pform"] signed:empty::after { content: ']'; }
+#mtxt[show="pform"] signed[hand]::before { content: '[firma mano ' attr(hand) ': '; }
+#mtxt[show="pform"] signed[hand]::after {content: ']'; }
+#mtxt[show="pform"] signed[xml:lang='ar']::before { content: '[firma en árabe' ; }
+#mtxt[show="pform"] signed[xml:lang='he']::before { content: '[firma en hebreo' ; }
+#mtxt[show="pform"] signed[xml:lang]::after {content: ']'; }
+#mtxt[show="pform"] signed[hand][xml:lang='ar']::before { content: '[firma en árabe mano ' attr(hand) ;}
+#mtxt[show="pform"] signed[hand][xml:lang='he']::before { content: '[firma en hebreo mano ' attr(hand) ;}
+#mtxt[show="pform"] signed[hand][xml:lang]::after { content: ']' ;}
+
+
+#mtxt foreign[xml:lang='la']:before { content: '[lat.: ' ; }
+#mtxt foreign[xml:lang='la']:after { content: ']'; }
+#mtxt foreign[xml:lang='gl']:before { content: '[gal.: ' ; }
+#mtxt foreign[xml:lang='gl']:after { content: ']'; }
+#mtxt foreign[xml:lang='ca']:before { content: '[cat.: ' ; }
+#mtxt foreign[xml:lang='ca']:after { content: ']'; }
+
+#mtxt[show="form"] tei_div { color: #aaaaaa; }
+#mtxt[show="form"] tei_div:before { content: '[' attr(type) ': ' ; }
+#mtxt[show="form"] tei_div:after { content: ']' ; }
+#mtxt[show="form"] tei_div[type='encabezamiento']:after { content: ']' 'a' ; white-space: pre; }
+#mtxt[show="pform"] tei_div { color: #aaaaaa; }
+#mtxt[show="pform"] tei_div:before { content: '[' attr(type) ': ' ; }
+#mtxt[show="pform"] tei_div:after { content: ']' ; }
+#mtxt[show="pform"] tei_div[type='encabezamiento']:after { content: ']' 'a' ; white-space: pre; }
+#mtxt[show="fform"] tei_div { color: #aaaaaa; }
+#mtxt[show="fform"] tei_div:before { content: '[' attr(type) ': ' ; }
+#mtxt[show="fform"] tei_div:after { content: ']' ; }
+#mtxt[show="fform"] tei_div[type='encabezamiento']:after { content: ']' 'a' ; white-space: pre; }
+#mtxt[show="nform"] tei_div { content: ''; }
+#mtxt[show="nform"] tei_div[type='encabezamiento']:after { content: 'a' ; white-space: pre; }
+
+#mtxt tok:hover { text-shadow: 1pt 1pt #994444;}
+#mtxt hr { background-color: #aaaaaa; }
+#mtxt unclear { background-color: #cceecc;}
+
+
+#footnotediv {
+    z-index: 50;
+    width: 400px;
+    position: fixed; 
+    top: 10px; right: 10px; 
+    border: 1px solid #cccccc;
+    padding: 20px;
+    background-color: #eeffee;
+}
+
+
+/* #mtxt add[place='below'] { font-size:small; vertical-align: sub;}
+#mtxt add[place='above'] { font-size:small; vertical-align: super;} */
+
+#mtxt add { color: #aaaaaa; }
+#mtxt add::before { content: '[añadido: '; }
+#mtxt add::after { content: ']'; }
+#mtxt add[place]::before { content: '[' attr(place) ': '; }
+#mtxt add[place]::after {content: ']'; }
+/* #mtxt add[hand]::before { content: '[añadido mano ' attr(hand) ': '; } */
+#mtxt add[hand='#h2']::before { content: '[añadido mano 2: '; }
+#mtxt add[hand='#h3']::before { content: '[añadido mano 3: '; }
+#mtxt add[hand='#h4']::before { content: '[añadido mano 4: '; }
+#mtxt add[hand='#h5']::before { content: '[añadido mano 5: '; }
+#mtxt add[hand]::after {content: ']'; }
+/* #mtxt add[place][hand]::before { content: '[' attr(place) ' mano ' attr(hand) ': '; } */
+#mtxt add[place][hand='#h2']::before { content: '[' attr(place) ' mano 2: '; }
+#mtxt add[place][hand='#h3']::before { content: '[' attr(place) ' mano 3: '; }
+#mtxt add[place][hand='#h4']::before { content: '[' attr(place) ' mano 4: '; }
+#mtxt add[place][hand='#h5']::before { content: '[' attr(place) ' mano 5: '; }
+
+#mtxt add[place][hand]::after {content: ']'; }
+
+
+#mtxt gap[reason='roto'] { color: #aaaaaa; }
+#mtxt gap[reason='roto']::before { content: '['  attr(reason); }
+#mtxt gap[reason='roto']::after { content: ']'; }
+#mtxt gap[reason='doblez'] { color: #aaaaaa; }
+#mtxt gap[reason='doblez']::before { content: '['  attr(reason); }
+#mtxt gap[reason='doblez']::after { content: ']'; }
+#mtxt gap[reason='mancha'] { color: #aaaaaa; }
+#mtxt gap[reason='mancha']::before { content: '['  attr(reason); }
+#mtxt gap[reason='mancha']::after { content: ']'; }
+#mtxt gap[reason='blanco'] { color: #aaaaaa; }
+#mtxt gap[reason='blanco']::before { content: '['  attr(reason); }
+#mtxt gap[reason='blanco']::after { content: ']'; }
+
+#mtxt gap[reason='ilegible'] { color: #000000; }
+#mtxt gap[reason='ilegible']::before { content: '[***]'; }
+#mtxt gap[reason='ilegible'][extent="1 char"]::before { content: '*'; }
+#mtxt gap[reason='ilegible'][extent="2 chars"]::before { content: '**'; }
+#mtxt gap[reason='ilegible'][extent="3 chars"]::before { content: '***'; }
+#mtxt gap[reason='ilegible'][extent="4 chars"]::before { content: '****'; }
+#mtxt gap[reason='ilegible'][extent="5 chars"]::before { content: '*****'; }
+#mtxt gap[reason='ilegible'][extent="6 or more chars"]::before { content: '******'; }
+
+#mtxt[show="nform"] gap[reason='ilegible']:empty::before {content: '<...>'; }
+#mtxt[show="nform"] gap[reason='ilegible']::before {content: ''; }
+
+#mtxt[show="pform"] supplied:empty {display:none;}
+#mtxt[show="form"] supplied:empty {display:none;}
+#mtxt[show="fform"] supplied:empty {display:none;}
+#mtxt[show="nform"] supplied::before {content: '<'; }
+#mtxt[show="nform"] supplied::after {content: '>'; }
+
+
+
+#mtxt[show="pform"] supplied[reason='mancha']::before {content: '[mancha: '; }
+#mtxt[show="pform"] supplied[reason='mancha']::after {content: ']'; }
+
+
+#mtxt[show="pform"] hi[rend="subrayado"] { color: #aaaaaa; }
+#mtxt[show="pform"] hi[rend="impreso"] { color: #aaaaaa; }
+#mtxt[show="pform"] hi[rend]:empty::before { content: '['  attr(rend); }
+#mtxt[show="pform"] hi[rend]:empty::after { content: ']'; }
+#mtxt[show="pform"] hi[rend="subrayado"]::before { content: '['  attr(rend) ': '; }
+#mtxt[show="pform"] hi[rend="subrayado"]::after { content: ']'; }
+#mtxt[show="pform"] hi[rend="impreso"]::before { content: '['  attr(rend) ': '; }
+#mtxt[show="pform"] hi[rend="impreso"]::after { content: ']'; }
+
+#mtxt[show="pform"] handShift { color: #aaaaaa; }
+#mtxt[show="pform"] handShift::after { content: ']' ; }
+#mtxt[show="pform"] handShift[resp='#h2']::before { content: '[mano 2: ' ; }
+#mtxt[show="pform"] handShift[resp='#h3']::before { content: '[mano 3: ' ; }
+#mtxt[show="pform"] handShift[resp='#h4']::before { content: '[mano 4: ' ; }
+#mtxt[show="pform"] handShift[resp='#h5']::before { content: '[mano 5: ' ; }
+#mtxt[show="pform"] handShift[resp='#h6']::before { content: '[mano 6: ' ; }
+#mtxt[show="pform"] handShift[resp='#h7']::before { content: '[mano 7: ' ; }
+#mtxt[show="pform"] handShift[resp='#h8']::before { content: '[mano 8: ' ; }
+#mtxt[show="pform"] handShift[resp='#h9']::before { content: '[mano 9: ' ; }
+#mtxt[show="pform"] handShift[resp='#h10']::before { content: '[mano 10: ' ; }
+#mtxt[show="pform"] handShift[resp='#h11']::before { content: '[mano 11: ' ; }
+#mtxt[show="pform"] handShift[resp='#h12']::before { content: '[mano 12: ' ; }
+
+#mtxt cb[n]::after { content: '['  attr(n) ']'; }
+#mtxt cb[n]::before { content: ''; }
+#mtxt cb[n] { color: #4444ff; font-size: 12px; }
+
+#mtxt hi[rend*='capital'] { font-size: 50px; line-height: 40px; padding-top: 1px; padding-right: 1px; padding-left: 1px; }
+
+#mtxt[show="pform"] signed { color: #aaaaaa; }
+#mtxt[show="pform"] signed::before { content: '[firma: '; }
+#mtxt[show="pform"] signed::after { content: ']'; }
+#mtxt[show="pform"] signed:empty { color: #aaaaaa; }
+#mtxt[show="pform"] signed:empty::before { content: '[firma'; }
+#mtxt[show="pform"] signed:empty::after { content: ']'; }
+#mtxt[show="pform"] signed[hand]::before { content: '[firma mano ' attr(hand) ': '; }
+#mtxt[show="pform"] signed[hand]::after {content: ']'; }
+#mtxt[show="pform"] signed[xml:lang='ar']::before { content: '[firma en árabe' ; }
+#mtxt[show="pform"] signed[xml:lang='he']::before { content: '[firma en hebreo' ; }
+#mtxt[show="pform"] signed[xml:lang]::after {content: ']'; }
+#mtxt[show="pform"] signed[hand][xml:lang='ar']::before { content: '[firma en árabe mano ' attr(hand) ;}
+#mtxt[show="pform"] signed[hand][xml:lang='he']::before { content: '[firma en hebreo mano ' attr(hand) ;}
+#mtxt[show="pform"] signed[hand][xml:lang]::after { content: ']' ;}
+
+#mtxt row { display: table-row; }
+#mtxt cell { display: table-cell; }

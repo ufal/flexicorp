@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI>
+<teiHeader><revisionDesc><change when="2024-10-30" who="MJLOCAL">XML file created</change></revisionDesc></teiHeader>
+<text id="" xml:space="preserve">
+<p id="p-1"><tok id="w-1">John</tok> <tok id="w-2">was</tok> <tok id="w-3">a</tok> <tok id="w-4">simple</tok> <tok id="w-5">man</tok><tok id="w-6">.</tok> <tok id="w-7">He</tok> <tok id="w-8">was</tok> <tok id="w-9">born</tok> <tok id="w-10">in</tok> <tok id="w-11">Paris</tok><tok id="w-12">.</tok> <tok id="w-13">On</tok> <tok id="w-14">his</tok> <tok id="w-15">first</tok> <tok id="w-16">travel</tok> <tok id="w-17">he</tok> <tok id="w-18">went</tok> <tok id="w-19">to</tok> <tok id="w-20">Amsterdam</tok><tok id="w-21">,</tok> <tok id="w-22">and</tok> <tok id="w-23">to</tok> <tok id="w-24">Brussels</tok><tok id="w-25">.</tok> <tok id="w-26">From</tok> <tok id="w-27">there</tok> <tok id="w-28">he</tok> <tok id="w-29">went</tok> <tok id="w-30">to</tok> <tok id="w-31">Hamburg</tok> <tok id="w-32">and</tok> <tok id="w-33">Berlin</tok><tok id="w-34">.</tok> <tok id="w-35">He</tok> <tok id="w-36">then</tok> <tok id="w-37">went</tok> <tok id="w-38">south</tok> <tok id="w-39">to</tok> <tok id="w-40">Vienna</tok> <tok id="w-41">and</tok> <tok id="w-42">Prague</tok><tok id="w-43">,</tok> <tok id="w-44">from</tok> <tok id="w-45">where</tok> <tok id="w-46">he</tok> <tok id="w-47">went</tok> <tok id="w-48">back</tok> <tok id="w-49">to</tok> <tok id="w-50">Paris</tok> <tok id="w-51">via</tok> <tok id="w-52">Stassbourg</tok><tok id="w-53">.</tok></p>
+</text>
+
+</TEI>

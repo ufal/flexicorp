@@ -1,0 +1,1250 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI>
+  <text id="">
+    <body>
+      <div type="chapter" id="div-1">
+        <pb facs="book-050.jpg" id="e-1"/>
+        <tok id="w-1-1" ord="1" lemma="1" xpos="Z">1.</tok> 
+        <note place="inline" id="ftn-2">
+          <tok id="ftn-1" ord="2">Ilustración</tok> 
+          <tok id="w-1-3" ord="3">–</tok> 
+          <tok id="w-1-4" ord="4">I</tok> 
+        </note>
+        <tok id="w-2-1" ord="1" lemma="&amp;#xE1;rbol" xpos="NCMS000">Arbol</tok> 
+        <tok id="w-2-2" ord="2" lemma="de" xpos="SP">del</tok> 
+        <tok id="w-2-3" ord="3">cacàho</tok> 
+        <note place="inline" id="ftn-3">
+          <tok id="w-2-4" ord="4">corrección</tok> 
+          <tok id="w-2-5" ord="5" lemma="en" xpos="SP">en</tok> 
+          <reg type="note">
+            <tok id="w-2-6" ord="6" lemma="ac" xpos="VMIS1S0">ac</tok> 
+          </reg>
+        </note>
+        <tok id="w-2-7" ord="7" lemma=":" xpos="Fd">:</tok> 
+        <tok id="w-2-8" ord="8" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-2-9" ord="9" lemma="cast" xpos="NCFS000">cast</tok> 
+        <tok id="w-2-10" ord="10" lemma="o" xpos="CC">o</tok> 
+        <tok id="w-2-11" ord="11" lemma="cacabifera" xpos="NCFS000">cacabifera</tok> 
+        <tok id="w-2-12" ord="12" lemma="=" xpos="Fz">=</tok> 
+        <tok id="w-2-13" ord="13" lemma="tupi" xpos="RG">tupi.</tok> 
+        <tok id="w-3-1" ord="1" lemma="cacahu" xpos="NCMS000">Cacahu</tok> 
+        <tok id="w-3-2" ord="2" lemma="atl" xpos="AQ0CS00">atl=</tok> 
+        <lb id="e-2"/>
+        <pb facs="book-051.jpg" id="e-3"/>
+        <note place="inline" id="ftn-4">
+          <tok id="w-3-3" ord="3">Página</tok> 
+          <tok id="w-3-4" ord="4">en</tok> 
+          <tok id="w-3-5" ord="5">blanco-</tok> 
+          <tok id="w-3-6" ord="6">Número</tok> 
+          <tok id="w-3-7" ord="7">romano</tok> 
+          <tok id="w-3-8" ord="8">I,</tok> 
+          <tok id="w-3-9" ord="9">para</tok> 
+          <tok id="w-3-10" ord="10">indicar</tok> 
+          <tok id="w-3-11" ord="11">la</tok> 
+          <tok id="w-3-12" ord="12">lámina</tok> 
+        </note>
+        <pb facs="book-052.jpg" id="e-4"/>
+        <tok id="w-3-13" ord="13">2.</tok> 
+        <tok id="w-4-1" ord="1" lemma="el" xpos="DA0MS0">El</tok> 
+        <tok id="w-4-2" ord="2" lemma="&amp;#xE1;rbol" xpos="NCMS000">arbol</tok> 
+        <tok id="w-4-3" ord="3" lemma="de" xpos="SP">del</tok> 
+        <tok id="w-4-4" ord="4" lemma="cacaho" xpos="NCMS000">cacaho</tok> 
+        <tok id="w-4-5" ord="5" lemma="aunque" xpos="CS">avnque</tok> 
+        <tok id="w-4-6" ord="6" lemma="dudar" xpos="VMIP1S0">dudo</tok> 
+        <tok id="w-4-7" ord="7" lemma="se" xpos="P00CN00">se</tok> 
+        <tok id="w-4-8" ord="8" lemma="alle" xpos="VMSP3S0">alle</tok> 
+        <tok id="w-4-9" ord="9" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-4-10" ord="10" lemma="este" xpos="DD0FP0">estas</tok> 
+        <tok id="w-4-11" ord="11" lemma="parte" xpos="NCCP000">partes</tok> 
+        <tok id="w-4-12" ord="12" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-13" ord="13" lemma="regi&amp;#xF3;n" xpos="NCFP000">regiones;</tok> 
+        <tok id="w-4-14" ord="14" lemma="con" xpos="SP">con</tok> 
+        <tok id="w-4-15" ord="15" lemma="todo" xpos="DI0FP0">todas</tok> 
+        <lb id="e-5"/>
+        <reg type="note">
+          <tok id="w-4-16" ord="16">l</tok> 
+        </reg>
+        <tok id="w-4-17" ord="17">as</tok> 
+        <tok id="w-4-18" ord="18" lemma="circustancia" xpos="NCFS000">circustancia</tok> 
+        <tok id="w-4-19" ord="19" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-4-20" ord="20" lemma="pedir" xpos="VMIP3S0">pide</tok> 
+        <tok id="w-4-21" ord="21" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-22" ord="22" lemma="delicadeza" xpos="NCFS000">delicadeza</tok> 
+        <tok id="w-4-23" ord="23" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-24" ord="24" lemma="su" xpos="DP3CSN">su</tok> 
+        <tok id="w-4-25" ord="25" lemma="producion" xpos="NCFS000">producion:</tok> 
+        <tok id="w-4-26" ord="26" lemma="pero" xpos="CC">pero</tok> 
+        <tok id="w-4-27" ord="27" lemma="me" xpos="P01CS00">me</tok> 
+        <tok id="w-4-28" ord="28" lemma="parecer" xpos="VMIP3S0">parece</tok> 
+        <tok id="w-4-29" ord="29" lemma="que" xpos="CS">que</tok> 
+        <tok id="w-4-30" ord="30" lemma="no" xpos="RN">no</tok> 
+        <tok id="w-4-31" ord="31" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-4-32" ord="32" lemma="balde" xpos="NCMS000">balde</tok> 
+        <lb id="e-6"/>
+        <reg type="note">
+          <tok id="w-4-33" ord="33" lemma="lo" xpos="PP3MSA0">l</tok> 
+        </reg>
+        <tok id="w-4-34" ord="34">o</tok> 
+        <tok id="w-4-35" ord="35" lemma="negar" xpos="VMIP3S0">niega</tok> 
+        <tok id="w-4-36" ord="36" lemma="su" xpos="DP3CSN">su</tok> 
+        <tok id="w-4-37" ord="37" lemma="majestad" xpos="NCFS000">Magestad</tok> 
+        <tok id="w-4-38" ord="38" lemma="a" xpos="SP">a</tok> 
+        <tok id="w-4-39" ord="39" lemma="este" xpos="DD0FP0">estas</tok> 
+        <tok id="w-4-40" ord="40" lemma="rejiones" xpos="NCFP000">rejiones</tok> 
+        <tok id="w-4-41" ord="41" lemma="porque" xpos="CS">porque</tok> 
+        <tok id="w-4-42" ord="42" lemma="seg&amp;#xFA;n" xpos="SP">segun</tok> 
+        <tok id="w-4-43" ord="43" lemma="mostrar" xpos="VMIP3S0">muestra</tok> 
+        <tok id="w-4-44" ord="44" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-45" ord="45" lemma="experiencia" xpos="NCFS000">experiencia</tok> 
+        <tok id="w-4-46" ord="46" lemma="no" xpos="RN">no</tok> 
+        <tok id="w-4-47" ord="47" lemma="ser" xpos="VSIP3S0">es</tok> 
+        <tok id="w-4-48" ord="48">so-</tok> 
+        <lb id="e-7"/>
+        <reg type="note">
+          <tok id="w-4-49" ord="49">c</tok> 
+        </reg>
+        <tok id="w-4-50" ord="50">orro,</tok> 
+        <tok id="w-4-51" ord="51" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-4-52" ord="52" lemma="el" xpos="DA0MP0">los</tok> 
+        <tok id="w-4-53" ord="53" lemma="caso" xpos="NCMP000">cassos</tok> 
+        <tok id="w-4-54" ord="54" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-4-55" ord="55" lemma="bario" xpos="NCMP000">barios</tok> 
+        <tok id="w-4-56" ord="56" lemma="autor" xpos="NCMP000">autores</tok> 
+        <tok id="w-4-57" ord="57" lemma="lo" xpos="PP3MSA0">lo</tok> 
+        <tok id="w-4-58" ord="58" lemma="preescriuen" xpos="VMIP3P0">preescriuen;</tok> 
+        <tok id="w-4-59" ord="59" lemma="como" xpos="CS">Como</tok> 
+        <tok id="w-4-60" ord="60" lemma="ser" xpos="VSIP3S0">es</tok> 
+        <tok id="w-4-61" ord="61" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-4-62" ord="62" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-63" ord="63" lemma="melancolia" xpos="VMII3S0">melancolia</tok> 
+        <tok id="w-4-64" ord="64">hi-</tok> 
+        <lb id="e-8"/>
+        <reg type="note">
+          <tok id="w-4-65" ord="65">p</tok> 
+        </reg>
+        <tok id="w-4-66" ord="66">ocondriaca</tok> 
+        <tok id="w-4-67" ord="67" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-68" ord="68" lemma="merarquica" xpos="AQ0FS00">merarquica</tok> 
+        <tok id="w-4-69" ord="69" lemma="" xpos="NCMS000">a</tok> 
+        <tok id="w-4-70" ord="70" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-4-71" ord="71" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-4-72" ord="72" lemma="b" xpos="NCFP000">bes</tok> 
+        <tok id="w-4-73" ord="73" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-74" ord="74" lemma="ser" xpos="VSN0000">ser</tok> 
+        <tok id="w-4-75" ord="75" lemma="remedio" xpos="NCMS000">remedio</tok> 
+        <tok id="w-4-76" ord="76" lemma="ser" xpos="VSIP3S0">es</tok> 
+        <tok id="w-4-77" ord="77" lemma="muy" xpos="RG">mui</tok> 
+        <tok id="w-4-78" ord="78" lemma="nocibo" xpos="VMIS3S0">nocibo</tok> 
+        <tok id="w-4-79" ord="79" lemma="como" xpos="CS">como</tok> 
+        <lb id="e-9"/>
+        <tok id="w-4-80" ord="80" lemma="de" xpos="SP">del</tok> 
+        <note place="inline" id="ftn-5">
+          <tok id="w-4-81" ord="81">=de</tok> 
+          <tok id="w-4-82" ord="82">él</tok> 
+        </note>
+        <tok id="w-4-83" ord="83" lemma="escribir" xpos="VMM02S0">Escriue</tok> 
+        <tok id="w-4-84" ord="84" lemma="farfan" xpos="NCMS000">Farfan</tok> 
+        <note place="inline" id="ftn-6">
+          <tok id="w-4-85" ord="85" lemma="en" xpos="SP">en</tok> 
+          <tok id="w-4-86" ord="86">original</tok> 
+          <tok id="w-4-87" ord="87">puntuación</tok> 
+          <tok id="w-4-88" ord="88">confusa:</tok> 
+          <tok id="w-4-89" ord="89">del</tok> 
+          <tok id="w-4-90" ord="90">Escriue.</tok> 
+          <tok id="w-4-91" ord="91">Farfan</tok> 
+        </note>
+        <tok id="w-4-92" ord="92">en</tok> 
+        <tok id="w-4-93" ord="93" lemma="su" xpos="DP3CSN">su</tok> 
+        <tok id="w-4-94" ord="94" lemma="libro" xpos="NCMS000">libro.</tok> 
+        <tok id="w-4-95" ord="95" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-96" ord="96" lemma="prayctica" xpos="NCFS000">prayctica</tok> 
+        <tok id="w-4-97" ord="97" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-98" ord="98" lemma="este" xpos="DD0FP0">estas</tok> 
+        <tok id="w-4-99" ord="99" lemma="regi&amp;#xF3;n" xpos="NCFP000">regiones</tok> 
+        <tok id="w-4-100" ord="100" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-101" ord="101" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-102" ord="102" lemma="america" xpos="AQ0FS00">America;</tok> 
+        <lb id="e-10"/>
+        <tok id="w-4-103" ord="103" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-104" ord="104" lemma="hallar" xpos="VMIP1S0">hallo</tok> 
+        <tok id="w-4-105" ord="105" lemma="ser" xpos="VSN0000">ser</tok> 
+        <tok id="w-4-106" ord="106" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-107" ord="107" lemma="berdad" xpos="NCFS000">berdad</tok> 
+        <tok id="w-4-108" ord="108" lemma="por" xpos="SP">por</tok> 
+        <tok id="w-4-109" ord="109" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-110" ord="110" lemma="experiencia" xpos="NCFS000">esperiencia</tok> 
+        <tok id="w-4-111" ord="111" lemma="lo" xpos="PP3MSA0">lo</tok> 
+        <tok id="w-4-112" ord="112" lemma="que" xpos="CS">que</tok> 
+        <tok id="w-4-113" ord="113" lemma="decir" xpos="VMP00SM">dicho;</tok> 
+        <tok id="w-4-114" ord="114" lemma="autor" xpos="NCMS000">Autor</tok> 
+        <tok id="w-4-115" ord="115" lemma="decir" xpos="VMIP3S0">dice</tok> 
+        <tok id="w-4-116" ord="116" lemma="de" xpos="SP">del;</tok> 
+        <tok id="w-4-117" ord="117" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-118" ord="118" lemma="as&amp;#xED;" xpos="RG">assi</tok> 
+        <tok id="w-4-119" ord="119" lemma="solo" xpos="AQ0MS00">solo,</tok> 
+        <lb id="e-11"/>
+        <tok id="w-4-120" ord="120" lemma="a" xpos="SP">a</tok> 
+        <tok id="w-4-121" ord="121" lemma="el" xpos="DA0MP0">los</tok> 
+        <tok id="w-4-122" ord="122" lemma="muy" xpos="RG">mui</tok> 
+        <tok id="w-4-123" ord="123" lemma="frios" xpos="NCMP000">frios</tok> 
+        <tok id="w-4-124" ord="124" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-125" ord="125" lemma="humedecer" xpos="VMP00PM">humedos</tok> 
+        <tok id="w-4-126" ord="126" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-127" ord="127" lemma="estomagar" xpos="VMIP1S0">estomago</tok> 
+        <tok id="w-4-128" ord="128" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-129" ord="129" lemma="muy" xpos="RG">mui</tok> 
+        <tok id="w-4-130" ord="130" lemma="debilitar" xpos="VMP00PM">debilitados</tok> 
+        <tok id="w-4-131" ord="131" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-132" ord="132" lemma="fuerza" xpos="NCFP000">fuerzas</tok> 
+        <tok id="w-4-133" ord="133" lemma="por" xpos="SP">por</tok> 
+        <tok id="w-4-134" ord="134" lemma="semejante" xpos="AQ0CP00">semejantes</tok> 
+        <lb id="e-12"/>
+        <reg type="note">
+          <tok id="w-4-135" ord="135">ca</tok> 
+        </reg>
+        <tok id="w-4-136" ord="136">usas</tok> 
+        <tok id="w-4-137" ord="137" lemma="servir" xpos="VMM02S0">sirue</tok> 
+        <tok id="w-4-138" ord="138" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-139" ord="139" lemma="alibio" xpos="VMIS3S0">alibio;</tok> 
+        <tok id="w-4-140" ord="140" lemma="pero" xpos="CC">pero</tok> 
+        <tok id="w-4-141" ord="141" lemma="no" xpos="RN">no</tok> 
+        <tok id="w-4-142" ord="142" lemma="usar+lo" xpos="VMG0000+PP3MSA0">vsandolo</tok> 
+        <tok id="w-4-143" ord="143" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-144" ord="144" lemma="continuo" xpos="NCMS000">continuo</tok> 
+        <tok id="w-4-145" ord="145" lemma="este" xpos="PD00S00">esto</tok> 
+        <tok id="w-4-146" ord="146" lemma="ser" xpos="VSIP3S0">es</tok> 
+        <tok id="w-4-147" ord="147" lemma="todo" xpos="DI0MP0">todos</tok> 
+        <tok id="w-4-148" ord="148" lemma="el" xpos="DA0MP0">los</tok> 
+        <tok id="w-4-149" ord="149" lemma="d&amp;#xED;a" xpos="NCMP000">dias</tok> 
+        <tok id="w-4-150" ord="150" lemma="porque" xpos="CS">porque</tok> 
+        <lb id="e-13"/>
+        <tok id="w-4-151" ord="151" lemma="reconocer" xpos="VMIP1S0">reconozco</tok> 
+        <tok id="w-4-152" ord="152" lemma="cerrar" xpos="VMIP3S0">cierra</tok> 
+        <tok id="w-4-153" ord="153" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-154" ord="154" lemma="comprimir" xpos="VMIP3S0">comprime</tok> 
+        <tok id="w-4-155" ord="155" lemma="el" xpos="DA0FP0">las</tok> 
+        <tok id="w-4-156" ord="156" lemma="bias" xpos="NCFP000">bias</tok> 
+        <tok id="w-4-157" ord="157" lemma="interno" xpos="AQ0FP00">internas;</tok> 
+        <tok id="w-4-158" ord="158" lemma="o" xpos="CC">O</tok> 
+        <tok id="w-4-159" ord="159" lemma="por" xpos="SP">por</tok> 
+        <tok id="w-4-160" ord="160" lemma="su" xpos="DP3CSN">su</tok> 
+        <tok id="w-4-161" ord="161" lemma="astricion" xpos="NCFS000">astricion</tok> 
+        <tok id="w-4-162" ord="162" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-163" ord="163" lemma="sequedad" xpos="NCFS000">sequedad</tok> 
+        <tok id="w-4-164" ord="164" lemma="o" xpos="CC">o</tok> 
+        <tok id="w-4-165" ord="165" lemma="por" xpos="SP">por</tok> 
+        <tok id="w-4-166" ord="166" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-167" ord="167">par-</tok> 
+        <lb id="e-14"/>
+        <tok id="w-4-168" ord="168">te</tok> 
+        <tok id="w-4-169" ord="169" lemma="biscosa" xpos="NCFS000">biscosa</tok> 
+        <tok id="w-4-170" ord="170" lemma="de" xpos="SP">del</tok> 
+        <tok id="w-4-171" ord="171" lemma="acusar" xpos="VMN0000">acusar</tok> 
+        <tok id="w-4-172" ord="172" lemma="o" xpos="CC">o</tok> 
+        <tok id="w-4-173" ord="173" lemma="por" xpos="SP">por</tok> 
+        <tok id="w-4-174" ord="174" lemma="ser" xpos="VSN0000">ser</tok> 
+        <tok id="w-4-175" ord="175" lemma="adulterino" xpos="AQ0MS00">adulterino</tok> 
+        <tok id="w-4-176" ord="176" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-4-177" ord="177" lemma="su" xpos="DP3CSN">su</tok> 
+        <tok id="w-4-178" ord="178" lemma="composici&amp;#xF3;n" xpos="NCFS000">composicion</tok> 
+        <tok id="w-4-179" ord="179" lemma="no" xpos="RN">no</tok> 
+        <tok id="w-4-180" ord="180" lemma="ser" xpos="VSG0000">siendo</tok> 
+        <tok id="w-4-181" ord="181" lemma="&amp;#xE9;l" xpos="PP3FS00">ella</tok> 
+        <tok id="w-4-182" ord="182" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-183" ord="183" lemma="que" xpos="PR0CN00">que</tok> 
+        <lb id="e-15"/>
+        <tok id="w-4-184" ord="184" lemma="deber" xpos="VMIP3S0">debe</tok> 
+        <tok id="w-4-185" ord="185" lemma="ser" xpos="VSN0000">ser;</tok> 
+        <tok id="w-4-186" ord="186" lemma="conformar" xpos="VMSP3S0">Conforme</tok> 
+        <tok id="w-4-187" ord="187" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-188" ord="188" lemma="receta" xpos="NCFS000">receta</tok> 
+        <tok id="w-4-189" ord="189" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-190" ord="190" lemma="composici&amp;#xF3;n" xpos="NCFS000">composicion</tok> 
+        <tok id="w-4-191" ord="191" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-4-192" ord="192" lemma="de" xpos="SP">del</tok> 
+        <tok id="w-4-193" ord="193" lemma="poner" xpos="VMIP3S0">Pone;</tok> 
+        <tok id="w-4-194" ord="194" lemma="paular" xpos="VMIP1S0">Paulo</tok> 
+        <tok id="w-4-195" ord="195" lemma="zaichia" xpos="NCFS000">Zaichia</tok> 
+        <tok id="w-4-196" ord="196" lemma="celeberi" xpos="VMIS1S0">Celeberi</tok> 
+        <lb id="e-16"/>
+        <reg type="note">
+          <tok id="w-4-197" ord="197" lemma="simo" xpos="RG">si</tok> 
+        </reg>
+        <tok id="w-4-198" ord="198">mo</tok> 
+        <tok id="w-4-199" ord="199" lemma="medicar" xpos="VMIP1S0">medico</tok> 
+        <tok id="w-4-200" ord="200" lemma="ytaliano" xpos="AQ0MS00">ytaliano;</tok> 
+        <tok id="w-4-201" ord="201" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-202" ord="202" lemma="as&amp;#xED;" xpos="RG">assi</tok> 
+        <tok id="w-4-203" ord="203" lemma="mismo" xpos="AQ0MS00">mismo</tok> 
+        <tok id="w-4-204" ord="204" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-205" ord="205" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-4-206" ord="206" lemma="traer" xpos="VMM02S0">trahe</tok> 
+        <tok id="w-4-207" ord="207" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-4-208" ord="208" lemma="su" xpos="DP3CSN">su</tok> 
+        <tok id="w-4-209" ord="209" lemma="tratado" xpos="NCMS000">tratado</tok> 
+        <tok id="w-4-210" ord="210" lemma="guillermo" xpos="VMIS3S0">Guillermo</tok> 
+        <tok id="w-4-211" ord="211" lemma="pisson" xpos="NCMS000">Pisson:</tok> 
+        <lb id="e-17"/>
+        <tok id="w-4-212" ord="212" lemma="o" xpos="CC">O</tok> 
+        <tok id="w-4-213" ord="213" lemma="porque" xpos="CS">porque</tok> 
+        <tok id="w-4-214" ord="214" lemma="el" xpos="DA0MS0">el</tok> 
+        <tok id="w-4-215" ord="215" lemma="calor" xpos="NCMS000">calor</tok> 
+        <tok id="w-4-216" ord="216" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-217" ord="217" lemma="este" xpos="DD0FS0">esta</tok> 
+        <tok id="w-4-218" ord="218" lemma="torrida" xpos="VMP00SF">torrida</tok> 
+        <tok id="w-4-219" ord="219" lemma="zona" xpos="NCFS000">Zona</tok> 
+        <tok id="w-4-220" ord="220" lemma="mu" xpos="NCCS000">mo</tok> 
+        <note place="inline" id="ftn-7">
+          <tok id="w-4-221" ord="221">=no</tok> 
+        </note>
+        <tok id="w-4-222" ord="222" lemma="admitir" xpos="VMIP3P0">admiten</tok> 
+        <tok id="w-4-223" ord="223" lemma="el" xpos="DA0MP0">los</tok> 
+        <tok id="w-4-224" ord="224" lemma="esto-magos" xpos="VMIS3S0">esto-magos</tok> 
+        <tok id="w-4-225" ord="225" lemma="o" xpos="CC">o</tok> 
+        <tok id="w-4-226" ord="226" lemma="complessiones" xpos="NCFP000">complessiones</tok> 
+        <lb id="e-18"/>
+        <tok id="w-4-227" ord="227" lemma="tanto" xpos="DI0FS0">tanta</tok> 
+        <tok id="w-4-228" ord="228" lemma="graduacion" xpos="NCFS000">graduacion</tok> 
+        <tok id="w-4-229" ord="229" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-230" ord="230" lemma="calor" xpos="NCMS000">calor;</tok> 
+        <tok id="w-4-231" ord="231" lemma="o" xpos="CC">O</tok> 
+        <tok id="w-4-232" ord="232" lemma="sequedad" xpos="NCFS000">sequedad;</tok> 
+        <tok id="w-4-233" ord="233" lemma="otro" xpos="PI0MS00">Otro</tok> 
+        <tok id="w-4-234" ord="234" lemma="si" xpos="CS">si</tok> 
+        <tok id="w-4-235" ord="235" lemma="beo" xpos="VMIP1S0">beo</tok> 
+        <tok id="w-4-236" ord="236" lemma="que" xpos="CS">que</tok> 
+        <tok id="w-4-237" ord="237" lemma="el" xpos="DA0MS0">el</tok> 
+        <tok id="w-4-238" ord="238" lemma="padre" xpos="NCMS000">Padre</tok> 
+        <tok id="w-4-239" ord="239" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-240" ord="240" lemma="el" xpos="DA0FP0">las</tok> 
+        <lb id="e-19"/>
+        <tok id="w-4-241" ord="241" lemma="misericordia" xpos="NCFP000">misericordias</tok> 
+        <tok id="w-4-242" ord="242" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-243" ord="243" lemma="todo" xpos="DI0MS0">todo</tok> 
+        <tok id="w-4-244" ord="244" lemma="poderoso" xpos="AQ0MS00">poderoso</tok> 
+        <tok id="w-4-245" ord="245" lemma="dios" xpos="NCMS000">Dios,</tok> 
+        <tok id="w-4-246" ord="246" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-4-247" ord="247" lemma="regir" xpos="VMIP3S0">rige</tok> 
+        <tok id="w-4-248" ord="248" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-249" ord="249" lemma="gobernar" xpos="VMM02S0">gouierna</tok> 
+        <tok id="w-4-250" ord="250" lemma="su" xpos="DP3CPN">sus</tok> 
+        <tok id="w-4-251" ord="251" lemma="criatura" xpos="NCFP000">criaturas</tok> 
+        <tok id="w-4-252" ord="252" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-4-253" ord="253" lemma="el" xpos="DA0MS0">el</tok> 
+        <lb id="e-20"/>
+        <tok id="w-4-254" ord="254" lemma="mundo" xpos="NCMS000">mundo</tok> 
+        <tok id="w-4-255" ord="255" lemma="concedio" xpos="AQ0MS00">concedio</tok> 
+        <tok id="w-4-256" ord="256" lemma="a" xpos="SP">a</tok> 
+        <tok id="w-4-257" ord="257" lemma="este" xpos="DD0FP0">estas</tok> 
+        <tok id="w-4-258" ord="258" lemma="regi&amp;#xF3;n" xpos="NCFP000">regiones</tok> 
+        <tok id="w-4-259" ord="259" lemma="lo" xpos="PP3FSA0">La</tok> 
+        <tok id="w-4-260" ord="260" lemma="herbar" xpos="VMM02S0">yerua</tok> 
+        <tok id="w-4-261" ord="261" lemma="as&amp;#xED;" xpos="RG">assi</tok> 
+        <tok id="w-4-262" ord="262" lemma="como" xpos="CS">como</tok> 
+        <tok id="w-4-263" ord="263" lemma="a" xpos="SP">a</tok> 
+        <tok id="w-4-264" ord="264" lemma="el" xpos="DA0FP0">las</tok> 
+        <tok id="w-4-265" ord="265" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-266" ord="266" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-267" ord="267" lemma="nueba" xpos="NCFS000">nueba</tok> 
+        <tok id="w-4-268" ord="268" lemma="espa&amp;#xF1;a" xpos="NP000G0">españa</tok> 
+        <lb id="e-21"/>
+        <tok id="w-4-269" ord="269" lemma="el" xpos="DA0MS0">el</tok> 
+        <tok id="w-4-270" ord="270" lemma="cacaho" xpos="NCMS000">cacaho;</tok> 
+        <tok id="w-4-271" ord="271" lemma="por" xpos="SP">por</tok> 
+        <tok id="w-4-272" ord="272" lemma="conducir" xpos="VMN0000">conducir</tok> 
+        <tok id="w-4-273" ord="273" lemma="a" xpos="SP">a</tok> 
+        <tok id="w-4-274" ord="274" lemma="su" xpos="DP3CPN">sus</tok> 
+        <tok id="w-4-275" ord="275" lemma="abitadura" xpos="NCFP000">abitadores;</tok> 
+        <tok id="w-4-276" ord="276" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-277" ord="277" lemma="a" xpos="SP">a</tok> 
+        <tok id="w-4-278" ord="278" lemma="este" xpos="PD0FP00">estas</tok> 
+        <tok id="w-4-279" ord="279" lemma="conducir+le" xpos="VMN0000+PP3CPD0">conducirles</tok> 
+        <tok id="w-4-280" ord="280" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-281" ord="281" lemma="hierba" xpos="NCFS000">yerua</tok> 
+        <tok id="w-4-282" ord="282" lemma="ca&amp;#xE0;mini" xpos="RG">Caàmini</tok> 
+        <lb id="e-22"/>
+        <tok id="w-4-283" ord="283" lemma="como" xpos="CS">Como</tok> 
+        <tok id="w-4-284" ord="284" lemma="decir" xpos="VMIF1S0">dire</tok> 
+        <tok id="w-4-285" ord="285" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-4-286" ord="286" lemma="su" xpos="DP3CSN">su</tok> 
+        <tok id="w-4-287" ord="287" lemma="tratado" xpos="NCMS000">tratado=</tok> 
+        <lb id="e-23"/>
+        <tok id="w-4-288" ord="288" lemma="dejar" xpos="VMG0000">Dejando</tok> 
+        <tok id="w-4-289" ord="289" lemma="el" xpos="DA0MS0">el</tok> 
+        <tok id="w-4-290" ord="290" lemma="tratar" xpos="VMN0000">tratar</tok> 
+        <tok id="w-4-291" ord="291" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-292" ord="292" lemma="su" xpos="DP3CPN">sus</tok> 
+        <tok id="w-4-293" ord="293" lemma="admirable" xpos="AQ0CP00">admirables</tok> 
+        <tok id="w-4-294" ord="294" lemma="efecto" xpos="NCMP000">efectos</tok> 
+        <tok id="w-4-295" ord="295" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-296" ord="296" lemma="virtud" xpos="NCFP000">virtudes</tok> 
+        <tok id="w-4-297" ord="297" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-4-298" ord="298" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-299" ord="299" lemma="&amp;#xE9;l" xpos="PP3MS00">el</tok> 
+        <tok id="w-4-300" ord="300" lemma="decir" xpos="VMIP3P0">dicen</tok> 
+        <tok id="w-4-301" ord="301" lemma="bario" xpos="NCMP000">barios</tok> 
+        <lb id="e-24"/>
+        <tok id="w-4-302" ord="302" lemma="autor" xpos="NCMP000">Autores</tok> 
+        <tok id="w-4-303" ord="303" lemma="para" xpos="SP">para</tok> 
+        <tok id="w-4-304" ord="304" lemma="el" xpos="DA0FP0">las</tok> 
+        <tok id="w-4-305" ord="305" lemma="regi&amp;#xF3;n" xpos="NCFP000">regiones</tok> 
+        <tok id="w-4-306" ord="306" lemma="adonde" xpos="PR00000">adonde</tok> 
+        <tok id="w-4-307" ord="307" lemma="se" xpos="P00CN00">se</tok> 
+        <tok id="w-4-308" ord="308" lemma="padecer" xpos="VMIP3P0">padecen</tok> 
+        <tok id="w-4-309" ord="309" lemma="accidente" xpos="NCMP000">acidentes</tok> 
+        <tok id="w-4-310" ord="310" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-311" ord="311" lemma="causa" xpos="NCFP000">causas</tok> 
+        <tok id="w-4-312" ord="312" lemma="fre&amp;#xED;r" xpos="VMSP2S0">frias;</tok> 
+        <tok id="w-4-313" ord="313" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-314" ord="314" lemma="m&amp;#xE1;s" xpos="RG">mas</tok> 
+        <tok id="w-4-315" ord="315">templa-</tok> 
+        <lb id="e-25"/>
+        <tok id="w-4-316" ord="316">das</tok> 
+        <tok id="w-4-317" ord="317" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-318" ord="318" lemma="calor" xpos="NCMS000">calor</tok> 
+        <tok id="w-4-319" ord="319" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-4-320" ord="320" lemma="este" xpos="DD0FP0">estas;</tok> 
+        <tok id="w-4-321" ord="321" lemma="pasar" xpos="VMIP1S0">passo</tok> 
+        <tok id="w-4-322" ord="322" lemma="a" xpos="SP">a</tok> 
+        <tok id="w-4-323" ord="323" lemma="dar" xpos="VMN0000">dar</tok> 
+        <tok id="w-4-324" ord="324" lemma="noticia" xpos="NCFS000">noticia</tok> 
+        <tok id="w-4-325" ord="325" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-326" ord="326" lemma="su" xpos="DP3CSN">su</tok> 
+        <tok id="w-4-327" ord="327" lemma="planta" xpos="NCFS000">planta</tok> 
+        <tok id="w-4-328" ord="328" lemma="seg&amp;#xFA;n" xpos="SP">segun</tok> 
+        <tok id="w-4-329" ord="329" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-330" ord="330" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-331" ord="331" lemma="linear" xpos="VMIP3S0">linea</tok> 
+        <tok id="w-4-332" ord="332" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-333" ord="333" lemma="dibujar" xpos="VMIP3S0">dibuja</tok> 
+        <lb id="e-26"/>
+        <tok id="w-4-334" ord="334" lemma="guillermo" xpos="VMIS3S0">guillermo</tok> 
+        <tok id="w-4-335" ord="335" lemma="pisson" xpos="NCMS000">Pisson=</tok> 
+        <lb id="e-27"/>
+        <tok id="w-4-336" ord="336" lemma="el" xpos="DA0MS0">El</tok> 
+        <tok id="w-4-337" ord="337" lemma="&amp;#xE1;rbol" xpos="NCMS000">Arbol</tok> 
+        <tok id="w-4-338" ord="338" lemma="de" xpos="SP">del</tok> 
+        <tok id="w-4-339" ord="339" lemma="cacaho" xpos="NCMS000">cacaho</tok> 
+        <tok id="w-4-340" ord="340" lemma="ser" xpos="VSIP3S0">es</tok> 
+        <tok id="w-4-341" ord="341" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-342" ord="342" lemma="mediano" xpos="AQ0MS00">mediano</tok> 
+        <tok id="w-4-343" ord="343" lemma="altor" xpos="NCMS000">altor;</tok> 
+        <tok id="w-4-344" ord="344" lemma="as&amp;#xED;" xpos="RG">assi</tok> 
+        <tok id="w-4-345" ord="345" lemma="como" xpos="CS">como</tok> 
+        <tok id="w-4-346" ord="346" lemma="el" xpos="DA0MS0">el</tok> 
+        <tok id="w-4-347" ord="347" lemma="naranjo" xpos="NCMS000">naranjo</tok> 
+        <tok id="w-4-348" ord="348" lemma="su" xpos="DP3CPN">sus</tok> 
+        <tok id="w-4-349" ord="349" lemma="hoja" xpos="NCFP000">ojas</tok> 
+        <tok id="w-4-350" ord="350" lemma="de" xpos="SP">del</tok> 
+        <tok id="w-4-351" ord="351" lemma="lar" xpos="NCMS000">lar</tok> 
+        <lb id="e-28"/>
+        <tok id="w-4-352" ord="352" lemma="go" xpos="VMIS3S0">go</tok> 
+        <tok id="w-4-353" ord="353" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-354" ord="354" lemma="el" xpos="DA0FP0">las</tok> 
+        <tok id="w-4-355" ord="355" lemma="de" xpos="SP">del</tok> 
+        <tok id="w-4-356" ord="356" lemma="naranjo" xpos="NCMS000">naranjo,</tok> 
+        <tok id="w-4-357" ord="357" lemma="no" xpos="RN">no</tok> 
+        <tok id="w-4-358" ord="358" lemma="tan" xpos="RG">tan</tok> 
+        <tok id="w-4-359" ord="359" lemma="ancho" xpos="AQ0FP00">anchas</tok> 
+        <tok id="w-4-360" ord="360" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-361" ord="361" lemma="tan" xpos="RG">tan</tok> 
+        <tok id="w-4-362" ord="362" lemma="puntiagudo" xpos="AQ0FP00">puntiagudas;</tok> 
+        <tok id="w-4-363" ord="363" lemma="como" xpos="CS">como</tok> 
+        <tok id="w-4-364" ord="364" lemma="aquel" xpos="PD0FP00">aquellas</tok> 
+        <tok id="w-4-365" ord="365" lemma="de" xpos="SP">del</tok> 
+        <tok id="w-4-366" ord="366" lemma="casta&amp;#xF1;o" xpos="NCMS000">castaño</tok> 
+        <lb id="e-29"/>
+        <tok id="w-4-367" ord="367" lemma="alguno" xpos="DI0MS0">algun</tok> 
+        <tok id="w-4-368" ord="368" lemma="tanto" xpos="RG">tanto</tok> 
+        <tok id="w-4-369" ord="369" lemma="bellosas" xpos="AQ0FP00">bellosas</tok> 
+        <tok id="w-4-370" ord="370" lemma="por" xpos="SP">por</tok> 
+        <tok id="w-4-371" ord="371" lemma="el" xpos="DA0MS0">el</tok> 
+        <tok id="w-4-372" ord="372" lemma="enbes" xpos="VMIP2S0">enbes</tok> 
+        <tok id="w-4-373" ord="373" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-374" ord="374" lemma="color" xpos="NCMS000">color</tok> 
+        <tok id="w-4-375" ord="375" lemma="berde" xpos="AQ0CS00">berde</tok> 
+        <tok id="w-4-376" ord="376" lemma="claro" xpos="AQ0MS00">claro</tok> 
+        <tok id="w-4-377" ord="377" lemma="por" xpos="SP">por</tok> 
+        <tok id="w-4-378" ord="378" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-379" ord="379" lemma="faz" xpos="NCFS000">faz;</tok> 
+        <tok id="w-4-380" ord="380" lemma="con" xpos="SP">con</tok> 
+        <tok id="w-4-381" ord="381" lemma="uno" xpos="PI0MS00">vn</tok> 
+        <tok id="w-4-382" ord="382" lemma="solo" xpos="RG">solo</tok> 
+        <tok id="w-4-383" ord="383">ner-</tok> 
+        <lb id="e-30"/>
+        <tok id="w-4-384" ord="384">bio</tok> 
+        <tok id="w-4-385" ord="385" lemma="a" xpos="SP">a</tok> 
+        <tok id="w-4-386" ord="386" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-387" ord="387" lemma="larga" xpos="NCFS000">larga</tok> 
+        <tok id="w-4-388" ord="388" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-4-389" ord="389" lemma="medio" xpos="AQ0MS00">medio</tok> 
+        <tok id="w-4-390" ord="390" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-391" ord="391" lemma="su" xpos="DP3CSN">su</tok> 
+        <tok id="w-4-392" ord="392" lemma="longitud" xpos="NCFS000">longitud;</tok> 
+        <tok id="w-4-393" ord="393" lemma="diuidiendo" xpos="VMG0000">diuidiendo</tok> 
+        <tok id="w-4-394" ord="394" lemma="su" xpos="DP3CSN">su</tok> 
+        <tok id="w-4-395" ord="395" lemma="anchor" xpos="NCMS000">anchor</tok> 
+        <tok id="w-4-396" ord="396" lemma="perfectisimamente" xpos="RG">perfectisimamente;</tok> 
+        <tok id="w-4-397" ord="397">del</tok> 
+        <lb id="e-31"/>
+        <tok id="w-4-398" ord="398" lemma="cu&amp;#xE1;l" xpos="DT0CS0">qual</tok> 
+        <tok id="w-4-399" ord="399" lemma="salir" xpos="VMIP3P0">salen</tok> 
+        <tok id="w-4-400" ord="400" lemma="otro" xpos="DI0MP0">otros</tok> 
+        <tok id="w-4-401" ord="401" lemma="nerbicitos" xpos="NCMP000">nerbicitos</tok> 
+        <tok id="w-4-402" ord="402" lemma="sutil" xpos="AQ0CP00">sutiles</tok> 
+        <tok id="w-4-403" ord="403" lemma="latitudinalmente" xpos="RG">Latitudinalmente</tok> 
+        <tok id="w-4-404" ord="404" lemma="algo" xpos="RG">algo</tok> 
+        <tok id="w-4-405" ord="405" lemma="encorbados" xpos="NCMP000">encorbados</tok> 
+        <tok id="w-4-406" ord="406" lemma="acia" xpos="NCFS000">acia</tok> 
+        <tok id="w-4-407" ord="407">la-</tok> 
+        <lb id="e-32"/>
+        <tok id="w-4-408" ord="408">punta</tok> 
+        <tok id="w-4-409" ord="409" lemma="el" xpos="DA0FP0">Las</tok> 
+        <tok id="w-4-410" ord="410" lemma="flor" xpos="NCFP000">flores</tok> 
+        <tok id="w-4-411" ord="411" lemma="ser" xpos="VSIP3P0">son</tok> 
+        <tok id="w-4-412" ord="412" lemma="grande" xpos="AQ0CP00">grandes</tok> 
+        <tok id="w-4-413" ord="413" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-414" ord="414" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-415" ord="415" lemma="1" xpos="Z">vn</tok> 
+        <tok id="w-4-416" ord="416" lemma="color" xpos="NCMS000">color</tok> 
+        <tok id="w-4-417" ord="417" lemma="flauo" xpos="NCMS000">flauo</tok> 
+        <tok id="w-4-418" ord="418" lemma="blanquecino" xpos="AQ0MS00">blanquecino</tok> 
+        <tok id="w-4-419" ord="419" lemma="alguno" xpos="DI0MS0">algun</tok> 
+        <tok id="w-4-420" ord="420" lemma="tanto" xpos="RG">tanto</tok> 
+        <tok id="w-4-421" ord="421" lemma="tirar" xpos="VMIP3S0">tira</tok> 
+        <tok id="w-4-422" ord="422" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-4-423" ord="423" lemma="su" xpos="DP3CSN">su</tok> 
+        <lb id="e-33"/>
+        <tok id="w-4-424" ord="424" lemma="rubror" xpos="NCMS000">rubror</tok> 
+        <tok id="w-4-425" ord="425" lemma="palido" xpos="VMP00SM">palido</tok> 
+        <tok id="w-4-426" ord="426" lemma="a" xpos="SP">al</tok> 
+        <tok id="w-4-427" ord="427" lemma="de" xpos="SP">del</tok> 
+        <tok id="w-4-428" ord="428" lemma="azafran" xpos="AQ0CS00">azafran</tok> 
+        <tok id="w-4-429" ord="429" lemma="el" xpos="DA0FP0">las</tok> 
+        <tok id="w-4-430" ord="430" lemma="cu&amp;#xE1;l" xpos="PT0CP00">quales</tok> 
+        <tok id="w-4-431" ord="431" lemma="nacer" xpos="VMIP3P0">nacen</tok> 
+        <tok id="w-4-432" ord="432" lemma="pegar" xpos="VMP00PF">pegadas</tok> 
+        <tok id="w-4-433" ord="433" lemma="a" xpos="SP">al</tok> 
+        <tok id="w-4-434" ord="434" lemma="caule" xpos="NCMS000">caule</tok> 
+        <tok id="w-4-435" ord="435" lemma="o" xpos="CC">o</tok> 
+        <tok id="w-4-436" ord="436" lemma="pie" xpos="NCMS000">pie</tok> 
+        <tok id="w-4-437" ord="437" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-438" ord="438" lemma="el" xpos="DA0FP0">las</tok> 
+        <tok id="w-4-439" ord="439" lemma="rama" xpos="NCFP000">ramas</tok> 
+        <lb id="e-34"/>
+        <tok id="w-4-440" ord="440" lemma="con" xpos="SP">com</tok> 
+        <tok id="w-4-441" ord="441" lemma="pe&amp;#xE7;on" xpos="NCFS000">peçon</tok> 
+        <tok id="w-4-442" ord="442" lemma="o" xpos="CC">o</tok> 
+        <tok id="w-4-443" ord="443" lemma="pie" xpos="NCMS000">pie</tok> 
+        <tok id="w-4-444" ord="444" lemma="muy" xpos="RG">mui</tok> 
+        <tok id="w-4-445" ord="445" lemma="cortar" xpos="VMIP1S0">corto</tok> 
+        <tok id="w-4-446" ord="446" lemma="como" xpos="CS">como</tok> 
+        <tok id="w-4-447" ord="447" lemma="as&amp;#xED;" xpos="RG">asi</tok> 
+        <tok id="w-4-448" ord="448" lemma="mismo" xpos="RG">mismo</tok> 
+        <tok id="w-4-449" ord="449" lemma="su" xpos="DP3CPN">sus</tok> 
+        <tok id="w-4-450" ord="450" lemma="hoja" xpos="NCFP000">ojas;</tok> 
+        <tok id="w-4-451" ord="451" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-452" ord="452" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-453" ord="453" lemma="tal" xpos="DD0CS0">tal</tok> 
+        <tok id="w-4-454" ord="454" lemma="flor" xpos="NCFS000">flor</tok> 
+        <tok id="w-4-455" ord="455" lemma="salir" xpos="VMIP3S0">sale</tok> 
+        <tok id="w-4-456" ord="456" lemma="cierto" xpos="DI0FS0">cierta</tok> 
+        <lb id="e-35"/>
+        <tok id="w-4-457" ord="457" lemma="fructa" xpos="AQ0FS00">fructa</tok> 
+        <tok id="w-4-458" ord="458" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-4-459" ord="459" lemma="a" xpos="SP">al</tok> 
+        <tok id="w-4-460" ord="460" lemma="saconar" xpos="VMN0000">saconar</tok> 
+        <tok id="w-4-461" ord="461" lemma="o" xpos="CC">o</tok> 
+        <tok id="w-4-462" ord="462" lemma="llegar" xpos="VMN0000">llegar</tok> 
+        <tok id="w-4-463" ord="463" lemma="a" xpos="SP">a</tok> 
+        <tok id="w-4-464" ord="464" lemma="su" xpos="DP3CSN">su</tok> 
+        <tok id="w-4-465" ord="465" lemma="perfecci&amp;#xF3;n" xpos="NCFS000">perfecion</tok> 
+        <tok id="w-4-466" ord="466" lemma="ser" xpos="VSIP3S0">es</tok> 
+        <tok id="w-4-467" ord="467" lemma="de" xpos="SP">del</tok> 
+        <tok id="w-4-468" ord="468" lemma="tama&amp;#xF1;o" xpos="NCMS000">tamaño</tok> 
+        <tok id="w-4-469" ord="469" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-470" ord="470" lemma="uno" xpos="PI0MS00">vn</tok> 
+        <tok id="w-4-471" ord="471" lemma="gran" xpos="AQ0CS00">gran</tok> 
+        <tok id="w-4-472" ord="472" lemma="melon" xpos="AQ0MS00">Melon</tok> 
+        <lb id="e-36"/>
+        <tok id="w-4-473" ord="473" lemma="estriar" xpos="VMP00SM">estriado</tok> 
+        <tok id="w-4-474" ord="474" lemma="proporcionadamente" xpos="RG">proporcionadamente</tok> 
+        <tok id="w-4-475" ord="475" lemma="as&amp;#xED;" xpos="RG">asi</tok> 
+        <tok id="w-4-476" ord="476" lemma="como" xpos="CS">como</tok> 
+        <tok id="w-4-477" ord="477" lemma="bemos" xpos="VMIP1P0">bemos</tok> 
+        <tok id="w-4-478" ord="478" lemma="mucho" xpos="DI0MP0">muchos</tok> 
+        <tok id="w-4-479" ord="479" lemma="mel&amp;#xF3;n" xpos="NCMP000">melones;</tok> 
+        <tok id="w-4-480" ord="480" lemma="dentro" xpos="RG">dentro</tok> 
+        <tok id="w-4-481" ord="481" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-482" ord="482" lemma="el" xpos="DA0FP0">las</tok> 
+        <lb id="e-37"/>
+        <tok id="w-4-483" ord="483" lemma="estriaduras" xpos="NCFP000">estriaduras</tok> 
+        <tok id="w-4-484" ord="484" lemma="entre" xpos="SP">entre</tok> 
+        <tok id="w-4-485" ord="485" lemma="uno" xpos="PI0FS00">vna</tok> 
+        <tok id="w-4-486" ord="486" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-487" ord="487" lemma="otro" xpos="PI0FS00">otra</tok> 
+        <tok id="w-4-488" ord="488" lemma="ah&amp;#xED;" xpos="RG">ay</tok> 
+        <tok id="w-4-489" ord="489" lemma="cierto" xpos="AQ0FP00">ciertas</tok> 
+        <tok id="w-4-490" ord="490" lemma="tuna" xpos="NCFP00V">tunicas</tok> 
+        <tok id="w-4-491" ord="491" lemma="o" xpos="CC">o</tok> 
+        <tok id="w-4-492" ord="492" lemma="telas_te+telas_los" xpos="PP+PP">telas</tok> 
+        <tok id="w-4-493" ord="493" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-4-494" ord="494" lemma="ban" xpos="VMSP3P0">ban</tok> 
+        <tok id="w-4-495" ord="495" lemma="a" xpos="SP">al</tok> 
+        <tok id="w-4-496" ord="496" lemma="centro" xpos="NCMS000">centro</tok> 
+        <tok id="w-4-497" ord="497">en-</tok> 
+        <lb id="e-38"/>
+        <tok id="w-4-498" ord="498">medio</tok> 
+        <tok id="w-4-499" ord="499" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-500" ord="500" lemma="lo" xpos="PP3FPA0">las</tok> 
+        <tok id="w-4-501" ord="501" lemma="cu&amp;#xE1;l" xpos="PT0CP00">quales</tok> 
+        <tok id="w-4-502" ord="502" lemma="estar" xpos="VAIP3P0">estan</tok> 
+        <tok id="w-4-503" ord="503" lemma="muy" xpos="RG">mui</tok> 
+        <tok id="w-4-504" ord="504" lemma="apretar" xpos="VMP00PM">apretados</tok> 
+        <tok id="w-4-505" ord="505" lemma="el" xpos="DA0MP0">Los</tok> 
+        <tok id="w-4-506" ord="506" lemma="grano" xpos="NCMP000">granos</tok> 
+        <tok id="w-4-507" ord="507" lemma="de" xpos="SP">del</tok> 
+        <tok id="w-4-508" ord="508" lemma="cacaho" xpos="NCMS000">cacaho</tok> 
+        <tok id="w-4-509" ord="509" lemma="a" xpos="SP">al</tok> 
+        <tok id="w-4-510" ord="510" lemma="modo" xpos="NCMS000">modo</tok> 
+        <tok id="w-4-511" ord="511" lemma="que" xpos="PR0CN00">que</tok> 
+        <lb id="e-39"/>
+        <tok id="w-4-512" ord="512" lemma="el" xpos="DA0MP0">los</tok> 
+        <tok id="w-4-513" ord="513">del</tok> 
+        <tok id="w-4-514" ord="514">amizcle,</tok> 
+        <tok id="w-4-515" ord="515" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-516" ord="516" lemma="este" xpos="DD0FS0">esta</tok> 
+        <tok id="w-4-517" ord="517" lemma="tierra" xpos="NCFS000">tierra</tok> 
+        <tok id="w-4-518" ord="518" lemma="el" xpos="DA0MP0">los</tok> 
+        <tok id="w-4-519" ord="519" lemma="cu&amp;#xE1;l" xpos="PT0CP00">quales</tok> 
+        <tok id="w-4-520" ord="520" lemma="saber" xpos="VMIP3P0">saben</tok> 
+        <tok id="w-4-521" ord="521" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-4-522" ord="522" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-523" ord="523" lemma="se&amp;#xF1;al" xpos="NCFS000">señal</tok> 
+        <tok id="w-4-524" ord="524" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-525" ord="525" lemma="haber+se" xpos="VAN0000+PP3CN00">aberse</tok> 
+        <tok id="w-4-526" ord="526" lemma="criar" xpos="VMP00SM">criado</tok> 
+        <lb id="e-40"/>
+        <tok id="w-4-527" ord="527" lemma="oprimir" xpos="VMP00PM">oprimidos</tok> 
+        <tok id="w-4-528" ord="528" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-529" ord="529" lemma="haber" xpos="VMIP3S0">ai</tok> 
+        <tok id="w-4-530" ord="530" lemma="alguno" xpos="DI0FP0">algunas</tok> 
+        <tok id="w-4-531" ord="531" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-532" ord="532" lemma="este" xpos="DD0FP0">estas</tok> 
+        <tok id="w-4-533" ord="533" lemma="fruto" xpos="NCFP000">frutas</tok> 
+        <tok id="w-4-534" ord="534" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-4-535" ord="535" lemma="llegar" xpos="VMIP3P0">llegan</tok> 
+        <tok id="w-4-536" ord="536" lemma="a" xpos="SP">a</tok> 
+        <tok id="w-4-537" ord="537" lemma="dar" xpos="VMN0000">dar</tok> 
+        <tok id="w-4-538" ord="538" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-4-539" ord="539" lemma="su" xpos="DP3CSN">su</tok> 
+        <tok id="w-4-540" ord="540" lemma="interior" xpos="AQ0CS00">interior</tok> 
+        <tok id="w-4-541" ord="541" lemma="ducientos" xpos="NCMP000">ducientos</tok> 
+        <note place="inline" id="ftn-8">
+          <tok id="w-4-542" ord="542">=dos</tok> 
+          <tok id="w-4-543" ord="543">cientos</tok> 
+        </note>
+        <lb id="e-41"/>
+        <tok id="w-4-544" ord="544" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-545" ord="545" lemma="mucho" xpos="DI0FP0">muchas</tok> 
+        <tok id="w-4-546" ord="546" lemma="a" xpos="SP">a</tok> 
+        <tok id="w-4-547" ord="547" lemma="trecientos" xpos="NCMP000">trecientos</tok> 
+        <tok id="w-4-548" ord="548" lemma="grano" xpos="NCMP000">granos</tok> 
+        <tok id="w-4-549" ord="549" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-550" ord="550" lemma="cacaho" xpos="NCMS000">cacaho</tok> 
+        <tok id="w-4-551" ord="551" lemma="el" xpos="DA0MP0">Los</tok> 
+        <tok id="w-4-552" ord="552" lemma="cu&amp;#xE1;l" xpos="PT0CP00">quales</tok> 
+        <tok id="w-4-553" ord="553" lemma="ser" xpos="VSIP3P0">son</tok> 
+        <tok id="w-4-554" ord="554" lemma="sustento" xpos="NCMS000">sustento,</tok> 
+        <tok id="w-4-555" ord="555">medicina,</tok> 
+        <tok id="w-4-556" ord="556" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-557" ord="557" lemma="moneda" xpos="NCFS000">moneda,</tok> 
+        <lb id="e-42"/>
+        <tok id="w-4-558" ord="558" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-559" ord="559" lemma="su" xpos="DP3CPN">sus</tok> 
+        <lb id="e-43"/>
+        <pb facs="book-053.jpg" id="e-44"/>
+        <tok id="w-4-560" ord="560">3.</tok> 
+        <tok id="w-4-561" ord="561" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-562" ord="562" lemma="su" xpos="DP3CPN">sus</tok> 
+        <tok id="w-4-563" ord="563" lemma="abitadura" xpos="NCFP000">abitadores</tok> 
+        <tok id="w-4-564" ord="564" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-565" ord="565" lemma="as&amp;#xED;" xpos="RG">assi</tok> 
+        <tok id="w-4-566" ord="566" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-4-567" ord="567" lemma="el" xpos="DA0FP0">las</tok> 
+        <tok id="w-4-568" ord="568" lemma="parte" xpos="NCCP000">partes</tok> 
+        <tok id="w-4-569" ord="569" lemma="de" xpos="SP">del</tok> 
+        <tok id="w-4-570" ord="570" lemma="nuebo" xpos="AQ0MS00">nuebo</tok> 
+        <tok id="w-4-571" ord="571" lemma="reino" xpos="NCMS000">reino</tok> 
+        <tok id="w-4-572" ord="572" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-4-573" ord="573" lemma="el" xpos="DA0MS0">el</tok> 
+        <tok id="w-4-574" ord="574" lemma="todo" xpos="RG">todo</tok> 
+        <tok id="w-4-575" ord="575" lemma="poderoso" xpos="AQ0MS00">podero</tok> 
+        <supplied source="#montenegro1711_mss-10314">
+          <tok id="w-4-576" ord="576">so</tok> 
+        </supplied>
+        <lb id="e-45"/>
+        <tok id="w-4-577" ord="577" lemma="socorrio" xpos="VMIS3S0">socorrio</tok> 
+        <tok id="w-4-578" ord="578" lemma="con" xpos="SP">con</tok> 
+        <tok id="w-4-579" ord="579" lemma="este" xpos="DD0FS0">esta</tok> 
+        <tok id="w-4-580" ord="580" lemma="fertil" xpos="AQ0CS00">fertil</tok> 
+        <tok id="w-4-581" ord="581" lemma="planta" xpos="NCFS000">planta</tok> 
+        <tok id="w-4-582" ord="582" lemma="silbestre" xpos="NCFS000">silbestre</tok> 
+        <tok id="w-4-583" ord="583" lemma="se" xpos="P00CN00">se</tok> 
+        <tok id="w-4-584" ord="584" lemma="be" xpos="NCFS000">be</tok> 
+        <tok id="w-4-585" ord="585" lemma="hoy" xpos="RG">oy</tok> 
+        <tok id="w-4-586" ord="586" lemma="d&amp;#xED;a" xpos="NCMS000">dia</tok> 
+        <tok id="w-4-587" ord="587" lemma="domesticar" xpos="VMP00SF">domesticada</tok> 
+        <tok id="w-4-588" ord="588" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-589" ord="589" lemma="muy" xpos="RG">mui</tok> 
+        <tok id="w-4-590" ord="590" lemma="regalar" xpos="VMP00SF">regala</tok> 
+        <supplied source="#montenegro1711_mss-10314">
+          <tok id="w-4-591" ord="591">da</tok> 
+        </supplied>
+        <lb id="e-46"/>
+        <tok id="w-4-592" ord="592" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-4-593" ord="593" lemma="el" xpos="DA0MP0">los</tok> 
+        <tok id="w-4-594" ord="594" lemma="guertos" xpos="NCMP000">guertos</tok> 
+        <tok id="w-4-595" ord="595" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-596" ord="596" lemma="su" xpos="DP3CPN">sus</tok> 
+        <tok id="w-4-597" ord="597" lemma="abitadura" xpos="NCFP000">abitadores</tok> 
+        <tok id="w-4-598" ord="598" lemma="por" xpos="SP">por</tok> 
+        <tok id="w-4-599" ord="599" lemma="el" xpos="DA0MS0">el</tok> 
+        <tok id="w-4-600" ord="600" lemma="grande" xpos="AQ0CS00">grande</tok> 
+        <tok id="w-4-601" ord="601" lemma="ingreso" xpos="NCMS000">ingreso</tok> 
+        <tok id="w-4-602" ord="602" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-4-603" ord="603" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-604" ord="604" lemma="&amp;#xE9;l" xpos="PP3FS00">ella</tok> 
+        <tok id="w-4-605" ord="605" lemma="sacar" xpos="VMIP3P0">sacan;</tok> 
+        <tok id="w-4-606" ord="606" lemma="ser" xpos="VSIP3S0">es</tok> 
+        <supplied source="#montenegro1711_mss-10314">
+          <tok id="w-4-607" ord="607" lemma="muy" xpos="RG">mui</tok> 
+        </supplied>
+        <lb id="e-47"/>
+        <tok id="w-4-608" ord="608" lemma="delicado" xpos="AQ0FS00">delicada</tok> 
+        <tok id="w-4-609" ord="609" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-610" ord="610" lemma="complexi&amp;#xF3;n" xpos="NCFS000">Complesion</tok> 
+        <tok id="w-4-611" ord="611" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-612" ord="612" lemma="nada" xpos="PI0CS00">nada</tok> 
+        <tok id="w-4-613" ord="613" lemma="fuerte" xpos="AQ0CS00">fuerte</tok> 
+        <tok id="w-4-614" ord="614" lemma="su" xpos="DP3CSN">su</tok> 
+        <tok id="w-4-615" ord="615" lemma="madera" xpos="NCFS000">madera</tok> 
+        <tok id="w-4-616" ord="616" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-4-617" ord="617" lemma="con" xpos="SP">con</tok> 
+        <tok id="w-4-618" ord="618" lemma="facilidad" xpos="NCFS000">facilidad</tok> 
+        <tok id="w-4-619" ord="619" lemma="se" xpos="P00CN00">se</tok> 
+        <tok id="w-4-620" ord="620">rr</tok> 
+        <supplied source="#montenegro1711_mss-10314">
+          <tok id="w-4-621" ord="621">ompe</tok> 
+        </supplied>
+        <lb id="e-48"/>
+        <tok id="w-4-622" ord="622" lemma="y" xpos="RG">y</tok> 
+        <tok id="w-4-623" ord="623" lemma="as&amp;#xED;" xpos="RG">asi</tok> 
+        <tok id="w-4-624" ord="624" lemma="mismo" xpos="RG">mismo</tok> 
+        <tok id="w-4-625" ord="625" lemma="corromper" xpos="VMIP3S0">Corrompe</tok> 
+        <tok id="w-4-626" ord="626" lemma="despu&amp;#xE9;s" xpos="RG">despues</tok> 
+        <tok id="w-4-627" ord="627" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-628" ord="628" lemma="cortar" xpos="VMP00SF">cortada;</tok> 
+        <tok id="w-4-629" ord="629" lemma="y" xpos="RG">y</tok> 
+        <tok id="w-4-630" ord="630" lemma="para" xpos="SP">para</tok> 
+        <tok id="w-4-631" ord="631" lemma="avmentarlas" xpos="NCFP000">avmentarlas</tok> 
+        <tok id="w-4-632" ord="632" lemma="sembrar" xpos="VMIP3P0">siembra</tok> 
+        <reg type="note">
+          <tok id="w-4-633" ord="633">n</tok> 
+        </reg>
+        <lb id="e-49"/>
+        <tok id="w-4-634" ord="634">granos;</tok> 
+        <tok id="w-4-635" ord="635" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-636" ord="636" lemma="peque&amp;#xF1;o" xpos="NCFP000">pequeñas</tok> 
+        <tok id="w-4-637" ord="637" lemma="su" xpos="DP3CPN">sus</tok> 
+        <tok id="w-4-638" ord="638" lemma="planta" xpos="NCFP000">plantas</tok> 
+        <tok id="w-4-639" ord="639" lemma="se" xpos="P00CN00">se</tok> 
+        <tok id="w-4-640" ord="640" lemma="trasplantar" xpos="VMIP3P0">trasplantan</tok> 
+        <tok id="w-4-641" ord="641" lemma="con" xpos="SP">Con</tok> 
+        <tok id="w-4-642" ord="642" lemma="gran" xpos="AQ0CS00">gran</tok> 
+        <tok id="w-4-643" ord="643" lemma="cuidado" xpos="NCMS000">Cuidado;</tok> 
+        <tok id="w-4-644" ord="644">guarda</tok> 
+        <reg type="note">
+          <tok id="w-4-645" ord="645">n</tok> 
+        </reg>
+        <lb id="e-50"/>
+        <tok id="w-4-646" ord="646" lemma="el" xpos="DA0FP0">las</tok> 
+        <tok id="w-4-647" ord="647" lemma="de" xpos="SP">del</tok> 
+        <tok id="w-4-648" ord="648" lemma="fr&amp;#xED;o" xpos="NCMS000">frio</tok> 
+        <tok id="w-4-649" ord="649" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-650" ord="650" lemma="el" xpos="DA0FP0">las</tok> 
+        <tok id="w-4-651" ord="651" lemma="noche" xpos="NCFP000">noches</tok> 
+        <tok id="w-4-652" ord="652" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-653" ord="653" lemma="rigor" xpos="NCMP000">rigores</tok> 
+        <tok id="w-4-654" ord="654" lemma="de" xpos="SP">del</tok> 
+        <tok id="w-4-655" ord="655" lemma="sol" xpos="NCMS000">sol;</tok> 
+        <tok id="w-4-656" ord="656" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-657" ord="657" lemma="cerca" xpos="RG">cerca</tok> 
+        <tok id="w-4-658" ord="658" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-659" ord="659" lemma="ellos" xpos="PP3FP00">ellas</tok> 
+        <tok id="w-4-660" ord="660" lemma="plantar" xpos="VMIP3P0">plantan</tok> 
+        <tok id="w-4-661" ord="661" lemma="otro" xpos="PI0FP00">otr</tok> 
+        <supplied source="#montenegro1711_mss-10314">
+          <tok id="w-4-662" ord="662">as</tok> 
+        </supplied>
+        <lb id="e-51"/>
+        <tok id="w-4-663" ord="663" lemma="arbolar" xpos="VMSP2S0">arboles</tok> 
+        <tok id="w-4-664" ord="664" lemma="muy" xpos="RG">mui</tok> 
+        <tok id="w-4-665" ord="665" lemma="frondoso" xpos="AQ0MP00">frondosos</tok> 
+        <tok id="w-4-666" ord="666" lemma="ya" xpos="RG">ya</tok> 
+        <tok id="w-4-667" ord="667" lemma="menos" xpos="RG">menos</tok> 
+        <tok id="w-4-668" ord="668" lemma="para" xpos="SP">para</tok> 
+        <tok id="w-4-669" ord="669" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-4-670" ord="670" lemma="lo" xpos="PP3FPA0">las</tok> 
+        <tok id="w-4-671" ord="671" lemma="defender" xpos="VMSP3P0">defiendan</tok> 
+        <tok id="w-4-672" ord="672" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-673" ord="673" lemma="el" xpos="DA0MP0">los</tok> 
+        <tok id="w-4-674" ord="674" lemma="torbellino" xpos="NCMP000">torbellinos</tok> 
+        <lb id="e-52"/>
+        <tok id="w-4-675" ord="675" lemma="bientos" xpos="NCMP000">bientos</tok> 
+        <tok id="w-4-676" ord="676" lemma="llamar+le" xpos="VMIP3P0+PP3CPD0">llamanles</tok> 
+        <tok id="w-4-677" ord="677" lemma="el" xpos="DA0MP0">los</tok> 
+        <tok id="w-4-678" ord="678" lemma="natural" xpos="NCCP000">naturales</tok> 
+        <tok id="w-4-679" ord="679" lemma="a" xpos="SP">a</tok> 
+        <tok id="w-4-680" ord="680" lemma="este" xpos="DD0MP0">estos</tok> 
+        <tok id="w-4-681" ord="681" lemma="arbolar" xpos="VMSP2S0">arboles</tok> 
+        <tok id="w-4-682" ord="682" lemma="madre" xpos="NCFP000">Madres</tok> 
+        <tok id="w-4-683" ord="683" lemma="de" xpos="SP">del</tok> 
+        <tok id="w-4-684" ord="684" lemma="cacaho" xpos="NCMS000">cacaho;</tok> 
+        <tok id="w-4-685" ord="685">requie</tok> 
+        <supplied source="#montenegro1711_mss-10314">
+          <tok id="w-4-686" ord="686" lemma="requerir" xpos="VMIP3S0">re</tok> 
+        </supplied>
+        <lb id="e-53"/>
+        <tok id="w-4-687" ord="687" lemma="parte" xpos="NCCP000">partes</tok> 
+        <tok id="w-4-688" ord="688" lemma="bajias" xpos="AQ0FP00">bajias</tok> 
+        <tok id="w-4-689" ord="689" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-690" ord="690" lemma="h&amp;#xFA;medo" xpos="AQ0FP00">humedas</tok> 
+        <tok id="w-4-691" ord="691" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-4-692" ord="692" lemma="ser" xpos="VSIP3S0">es</tok> 
+        <tok id="w-4-693" ord="693" lemma="adonde" xpos="CS">adonde</tok> 
+        <tok id="w-4-694" ord="694" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-695" ord="695" lemma="hordinario" xpos="NCMS000">hordinario</tok> 
+        <tok id="w-4-696" ord="696" lemma="se" xpos="P00CN00">se</tok> 
+        <tok id="w-4-697" ord="697" lemma="allan" xpos="VMIP3P0">allan</tok> 
+        <tok id="w-4-698" ord="698" lemma="lo" xpos="PP3MPA0">los</tok> 
+        <tok id="w-4-699" ord="699" lemma="arbolar" xpos="VMSP2S0">arbole</tok> 
+        <reg type="note">
+          <tok id="w-4-700" ord="700">s</tok> 
+        </reg>
+        <lb id="e-54"/>
+        <tok id="w-4-701" ord="701" lemma="silbestres" xpos="VMSP2S0">Silbestres</tok> 
+        <tok id="w-4-702" ord="702" lemma="ser" xpos="VSIP3P0">son</tok> 
+        <tok id="w-4-703" ord="703" lemma="el" xpos="DA0MP0">los</tok> 
+        <tok id="w-4-704" ord="704" lemma="tal" xpos="PD0CP00">tales</tok> 
+        <tok id="w-4-705" ord="705" lemma="arbolar" xpos="VMSP2S0">arboles</tok> 
+        <tok id="w-4-706" ord="706" lemma="coposos" xpos="AQ0MP00">coposos</tok> 
+        <tok id="w-4-707" ord="707" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-708" ord="708" lemma="muy" xpos="RG">mui</tok> 
+        <tok id="w-4-709" ord="709" lemma="espeso" xpos="AQ0MP00">espesos</tok> 
+        <tok id="w-4-710" ord="710" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-711" ord="711" lemma="rama" xpos="NCFP000">ramas</tok> 
+        <tok id="w-4-712" ord="712" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-713" ord="713" lemma="hoja" xpos="NCFP000">ojas</tok> 
+        <tok id="w-4-714" ord="714" lemma="muy" xpos="RG">mui</tok> 
+        <supplied source="#montenegro1711_mss-10314">
+          <tok id="w-4-715" ord="715" lemma="pa" xpos="NCMS000">pa</tok> 
+        </supplied>
+        <lb id="e-55"/>
+        <tok id="w-4-716" ord="716" lemma="rezar" xpos="VMP00SM">recido</tok> 
+        <tok id="w-4-717" ord="717" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-4-718" ord="718" lemma="todo" xpos="DI0MS0">todo</tok> 
+        <tok id="w-4-719" ord="719" lemma="a" xpos="SP">al</tok> 
+        <tok id="w-4-720" ord="720" lemma="&amp;#xE1;rbol" xpos="NCMS000">arbol</tok> 
+        <tok id="w-4-721" ord="721" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-722" ord="722" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-723" ord="723" lemma="hierba" xpos="NCFS000">yerua</tok> 
+        <tok id="w-4-724" ord="724" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-725" ord="725" lemma="aqu&amp;#xED;" xpos="RG">aqui</tok> 
+        <tok id="w-4-726" ord="726" lemma="as&amp;#xED;" xpos="RG">asi</tok> 
+        <tok id="w-4-727" ord="727" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-4-728" ord="728" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-729" ord="729" lemma="espesitud" xpos="NCFS000">espesitud</tok> 
+        <tok id="w-4-730" ord="730" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-731" ord="731" lemma="su" xpos="DP3CPN">sus</tok> 
+        <tok id="w-4-732" ord="732" lemma="hoja" xpos="NCFP000">ojas</tok> 
+        <supplied source="#montenegro1711_mss-10314">
+          <tok id="w-4-733" ord="733" lemma="cu" xpos="NCFS000">co</tok> 
+        </supplied>
+        <lb id="e-56"/>
+        <tok id="w-4-734" ord="734" lemma="mu" xpos="NCCS000">mo</tok> 
+        <tok id="w-4-735" ord="735" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-4-736" ord="736" lemma="el" xpos="DA0MS0">el</tok> 
+        <tok id="w-4-737" ord="737" lemma="modo" xpos="NCMS000">modo</tok> 
+        <tok id="w-4-738" ord="738" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-739" ord="739" lemma="repartir" xpos="VMN0000">repartir</tok> 
+        <tok id="w-4-740" ord="740" lemma="su" xpos="DP3CPN">sus</tok> 
+        <tok id="w-4-741" ord="741" lemma="rama" xpos="NCFP000">ramas</tok> 
+        <tok id="w-4-742" ord="742" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-743" ord="743" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-4-744" ord="744" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-745" ord="745" lemma="sustancia" xpos="NCFS000">sustancia</tok> 
+        <tok id="w-4-746" ord="746" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-747" ord="747" lemma="su" xpos="DP3CSN">su</tok> 
+        <tok id="w-4-748" ord="748" lemma="madera" xpos="NCFS000">madera</tok> 
+        <tok id="w-4-749" ord="749" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-750" ord="750" lemma="medu" xpos="NCMS000">me</tok> 
+        <supplied source="#montenegro1711_mss-10314">
+          <tok id="w-4-751" ord="751">du</tok> 
+        </supplied>
+        <lb id="e-57"/>
+        <tok id="w-4-752" ord="752" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-4-753" ord="753" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-4-754" ord="754" lemma="el" xpos="DA0MS0">el</tok> 
+        <tok id="w-4-755" ord="755" lemma="centro" xpos="NCMS000">centro</tok> 
+        <tok id="w-4-756" ord="756" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-4-757" ord="757" lemma="su" xpos="DP3CPN">sus</tok> 
+        <tok id="w-4-758" ord="758" lemma="rama" xpos="NCFP000">ramas</tok> 
+        <tok id="w-4-759" ord="759" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-760" ord="760" lemma="tronco" xpos="NCMS000">tronco=</tok> 
+        <lb id="e-58"/>
+        <tok id="w-4-761" ord="761" lemma="bario" xpos="NCMP000">Barios</tok> 
+        <tok id="w-4-762" ord="762" lemma="afirmar" xpos="VMIP3P0">afirman</tok> 
+        <tok id="w-4-763" ord="763" lemma="ser" xpos="VSN0000">ser</tok> 
+        <tok id="w-4-764" ord="764" lemma="el" xpos="DA0MS0">el</tok> 
+        <tok id="w-4-765" ord="765" lemma="cacaho" xpos="RG">cacaho</tok> 
+        <tok id="w-4-766" ord="766" lemma="fr&amp;#xED;o" xpos="AQ0MS00">frio</tok> 
+        <tok id="w-4-767" ord="767" lemma="como" xpos="CS">como</tok> 
+        <tok id="w-4-768" ord="768" lemma="ser" xpos="VSIP3S0">es</tok> 
+        <tok id="w-4-769" ord="769" lemma="menardes" xpos="VMIF2P0">Menardes</tok> 
+        <tok id="w-4-770" ord="770" lemma="guerta" xpos="NCFS000">guerta</tok> 
+        <tok id="w-4-771" ord="771" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-4-772" ord="772" lemma="herrera" xpos="NCFS000">Herrer</tok> 
+        <supplied source="#montenegro1711_mss-10314">
+          <tok id="w-4-773" ord="773">a</tok> 
+        </supplied>
+        <lb id="e-59"/>
+        <tok id="w-4-774" ord="774" lemma="decir" xpos="VMG0000">diciendo</tok> 
+        <tok id="w-4-775" ord="775" lemma="ser" xpos="VSN0000">ser</tok> 
+        <tok id="w-4-776" ord="776" lemma="necesario" xpos="AQ0MS00">necesario</tok> 
+        <tok id="w-4-777" ord="777" lemma="templar" xpos="VMN0000">templar</tok> 
+        <tok id="w-4-778" ord="778" lemma="su" xpos="DP3CSN">su</tok> 
+        <tok id="w-4-779" ord="779" lemma="frialdad" xpos="NCFS000">frialdad.</tok> 
+        <tok id="w-5-1" ord="1" lemma="con" xpos="SP">Con</tok> 
+        <tok id="w-5-2" ord="2" lemma="otro" xpos="DI0FP0">otras</tok> 
+        <tok id="w-5-3" ord="3" lemma="especie" xpos="NCFP000">especies</tok> 
+        <tok id="w-5-4" ord="4" lemma="aromaticas" xpos="NCFP000">aromatica</tok> 
+        <supplied source="#montenegro1711_mss-10314">
+          <tok id="w-5-5" ord="5">s</tok> 
+          <tok id="w-5-6" ord="6" lemma="ca" xpos="CS">ca</tok> 
+        </supplied>
+        <lb id="e-60"/>
+        <tok id="w-5-7" ord="7" lemma="lientes" xpos="AQ0CP00">lientes</tok> 
+        <tok id="w-5-8" ord="8" lemma="como" xpos="CS">como</tok> 
+        <tok id="w-5-9" ord="9" lemma="ser" xpos="VSIP3S0">es</tok> 
+        <tok id="w-5-10" ord="10" lemma="el" xpos="DA0FS0">La</tok> 
+        <tok id="w-5-11" ord="11" lemma="banilla" xpos="NCFS000">banilla</tok> 
+        <tok id="w-5-12" ord="12" lemma="el" xpos="DA0FS0">La</tok> 
+        <tok id="w-5-13" ord="13" lemma="canela" xpos="NCFS000">canela</tok> 
+        <tok id="w-5-14" ord="14" lemma="el" xpos="DA0MS0">el</tok> 
+        <tok id="w-5-15" ord="15" lemma="clavo" xpos="NCMS000">clauo,</tok> 
+        <tok id="w-5-16" ord="16" lemma="el" xpos="DA0FS0">La</tok> 
+        <tok id="w-5-17" ord="17" lemma="nuez" xpos="NCFS000">nuez</tok> 
+        <tok id="w-5-18" ord="18" lemma="mocar" xpos="VMP00SF">moscada</tok> 
+        <tok id="w-5-19" ord="19" lemma="" xpos="NCMS000">a</tok> 
+        <tok id="w-5-20" ord="20" lemma="pero" xpos="CC">pero</tok> 
+        <lb id="e-61"/>
+        <tok id="w-5-21" ord="21" lemma="tener+me" xpos="VMIP1S0+PP1CS00">tengome</tok> 
+        <tok id="w-5-22" ord="22" lemma="a" xpos="SP">a</tok> 
+        <tok id="w-5-23" ord="23" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-5-24" ord="24" lemma="opini&amp;#xF3;n" xpos="NCFS000">Opinion</tok> 
+        <tok id="w-5-25" ord="25" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-5-26" ord="26" lemma="paular" xpos="VMIP1S0">Paulo</tok> 
+        <tok id="w-5-27" ord="27" lemma="zaechia" xpos="NCFS000">Zaechia</tok> 
+        <tok id="w-5-28" ord="28" lemma="medicar" xpos="VMIP1S0">Medico</tok> 
+        <tok id="w-5-29" ord="29" lemma="romano" xpos="NCMS000">romano</tok> 
+        <tok id="w-5-30" ord="30" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-5-31" ord="31" lemma="a" xpos="SP">a</tok> 
+        <tok id="w-5-32" ord="32" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-5-33" ord="33" lemma="autoridad" xpos="NCFS000">avtorid</tok> 
+        <supplied source="#montenegro1711_mss-10314">
+          <tok id="w-5-34" ord="34">ad</tok> 
+        </supplied>
+        <lb id="e-62"/>
+        <tok id="w-5-35" ord="35" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-5-36" ord="36" lemma="guillermo" xpos="VMIS3S0">Guillermo</tok> 
+        <tok id="w-5-37" ord="37" lemma="pisson" xpos="NCMS000">Pisson;</tok> 
+        <tok id="w-5-38" ord="38" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-5-39" ord="39" lemma="decir" xpos="VMIP3S0">dice</tok> 
+        <tok id="w-5-40" ord="40" lemma="el" xpos="DA00S0">Lo</tok> 
+        <tok id="w-5-41" ord="41" lemma="probo" xpos="AQ0MS00">probo</tok> 
+        <tok id="w-5-42" ord="42" lemma="cu&amp;#xE1;ndo" xpos="PT00000">quando</tok> 
+        <tok id="w-5-43" ord="43" lemma="fresco" xpos="NCMS000">fresco;</tok> 
+        <tok id="w-5-44" ord="44" lemma="y" xpos="PP3CN00">y</tok> 
+        <tok id="w-5-45" ord="45" lemma="decir" xpos="VMIP3S0">dice</tok> 
+        <tok id="w-5-46" ord="46" lemma="ser" xpos="VSN0000">ser</tok> 
+        <tok id="w-5-47" ord="47" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-5-48" ord="48" lemma="temperamenti" xpos="RG">tempera</tok> 
+        <supplied source="#montenegro1711_mss-10314">
+          <tok id="w-5-49" ord="49">menti</tok> 
+        </supplied>
+        <lb id="e-63"/>
+        <tok id="w-5-50" ord="50" lemma="sub" xpos="AQ0CN00">sub</tok> 
+        <tok id="w-5-51" ord="51" lemma="frigidi" xpos="VMIS1S0">frigidi</tok> 
+        <tok id="w-5-52" ord="52" lemma="atque" xpos="NCMS000">atque</tok> 
+        <tok id="w-5-53" ord="53" lemma="humidi" xpos="VMIS1S0">humidi</tok> 
+        <tok id="w-5-54" ord="54" lemma=":" xpos="Fd">:</tok> 
+        <tok id="w-5-55" ord="55" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-5-56" ord="56" lemma="ser" xpos="VSIP3S0">es</tok> 
+        <tok id="w-5-57" ord="57" lemma="decir" xpos="NCMS000">decir</tok> 
+        <tok id="w-5-58" ord="58" lemma="ser" xpos="VSIP3S0">es</tok> 
+        <tok id="w-5-59" ord="59" lemma="templar" xpos="VMP00SM">templado</tok> 
+        <tok id="w-5-60" ord="60" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-5-61" ord="61" lemma="su" xpos="DP3CSN">su</tok> 
+        <tok id="w-5-62" ord="62" lemma="frialdad" xpos="NCFS000">frialdad,</tok> 
+        <tok id="w-5-63" ord="63" lemma="con" xpos="SP">con</tok> 
+        <tok id="w-5-64" ord="64">l</tok> 
+        <supplied source="#montenegro1711_mss-10314">
+          <tok id="w-5-65" ord="65">ebe</tok> 
+        </supplied>
+        <lb id="e-64"/>
+        <tok id="w-5-66" ord="66" lemma="estipicidad" xpos="NCFS000">estipicidad</tok> 
+        <tok id="w-5-67" ord="67" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-5-68" ord="68" lemma="algo" xpos="RG">algo</tok> 
+        <tok id="w-5-69" ord="69" lemma="amargo" xpos="AQ0MS00">amargo</tok> 
+        <tok id="w-5-70" ord="70" lemma="el" xpos="DA0MS0">el</tok> 
+        <tok id="w-5-71" ord="71" lemma="cu&amp;#xE1;l" xpos="DT0CS0">qual</tok> 
+        <tok id="w-5-72" ord="72" lemma="exprimir" xpos="VMP00SM">esprimido</tok> 
+        <tok id="w-5-73" ord="73" lemma="echar" xpos="VMIP3S0">echa</tok> 
+        <tok id="w-5-74" ord="74" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-5-75" ord="75" lemma="si" xpos="CS">si</tok> 
+        <tok id="w-5-76" ord="76" lemma="aceitar" xpos="VMSP3S0">aceite</tok> 
+        <tok id="w-5-77" ord="77" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-5-78" ord="78" lemma="tanto" xpos="PI0FS00">tanta</tok> 
+        <tok id="w-5-79" ord="79" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-5-80" ord="80" lemma="m&amp;#xE1;s" xpos="RG">ma</tok> 
+        <reg type="note">
+          <tok id="w-5-81" ord="81">s</tok> 
+        </reg>
+        <lb id="e-65"/>
+        <tok id="w-5-82" ord="82" lemma="abundancia" xpos="NCFS000">abundancia</tok> 
+        <tok id="w-5-83" ord="83" lemma="que" xpos="CS">que</tok> 
+        <tok id="w-5-84" ord="84" lemma="el" xpos="DA0FP0">las</tok> 
+        <tok id="w-5-85" ord="85" lemma="almendra" xpos="NCFP000">almendras</tok> 
+        <tok id="w-5-86" ord="86" lemma="dulce" xpos="AQ0CP00">dulces;</tok> 
+        <tok id="w-5-87" ord="87" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-5-88" ord="88" lemma="aunque" xpos="CS">avnque</tok> 
+        <tok id="w-5-89" ord="89" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-5-90" ord="90" lemma="su" xpos="DP3CSN">su</tok> 
+        <tok id="w-5-91" ord="91" lemma="figura" xpos="NCFS000">figura</tok> 
+        <tok id="w-5-92" ord="92" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-5-93" ord="93" lemma="grandor" xpos="NCMS000">grandor</tok> 
+        <supplied source="#montenegro1711_mss-10314">
+          <tok id="w-5-94" ord="94" lemma="as&amp;#xED;" xpos="RG">asi</tok> 
+        </supplied>
+        <lb id="e-66"/>
+        <tok id="w-5-95" ord="95">del</tok> 
+        <tok id="w-5-96" ord="96" lemma="&amp;#xE1;rbol" xpos="NCMS000">arbol</tok> 
+        <tok id="w-5-97" ord="97" lemma="como" xpos="CS">como</tok> 
+        <tok id="w-5-98" ord="98" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-5-99" ord="99" lemma="su" xpos="DP3CSN">su</tok> 
+        <tok id="w-5-100" ord="100" lemma="semilla" xpos="NCFP000">semillas</tok> 
+        <tok id="w-5-101" ord="101" lemma="haber" xpos="VMIP3S0">ay</tok> 
+        <tok id="w-5-102" ord="102" lemma="5" xpos="Z">cinco</tok> 
+        <tok id="w-5-103" ord="103" lemma="especie" xpos="NCFP000">especies</tok> 
+        <tok id="w-5-104" ord="104" lemma="distinto" xpos="AQ0FP00">distintas,</tok> 
+        <tok id="w-5-105" ord="105" lemma="que" xpos="CS">que</tok> 
+        <tok id="w-5-106" ord="106" lemma="entre" xpos="SP">entre</tok> 
+        <tok id="w-5-107" ord="107" lemma="si" xpos="CS">si</tok> 
+        <tok id="w-5-108" ord="108" lemma="todo" xpos="DI0FP0">todas</tok> 
+        <supplied source="#montenegro1711_mss-10314">
+          <tok id="w-5-109" ord="109" lemma="desde" xpos="SP">dis</tok> 
+        </supplied>
+        <lb id="e-67"/>
+        <tok id="w-5-110" ord="110" lemma="crepan" xpos="VMSP3P0">crepan</tok> 
+        <tok id="w-5-111" ord="111" lemma="uno" xpos="PI0FS00">vna</tok> 
+        <tok id="w-5-112" ord="112" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-5-113" ord="113" lemma="otro" xpos="PI0FS00">otra</tok> 
+        <tok id="w-5-114" ord="114" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-5-115" ord="115" lemma="alguno" xpos="DI0FP0">algunas</tok> 
+        <tok id="w-5-116" ord="116" lemma="circustancias" xpos="NCFP000">circustancias;</tok> 
+        <tok id="w-5-117" ord="117" lemma="pero" xpos="CC">pero</tok> 
+        <tok id="w-5-118" ord="118" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-5-119" ord="119" lemma="el" xpos="DA0MS0">el</tok> 
+        <tok id="w-5-120" ord="120" lemma="temperamento" xpos="NCMS000">temperamento</tok> 
+        <tok id="w-5-121" ord="121" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-5-122" ord="122" lemma="cualidad" xpos="NCFS000">qualidad</tok> 
+        <lb id="e-68"/>
+        <tok id="w-5-123" ord="123" lemma="todo" xpos="PI0MP00">todos</tok> 
+        <tok id="w-5-124" ord="124" lemma="ser" xpos="VSIP3P0">son</tok> 
+        <tok id="w-5-125" ord="125" lemma="acorde" xpos="AQ0CP00">acordes</tok> 
+        <tok id="w-5-126" ord="126" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-5-127" ord="127" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-5-128" ord="128" lemma="uno" xpos="PI0FS00">vna</tok> 
+        <tok id="w-5-129" ord="129" lemma="mismo" xpos="AQ0FS00">misma</tok> 
+        <tok id="w-5-130" ord="130" lemma="sustancia" xpos="NCFS000">Sustancia;</tok> 
+        <tok id="w-5-131" ord="131" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-5-132" ord="132" lemma="ser" xpos="VSIP3S0">es</tok> 
+        <tok id="w-5-133" ord="133" lemma="digno" xpos="AQ0MS00">digno</tok> 
+        <tok id="w-5-134" ord="134" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-5-135" ord="135" lemma="reparo" xpos="NCMS000">reparo</tok> 
+        <tok id="w-5-136" ord="136" lemma="que" xpos="PR0CN00">que</tok> 
+        <lb id="e-69"/>
+        <tok id="w-5-137" ord="137" lemma="querer" xpos="VMIS3S0">quiso</tok> 
+        <note place="inline" id="ftn-9">
+          <reg type="note">
+            <tok id="w-5-138" ord="138" lemma="o" xpos="CC">o</tok> 
+          </reg>
+          <tok id="w-5-139" ord="139" lemma="llevar" xpos="VMIP3S0">lleva</tok> 
+          <tok id="w-5-140" ord="140" lemma="uno" xpos="DI0MS0">un</tok> 
+          <tok id="w-5-141" ord="141" lemma="diacr&amp;#xED;tico" xpos="AQ0MS00">diacrítico</tok> 
+        </note>
+        <tok id="w-5-142" ord="142" lemma="el" xpos="DA0MS0">el</tok> 
+        <tok id="w-5-143" ord="143" lemma="se&amp;#xF1;or" xpos="NCMS000">Señor</tok> 
+        <tok id="w-5-144" ord="144" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-5-145" ord="145" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-5-146" ord="146" lemma="cosa" xpos="NCFS000">cosa</tok> 
+        <tok id="w-5-147" ord="147" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-5-148" ord="148" lemma="haber" xpos="VMII3S0">abia</tok> 
+        <tok id="w-5-149" ord="149" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-5-150" ord="150" lemma="correr" xpos="VMN0000">correr</tok> 
+        <tok id="w-5-151" ord="151" lemma="a" xpos="SP">a</tok> 
+        <tok id="w-5-152" ord="152" lemma="ser" xpos="VSN0000">ser</tok> 
+        <tok id="w-5-153" ord="153" lemma="sustento" xpos="NCMS000">sustento</tok> 
+        <tok id="w-5-154" ord="154" lemma="por" xpos="SP">por</tok> 
+        <tok id="w-5-155" ord="155" lemma="todo" xpos="DI0MS0">todo</tok> 
+        <tok id="w-5-156" ord="156" lemma="el" xpos="DA0MS0">el</tok> 
+        <supplied source="#montenegro1711_mss-10314">
+          <tok id="w-5-157" ord="157" lemma="mu" xpos="NCCS000">mu</tok> 
+        </supplied>
+        <lb id="e-70"/>
+        <tok id="w-5-158" ord="158" lemma="ndo" xpos="VMG0000">ndo,</tok> 
+        <tok id="w-5-159" ord="159" lemma="salir+se" xpos="VMII3S0+PP3CN00">Saliese</tok> 
+        <tok id="w-5-160" ord="160" lemma="especie" xpos="NCFS000">especie</tok> 
+        <tok id="w-5-161" ord="161" lemma="adulterino" xpos="AQ0FS00">adulterina</tok> 
+        <tok id="w-5-162" ord="162" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-5-163" ord="163" lemma="tan" xpos="RG">tan</tok> 
+        <tok id="w-5-164" ord="164" lemma="noble" xpos="AQ0CS00">noble</tok> 
+        <tok id="w-5-165" ord="165" lemma="planta" xpos="NCFS000">planta</tok> 
+        <tok id="w-5-166" ord="166" lemma="p" xpos="NCFS000">p.a</tok> 
+        <tok id="w-5-167" ord="167" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-5-168" ord="168" lemma="no" xpos="RN">no</tok> 
+        <tok id="w-5-169" ord="169" lemma="poder" xpos="VMSI3S0">pudiese</tok> 
+        <supplied source="#montenegro1711_mss-10314">
+          <tok id="w-5-170" ord="170" lemma="a" xpos="SP">a</tok> 
+        </supplied>
+        <lb id="e-71"/>
+        <tok id="w-5-171" ord="171" lemma="ber" xpos="VMN0000">ber</tok> 
+        <tok id="w-5-172" ord="172" lemma="fraude" xpos="NCMS000">fraude</tok> 
+        <tok id="w-5-173" ord="173" lemma="como" xpos="CS">como</tok> 
+        <tok id="w-5-174" ord="174" lemma="lo" xpos="PP3MSA0">Lo</tok> 
+        <tok id="w-5-175" ord="175" lemma="bemos" xpos="VMIP1P0">bemos</tok> 
+        <tok id="w-5-176" ord="176" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-5-177" ord="177" lemma="otro" xpos="DI0FP0">otras</tok> 
+        <tok id="w-5-178" ord="178" lemma="mucho" xpos="DI0FP0">muchas</tok> 
+        <tok id="w-5-179" ord="179" lemma="cosa" xpos="NCFP000">cosas=</tok> 
+        <lb id="e-72"/>
+        <tok id="w-5-180" ord="180" lemma="su" xpos="DP3CPN">Sus</tok> 
+        <tok id="w-5-181" ord="181" lemma="m&amp;#xE1;s" xpos="RG">mas</tok> 
+        <tok id="w-5-182" ord="182" lemma="sobresaliente" xpos="AQ0CP00">sobresalientes</tok> 
+        <tok id="w-5-183" ord="183" lemma="virtud" xpos="NCFP000">Virtudes=</tok> 
+        <lb id="e-73"/>
+        <tok id="w-5-184" ord="184" lemma="por" xpos="SP">Por</tok> 
+        <tok id="w-5-185" ord="185" lemma="no" xpos="RN">no</tok> 
+        <tok id="w-5-186" ord="186" lemma="dejar" xpos="VMN0000">dejar</tok> 
+        <tok id="w-5-187" ord="187" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-5-188" ord="188" lemma="decir" xpos="VMN0000">decir</tok> 
+        <tok id="w-5-189" ord="189" lemma="alguno" xpos="DI0FP0">algunas</tok> 
+        <tok id="w-5-190" ord="190" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-5-191" ord="191" lemma="su" xpos="DP3CPN">sus</tok> 
+        <tok id="w-5-192" ord="192" lemma="birtudes" xpos="NCFP000">birtudes</tok> 
+        <tok id="w-5-193" ord="193" lemma="pondre" xpos="VMSP3S0">pondre</tok> 
+        <tok id="w-5-194" ord="194" lemma="aqu&amp;#xED;" xpos="RG">aqui</tok> 
+        <tok id="w-5-195" ord="195" lemma="en" xpos="SP">en</tok> 
+        <tok id="w-5-196" ord="196" lemma="breve" xpos="AQ0CS00">breue</tok> 
+        <tok id="w-5-197" ord="197" lemma="el" xpos="DA0FP0">las</tok> 
+        <lb id="e-74"/>
+        <tok id="w-5-198" ord="198" lemma="maiores" xpos="AQ0CP00">maiores</tok> 
+        <tok id="w-5-199" ord="199" lemma="que" xpos="PR0CN00">que</tok> 
+        <tok id="w-5-200" ord="200" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-5-201" ord="201" lemma="&amp;#xE9;l" xpos="PP3MS00">el</tok> 
+        <tok id="w-5-202" ord="202" lemma="traer" xpos="VMIP3P0">trahen</tok> 
+        <tok id="w-5-203" ord="203" lemma="el" xpos="DA0MP0">los</tok> 
+        <tok id="w-5-204" ord="204" lemma="autor" xpos="NCMP000">Autores;</tok> 
+        <tok id="w-5-205" ord="205" lemma="tomar" xpos="VMP00SM">tomado</tok> 
+        <tok id="w-5-206" ord="206" lemma="a" xpos="SP">a</tok> 
+        <tok id="w-5-207" ord="207" lemma="modo" xpos="NCMS000">modo</tok> 
+        <tok id="w-5-208" ord="208" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-5-209" ord="209" lemma="chu&amp;#xF1;o" xpos="NCMS000">chuño</tok> 
+        <tok id="w-5-210" ord="210" lemma="su" xpos="DP3CPN">sus</tok> 
+        <tok id="w-5-211" ord="211" lemma="grano" xpos="NCMP000">gran</tok> 
+        <reg type="note">
+          <tok id="w-5-212" ord="212">os</tok> 
+        </reg>
+        <lb id="e-75"/>
+        <tok id="w-5-213" ord="213" lemma="pisar" xpos="VMP00PM">pisados</tok> 
+        <tok id="w-5-214" ord="214" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-5-215" ord="215" lemma="hacer" xpos="VMP00PM">echos</tok> 
+        <tok id="w-5-216" ord="216" lemma="polvo" xpos="NCMS000">poluo</tok> 
+        <tok id="w-5-217" ord="217" lemma="como" xpos="CS">como</tok> 
+        <tok id="w-5-218" ord="218" lemma="uno" xpos="PI0FS00">vna</tok> 
+        <tok id="w-5-219" ord="219" lemma="escudilla" xpos="NCFS000">escudilla</tok> 
+        <tok id="w-5-220" ord="220" lemma="refrenar" xpos="VMIP3S0">refrena</tok> 
+        <tok id="w-5-221" ord="221" lemma="el" xpos="DA0MP0">los</tok> 
+        <tok id="w-5-222" ord="222" lemma="incendio" xpos="NCMP000">incendios</tok> 
+        <tok id="w-5-223" ord="223" lemma="de" xpos="SP">del</tok> 
+        <tok id="w-5-224" ord="224" lemma="ygado" xpos="VMP00SM">ygado</tok> 
+        <lb id="e-76"/>
+        <tok id="w-5-225" ord="225" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-5-226" ord="226" lemma="le" xpos="PP3CSD0">le</tok> 
+        <tok id="w-5-227" ord="227" lemma="refrescar" xpos="VMIP3S0">refresca</tok> 
+        <tok id="w-5-228" ord="228" lemma="purgar" xpos="VMIP3S0">purga</tok> 
+        <tok id="w-5-229" ord="229" lemma="el" xpos="DA0FS0">la</tok> 
+        <tok id="w-5-230" ord="230" lemma="matriz" xpos="NCFS000">matriz</tok> 
+        <tok id="w-5-231" ord="231" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-5-232" ord="232" lemma="prouoca" xpos="NCFS000">prouoca</tok> 
+        <tok id="w-5-233" ord="233" lemma="el" xpos="DA0MS0">el</tok> 
+        <tok id="w-5-234" ord="234" lemma="mestruo" xpos="NCMS000">mestruo</tok> 
+        <tok id="w-5-235" ord="235" lemma="retener" xpos="VMP00SM">retenido</tok> 
+        <tok id="w-5-236" ord="236" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-5-237" ord="237" lemma="abrir" xpos="VMIP3S0">abre</tok> 
+        <tok id="w-5-238" ord="238" lemma="el" xpos="DA0FP0">Las</tok> 
+        <lb id="e-77"/>
+        <tok id="w-5-239" ord="239" lemma="bias" xpos="NCFP000">bias;</tok> 
+        <tok id="w-5-240" ord="240" lemma="tomar" xpos="VMP00SF">tomada</tok> 
+        <tok id="w-5-241" ord="241" lemma="onza" xpos="NCFS000">onza</tok> 
+        <tok id="w-5-242" ord="242" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-5-243" ord="243" lemma="ma" xpos="NCFS000">ma</tok> 
+        <tok id="w-5-244" ord="244" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-5-245" ord="245" lemma="su" xpos="DP3CSN">su</tok> 
+        <tok id="w-5-246" ord="246" lemma="composici&amp;#xF3;n" xpos="NCFS000">Composicion</tok> 
+        <tok id="w-5-247" ord="247" lemma="confortar" xpos="VMM02S0">conforta</tok> 
+        <tok id="w-5-248" ord="248" lemma="&amp;#xE9;l" xpos="PP3MS00">el</tok> 
+        <tok id="w-5-249" ord="249" lemma="celebrar" xpos="VMIP1S0">celebro</tok> 
+        <tok id="w-5-250" ord="250" lemma="el" xpos="DA0MS0">el</tok> 
+        <tok id="w-5-251" ord="251" lemma="estoma" xpos="NCMS000">estoma</tok> 
+        <lb id="e-78"/>
+        <tok id="w-5-252" ord="252" lemma="go" xpos="VMIS3S0">go</tok> 
+        <tok id="w-5-253" ord="253" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-5-254" ord="254" lemma="el" xpos="DA0MS0">el</tok> 
+        <tok id="w-5-255" ord="255" lemma="h&amp;#xED;gado" xpos="NCMS000">higado</tok> 
+        <tok id="w-5-256" ord="256" lemma="socorrer" xpos="VMIP3S0">socorre</tok> 
+        <tok id="w-5-257" ord="257" lemma="a" xpos="SP">a</tok> 
+        <tok id="w-5-258" ord="258" lemma="el" xpos="DA0MP0">los</tok> 
+        <tok id="w-5-259" ord="259" lemma="asmaticos" xpos="AQ0MP00">asmaticos</tok> 
+        <tok id="w-5-260" ord="260" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-5-261" ord="261" lemma="thisicos" xpos="AQ0MP00">thisicos</tok> 
+        <tok id="w-5-262" ord="262" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-5-263" ord="263" lemma="a" xpos="SP">a</tok> 
+        <tok id="w-5-264" ord="264" lemma="el" xpos="DA0MP0">los</tok> 
+        <tok id="w-5-265" ord="265" lemma="de" xpos="SP">de</tok> 
+        <tok id="w-5-266" ord="266" lemma="catarro" xpos="NCMS000">catarro</tok> 
+        <tok id="w-5-267" ord="267" lemma="y" xpos="CC">y</tok> 
+        <tok id="w-5-268" ord="268" lemma="ma" xpos="NCFS000">ma</tok> 
+        <lb id="e-79"/>
+        <tok id="w-5-269" ord="269" lemma="iormente" xpos="RG">iormente</tok> 
+        <tok id="w-5-270" ord="270" lemma="si" xpos="CS">si</tok> 
+        <tok id="w-5-271" ord="271" lemma="ser" xpos="VSIP3S0">es</tok> 
+        <tok id="w-5-272" ord="272" lemma="por" xpos="SP">por</tok> 
+        <tok id="w-5-273" ord="273" lemma="causa" xpos="NCFS000">causa</tok> 
+        <tok id="w-5-274" ord="274" lemma="fr&amp;#xED;o" xpos="AQ0FS00">fria=</tok> 
+        <lb id="e-80"/>
+      </div>
+    </body>
+  </text>
+<teiHeader><revisionDesc><change when="2025-04-24" who="MJLOCAL">XML file created</change></revisionDesc></teiHeader></TEI>

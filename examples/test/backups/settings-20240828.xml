@@ -1,0 +1,118 @@
+<?xml version="1.0"?>
+<ttsettings>
+	
+	<!-- Definition of the items to be displayed in the navigation menu -->
+	<menu noshare="1">	
+		<itemlist>
+			<item key="home" display="Home"/>
+			<!--<item key="corplist" display="Corpora"/>-->
+			<item key="geomap" display="Map"/>
+			<item key="cqp" display="Search"/>
+			<item key="wordcloud&amp;show=nform&amp;max=250" display="Wordcloud"/>
+		</itemlist>
+	</menu>
+	
+	<xmlfile defaultform="nform" defaultview="interpret" xpath="//text" paged="0">
+		<pattributes>
+			<forms>
+				<item key="pform" display="Paleographic form" admin="0"/>
+				<item key="form" display="Transcribed form" color="#990000" admin="0"/>
+				<item key="fform" display="Full form" inherit="form" color="#000099" admin="0"/>
+				<!--<item key="expan" display="Expanded form" inherit="fform"  noedit="1" subtract="form" color="yellow" admin="0"/>-->
+				<item key="nform" display="Critical form" inherit="fform" color="#009900" admin="0"/>
+				<item key="mform" display="Forma modernizada" inherit="nform" color="#6c0777" admin="1"/>
+			</forms>
+			<tags>			
+				<item key="pos" display="POS tag"/>
+				<item key="lemma" display="Lemma"/>
+			</tags>
+		</pattributes>
+	</xmlfile>
+	
+	<teiheader>
+		<item key="transcriber" type="fld" xpath="/TEI/teiHeader/fileDesc/titleStmt/respStmt[@resp='transcriber']/name" display="Transcriber" show="long" input="text"/>
+		<item key="ceditor1" type="fld" xpath="/TEI/teiHeader/fileDesc/titleStmt/respStmt[@resp='ceditor1']/name" display="Editor 1" show="long" input="text"/>
+		<item key="ceditor2" type="fld" xpath="/TEI/teiHeader/fileDesc/titleStmt/respStmt[@resp='ceditor2']/name" display="Editor 2" show="long" input="text"/>
+		<item key="ceditor3" type="fld" xpath="/TEI/teiHeader/fileDesc/titleStmt/respStmt[@resp='ceditor3']/name" display="Editor 3" show="long" input="text"/>
+		<item key="deditor" type="fld" xpath="/TEI/teiHeader/fileDesc/titleStmt/respStmt[@resp='deditor']/name" display="Digital editor" show="long" input="text"/>
+		<item key="group" type="fld" xpath="/TEI/teiHeader/fileDesc/publicationStmt/publisher/orgName[@type='group']" display="Group" show="long,short" input="select"><options><item key="TesUN" display="TesUN"/></options></item>
+        <item key="corpus" type="fld" xpath="/TEI/teiHeader/fileDesc/publicationStmt/idno[@type='corpus']" display="Corpus" show="no" input="select" add="1"><options><item key="CDHM" display="CDHM"/><item key="CODCAR" display="CODCAR"/><item key="CODDEC" display="CODDEC"/><item key="CODEA" display="CODEA"/><item key="CODEMA" display="CODEMA"/><item key="CORAPRINA" display="CORAPRINA"/><item key="CORDEREGRA" display="CORDEREGRA"/><item key="COREECOM" display="COREECOM"/><item key="CORHEN" display="CORHEN"/><item key="COTAGAL" display="COTAGAL"/><item key="DOLEO" display="DOLEO"/></options></item>
+        <item key="corpus-num" type="fld" xpath="/TEI/teiHeader/fileDesc/publicationStmt/idno[@type='corpus-num']" display="Corpus-Number" show="long,short" input="text"/>
+        <item key="type" type="fld" xpath="/TEI/teiHeader/fileDesc/sourceDesc/msDesc/@type" display="Type" show="long,short" input="select"><options><item key="tex-leg" display="Textos legislativos"/><item key="car-com" display="Cartas de compraventa y contratos"/><item key="act-decl" display="Actas y declaraciones"/><item key="car-pri" display="Cartas privadas"/><item key="tes-inv" display="Testamentos e inventarios"/><item key="inf-rel" display="Relaciones e informes"/><item key="est" display="Estatutos"/><item key="cert" display="Certificaciones"/><item key="not-bre" display="Notas y breves"/><item key="otros" display="Otros"/></options></item>
+        <item key="subtype" type="fld" xpath="/TEI/teiHeader/fileDesc/sourceDesc/msDesc/@subtype" display="Subtype" show="long,short" input="text"/>
+        <item key="repository" type="fld" xpath="/TEI/teiHeader/fileDesc/sourceDesc/msDesc/msIdentifier/repository" display="Repository" show="long,short" input="text"/>
+        <item key="idno" type="fld" xpath="/TEI/teiHeader/fileDesc/sourceDesc/msDesc/msIdentifier/idno" display="Identifier" show="long,short" input="text"/>
+        <item key="summary" type="fld" xpath="/TEI/teiHeader/fileDesc/sourceDesc/msDesc/msContents/summary" show="long,short" display="Summary" input="text" cqp="1"/>
+        <item key="date" type="fld" xpath="/TEI/teiHeader/fileDesc/sourceDesc/msDesc/history/origin/origDate" display="Date" show="long,short" input="text"/>
+        <item key="year" type="fld" xpath="/TEI/teiHeader/fileDesc/sourceDesc/msDesc/history/origin/origDate/@when" display="Year" input="date" show="no" cqp="1"/>
+        <item key="placeName" type="fld" xpath="/TEI/teiHeader/fileDesc/sourceDesc/msDesc/history/origin/origPlace/placeName" display="Place" show="long,short" input="text" cqp="1"/>
+        <item key="province" type="fld" xpath="/TEI/teiHeader/fileDesc/sourceDesc/msDesc/history/origin/origPlace/region[@type='province']" display="Province" show="long,short" input="text"/>
+        <item key="state" type="fld" xpath="/TEI/teiHeader/fileDesc/sourceDesc/msDesc/history/origin/origPlace/region[@type='state']" display="State" show="long,short" input="text"/>
+        <item key="country" type="fld" xpath="/TEI/teiHeader/fileDesc/sourceDesc/msDesc/history/origin/origPlace/country" display="Country" show="long,short" input="select" add="1"><options><item key="Espa&#xF1;a" display="Espa&#xF1;a"/><item key="Francia" display="Francia"/></options></item>
+        <item key="geolocation" type="fld" xpath="/TEI/teiHeader/fileDesc/sourceDesc/msDesc/history/origin/origPlace/geo" show="no" display="Geolocation" input="text"/>
+        <item key="scriptor" type="fld" xpath="/TEI/teiHeader/profileDesc/particDesc/person[@role='scriptor']/persName" show="long,short" display="Scriptor" input="text"/>
+	</teiheader>
+	
+	<cqp corpus="TT-CORAPRINA" searchfolder="xmlfiles" wordfld="nform" noshare="1">
+    <pattributes>
+			<item key="form" display="Transcribed form"/>
+			<item key="fform" display="Expanded form"/>
+			<item key="nform" display="Normalized form"/>
+			<item key="pos" display="POS Tag" type="pos"/>
+			<item key="lemma" display="Lemma"/>
+	</pattributes>
+    <sattributes>
+		    <item key="text" level="text" display="Document Search">
+    			<item key="title" display="Identificador" type="long" xpath="//idno[@type='corpus-num']"/>
+    		    <item key="summary" display="Summary" type="long" xpath="//summary"/>
+    		    <item key="year" display="Year" type="range" xpath="//origDate/@when"/>
+    		    <item key="type" display="Tipolog&#xED;a documental" type="long" selection="simple" xpath="//msDesc/@type"/>
+	    	    <item key="geo" display="Geolocation" xpath="//geo" nosearch="1"/>
+	    	    <item key="placeName" display="Place Name" xpath="//placeName"/>
+	    	    <item key="province" display="Province" xpath="//origPlace/region[@type='province']" selection="simple"/>
+			</item>
+		</sattributes>
+  </cqp>
+
+	<defaults>
+	    <title display="CORAPRINA"/>
+	    <base foldername="shared" javascript="https://corpora.unav.edu/teitok/Scripts/"/>
+	<src ace="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.14/ace.js" tinymce="https://cdnjs.cloudflare.com/ajax/libs/tinymce/4.9.6/tinymce.min.js"/></defaults>
+
+	<xmlreader noshare="1">
+    	<item key="corplist" title="Corpora" max="100"/>
+	</xmlreader>
+	
+<languages/>
+
+<geomap startpos="40.43 -3.70" zoom="6" markertype="pie" osmlayer="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png">
+		<cqp place="placeName" geo="geo" title="title"/>
+		<xml node="//origin/origPlace" geo="./geo" name="" desc=""/>
+		<areas>
+		    <item key="nav" display="Navarra" startpos="42.805206 -1.318159" zoom="10"/>
+		    <item key="spa" display="Spain" startpos="37.869722 -4.187222" zoom="5"/>
+		    <item key="eur" display="Europe" startpos="47.706358 26.116937" zoom="4"/>
+		    <item key="world" display="World" startpos="27 -0.70" zoom="2"/>
+		</areas>
+	</geomap>
+
+<scripts>
+        <item key="charta_teitok_def2" action="perl Scripts/charta_teitok_def2.pl [fn]" display="&lt;b&gt;TP (CHARTA 3.0)&lt;/b&gt;" recond="{(d|[a-z])" type="perl"/>
+        <item key="toksplit" action="/usr/bin/perl ../common/Scripts/npunctsplit.pl --form=dipl [fn]" display="Split tokens based on dipl" recond="nform=&quot;[^&quot;]+[,.]&quot;"/>
+        <item key="nformtreat" action="perl Scripts/nformtreat.pl [fn]" display="&lt;b&gt;PC (CHARTA 3.0/EGPA)&lt;/b&gt;"/>
+        <item key="mformtreat" action="perl Scripts/mformtreat.pl [fn]" display="&lt;b&gt;Modernizaci&#xF3;n (EGPA)&lt;/b&gt;"/>
+        <item key="lemmatreat" action="perl Scripts/lemmatreat.pl [fn]" display="&lt;b&gt;Lematizaci&#xF3;n (EGPA)&lt;/b&gt;"/>
+        <item key="postreat" action="perl Scripts/postreat.pl [fn]" display="&lt;b&gt;Etiquetado POS (EGPA)&lt;/b&gt;"/>
+    </scripts>
+
+<files>
+	    <item key="Scripts" display="PL Scripts" folder="Scritps" extension="*.pl,*.vrt" description="PL Scripts"/>
+	    <item key="xml" display="TEI XML Files" folder="xmlfiles" extension="*.xml" description="XML Files in TEI format"/>
+	    <item key="facs" display="Facsimile Images" folder="Facsimile" extension="*.jpg,*.JPG,*.gif,*.GIF,*.png,*.PNG" description="Facsimile Images"/>
+	    <item key="redin" display="XML files REDIN" folder="xmlfiles/CARTAS_XIX-RED&#xCD;N" extension="*.xml" description="XML files REDIN"/>
+	    <item key="luisena" display="XML files LUISENA" folder="xmlfiles/DOCUMENTOS_CASA_LUISENA" extension="*.xml" description="XML files LUISENA"/>
+	</files>
+
+
+
+</ttsettings>

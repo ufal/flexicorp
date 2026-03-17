@@ -1,0 +1,39 @@
+/* Paleographic styles */
+#mtxt, #mtxt p { font-size: 14pt; line-height: 20pt; }
+#mtxt s { text-decoration: none; }
+#mtxt u { text-decoration: none; }
+#mtxt note { color: #0000aa; display: none; font-size: 10pt; vertical-align: super; }
+ex { color: #aaaaaa; }
+add { color: #0000ff; }
+hi[rend=underlined] { text-decoration: underline;  }
+hi[rend=red] { color: #C00000;  }
+*[rend=center] { text-align: center; display: block; }
+hi[rend=italic] { font-style: italic;  }
+supplied { color: #200099;  }
+#mtxt tok { font-size: 14pt; }
+#mtxt tok:hover { text-shadow: 1pt 1pt #994444;}
+#mtxt hr { background-color: #aaaaaa; }
+unclear { background-color: #cceecc; }
+
+/* Spoken specific CSS */
+
+/* Utterance display */
+#mtxt u { text-decoration: none;  display: block; font-size: 12pt; clear: both; margin-bottom: 10px; vertical-align: center; }  /* disable underline */
+#mtxt u[who]:before { content: attr(who) ' - '; color: #000077; }
+
+/* Pauses */
+pause::before { color: #ffaaaa; content: "/"; }
+pause[type=long]::before { content: "//"; }
+
+/* "deleted" elements */
+del { color: #cccccc; text-decoration: none;  }
+del[type="truncated"]::after { content: "@";  }
+del[type="repetition"]::before { content: "[";  }
+del[type="repetition"]::after { content: "]";  }
+del[type="reformulation"]::before { content: "<";  }
+del[type="reformulation"]::after { content: ">";  }
+
+/* extralinguistic elements */
+vocal desc { color: #C0C000; font-style: italic;  }
+kinesic desc { color: #C000C0; font-style: italic; }
+foreign { color: #00C0C0; }

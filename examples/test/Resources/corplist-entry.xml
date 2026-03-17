@@ -1,0 +1,10 @@
+<corpus>
+	<name list="1" link="./url">Acronym</name>
+	<url>URL</url>
+	<type list="1" select="1">Corpus Type</type>
+	<descr>Description</descr>
+	<fullname>Full Name</fullname>
+	<enname>Full Name (EN)</enname>
+	<ip list="1">Lead Researcher</ip>
+	<lang>Corpus Language(s)</lang>
+</corpus>
