@@ -23,10 +23,10 @@ dist/
 .ruff_cache/
 
 # Project-local directories not needed for the Python package
-dev/
 data/
 scripts/
 tmp/
 teitok/
 git/
+dev/
 
