@@ -28,7 +28,39 @@ from ..querylang.cwb_cql import SequencePattern, parse_cwb_cql
 @dataclass
 class CqpBackend(CorpusBackend):
     name: str = "cqp"
-    query_cache_version: int = 5
+    # Bump to invalidate cached query results when the tabulate schema changes.
+    query_cache_version: int = 7
+
+    def _normalize_simple_cqp_token_query(self, query_text: str) -> str:
+        """
+        Normalize common user input to a CQP token query.
+
+        Many user-facing UIs pass bare tokens like `Ridder`, but CQP needs token
+        values to be written as string literals, e.g. `"Ridder"`.
+        """
+        q = (query_text or "").strip()
+        if not q:
+            return q
+
+        # Allow interactive-style snippets ending in ';'
+        while q.endswith(";"):
+            q = q[:-1].rstrip()
+            if not q:
+                return q
+
+        if q.startswith('"') or q.startswith("'") or q.startswith("["):
+            return q
+
+        # Only quote a simple single token (avoid breaking more complex CQP).
+        if re.search(r"\s", q):
+            return q
+        if re.search(r'["\'\\[\\]\\;]', q):
+            return q
+        if any(ch in q for ch in "*?+()|/"):
+            return q
+
+        escaped = q.replace("\\", "\\\\").replace('"', '\\"')
+        return f"\"{escaped}\""
 
     def descriptor(self) -> Dict[str, Any]:
         return {
@@ -1118,6 +1150,8 @@ class CqpBackend(CorpusBackend):
                 "or params['qid'] referencing a cached query result."
             )
 
+        query_text = self._normalize_simple_cqp_token_query(query_text)
+
         context_spec = self._normalize_context_request(params)
         if context_spec is None and cached_meta and isinstance(cached_meta.get("context_spec"), dict):
             context_spec = self._normalize_context_request({"context": cached_meta.get("context_spec")})
@@ -1242,10 +1276,37 @@ class CqpBackend(CorpusBackend):
         struct_names = self._read_struct_attributes(cfg, detected.get("root"))
         sentence_attr = f"{level}_id"
         has_sentence_id = sentence_attr in struct_names
+
+        # Prefer probing what the CQP registry actually exports.
+        # TEITOK's fwsearch expects positional `bbox` and `facs` columns; in some
+        # corpora those are compiled from <pb/> (not stored on tokens in the XML),
+        # but they still show up as CQP positional attributes.
+        include_bbox_facs = False
+        cqp_folder = Path(cfg.registry) if cfg.registry else None
+        if cqp_folder is None:
+            root_dir = Path(detected.get("root") or ".").resolve()
+            cqp_folder = root_dir / "cqp"
+        if cqp_folder.is_file():
+            cqp_folder = cqp_folder.parent
+        try:
+            include_bbox_facs = (cqp_folder / "bbox.lexicon").is_file() and (cqp_folder / "facs.lexicon").is_file()
+        except Exception:
+            include_bbox_facs = False
+
         if has_sentence_id:
-            tabulate_expr = f"match text_id, match {sentence_attr}, match, matchend, match[0]..matchend[0] id"
+            # Optionally include match bbox/facs so the frontend can show a bbox cutout
+            # even when the XML context fragment doesn't carry @facs (observed for MNL).
+            if include_bbox_facs:
+                tabulate_expr = (
+                    f"match text_id, match {sentence_attr}, match, matchend, match bbox, match facs, match[0]..matchend[0] id"
+                )
+            else:
+                tabulate_expr = f"match text_id, match {sentence_attr}, match, matchend, match[0]..matchend[0] id"
         else:
-            tabulate_expr = "match text_id, match, matchend, match[0]..matchend[0] id"
+            if include_bbox_facs:
+                tabulate_expr = "match text_id, match, matchend, match bbox, match facs, match[0]..matchend[0] id"
+            else:
+                tabulate_expr = "match text_id, match, matchend, match[0]..matchend[0] id"
         data_path, meta_path = self._get_query_cache_paths(cache_dir, qid)
         meta = None if refresh_cache else self._read_query_cache_meta(meta_path)
         if not self._is_query_cache_meta_valid(meta, mode="teitok", query=query, level=level):
@@ -1654,16 +1715,32 @@ class CqpBackend(CorpusBackend):
             return {"doc_id": None, "sentence_id": None, "toks": [], "raw": line}
 
         textid = parts[0].strip()
+        bbox_raw = ""
+        facs_raw = ""
         if has_sentence_id:
             sentid = parts[1].strip()
             match_start = parts[2].strip()
             match_end = parts[3].strip()
-            toks_str = parts[4].strip()
+            # New schema (optional bbox/facs columns):
+            # text_id, s_id, match, matchend, bbox, facs, toks
+            if len(parts) >= 7:
+                bbox_raw = parts[4].strip()
+                facs_raw = parts[5].strip()
+                toks_str = parts[6].strip()
+            else:
+                toks_str = parts[4].strip()
         else:
             sentid = ""
             match_start = parts[1].strip()
             match_end = parts[2].strip()
-            toks_str = parts[3].strip()
+            # New schema (optional bbox/facs columns):
+            # text_id, match, matchend, bbox, facs, toks
+            if len(parts) >= 6:
+                bbox_raw = parts[3].strip()
+                facs_raw = parts[4].strip()
+                toks_str = parts[5].strip()
+            else:
+                toks_str = parts[3].strip()
         toks = [tok.strip() for tok in re.split(r"[,\s]+", toks_str) if tok.strip()]
 
         if textid and not textid.endswith(".xml"):
@@ -1671,6 +1748,20 @@ class CqpBackend(CorpusBackend):
         sentence_id = sentid or None
         parsed_match_start = int(match_start) if match_start.isdigit() else None
         parsed_match_end = int(match_end) if match_end.isdigit() else None
+
+        parsed_bbox: List[float] | None = None
+        if bbox_raw and facs_raw:
+            # fwsearch/tabulate uses a whitespace-separated bbox: "x1 y1 x2 y2".
+            bbox_nums: List[float] = []
+            for p in bbox_raw.split():
+                try:
+                    bbox_nums.append(float(p))
+                except ValueError:
+                    break
+                if len(bbox_nums) >= 4:
+                    break
+            if len(bbox_nums) >= 4:
+                parsed_bbox = bbox_nums[:4]
         normalized_raw = self._make_query_hit_raw(
             doc_id=textid or None,
             sentence_id=sentence_id,
@@ -1690,6 +1781,9 @@ class CqpBackend(CorpusBackend):
             },
             "match_start": parsed_match_start,
             "match_end": parsed_match_end,
+            # Used by the frontend facsimile bbox cutout popup.
+            "facs": facs_raw or None,
+            "bbox": parsed_bbox,
             "raw": normalized_raw,
         }
 
@@ -1898,6 +1992,8 @@ class CqpBackend(CorpusBackend):
         query = params.get("query")
         if not isinstance(query, str):
             raise RuntimeError("CQP kwic expects params['query'] to be a CQP query string.")
+
+        query = self._normalize_simple_cqp_token_query(query)
 
         limit = int(params.get("limit", 50))
         debug = bool(params.get("debug"))

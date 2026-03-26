@@ -50,6 +50,8 @@ def build_highlight_map(
     return {
         "groups": out_groups,
         "default": {"tok_ids": list(tok_ids)},
+        # Same union as default.tok_ids — some clients only read "match" (legacy).
+        "match": list(tok_ids),
     }
 
 

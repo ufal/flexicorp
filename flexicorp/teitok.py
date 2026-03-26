@@ -115,7 +115,30 @@ def detect_teitok_cqp(start: Path) -> Optional[Dict[str, Any]]:
             "cqp": {},
         }
 
-    cqp_elem = xml_root.find(".//cqp")
+    def _pick_main_cqp_element(root: ET.Element) -> ET.Element | None:
+        """
+        TEITOK's settings.xml may contain multiple <cqp> elements:
+        - the main CQP config under <ttsettings><cqp corpus="...">
+        - nested dictionary/aux structures where <cqp> might have different attrs
+          (e.g. <cqp pos="" lemma="lemma" .../>).
+
+        For corpus access we must select the one that carries the `corpus` attribute.
+        """
+        # Prefer the top-level direct child (fast path).
+        direct = root.find("cqp")
+        if direct is not None and direct.get("corpus"):
+            return direct
+
+        # Otherwise search for any <cqp> element with a corpus attribute.
+        candidates = root.findall(".//cqp")
+        for cand in candidates:
+            if cand.get("corpus"):
+                return cand
+
+        # Fallback: keep prior behavior for incomplete settings (but at least stable).
+        return direct or (candidates[0] if candidates else None)
+
+    cqp_elem = _pick_main_cqp_element(xml_root)
     corpus = cqp_elem.get("corpus") if cqp_elem is not None else None
 
     # Basic TEITOK CQP metadata -------------------------------------------
@@ -227,7 +250,17 @@ def detect_teitok_manatee(start: Path) -> Optional[Dict[str, Any]]:
     if not manatee_dir.is_dir():
         return None
 
-    cqp_elem = xml_root.find(".//cqp") if xml_root is not None else None
+    def _pick_main_cqp_element(root: ET.Element) -> ET.Element | None:
+        direct = root.find("cqp")
+        if direct is not None and direct.get("corpus"):
+            return direct
+        candidates = root.findall(".//cqp")
+        for cand in candidates:
+            if cand.get("corpus"):
+                return cand
+        return direct or (candidates[0] if candidates else None)
+
+    cqp_elem = _pick_main_cqp_element(xml_root) if xml_root is not None else None
     cqp_corpus = cqp_elem.get("corpus") if cqp_elem is not None else None
 
     registry_files = [
@@ -287,7 +320,17 @@ def detect_teitok_clickhouse(start: Path) -> Optional[Dict[str, Any]]:
             "meta": {"settings_path": str(settings_path)},
         }
 
-    cqp_elem = xml_root.find(".//cqp")
+    def _pick_main_cqp_element(root: ET.Element) -> ET.Element | None:
+        direct = root.find("cqp")
+        if direct is not None and direct.get("corpus"):
+            return direct
+        candidates = root.findall(".//cqp")
+        for cand in candidates:
+            if cand.get("corpus"):
+                return cand
+        return direct or (candidates[0] if candidates else None)
+
+    cqp_elem = _pick_main_cqp_element(xml_root) if xml_root is not None else None
     clickhouse_elem = xml_root.find(".//defaults/clickhouse")
     corpus = (cqp_elem.get("corpus") if cqp_elem is not None else None) or None
 
