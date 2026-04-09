@@ -42,6 +42,13 @@ class PandoBackend(CorpusBackend):
             "list_docs": False,
             "kwic": False,
             "freq": False,
+            "stats_freq_pattributes": False,
+            "stats_freq_sattributes": False,
+            "stats_relative_freq": False,
+            "stats_collocations": False,
+            "stats_dep_collocations": False,
+            "stats_keyness": False,
+            "stats_table_result": False,
             "info": False,
             "daemon": False,
             "reindex": True,
@@ -88,16 +95,13 @@ class PandoBackend(CorpusBackend):
                 "either stream events to pando-index or write them here."
             )
 
+        # CLI: pando-index [options] <input> <output_dir> (JSONL file or '-' for stdin with --format jsonl)
         cmd = [
             "pando-index",
-            "--input-jsonl",
+            "--format",
+            "jsonl",
             str(events_path),
-            "--output",
             str(output_dir),
-            "--text-struct",
-            str(params.get("text_struct") or "text"),
-            "--doc-id-field",
-            str(params.get("doc_id_field") or "doc_id"),
         ]
         try:
             completed = subprocess.run(

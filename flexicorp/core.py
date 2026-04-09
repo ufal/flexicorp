@@ -10,6 +10,8 @@ import shutil
 import subprocess
 import sys
 
+from .query_policy import apply_query_policy
+
 
 FlexiRequest = Dict[str, Any]
 FlexiResponse = Dict[str, Any]
@@ -494,6 +496,8 @@ def handle_request(req: FlexiRequest) -> FlexiResponse:
         if backend_name in ("cqp", "clickhouse", "clickql", "manatee", "pando"):
             return _handle_reindex_multi({**req, "params": {**params, "reindex_backends": [backend_name]}})
 
+    req, query_policy_meta = apply_query_policy(req)
+    backend_name = str(req.get("backend", backend_name))
     backend = ensure_backend_loaded(backend_name)
     if backend is None:
         return _make_error_response(
@@ -513,6 +517,16 @@ def handle_request(req: FlexiRequest) -> FlexiResponse:
 
     try:
         result = op_method(req)
+        if operation == "query" and isinstance(result, dict):
+            result = {
+                **result,
+                "request_role": query_policy_meta.request_role,
+                "input_query_mode": query_policy_meta.input_query_mode,
+                "query_mode": query_policy_meta.query_mode,
+                "query_sanitized": query_policy_meta.query_sanitized,
+                "sanitized_query": query_policy_meta.sanitized_query if query_policy_meta.query_sanitized else None,
+                "suggested_tab": query_policy_meta.suggested_tab,
+            }
         return {
             "ok": True,
             "backend": backend_name,

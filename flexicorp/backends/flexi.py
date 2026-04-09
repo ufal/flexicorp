@@ -181,6 +181,13 @@ class FlexiBackend(CqpBackend):
             "list_docs": True,
             "kwic": False,
             "freq": False,
+            "stats_freq_pattributes": False,
+            "stats_freq_sattributes": False,
+            "stats_relative_freq": False,
+            "stats_collocations": False,
+            "stats_dep_collocations": False,
+            "stats_keyness": False,
+            "stats_table_result": False,
             "info": True,
             "reindex": False,  # Flexi only reads corpus files; use manatee/cqp backend to reindex
             "raw_query": False,

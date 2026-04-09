@@ -9,6 +9,23 @@ from .config import get_blacklab_settings, get_clickhouse_config, get_project_ro
 from .core import available_backend_names, backend_descriptor, ensure_backend_loaded
 from .teitok import detect_teitok_cqp, detect_teitok_manatee
 
+_STATS_CAPABILITY_DEFAULTS: Dict[str, bool] = {
+    "stats_freq_pattributes": False,
+    "stats_freq_sattributes": False,
+    "stats_relative_freq": False,
+    "stats_collocations": False,
+    "stats_dep_collocations": False,
+    "stats_keyness": False,
+    "stats_table_result": False,
+}
+
+
+def _normalize_stats_capabilities(capabilities: Dict[str, Any]) -> Dict[str, Any]:
+    out = dict(capabilities or {})
+    for key, default in _STATS_CAPABILITY_DEFAULTS.items():
+        out[key] = bool(out.get(key, default))
+    return out
+
 
 def _system_cwb_registry_candidates() -> List[Path]:
     return [
@@ -381,7 +398,7 @@ def build_backend_overview(project: Dict[str, Any]) -> Dict[str, Any]:
         implemented_backends[name] = {
             "label": descriptor["label"],
             "implemented": backend is not None,
-            "capabilities": backend.capabilities() if backend is not None else {},
+            "capabilities": _normalize_stats_capabilities(backend.capabilities() if backend is not None else {}),
             "descriptor": descriptor,
         }
 
