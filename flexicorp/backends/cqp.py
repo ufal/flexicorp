@@ -287,7 +287,7 @@ class CqpBackend(CorpusBackend):
                 print(prefix + "CQP stderr:", file=sys.stderr)
                 print(stderr, file=sys.stderr)
 
-        if proc.returncode != 0:
+        if proc.returncode != 0 or (stderr and "CQP Error:" in stderr):
             raise RuntimeError(f"CQP command failed: {stderr or stdout}")
         return stdout
 
@@ -326,7 +326,7 @@ class CqpBackend(CorpusBackend):
             if stderr:
                 print(prefix + "CQP stderr:", file=sys.stderr)
                 print(stderr, file=sys.stderr)
-        if proc.returncode != 0:
+        if proc.returncode != 0 or (stderr and "CQP Error:" in stderr):
             raise RuntimeError(f"CQP command failed: {stderr or stdout}")
         return (stdout or "", stderr or "")
 
@@ -381,7 +381,7 @@ class CqpBackend(CorpusBackend):
         if debug and stderr:
             print(prefix + "CQP stderr:", file=sys.stderr)
             print(stderr, file=sys.stderr)
-        if proc.returncode != 0:
+        if proc.returncode != 0 or (stderr and "CQP Error:" in stderr):
             raise RuntimeError(f"CQP command failed: {stderr}")
 
     def _run_cqp_collect_lines(
@@ -568,6 +568,17 @@ class CqpBackend(CorpusBackend):
             return f"set Context {int(scope)} words;"
         return f"set Context {scope};"
 
+    def _parse_cqp_assignment(self, query: str) -> tuple[str, str]:
+        """
+        If the query is a named assignment like `A = [lemma="a.*"]`,
+        returns ("A", query). Otherwise returns ("Matches", f"Matches = {query};").
+        """
+        q = query.strip()
+        m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$", q)
+        if m:
+            return m.group(1), q + ";" if not q.endswith(";") else q
+        return "Matches", f"Matches = {q};"
+
     def _build_cqp_cat_script(
         self,
         query: str,
@@ -584,10 +595,11 @@ class CqpBackend(CorpusBackend):
         kwic_delim = self._cqp_kwic_delimiter()
         lines.append(f'set LeftKWICDelim "{kwic_delim}";')
         lines.append(f'set RightKWICDelim "{kwic_delim}";')
-        lines.append(f"Matches = {query};")
+        target_name, assignment_stmt = self._parse_cqp_assignment(query)
+        lines.append(assignment_stmt)
         start_idx = max(1, start + 1)
         end_idx = max(start_idx, start + max_hits)
-        lines.append(f"cat Matches {start_idx} {end_idx};")
+        lines.append(f"cat {target_name} {start_idx} {end_idx};")
         return "\n".join(lines) + "\n"
 
     def _fetch_cqp_cat_slice(
@@ -1010,6 +1022,25 @@ class CqpBackend(CorpusBackend):
 
         return struct_names
 
+    def _cqp_freq_group_field_variants(self, field: str) -> List[str]:
+        """
+        TEITOK exposes document s-attributes as text_<name> (e.g. text_genre). The CWB registry
+        typically has a single STRUCTURE line 'text_genre', but some CQP builds parse
+        'group ... match text_genre' as structure 'text' + attribute 'genre', which fails
+        when the index only has the compound name. Try a double-quoted identifier first so the
+        lexer keeps 'text_genre' as one token, then fall back to the bare name.
+        """
+        raw = str(field).strip()
+        if not raw:
+            return []
+        out: List[str] = []
+        if raw.startswith("text_"):
+            esc = raw.replace("\\", "\\\\").replace('"', '\\"')
+            out.append(f'"{esc}"')
+        if raw not in out:
+            out.append(raw)
+        return out
+
     def status(self, req: FlexiRequest) -> Dict[str, Any]:
         cfg = self._get_config(req)
         params = dict(req.get("params") or {})
@@ -1319,16 +1350,17 @@ class CqpBackend(CorpusBackend):
         if not self._is_query_cache_meta_valid(meta, mode="teitok", query=query, level=level):
             meta = None
 
+        target_name, assignment_stmt = self._parse_cqp_assignment(query)
         script = (
-            f"Matches = {query};\n"
-            f"tabulate Matches {tabulate_expr};\n"
+            f"{assignment_stmt}\n"
+            f"tabulate {target_name} {tabulate_expr};\n"
         )
         if meta is None or not data_path.is_file():
             if start == 0 and max_hits > 0 and not refresh_cache:
                 # Get total hit count so the UI can show "Returned X of Y hit(s)".
                 preview_total: Optional[int] = None
                 try:
-                    size_script = f"Matches = {query};\nSIZE;\n"
+                    size_script = f"{assignment_stmt}\nsize {target_name};\n"
                     size_stdout, size_stderr = self._run_cqp_capture_both(
                         cfg, size_script, debug=debug, label="query-size-preview"
                     )
@@ -1385,7 +1417,7 @@ class CqpBackend(CorpusBackend):
                     )
                 # SIZE parse failed: fall through to full path so total comes from file count.
 
-            size_script = f"Matches = {query};\nSIZE;\n"
+            size_script = f"{assignment_stmt}\nsize {target_name};\n"
             try:
                 size_stdout, size_stderr = self._run_cqp_capture_both(
                     cfg, size_script, debug=debug, label="query-size"
@@ -1652,6 +1684,19 @@ class CqpBackend(CorpusBackend):
             if not re.fullmatch(r"\d+", count_text):
                 continue
             values = [part.strip() for part in parts[:-1]]
+            if values:
+                first = values[0]
+                # CQP group output can prefix rows with "(all)" and pad columns with wide spaces,
+                # e.g. "(all)                         o". Keep the actual grouped value.
+                m = re.match(r"^\(all\)\s*(.*)$", first, flags=re.IGNORECASE)
+                if m:
+                    rest = m.group(1).strip()
+                    if rest:
+                        # CQP often separates padded columns with 2+ spaces.
+                        cols = [c.strip() for c in re.split(r"\s{2,}", rest) if c.strip()]
+                        values[0] = cols[-1] if cols else rest
+                    else:
+                        values[0] = ""
             item: Dict[str, Any] = {
                 "value": values[0] if values else "",
                 "count": int(count_text),
@@ -2045,18 +2090,27 @@ class CqpBackend(CorpusBackend):
         query = str(params.get("query") or "[]").strip()
         debug = bool(params.get("debug"))
 
-        size_script = f"Matches = {query};\nSIZE Matches;\n"
+        target_name, assignment_stmt = self._parse_cqp_assignment(query)
+        size_script = f"{assignment_stmt}\nsize {target_name};\n"
         try:
             size_out = self._run_cqp(cfg, size_script, debug=debug, label="freq-size")
         except RuntimeError as e:
             raise RuntimeError(f"CQP frequency preselection failed: {e}") from e
         total = self._parse_cqp_size(size_out)
 
-        group_script = f"Matches = {query};\ngroup Matches match {field};\n"
-        try:
-            group_out = self._run_cqp(cfg, group_script, debug=debug, label="freq-group")
-        except RuntimeError as e:
-            raise RuntimeError(f"CQP frequency grouping failed: {e}") from e
+        last_group_err: Optional[RuntimeError] = None
+        group_out = ""
+        for group_field in self._cqp_freq_group_field_variants(field):
+            group_script = f"{assignment_stmt}\ngroup {target_name} match {group_field};\n"
+            try:
+                group_out = self._run_cqp(cfg, group_script, debug=debug, label="freq-group")
+                last_group_err = None
+                break
+            except RuntimeError as e:
+                last_group_err = e
+                continue
+        if last_group_err is not None:
+            raise RuntimeError(f"CQP frequency grouping failed: {last_group_err}") from last_group_err
 
         items = self._parse_cqp_group_output(group_out)
         sliced = items[offset : offset + limit] if limit else []
