@@ -228,11 +228,14 @@ def _handle_highlight(req: FlexiRequest) -> FlexiResponse:
                 validate=True,
                 project=dict(req.get("project") or {}),
             )
+        elif query_lang in ("pando-cql", "pando"):
+            from .querylang.pando_cql import highlight_pando_cql
+            result = highlight_pando_cql(snippet, format=fmt, validate=True)
         else:
             return _make_error_response(
                 backend=backend_name,
                 operation=operation,
-                message=f"Unknown or unsupported query language for highlight: {query_lang!r}. Supported: cwb-cql, manatee-cql, clickcql, bcql, pmltq.",
+                message=f"Unknown or unsupported query language for highlight: {query_lang!r}. Supported: cwb-cql, manatee-cql, clickcql, bcql, pmltq, pando-cql.",
             )
         return {
             "ok": True,

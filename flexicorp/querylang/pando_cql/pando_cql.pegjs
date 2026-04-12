@@ -1,5 +1,5 @@
 /*
- * Provisional PEG (PegJS / Peggy) grammar for Manatree / flexicorp-pando CQL.
+ * Provisional PEG (PegJS / Peggy) grammar for Pando / flexicorp-pando CQL.
  *
  * Intended for syntax highlighting, validation experiments, and eventual
  * alignment with the C++ lexer+parser (dev/lexer.cpp, dev/parser.cpp).
