@@ -664,8 +664,8 @@ class FlexiBackend(CqpBackend):
         kl = manatee.KWICLines(
             corpus,
             conc.RS(True, start, end),
-            "0",
-            "0",
+            ManateeBackend.KWIC_LEFT_CTX,
+            ManateeBackend.KWIC_RIGHT_CTX,
             kwica_name,
             "",
             "",
