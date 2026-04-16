@@ -17,7 +17,13 @@ from ..highlight_contract import build_highlight_map, resolve_legend
 from ..teitok import detect_teitok_cqp, detect_teitok_manatee
 from ..teitok_context import normalize_context_request, resolve_teitok_context
 from .cqp import CqpBackend
-from .manatee import ManateeFormatError, load_manatee_bindings, prepare_runtime_registry
+from .manatee import (
+    ManateeFormatError,
+    _decode_forward_text_ids,
+    load_manatee_bindings,
+    load_manatee_corpus_scaffold,
+    prepare_runtime_registry,
+)
 
 
 class ManateeBackendError(RuntimeError):
@@ -222,6 +228,74 @@ class ManateeBackend(CorpusBackend):
             return _decode_text(attr.pos2str(pos))
         except Exception:
             return None
+
+    @staticmethod
+    def _pick_token_attr_for_query(corpus: Any, file_scaffold: Any | None) -> tuple[str | None, Any]:
+        """
+        Prefer an attribute that has on-disk ``.text`` / ``.lex`` data so we can build
+        KWIC without calling the Manatee extension's ``pos2str`` (which can segfault).
+        """
+        names = ("word", "form", "lemma", "id")
+        if file_scaffold is not None:
+            pos_map = getattr(file_scaffold, "positional", None) or {}
+            for name in names:
+                if name not in pos_map:
+                    continue
+                a = ManateeBackend._safe_get_pos_attr(corpus, name)
+                if a is not None:
+                    return name, a
+            for name in sorted(pos_map.keys()):
+                a = ManateeBackend._safe_get_pos_attr(corpus, name)
+                if a is not None:
+                    return name, a
+        for name in names:
+            a = ManateeBackend._safe_get_pos_attr(corpus, name)
+            if a is not None:
+                return name, a
+        return None, None
+
+    @staticmethod
+    def _tokens_from_lexicon_files(
+        file_scaffold: Any | None,
+        attr_name: str | None,
+        ranges: List[tuple[int, int]],
+    ) -> Optional[List[List[str]]]:
+        """
+        Decode KWIC token strings from ``<attr>.text`` + ``<attr>.lex`` (pure Python),
+        avoiding ``pos2str`` for each token.
+        """
+        if not attr_name or file_scaffold is None:
+            return None
+        if not ranges:
+            return []
+        pos_map = getattr(file_scaffold, "positional", None)
+        if not isinstance(pos_map, dict) or attr_name not in pos_map:
+            return None
+        try:
+            af = pos_map[attr_name]
+            text_path = af.text.text_path
+            max_end = max(b for _, b in ranges)
+            ids = _decode_forward_text_ids(text_path, max_end)
+            lex = af.lexicon
+            out: List[List[str]] = []
+            for start, end in ranges:
+                row: List[str] = []
+                for pos in range(start, end + 1):
+                    if pos < 0 or pos >= len(ids):
+                        row.append("")
+                        continue
+                    try:
+                        row.append(lex.value_for_id(ids[pos]))
+                    except ManateeFormatError:
+                        row.append("")
+                out.append(row)
+            return out
+        except Exception:
+            # Do not fall back to native pos2str for this attribute (often segfaults).
+            try:
+                return [[""] * (b - a + 1) for a, b in ranges]
+            except Exception:
+                return None
 
     def _doc_structure_name(self, corpus: Any) -> Optional[str]:
         doc_struct = (self._safe_get_conf(corpus, "DOCSTRUCTURE") or "").strip()
@@ -921,20 +995,19 @@ class ManateeBackend(CorpusBackend):
 
         end = min(start + max_hits, total)
         max_pos = self._corpus_max_token_index(corpus)
-        # Prefer word-like columns for KWIC; some ``id`` encodings crash in pos2str on certain indices.
-        token_attr = (
-            self._safe_get_pos_attr(corpus, "word")
-            or self._safe_get_pos_attr(corpus, "form")
-            or self._safe_get_pos_attr(corpus, "lemma")
-            or self._safe_get_pos_attr(corpus, "id")
-        )
+        file_scaffold: Any | None = None
+        try:
+            file_scaffold = load_manatee_corpus_scaffold(cfg)
+        except Exception:
+            file_scaffold = None
+        token_attr_name, token_attr = self._pick_token_attr_for_query(corpus, file_scaffold)
         token_lim = self._min_pos_limit(max_pos, self._positional_attr_max_pos(token_attr, corpus))
         doc_struct, doc_id_attr, _title_attr = self._doc_lookup(corpus)
         sentence_id_attr = self._sentence_id_attr(corpus)
         sent_struct = self._safe_get_struct(corpus, "s")
         kl = manatee.KWICLines(corpus, conc.RS(True, start, end), "0", "0", "", "", "", "")
 
-        hits: List[Dict[str, Any]] = []
+        pending: List[Dict[str, Any]] = []
         while kl.nextline():
             match_start = int(kl.get_pos())
             kwic_len_value = int(kl.get_kwiclen())
@@ -969,11 +1042,32 @@ class ManateeBackend(CorpusBackend):
             else:
                 sentence_id = None
 
-            toks = [
-                self._safe_pos2str(token_attr, pos, max_pos=token_lim) or ""
-                for pos in range(match_start, match_end + 1)
-            ]
-            toks = [tok for tok in toks if tok]
+            pending.append(
+                {
+                    "match_start": match_start,
+                    "match_end": match_end,
+                    "doc_id": doc_id,
+                    "sentence_id": sentence_id,
+                }
+            )
+
+        ranges = [(int(p["match_start"]), int(p["match_end"])) for p in pending]
+        bulk_toks = self._tokens_from_lexicon_files(file_scaffold, token_attr_name, ranges)
+
+        hits: List[Dict[str, Any]] = []
+        for idx, p in enumerate(pending):
+            match_start = int(p["match_start"])
+            match_end = int(p["match_end"])
+            doc_id = p.get("doc_id")
+            sentence_id = p.get("sentence_id")
+            if bulk_toks is not None and idx < len(bulk_toks):
+                toks = [t for t in bulk_toks[idx] if t]
+            else:
+                toks = [
+                    self._safe_pos2str(token_attr, pos, max_pos=token_lim) or ""
+                    for pos in range(match_start, match_end + 1)
+                ]
+                toks = [tok for tok in toks if tok]
             hit: Dict[str, Any] = {
                 "doc_id": doc_id,
                 "sentence_id": sentence_id,
