@@ -14,13 +14,14 @@ import xml.etree.ElementTree as ET
 from ..config import CqpConfig, ManateeConfig, get_cqp_config, get_manatee_config
 from ..core import CorpusBackend, FlexiRequest, register_backend
 from ..highlight_contract import build_highlight_map, resolve_legend
+from ..flexencoder_xidx import has_flexencoder_xidx, lookup_xml_fragment, text_id_stem_for_cpos
 from ..teitok import detect_teitok_cqp, detect_teitok_manatee
 from ..teitok_context import normalize_context_request, resolve_teitok_context
 from .cqp import CqpBackend
 from .manatee import (
     ManateeFormatError,
-    cwb_text_id_string_at_cpos,
     decode_forward_text_ids,
+    text_id_from_cwb_style_index_files,
     load_manatee_bindings,
     load_manatee_corpus_scaffold,
     prepare_runtime_registry,
@@ -1077,6 +1078,31 @@ class ManateeBackend(CorpusBackend):
             summ = getattr(file_scaffold, "summary", None)
             if summ is not None:
                 data_dir = getattr(summ, "resolved_data_path", None)
+        # Optional CWB-style text_id.* files (big-endian in those components — not Manatee .text LE).
+        # Order: Manatee data PATH, Manatee registry dir, TEITOK cqp registry, cqp/<corpus>/.
+        text_id_fallback_dirs: List[Path] = []
+        if data_dir is not None:
+            text_id_fallback_dirs.append(Path(data_dir))
+        text_id_fallback_dirs.append(Path(str(cfg.registry)).expanduser().resolve())
+        cqp_cfg = get_cqp_config(project)
+        if cqp_cfg and cqp_cfg.registry:
+            text_id_fallback_dirs.append(Path(str(cqp_cfg.registry)).expanduser().resolve())
+        root_raw = project.get("root")
+        teitok_root: Optional[Path] = None
+        if root_raw:
+            teitok_root = Path(str(root_raw)).expanduser().resolve()
+        flex_xidx = bool(teitok_root and has_flexencoder_xidx(teitok_root))
+
+        if root_raw:
+            root_path = Path(str(root_raw)).expanduser().resolve()
+            cqp_root = root_path / "cqp"
+            corp_name = (cqp_cfg.corpus if cqp_cfg else None) or (project.get("manatee") or {}).get(
+                "corpus"
+            )
+            if corp_name and cqp_root.is_dir():
+                sub = cqp_root / str(corp_name).lower()
+                if sub.is_dir():
+                    text_id_fallback_dirs.append(sub)
 
         match_spans: List[tuple[int, int]] = []
         cpos_spans = self._concordance_spans_via_cpos(conc, start, end)
@@ -1108,10 +1134,14 @@ class ManateeBackend(CorpusBackend):
             if match_start > match_end:
                 continue
 
-            # Prefer CWB text_id files (no native pos2str). Struct pos2str can segfault in _manatee.
-            doc_id = None
-            if data_dir is not None:
-                doc_id = cwb_text_id_string_at_cpos(data_dir, match_start)
+            # Prefer flexencoder xidx/ (global_pos ↔ TEITOK XML). Else CWB-style text_id.* files
+            # if present beside Manatee PATH / registry (not “Manatee vs CWB token numbering” —
+            # different file families; cpos is always the Manatee global index here).
+            doc_id: Optional[str] = None
+            if flex_xidx and teitok_root is not None:
+                doc_id = text_id_stem_for_cpos(teitok_root, match_start)
+            if doc_id is None and text_id_fallback_dirs:
+                doc_id = text_id_from_cwb_style_index_files(text_id_fallback_dirs, match_start)
             if doc_id is None and doc_id_attr is not None and doc_struct is not None:
                 doc_beg = self._struct_beg_containing(doc_struct, match_start)
                 doc_id = (
@@ -1143,18 +1173,39 @@ class ManateeBackend(CorpusBackend):
         bulk_lex: Optional[List[List[str]]] = None
         if need_ranges and token_attr_name:
             bulk_lex = self._tokens_from_lexicon_files(file_scaffold, token_attr_name, need_ranges)
+        bulk_id_toks: Optional[List[List[str]]] = None
+        if context_spec and detected and need_ranges and file_scaffold is not None:
+            pos_map = getattr(file_scaffold, "positional", None) or {}
+            if isinstance(pos_map, dict) and "id" in pos_map:
+                bulk_id_toks = self._tokens_from_lexicon_files(file_scaffold, "id", need_ranges)
+
+        teitok_searchfolder = "xmlfiles"
+        if context_spec and detected and project.get("root"):
+            cqp_side = detect_teitok_cqp(Path(str(project["root"])).expanduser().resolve())
+            if cqp_side:
+                sf = (cqp_side.get("meta") or {}).get("searchfolder")
+                if isinstance(sf, str) and sf.strip():
+                    teitok_searchfolder = sf.strip()
+
+        def _flex_xidx_resolver(
+            _doc_id_value: str, start_val: int, end_val: int, expand_level: Optional[str]
+        ) -> Optional[str]:
+            if not flex_xidx or teitok_root is None:
+                return None
+            sc = (expand_level or "").strip().lower()
+            if not sc:
+                sc = str((context_spec or {}).get("scope") or "s").strip().lower()
+            return lookup_xml_fragment(teitok_root, start_val, end_val, sc)
 
         hits: List[Dict[str, Any]] = []
-        bidx = 0
-        for r in rows:
+        for row_idx, r in enumerate(rows):
             match_start = int(r["match_start"])
             match_end = int(r["match_end"])
             doc_id = r.get("doc_id")
             sentence_id = r.get("sentence_id")
             toks: List[str] = []
-            if bulk_lex is not None and bidx < len(bulk_lex):
-                toks = [t for t in bulk_lex[bidx] if t]
-            bidx += 1
+            if bulk_lex is not None and row_idx < len(bulk_lex):
+                toks = [t for t in bulk_lex[row_idx] if t]
             if not toks:
                 # Native pos2str on positional attrs can segfault in _manatee (not catchable in Python).
                 # Lexicon path above is the only safe source for token strings here.
@@ -1180,16 +1231,24 @@ class ManateeBackend(CorpusBackend):
             }
             if toks:
                 hit["highlight_map"] = build_highlight_map(toks)
+            if detected and doc_id is not None:
+                hit["text_id"] = str(doc_id)
             if context_spec and detected and doc_id:
+                tok_ids_xml = [str(tok) for tok in toks]
+                if bulk_id_toks is not None and row_idx < len(bulk_id_toks):
+                    id_row = [t for t in bulk_id_toks[row_idx] if t]
+                    if id_row:
+                        tok_ids_xml = [str(t) for t in id_row]
                 context = resolve_teitok_context(
                     root_dir=Path(detected.get("root") or ".").resolve(),
-                    searchfolder="xmlfiles",
+                    searchfolder=teitok_searchfolder,
                     doc_id=str(doc_id),
                     sentence_id=str(sentence_id) if sentence_id else None,
-                    tok_ids=[str(tok) for tok in toks],
+                    tok_ids=tok_ids_xml,
                     match_start=match_start,
                     match_end=match_end,
                     context_spec=context_spec,
+                    xidx_resolver=_flex_xidx_resolver if flex_xidx else None,
                 )
                 if context:
                     hit["context"] = context

@@ -448,44 +448,106 @@ def _decode_forward_text_ids(text_path: Path, max_pos: int) -> List[int]:
     return decode_forward_text_ids(text_path, max_pos)
 
 
-def cwb_text_id_string_at_cpos(data_dir: Path, cpos: int) -> Optional[str]:
+def text_id_from_cwb_style_index_files(candidates: List[Path], cpos: int) -> Optional[str]:
     """
-    Resolve document id string for a corpus token position using CWB-style ``text.rng`` and
-    ``text_id.avs`` / ``text_id.avx`` (no Manatee ``pos2str``). Returns None if files are missing.
+    Try :func:`text_id_string_from_cwb_style_files` on each directory.
+
+    This reads **CWB-style corpus component files** (``text_id.idx``, ``text.rng``, ``text_id.avs`` …)
+    where they exist — typically **next to the Manatee ``PATH`` data directory** (the real token
+    index). Those files use **big-endian** integers where the CWB format specifies it (often
+    called “network byte order” in CWB docs). That is **unrelated** to Manatee’s own ``.text``
+    encoding (e.g. FINIT + little-endian lex ids).
+
+    A TEITOK project may **also** keep a **second** copy of CWB components under ``cqp/<corpus>/``;
+    we only probe that as an extra candidate path, not because Manatee “lives” in ``cqp/``.
+    Prefer :func:`flexicorp.flexencoder_xidx.text_id_stem_for_cpos` when ``xidx/`` is present.
+    """
+    seen: set[Path] = set()
+    for raw in candidates:
+        try:
+            d = Path(raw).expanduser().resolve()
+        except Exception:
+            continue
+        if not d.is_dir() or d in seen:
+            continue
+        seen.add(d)
+        s = text_id_string_from_cwb_style_files(d, cpos)
+        if s:
+            return s
+    return None
+
+
+def text_id_string_from_cwb_style_files(data_dir: Path, cpos: int) -> Optional[str]:
+    """
+    Resolve a document key from CWB-style ``text_id.*`` / ``text.rng`` in ``data_dir``.
+
+    Prefer ``text_id.idx`` when present; fall back to ``text.rng``. Integer layout follows
+    **CWB component file** conventions (e.g. big-endian in ``text.rng`` / ``text_id.avx``),
+    not Manatee forward ``.text`` (FINIT / LE lex ids).
     """
     if cpos < 0:
         return None
-    rng_path = data_dir / "text.rng"
     avs_path = data_dir / "text_id.avs"
     avx_path = data_dir / "text_id.avx"
-    if not rng_path.is_file() or not avs_path.is_file() or not avx_path.is_file():
-        return None
-    raw = rng_path.read_bytes()
-    pairs: List[tuple[int, int]] = []
-    for i in range(0, len(raw) - 7, 8):
-        a, b = struct.unpack(">II", raw[i : i + 8])
-        pairs.append((a, b))
-    ri: Optional[int] = None
-    for i, (a, b) in enumerate(pairs):
-        if a <= cpos <= b:
-            ri = i
-            break
-    if ri is None:
+    if not avs_path.is_file() or not avx_path.is_file():
         return None
     avs = avs_path.read_bytes()
     avx = avx_path.read_bytes()
-    off = ri * 8
-    if off + 8 > len(avx):
+    max_region = (len(avx) // 8) - 1 if len(avx) >= 8 else -1
+
+    def _string_for_region(ri: int) -> Optional[str]:
+        if ri < 0 or max_region < 0 or ri > max_region:
+            return None
+        off = ri * 8
+        if off + 8 > len(avx):
+            return None
+        _u0, u1 = struct.unpack(">II", avx[off : off + 8])
+        if u1 >= len(avs):
+            return None
+        z = avs.find(b"\0", u1)
+        blob = avs[u1:z] if z >= 0 else avs[u1:]
+        try:
+            return blob.decode("utf-8", errors="replace").strip() or None
+        except Exception:
+            return None
+
+    idx_path = data_dir / "text_id.idx"
+    if idx_path.is_file():
+        raw_idx = idx_path.read_bytes()
+        if len(raw_idx) >= (cpos + 1) * 4 and len(raw_idx) % 4 == 0:
+            ri_be = struct.unpack_from(">I", raw_idx, cpos * 4)[0]
+            s = _string_for_region(ri_be)
+            if s:
+                return s
+            ri_le = struct.unpack_from("<I", raw_idx, cpos * 4)[0]
+            if ri_le != ri_be:
+                s = _string_for_region(ri_le)
+                if s:
+                    return s
+            # Implausible index: fall through to text.rng if available.
+
+    rng_path = data_dir / "text.rng"
+    if not rng_path.is_file():
         return None
-    _u0, u1 = struct.unpack(">II", avx[off : off + 8])
-    if u1 >= len(avs):
+    raw_rng = rng_path.read_bytes()
+
+    def _region_from_rng(rng_bytes: bytes, big_endian: bool) -> Optional[int]:
+        unpack = ">II" if big_endian else "<II"
+        pairs: List[tuple[int, int]] = []
+        for i in range(0, len(rng_bytes) - 7, 8):
+            a, b = struct.unpack(unpack, rng_bytes[i : i + 8])
+            pairs.append((a, b))
+        for i, (a, b) in enumerate(pairs):
+            if a <= cpos <= b:
+                return i
         return None
-    z = avs.find(b"\0", u1)
-    blob = avs[u1:z] if z >= 0 else avs[u1:]
-    try:
-        return blob.decode("utf-8", errors="replace").strip() or None
-    except Exception:
+
+    ri = _region_from_rng(raw_rng, True)
+    if ri is None:
+        ri = _region_from_rng(raw_rng, False)
+    if ri is None:
         return None
+    return _string_for_region(ri)
 
 
 def get_token_strings_for_hits(

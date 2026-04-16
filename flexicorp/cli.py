@@ -466,6 +466,18 @@ def _load_project(args: argparse.Namespace) -> Dict[str, Any]:
         if manatee_cfg:
             project["manatee"] = manatee_cfg
 
+        # CQP index files (text.rng, text_id.avs, …) live under the CQP registry dir, not the
+        # Manatee data PATH. Merge TEITOK CQP detection so manatee query can resolve doc_id/context.
+        if args.backend == "manatee" and args.teitok in {"auto", "yes"}:
+            start_cqp = Path(args.folder or args.project_root or ".").resolve()
+            detected_cqp = detect_teitok_cqp(start_cqp)
+            if detected_cqp:
+                cqp_merge: Dict[str, Any] = dict(project.get("cqp") or {})
+                for key, value in (detected_cqp.get("cqp") or {}).items():
+                    cqp_merge.setdefault(key, value)
+                if cqp_merge:
+                    project["cqp"] = cqp_merge
+
     # ClickHouse / ClickQL connection handling ---------------------------
     if args.backend in {"clickhouse", "clickql", None}:
         ch_cfg: Dict[str, Any] = dict(project.get("clickhouse") or {})
