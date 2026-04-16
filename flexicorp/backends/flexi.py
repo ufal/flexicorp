@@ -628,22 +628,22 @@ class FlexiBackend(CqpBackend):
                 "corpus": manatee_cfg.corpus,
             }
         end = min(start + max_hits, total)
-        max_pos = ManateeBackend._corpus_max_token_index(corpus)
+        corpus_kw = ManateeBackend._manatee_concordance_corpus(conc, corpus)
+        max_pos = ManateeBackend._corpus_max_token_index(corpus_kw)
         text_struct = None
         sent_struct = None
         try:
-            text_struct = corpus.get_struct("text")
+            text_struct = corpus_kw.get_struct("text")
         except Exception:
             pass
         try:
-            sent_struct = corpus.get_struct("s")
+            sent_struct = corpus_kw.get_struct("s")
         except Exception:
             pass
-        # Prefer word/form for display; fall back to id. KWICLines: 0/0 + empty kwica (safe nextline);
-        # tokens via pos2str (same pattern as ManateeBackend.query).
-        word_attr = self._get_manatee_posattr(corpus, "word")
-        form_attr = self._get_manatee_posattr(corpus, "form")
-        id_attr = self._get_manatee_posattr(corpus, "id")
+        # Prefer word/form for display; fall back to id (same as ManateeBackend.query).
+        word_attr = self._get_manatee_posattr(corpus_kw, "word")
+        form_attr = self._get_manatee_posattr(corpus_kw, "form")
+        id_attr = self._get_manatee_posattr(corpus_kw, "id")
         if word_attr is not None:
             attr_for_toks = word_attr
         elif form_attr is not None:
@@ -654,18 +654,32 @@ class FlexiBackend(CqpBackend):
             attr_for_toks = None
         token_lim = ManateeBackend._min_pos_limit(
             max_pos,
-            ManateeBackend._positional_attr_max_pos(attr_for_toks, corpus) if attr_for_toks else None,
+            ManateeBackend._positional_attr_max_pos(attr_for_toks, corpus_kw) if attr_for_toks else None,
         )
-        text_id_attr = self._get_manatee_struct_attr(corpus, "text", "id")
-        sentence_id_attr = self._get_manatee_struct_attr(corpus, "s", "id")
-        kl = manatee.KWICLines(corpus, conc.RS(True, start, end), "0", "0", "", "", "", "")
+        text_id_attr = self._get_manatee_struct_attr(corpus_kw, "text", "id")
+        sentence_id_attr = self._get_manatee_struct_attr(corpus_kw, "s", "id")
+
+        match_spans: List[tuple[int, int]] = []
+        cpos_spans = ManateeBackend._concordance_spans_via_cpos(conc, start, end)
+        if cpos_spans is not None and len(cpos_spans) == end - start:
+            match_spans = cpos_spans
+        else:
+            kl = manatee.KWICLines(corpus_kw, conc.RS(True, start, end), "0", "0", "", "", "", "")
+            while kl.nextline():
+                match_start = int(kl.get_pos())
+                kwic_len_value = int(kl.get_kwiclen())
+                kwic_len = kwic_len_value if kwic_len_value > 0 else len(parsed.pattern.items)
+                match_end = match_start + kwic_len - 1
+                if token_lim is not None:
+                    if match_start < 0 or match_start > token_lim:
+                        continue
+                    match_end = min(match_end, token_lim)
+                if match_start > match_end:
+                    continue
+                match_spans.append((match_start, match_end))
 
         hits: List[Dict[str, Any]] = []
-        while kl.nextline():
-            match_start = int(kl.get_pos())
-            kwic_len_value = int(kl.get_kwiclen())
-            kwic_len = kwic_len_value if kwic_len_value > 0 else len(parsed.pattern.items)
-            match_end = match_start + kwic_len - 1
+        for match_start, match_end in match_spans:
             if token_lim is not None:
                 if match_start < 0 or match_start > token_lim:
                     continue

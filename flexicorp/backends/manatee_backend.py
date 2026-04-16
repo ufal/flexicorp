@@ -231,6 +231,70 @@ class ManateeBackend(CorpusBackend):
             return None
 
     @staticmethod
+    def _manatee_concordance_corpus(conc: Any, fallback: Any) -> Any:
+        """
+        KonText passes ``conc.corp()`` into ``KWICLines``, not the original ``Corpus`` handle
+        (see ``lib/kwiclib/__init__.py`` — parallel corpora and subcorpora differ).
+        """
+        if conc is None:
+            return fallback
+        try:
+            fn = getattr(conc, "corp", None)
+            if callable(fn):
+                c = fn()
+                if c is not None:
+                    return c
+        except Exception:
+            pass
+        return fallback
+
+    @staticmethod
+    def _concordance_spans_via_cpos(conc: Any, start: int, end: int) -> Optional[List[tuple[int, int]]]:
+        """
+        Bonito/Manatee ``Concordance`` exposes ``cpos(i)`` per result line. Using it avoids
+        ``KWICLines.nextline()``, which can segfault on some ``_manatee`` builds/corpora.
+
+        Optional end-of-match APIs (when not returned as a pair from ``cpos``): ``cpos_end``,
+        ``endpos``, ``cend`` — some builds expose one of these with the line index.
+
+        Returns ``None`` if ``cpos`` is missing or any call raises (caller falls back to KWICLines).
+        """
+        if start >= end:
+            return []
+        cpos_fn = getattr(conc, "cpos", None)
+        if not callable(cpos_fn):
+            cpos_fn = getattr(conc, "get_cpos", None)
+        if not callable(cpos_fn):
+            return None
+        spans: List[tuple[int, int]] = []
+        try:
+            for i in range(start, end):
+                raw = cpos_fn(i)
+                if isinstance(raw, (tuple, list)) and len(raw) >= 2:
+                    ms, me = int(raw[0]), int(raw[1])
+                    if me < ms:
+                        me = ms
+                    spans.append((ms, me))
+                    continue
+                ms = int(raw)
+                me = ms
+                for name in ("cpos_end", "endpos", "cend"):
+                    fn = getattr(conc, name, None)
+                    if not callable(fn):
+                        continue
+                    try:
+                        me = int(fn(i))
+                        break
+                    except Exception:
+                        continue
+                if me < ms:
+                    me = ms
+                spans.append((ms, me))
+            return spans
+        except Exception:
+            return None
+
+    @staticmethod
     def _pick_token_attr_for_query(corpus: Any, file_scaffold: Any | None) -> tuple[str | None, Any]:
         """
         Prefer an attribute that has on-disk ``.text`` / ``.lex`` data so we can build
@@ -995,28 +1059,42 @@ class ManateeBackend(CorpusBackend):
             }
 
         end = min(start + max_hits, total)
-        max_pos = self._corpus_max_token_index(corpus)
+        corpus_kw = self._manatee_concordance_corpus(conc, corpus)
+        max_pos = self._corpus_max_token_index(corpus_kw)
         file_scaffold: Any | None = None
         try:
             file_scaffold = load_manatee_corpus_scaffold(cfg)
         except Exception:
             file_scaffold = None
-        token_attr_name, token_attr = self._pick_token_attr_for_query(corpus, file_scaffold)
-        token_lim = self._min_pos_limit(max_pos, self._positional_attr_max_pos(token_attr, corpus))
-        doc_struct, doc_id_attr, _title_attr = self._doc_lookup(corpus)
-        sentence_id_attr = self._sentence_id_attr(corpus)
-        sent_struct = self._safe_get_struct(corpus, "s")
-        # Use KonText's safe iteration-only pattern (get_groups_first_line): left=right="0" and
-        # empty kwica. Non-zero context + kwica can segfault in nextline() on some _manatee builds;
-        # with 0/0 + empty kwica, get_kwic() is empty — decode match tokens via batched lexicon or pos2str.
-        kl = manatee.KWICLines(corpus, conc.RS(True, start, end), "0", "0", "", "", "", "")
+        token_attr_name, token_attr = self._pick_token_attr_for_query(corpus_kw, file_scaffold)
+        token_lim = self._min_pos_limit(max_pos, self._positional_attr_max_pos(token_attr, corpus_kw))
+        doc_struct, doc_id_attr, _title_attr = self._doc_lookup(corpus_kw)
+        sentence_id_attr = self._sentence_id_attr(corpus_kw)
+        sent_struct = self._safe_get_struct(corpus_kw, "s")
+
+        match_spans: List[tuple[int, int]] = []
+        cpos_spans = self._concordance_spans_via_cpos(conc, start, end)
+        if cpos_spans is not None and len(cpos_spans) == end - start:
+            match_spans = cpos_spans
+        else:
+            # KonText uses conc.corp() for KWICLines (see lib/kwiclib/__init__.py).
+            # left=right="0", empty kwica: iteration-only; tokens come from lexicon / pos2str.
+            kl = manatee.KWICLines(corpus_kw, conc.RS(True, start, end), "0", "0", "", "", "", "")
+            while kl.nextline():
+                match_start = int(kl.get_pos())
+                kwic_len_value = int(kl.get_kwiclen())
+                kwic_len = kwic_len_value if kwic_len_value > 0 else 1
+                match_end = match_start + kwic_len - 1
+                if token_lim is not None:
+                    if match_start < 0 or match_start > token_lim:
+                        continue
+                    match_end = min(match_end, token_lim)
+                if match_start > match_end:
+                    continue
+                match_spans.append((match_start, match_end))
 
         rows: List[Dict[str, Any]] = []
-        while kl.nextline():
-            match_start = int(kl.get_pos())
-            kwic_len_value = int(kl.get_kwiclen())
-            kwic_len = kwic_len_value if kwic_len_value > 0 else 1
-            match_end = match_start + kwic_len - 1
+        for match_start, match_end in match_spans:
             if token_lim is not None:
                 if match_start < 0 or match_start > token_lim:
                     continue
