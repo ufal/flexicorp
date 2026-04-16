@@ -361,16 +361,27 @@ def _decode_finDR_postings(rev_bytes: bytes, seek: int, count: int, alignmult: i
     return out
 
 
+# int_text (FD_MI) as written by flexicorp manatee_writer: 15-byte FINIT header + int32 LE per token.
+# (The literal is 15 bytes; do not pad-match to 16 or int_text detection fails.)
+_FINIT_TEXT_HEADER_PREFIX = b"\xa3finIT"
+_FINIT_TEXT_HEADER_LEN = 15
+_FINIT_TEXT_HEADER = b"\xa3finIT\x00\x00\x00\x00\x00\x00\x00\x00\x00"  # same bytes as manatee_writer.FINIT_SIGNATURE
+
+
 def _read_text_size_from_header(text_path: Path) -> Optional[int]:
     """
     Read corpus size (token count) from a Manatee .text file header.
-    delta_text in finlib/text.hh reads from byte 16: seg_size, text_size (delta-1).
+    Supports int_text (FINIT + int32 LE) and delta_text (finlib delta_text at byte 16).
     """
     if not text_path.is_file():
         return None
     data = text_path.read_bytes()
     if len(data) < 20:
         return None
+    if len(data) >= _FINIT_TEXT_HEADER_LEN and data[:6] == _FINIT_TEXT_HEADER_PREFIX:
+        if len(data) >= len(_FINIT_TEXT_HEADER) and data[: len(_FINIT_TEXT_HEADER)] == _FINIT_TEXT_HEADER:
+            n = (len(data) - _FINIT_TEXT_HEADER_LEN) // 4
+            return n if n > 0 else None
     try:
         r = _BitReader(data, start_byte=16, skip_bits=0)
         r.delta()  # seg_size
@@ -380,15 +391,21 @@ def _read_text_size_from_header(text_path: Path) -> Optional[int]:
         return None
 
 
-def _decode_forward_text_ids(text_path: Path, max_pos: int) -> List[int]:
+def _decode_int32_le_text_ids_from_bytes(data: bytes, max_pos: int, header_offset: int = 16) -> List[int]:
+    out: List[int] = []
+    off = header_offset
+    for _ in range(max_pos + 1):
+        if off + 4 > len(data):
+            break
+        out.append(struct.unpack_from("<i", data, off)[0])
+        off += 4
+    return out
+
+
+def _decode_delta_text_ids_from_bytes(data: bytes, max_pos: int) -> List[int]:
     """
-    Decode lexicon ids for positions 0..max_pos from a Manatee .text file (delta_text).
-    Header at byte 16: two deltas (seg_size, text_size), then one delta()-1 per token.
-    Returns list of length max_pos+1 (or shorter if decode runs out of data).
+    delta_text: after byte 16, two deltas (seg_size, text_size), then one delta()-1 per token.
     """
-    if max_pos < 0:
-        return []
-    data = text_path.read_bytes()
     if len(data) < 20:
         return []
     r = _BitReader(data, start_byte=16, skip_bits=0)
@@ -401,6 +418,74 @@ def _decode_forward_text_ids(text_path: Path, max_pos: int) -> List[int]:
         except Exception:
             break
     return out
+
+
+def decode_forward_text_ids(text_path: Path, max_pos: int) -> List[int]:
+    """
+    Decode lexicon ids for positions 0..max_pos from a Manatee ``.text`` file.
+
+    Supports:
+
+    - **int_text (FD_MI)**: FINIT header (``\\xa3finIT`` + padding, 15 bytes in ``manatee_writer``)
+      + little-endian int32 per token. This must not use the delta decoder.
+    - **delta_text**: legacy delta encoding (finlib) after byte 16.
+    """
+    if max_pos < 0:
+        return []
+    data = text_path.read_bytes()
+    if len(data) < 20:
+        return []
+    if (
+        len(data) >= len(_FINIT_TEXT_HEADER)
+        and data[: len(_FINIT_TEXT_HEADER)] == _FINIT_TEXT_HEADER
+    ):
+        return _decode_int32_le_text_ids_from_bytes(data, max_pos, header_offset=_FINIT_TEXT_HEADER_LEN)
+    return _decode_delta_text_ids_from_bytes(data, max_pos)
+
+
+def _decode_forward_text_ids(text_path: Path, max_pos: int) -> List[int]:
+    """Deprecated alias; use :func:`decode_forward_text_ids`."""
+    return decode_forward_text_ids(text_path, max_pos)
+
+
+def cwb_text_id_string_at_cpos(data_dir: Path, cpos: int) -> Optional[str]:
+    """
+    Resolve document id string for a corpus token position using CWB-style ``text.rng`` and
+    ``text_id.avs`` / ``text_id.avx`` (no Manatee ``pos2str``). Returns None if files are missing.
+    """
+    if cpos < 0:
+        return None
+    rng_path = data_dir / "text.rng"
+    avs_path = data_dir / "text_id.avs"
+    avx_path = data_dir / "text_id.avx"
+    if not rng_path.is_file() or not avs_path.is_file() or not avx_path.is_file():
+        return None
+    raw = rng_path.read_bytes()
+    pairs: List[tuple[int, int]] = []
+    for i in range(0, len(raw) - 7, 8):
+        a, b = struct.unpack(">II", raw[i : i + 8])
+        pairs.append((a, b))
+    ri: Optional[int] = None
+    for i, (a, b) in enumerate(pairs):
+        if a <= cpos <= b:
+            ri = i
+            break
+    if ri is None:
+        return None
+    avs = avs_path.read_bytes()
+    avx = avx_path.read_bytes()
+    off = ri * 8
+    if off + 8 > len(avx):
+        return None
+    _u0, u1 = struct.unpack(">II", avx[off : off + 8])
+    if u1 >= len(avs):
+        return None
+    z = avs.find(b"\0", u1)
+    blob = avs[u1:z] if z >= 0 else avs[u1:]
+    try:
+        return blob.decode("utf-8", errors="replace").strip() or None
+    except Exception:
+        return None
 
 
 def get_token_strings_for_hits(
@@ -418,7 +503,7 @@ def get_token_strings_for_hits(
     max_end = max(end for _, end in ranges)
     if max_end >= corpus_size:
         max_end = corpus_size - 1
-    ids = _decode_forward_text_ids(text_path, max_end)
+    ids = decode_forward_text_ids(text_path, max_end)
     result: List[List[str]] = []
     for start, end in ranges:
         toks: List[str] = []

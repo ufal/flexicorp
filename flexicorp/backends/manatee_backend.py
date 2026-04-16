@@ -19,7 +19,8 @@ from ..teitok_context import normalize_context_request, resolve_teitok_context
 from .cqp import CqpBackend
 from .manatee import (
     ManateeFormatError,
-    _decode_forward_text_ids,
+    cwb_text_id_string_at_cpos,
+    decode_forward_text_ids,
     load_manatee_bindings,
     load_manatee_corpus_scaffold,
     prepare_runtime_registry,
@@ -340,7 +341,7 @@ class ManateeBackend(CorpusBackend):
             af = pos_map[attr_name]
             text_path = af.text.text_path
             max_end = max(b for _, b in ranges)
-            ids = _decode_forward_text_ids(text_path, max_end)
+            ids = decode_forward_text_ids(text_path, max_end)
             lex = af.lexicon
             out: List[List[str]] = []
             for start, end in ranges:
@@ -1071,6 +1072,11 @@ class ManateeBackend(CorpusBackend):
         doc_struct, doc_id_attr, _title_attr = self._doc_lookup(corpus_kw)
         sentence_id_attr = self._sentence_id_attr(corpus_kw)
         sent_struct = self._safe_get_struct(corpus_kw, "s")
+        data_dir: Path | None = None
+        if file_scaffold is not None:
+            summ = getattr(file_scaffold, "summary", None)
+            if summ is not None:
+                data_dir = getattr(summ, "resolved_data_path", None)
 
         match_spans: List[tuple[int, int]] = []
         cpos_spans = self._concordance_spans_via_cpos(conc, start, end)
@@ -1102,17 +1108,17 @@ class ManateeBackend(CorpusBackend):
             if match_start > match_end:
                 continue
 
-            # Struct id attributes: use the region start that contains the match. Calling
-            # pos2str on a struct attribute at an arbitrary token index can segfault in _manatee.
-            if doc_id_attr is not None and doc_struct is not None:
+            # Prefer CWB text_id files (no native pos2str). Struct pos2str can segfault in _manatee.
+            doc_id = None
+            if data_dir is not None:
+                doc_id = cwb_text_id_string_at_cpos(data_dir, match_start)
+            if doc_id is None and doc_id_attr is not None and doc_struct is not None:
                 doc_beg = self._struct_beg_containing(doc_struct, match_start)
                 doc_id = (
                     self._safe_pos2str(doc_id_attr, doc_beg, max_pos=max_pos)
                     if doc_beg is not None
                     else None
                 )
-            else:
-                doc_id = None
 
             if sentence_id_attr is not None and sent_struct is not None:
                 sent_beg = self._struct_beg_containing(sent_struct, match_start)
