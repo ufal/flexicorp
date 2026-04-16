@@ -14,7 +14,7 @@ import xml.etree.ElementTree as ET
 from ..config import CqpConfig, ManateeConfig, get_cqp_config, get_manatee_config
 from ..core import CorpusBackend, FlexiRequest, register_backend
 from ..highlight_contract import build_highlight_map, resolve_legend
-from ..flexencoder_xidx import has_flexencoder_xidx, lookup_xml_fragment, text_id_stem_for_cpos
+from ..flexencoder_xidx import has_flexencoder_xidx, text_id_stem_for_cpos
 from ..teitok import detect_teitok_cqp, detect_teitok_manatee
 from ..teitok_context import normalize_context_request, resolve_teitok_context
 from .cqp import CqpBackend
@@ -1134,21 +1134,23 @@ class ManateeBackend(CorpusBackend):
             if match_start > match_end:
                 continue
 
-            # Prefer flexencoder xidx/ (global_pos ↔ TEITOK XML). Else CWB-style text_id.* files
-            # if present beside Manatee PATH / registry (not “Manatee vs CWB token numbering” —
-            # different file families; cpos is always the Manatee global index here).
+            # Document id for TEITOK XML: prefer Manatee registry structures, then CWB-style
+            # text_id.* beside the corpus. Do NOT prefer flexencoder xidx here: xidx/tokens.bin uses
+            # flexencoder's global positions; Manatee concordance uses Manatee cpos — they are different
+            # streams unless rebuilt in perfect lockstep. Using xidx first mis-mapped hits to unrelated
+            # sentences (queries matched in Manatee but context showed wrong XML).
             doc_id: Optional[str] = None
-            if flex_xidx and teitok_root is not None:
-                doc_id = text_id_stem_for_cpos(teitok_root, match_start)
-            if doc_id is None and text_id_fallback_dirs:
-                doc_id = text_id_from_cwb_style_index_files(text_id_fallback_dirs, match_start)
-            if doc_id is None and doc_id_attr is not None and doc_struct is not None:
+            if doc_id_attr is not None and doc_struct is not None:
                 doc_beg = self._struct_beg_containing(doc_struct, match_start)
                 doc_id = (
                     self._safe_pos2str(doc_id_attr, doc_beg, max_pos=max_pos)
                     if doc_beg is not None
                     else None
                 )
+            if doc_id is None and text_id_fallback_dirs:
+                doc_id = text_id_from_cwb_style_index_files(text_id_fallback_dirs, match_start)
+            if doc_id is None and flex_xidx and teitok_root is not None:
+                doc_id = text_id_stem_for_cpos(teitok_root, match_start)
 
             if sentence_id_attr is not None and sent_struct is not None:
                 sent_beg = self._struct_beg_containing(sent_struct, match_start)
@@ -1188,16 +1190,6 @@ class ManateeBackend(CorpusBackend):
                 sf = (cqp_side.get("meta") or {}).get("searchfolder")
                 if isinstance(sf, str) and sf.strip():
                     teitok_searchfolder = sf.strip()
-
-        def _flex_xidx_resolver(
-            _doc_id_value: str, start_val: int, end_val: int, expand_level: Optional[str]
-        ) -> Optional[str]:
-            if not flex_xidx or teitok_root is None:
-                return None
-            sc = (expand_level or "").strip().lower()
-            if not sc:
-                sc = str((context_spec or {}).get("scope") or "s").strip().lower()
-            return lookup_xml_fragment(teitok_root, start_val, end_val, sc)
 
         hits: List[Dict[str, Any]] = []
         for row_idx, r in enumerate(rows):
@@ -1242,6 +1234,10 @@ class ManateeBackend(CorpusBackend):
                 hit["text_id"] = str(doc_id)
             if context_spec and detected and doc_id:
                 tok_ids_xml = hm_ids
+                # Resolve context from TEITOK XML via doc_id + token ids (Manatee-aligned). Do not use
+                # flexencoder xidx fragments keyed by Manatee cpos — coordinate systems differ.
+                ctx_spec = dict(context_spec)
+                ctx_spec["prefer"] = "xml"
                 context = resolve_teitok_context(
                     root_dir=Path(detected.get("root") or ".").resolve(),
                     searchfolder=teitok_searchfolder,
@@ -1250,8 +1246,8 @@ class ManateeBackend(CorpusBackend):
                     tok_ids=tok_ids_xml,
                     match_start=match_start,
                     match_end=match_end,
-                    context_spec=context_spec,
-                    xidx_resolver=_flex_xidx_resolver if flex_xidx else None,
+                    context_spec=ctx_spec,
+                    xidx_resolver=None,
                 )
                 if context:
                     hit["context"] = context
