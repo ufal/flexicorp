@@ -640,18 +640,12 @@ class FlexiBackend(CqpBackend):
             sent_struct = corpus_kw.get_struct("s")
         except Exception:
             pass
-        # Prefer word/form for display; fall back to id (same as ManateeBackend.query).
-        word_attr = self._get_manatee_posattr(corpus_kw, "word")
-        form_attr = self._get_manatee_posattr(corpus_kw, "form")
-        id_attr = self._get_manatee_posattr(corpus_kw, "id")
-        if word_attr is not None:
-            attr_for_toks = word_attr
-        elif form_attr is not None:
-            attr_for_toks = form_attr
-        elif id_attr is not None:
-            attr_for_toks = id_attr
-        else:
-            attr_for_toks = None
+        file_scaffold: Any | None = None
+        try:
+            file_scaffold = load_manatee_corpus_scaffold(manatee_cfg)
+        except Exception:
+            file_scaffold = None
+        token_attr_name, attr_for_toks = ManateeBackend._pick_token_attr_for_query(corpus_kw, file_scaffold)
         token_lim = ManateeBackend._min_pos_limit(
             max_pos,
             ManateeBackend._positional_attr_max_pos(attr_for_toks, corpus_kw) if attr_for_toks else None,
@@ -678,7 +672,7 @@ class FlexiBackend(CqpBackend):
                     continue
                 match_spans.append((match_start, match_end))
 
-        hits: List[Dict[str, Any]] = []
+        rows: List[Dict[str, Any]] = []
         for match_start, match_end in match_spans:
             if token_lim is not None:
                 if match_start < 0 or match_start > token_lim:
@@ -697,15 +691,29 @@ class FlexiBackend(CqpBackend):
                 sent_beg = ManateeBackend._struct_beg_containing(sent_struct, match_start)
                 if sent_beg is not None:
                     sentence_id = ManateeBackend._safe_pos2str(sentence_id_attr, sent_beg, max_pos=max_pos)
-            toks = (
-                [
-                    ManateeBackend._safe_pos2str(attr_for_toks, pos, max_pos=token_lim) or ""
-                    for pos in range(match_start, match_end + 1)
-                ]
-                if attr_for_toks
-                else []
+            rows.append(
+                {
+                    "match_start": match_start,
+                    "match_end": match_end,
+                    "doc_id": doc_id,
+                    "sentence_id": sentence_id,
+                }
             )
-            toks = [t for t in toks if t]
+
+        need_ranges = [(int(r["match_start"]), int(r["match_end"])) for r in rows]
+        bulk_lex: Optional[List[List[str]]] = None
+        if need_ranges and token_attr_name:
+            bulk_lex = ManateeBackend._tokens_from_lexicon_files(file_scaffold, token_attr_name, need_ranges)
+
+        hits: List[Dict[str, Any]] = []
+        for idx, r in enumerate(rows):
+            match_start = int(r["match_start"])
+            match_end = int(r["match_end"])
+            doc_id = r.get("doc_id")
+            sentence_id = r.get("sentence_id")
+            toks: List[str] = []
+            if bulk_lex is not None and idx < len(bulk_lex):
+                toks = [t for t in bulk_lex[idx] if t]
             hit = self._build_hit(
                 doc_id=doc_id,
                 sentence_id=sentence_id,

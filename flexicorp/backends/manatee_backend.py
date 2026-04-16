@@ -1150,11 +1150,9 @@ class ManateeBackend(CorpusBackend):
                 toks = [t for t in bulk_lex[bidx] if t]
             bidx += 1
             if not toks:
-                toks = [
-                    self._safe_pos2str(token_attr, pos, max_pos=token_lim) or ""
-                    for pos in range(match_start, match_end + 1)
-                ]
-                toks = [tok for tok in toks if tok]
+                # Native pos2str on positional attrs can segfault in _manatee (not catchable in Python).
+                # Lexicon path above is the only safe source for token strings here.
+                toks = []
             hit: Dict[str, Any] = {
                 "doc_id": doc_id,
                 "sentence_id": sentence_id,
