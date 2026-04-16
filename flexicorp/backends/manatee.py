@@ -139,47 +139,78 @@ def _manatee_api_candidates(project_root: Path | None) -> List[Path]:
     return candidates
 
 
+def _project_manatee_dir_shadows_bindings(project_root: Path | None) -> bool:
+    """
+    True when ``<project>/manatee`` exists but is corpus/index data (TEITOK layout), not the
+    manatee-open *api* directory (``manatee.py`` + ``_manatee.so``). In that case a plain
+    ``import manatee`` resolves to the data folder on sys.path (cwd) and must be skipped.
+    """
+    if project_root is None:
+        return False
+    d = project_root.resolve() / "manatee"
+    if not d.is_dir():
+        return False
+    return not _is_valid_manatee_api_dir(d)
+
+
 def load_manatee_bindings(*, project_root: Path | None = None) -> Any:
     shadow_roots = _shadow_roots(project_root)
-    # Try import first (e.g. after "make install" into venv or system PYTHONPATH).
-    try:
-        module = importlib.import_module("manatee")
-    except ModuleNotFoundError as exc:
-        module = None
-        # Not in site-packages/PYTHONPATH; try standard locations relative to project.
-        if exc.name == "manatee":
-            for api_dir in _manatee_api_candidates(project_root):
-                prepend: List[str] = []
-                libs = api_dir / ".libs"
-                if libs.is_dir():
-                    prepend.append(str(libs.resolve()))
-                prepend.append(str(api_dir.resolve()))
-                old_path = list(sys.path)
-                try:
-                    sys.path[:] = prepend + [p for p in old_path if p not in prepend]
-                    importlib.invalidate_caches()
-                    module = importlib.import_module("manatee")
-                    break
-                except Exception:
-                    sys.path[:] = old_path
-                    importlib.invalidate_caches()
-                    continue
-        if module is None:
-            hint = (
-                "For server-wide use: install into the Python that runs flexicorp (make install), "
-                "or set MANATEE_API to the path of the manatee-open api directory. "
-                "See docs/install-manatee-bindings.md in the flexicorp repo for details."
-            )
+    module = None
+    exc: ModuleNotFoundError | None = None
+    # TEITOK (and similar): ``.../corpus/manatee/`` holds word.lex/corp — not the Python package.
+    # Importing without stripping cwd would load that directory as ``manatee``.
+    if _project_manatee_dir_shadows_bindings(project_root):
+        sys.modules.pop("manatee", None)
+        try:
+            module = _import_module_without_shadow_paths("manatee", shadow_roots)
+        except ModuleNotFoundError as e:
+            exc = e
+        except Exception as e:
             raise RuntimeError(
-                "The pure Manatee backend requires the official Python Manatee bindings built from manatee-open. "
-                "Do not install the unrelated PyPI package 'manatee'. "
-                f"{hint}"
-            ) from exc
-    except Exception as exc:
+                "The pure Manatee backend requires the official Python Manatee bindings. "
+                "Try `python3 -c \"import manatee\"` in the target environment."
+            ) from e
+    else:
+        try:
+            module = importlib.import_module("manatee")
+        except ModuleNotFoundError as e:
+            exc = e
+        except Exception as e:
+            raise RuntimeError(
+                "The pure Manatee backend requires the official Python Manatee bindings. "
+                "Try `python3 -c \"import manatee\"` in the target environment."
+            ) from e
+
+    if module is None and exc is not None and exc.name == "manatee":
+        for api_dir in _manatee_api_candidates(project_root):
+            prepend: List[str] = []
+            libs = api_dir / ".libs"
+            if libs.is_dir():
+                prepend.append(str(libs.resolve()))
+            prepend.append(str(api_dir.resolve()))
+            old_path = list(sys.path)
+            try:
+                sys.path[:] = prepend + [p for p in old_path if p not in prepend]
+                importlib.invalidate_caches()
+                module = importlib.import_module("manatee")
+                break
+            except Exception:
+                sys.path[:] = old_path
+                importlib.invalidate_caches()
+                continue
+
+    if module is None:
+        hint = (
+            "For server-wide use: install into the Python that runs flexicorp (make install), "
+            "or set MANATEE_API to the path of the manatee-open api directory. "
+            "See docs/install-manatee-bindings.md in the flexicorp repo for details."
+        )
+        chain = exc if isinstance(exc, ModuleNotFoundError) else None
         raise RuntimeError(
-            "The pure Manatee backend requires the official Python Manatee bindings. "
-            "Try `python3 -c \"import manatee\"` in the target environment."
-        ) from exc
+            "The pure Manatee backend requires the official Python Manatee bindings built from manatee-open. "
+            "Do not install the unrelated PyPI package 'manatee'. "
+            f"{hint}"
+        ) from chain
 
     required = ("Corpus", "Concordance", "KWICLines")
     missing = [name for name in required if not hasattr(module, name)]
