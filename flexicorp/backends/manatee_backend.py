@@ -297,6 +297,22 @@ class ManateeBackend(CorpusBackend):
             except Exception:
                 return None
 
+    @staticmethod
+    def _strings_from_kwic_get_kwic(raw: Any) -> List[str]:
+        """
+        KonText (``lib/kwiclib/common.py`` ``tokens2strclass``) consumes the flat tuple from
+        ``KWICLines.get_kwic()`` as ``(token, class, token, class, ...)``. We keep token strings only.
+        """
+        if raw is None:
+            return []
+        flat = list(raw)
+        out: List[str] = []
+        for i in range(0, len(flat), 2):
+            s = str(flat[i]).strip()
+            if s:
+                out.append(s)
+        return out
+
     def _doc_structure_name(self, corpus: Any) -> Optional[str]:
         doc_struct = (self._safe_get_conf(corpus, "DOCSTRUCTURE") or "").strip()
         structs = set(_split_conf_list(self._safe_get_conf(corpus, "STRUCTLIST")))
@@ -1005,9 +1021,12 @@ class ManateeBackend(CorpusBackend):
         doc_struct, doc_id_attr, _title_attr = self._doc_lookup(corpus)
         sentence_id_attr = self._sentence_id_attr(corpus)
         sent_struct = self._safe_get_struct(corpus, "s")
-        kl = manatee.KWICLines(corpus, conc.RS(True, start, end), "0", "0", "", "", "", "")
+        # KonText (czcorpus/kontext) passes the positional attribute name into KWICLines as kwica
+        # and uses kl.get_kwic() — not per-token pos2str. See lib/kwiclib/__init__.py kwiclines().
+        kwica = str(token_attr_name or "").strip()
+        kl = manatee.KWICLines(corpus, conc.RS(True, start, end), "0", "0", kwica, "", "", "")
 
-        pending: List[Dict[str, Any]] = []
+        hits: List[Dict[str, Any]] = []
         while kl.nextline():
             match_start = int(kl.get_pos())
             kwic_len_value = int(kl.get_kwiclen())
@@ -1042,27 +1061,14 @@ class ManateeBackend(CorpusBackend):
             else:
                 sentence_id = None
 
-            pending.append(
-                {
-                    "match_start": match_start,
-                    "match_end": match_end,
-                    "doc_id": doc_id,
-                    "sentence_id": sentence_id,
-                }
-            )
-
-        ranges = [(int(p["match_start"]), int(p["match_end"])) for p in pending]
-        bulk_toks = self._tokens_from_lexicon_files(file_scaffold, token_attr_name, ranges)
-
-        hits: List[Dict[str, Any]] = []
-        for idx, p in enumerate(pending):
-            match_start = int(p["match_start"])
-            match_end = int(p["match_end"])
-            doc_id = p.get("doc_id")
-            sentence_id = p.get("sentence_id")
-            if bulk_toks is not None and idx < len(bulk_toks):
-                toks = [t for t in bulk_toks[idx] if t]
-            else:
+            toks = self._strings_from_kwic_get_kwic(kl.get_kwic())
+            if not toks and kwica:
+                one = self._tokens_from_lexicon_files(
+                    file_scaffold, token_attr_name, [(match_start, match_end)]
+                )
+                if one and len(one) > 0:
+                    toks = [t for t in one[0] if t]
+            if not toks:
                 toks = [
                     self._safe_pos2str(token_attr, pos, max_pos=token_lim) or ""
                     for pos in range(match_start, match_end + 1)

@@ -639,13 +639,25 @@ class FlexiBackend(CqpBackend):
             sent_struct = corpus.get_struct("s")
         except Exception:
             pass
-        # Prefer word/form for display; fall back to id for token identifiers
-        word_attr = self._get_manatee_posattr(corpus, "word") or self._get_manatee_posattr(corpus, "form")
+        # Prefer word/form for display; fall back to id (KonText: pass kwica into KWICLines, use get_kwic())
+        word_attr = self._get_manatee_posattr(corpus, "word")
+        form_attr = self._get_manatee_posattr(corpus, "form")
         id_attr = self._get_manatee_posattr(corpus, "id")
-        attr_for_toks = word_attr if word_attr is not None else id_attr
+        if word_attr is not None:
+            attr_for_toks = word_attr
+            kwica_name = "word"
+        elif form_attr is not None:
+            attr_for_toks = form_attr
+            kwica_name = "form"
+        elif id_attr is not None:
+            attr_for_toks = id_attr
+            kwica_name = "id"
+        else:
+            attr_for_toks = None
+            kwica_name = ""
         token_lim = ManateeBackend._min_pos_limit(
             max_pos,
-            ManateeBackend._positional_attr_max_pos(attr_for_toks, corpus),
+            ManateeBackend._positional_attr_max_pos(attr_for_toks, corpus) if attr_for_toks else None,
         )
         text_id_attr = self._get_manatee_struct_attr(corpus, "text", "id")
         sentence_id_attr = self._get_manatee_struct_attr(corpus, "s", "id")
@@ -654,7 +666,7 @@ class FlexiBackend(CqpBackend):
             conc.RS(True, start, end),
             "0",
             "0",
-            "",
+            kwica_name,
             "",
             "",
             "",
@@ -683,14 +695,13 @@ class FlexiBackend(CqpBackend):
                 sent_beg = ManateeBackend._struct_beg_containing(sent_struct, match_start)
                 if sent_beg is not None:
                     sentence_id = ManateeBackend._safe_pos2str(sentence_id_attr, sent_beg, max_pos=max_pos)
-            toks = (
-                [
+            toks = ManateeBackend._strings_from_kwic_get_kwic(kl.get_kwic())
+            if not toks and attr_for_toks:
+                toks = [
                     ManateeBackend._safe_pos2str(attr_for_toks, pos, max_pos=token_lim) or ""
                     for pos in range(match_start, match_end + 1)
                 ]
-                if attr_for_toks
-                else []
-            )
+                toks = [t for t in toks if t]
             hit = self._build_hit(
                 doc_id=doc_id,
                 sentence_id=sentence_id,
