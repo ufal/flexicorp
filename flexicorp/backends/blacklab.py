@@ -1396,6 +1396,10 @@ class BlackLabBackend(CorpusBackend):
         total = int(results_stats.get("documents") or summary.get("numberOfDocs") or len(docs_out))
         return {"docs": docs_out, "total": total}
 
+    def kwic(self, req: FlexiRequest) -> Dict[str, Any]:
+        """``kwic`` is an alias of the unified ``query`` API for this backend."""
+        return self.query(req)
+
     def query(self, req: FlexiRequest) -> Dict[str, Any]:
         cfg = self._get_config(req)
         teitok_runtime = self._get_teitok_runtime(req, cfg)

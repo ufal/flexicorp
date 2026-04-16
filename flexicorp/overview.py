@@ -359,21 +359,28 @@ def _blacklab_status(project: Dict[str, Any]) -> Dict[str, Any]:
 
 def _flexi_status(cqp_status: Dict[str, Any], manatee_status: Dict[str, Any]) -> Dict[str, Any]:
     cwb_available = bool(cqp_status.get("available"))
-    manatee_available = bool(manatee_status.get("available"))
-    if cwb_available and manatee_available:
+    # Native manatee backend needs bindings; flexi can still use manatee corpus files without them.
+    manatee_corpus = bool(manatee_status.get("corpus_available", manatee_status.get("available")))
+    manatee_bindings = bool(manatee_status.get("available"))
+    if cwb_available and manatee_bindings:
         return {
             "available": True,
             "reason": "flexi can query this corpus via both the CWB/CQP and Manatee paths.",
+        }
+    if cwb_available and manatee_corpus:
+        return {
+            "available": True,
+            "reason": "flexi can query this corpus via the CWB/CQP path; Manatee index files are also present.",
         }
     if cwb_available:
         return {
             "available": True,
             "reason": "flexi can query this corpus via the CWB/CQP path.",
         }
-    if manatee_available:
+    if manatee_corpus:
         return {
             "available": True,
-            "reason": "flexi can query this corpus via the Manatee path.",
+            "reason": "flexi can query this corpus via the Manatee file path (native flexi reader).",
         }
     return {
         "available": False,

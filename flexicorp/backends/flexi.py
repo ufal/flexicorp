@@ -24,6 +24,7 @@ from ..querylang.cwb_cql import (
 from ..teitok import detect_teitok_cqp, detect_teitok_manatee
 from ..highlight_contract import build_highlight_map, resolve_legend
 from .cqp import CqpBackend
+from .manatee_backend import ManateeBackend
 from .manatee import (
     ManateeFormatError,
     get_token_strings_for_hits,
@@ -627,6 +628,17 @@ class FlexiBackend(CqpBackend):
                 "corpus": manatee_cfg.corpus,
             }
         end = min(start + max_hits, total)
+        max_pos = ManateeBackend._corpus_max_token_index(corpus)
+        text_struct = None
+        sent_struct = None
+        try:
+            text_struct = corpus.get_struct("text")
+        except Exception:
+            pass
+        try:
+            sent_struct = corpus.get_struct("s")
+        except Exception:
+            pass
         # Prefer word/form for display; fall back to id for token identifiers
         word_attr = self._get_manatee_posattr(corpus, "word") or self._get_manatee_posattr(corpus, "form")
         id_attr = self._get_manatee_posattr(corpus, "id")
@@ -649,11 +661,33 @@ class FlexiBackend(CqpBackend):
             kwic_len_value = int(kl.get_kwiclen())
             kwic_len = kwic_len_value if kwic_len_value > 0 else len(parsed.pattern.items)
             match_end = match_start + kwic_len - 1
-            doc_id = text_id_attr.pos2str(match_start) if text_id_attr else None
-            sentence_id = sentence_id_attr.pos2str(match_start) if sentence_id_attr else None
+            if max_pos is not None:
+                if match_start < 0 or match_start > max_pos:
+                    continue
+                match_end = min(match_end, max_pos)
+            if match_start > match_end:
+                continue
+
+            doc_id = None
+            if text_id_attr is not None and text_struct is not None:
+                doc_beg = ManateeBackend._struct_beg_containing(text_struct, match_start)
+                if doc_beg is not None:
+                    doc_id = ManateeBackend._safe_pos2str(text_id_attr, doc_beg, max_pos=max_pos)
+            sentence_id = None
+            if sentence_id_attr is not None and sent_struct is not None:
+                sent_beg = ManateeBackend._struct_beg_containing(sent_struct, match_start)
+                if sent_beg is not None:
+                    sentence_id = ManateeBackend._safe_pos2str(sentence_id_attr, sent_beg, max_pos=max_pos)
             # Use word/form for display (KWIC); fall back to id if no word attr
             attr_for_toks = word_attr if word_attr is not None else id_attr
-            toks = [attr_for_toks.pos2str(pos) for pos in range(match_start, match_end + 1)] if attr_for_toks else []
+            toks = (
+                [
+                    ManateeBackend._safe_pos2str(attr_for_toks, pos, max_pos=max_pos) or ""
+                    for pos in range(match_start, match_end + 1)
+                ]
+                if attr_for_toks
+                else []
+            )
             hit = self._build_hit(
                 doc_id=doc_id,
                 sentence_id=sentence_id,
@@ -878,6 +912,10 @@ class FlexiBackend(CqpBackend):
         raise RuntimeError(
             f"flexi info currently only supports corpus formats 'cwb' and 'manatee'. Got {corpus_format!r}."
         )
+
+    def kwic(self, req: FlexiRequest) -> Dict[str, Any]:
+        """``kwic`` is an alias of the unified ``query`` API for this backend."""
+        return self.query(req)
 
     def query(self, req: FlexiRequest) -> Dict[str, Any]:
         project = dict(req.get("project") or {})

@@ -17,6 +17,39 @@ from .settings import (
 )
 
 
+def _brief_backend_overview_payload(result: Dict[str, Any]) -> Dict[str, Any]:
+    """Smaller ``info backends`` JSON: drop heavy repeated blocks."""
+    out: Dict[str, Any] = {
+        "topic": "backends",
+        "availableBackends": result.get("availableBackends"),
+        "availableQueryEngines": result.get("availableQueryEngines"),
+        "backendStatus": {},
+        "queryEngines": result.get("queryEngines"),
+    }
+    bs = result.get("backendStatus") or {}
+    for name, st in bs.items():
+        if isinstance(st, dict):
+            out["backendStatus"][name] = {k: v for k, v in st.items() if k not in ("capabilities", "descriptor")}
+        else:
+            out["backendStatus"][name] = st
+    return out
+
+
+def _maybe_brief_info_backends(res: Dict[str, Any], args: argparse.Namespace) -> Dict[str, Any]:
+    if (
+        getattr(args, "operation", None) != "info"
+        or getattr(args, "info_topic", None) != "backends"
+        or not getattr(args, "brief", False)
+    ):
+        return res
+    if not res.get("ok"):
+        return res
+    inner = res.get("result")
+    if not isinstance(inner, dict) or inner.get("topic") != "backends":
+        return res
+    return {**res, "result": _brief_backend_overview_payload(inner)}
+
+
 def _add_shared_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--api",
@@ -28,7 +61,9 @@ def _add_shared_args(parser: argparse.ArgumentParser) -> None:
         "-b",
         default=None,
         help="Backend to use (e.g. blacklab, clickhouse, clickql, cqp, flexi, manatee). "
-        "Defaults to the configured value from flexicorp settings (or 'clickhouse' if unset).",
+        "When omitted, kwic/query can infer the backend from --query-language / --corpus-format "
+        "(e.g. manatee-cql + manatee → manatee). Otherwise defaults to flexicorp settings "
+        "(or 'clickhouse' if unset).",
     )
     parser.add_argument(
         "--project-root",
@@ -146,6 +181,14 @@ def _build_parser() -> argparse.ArgumentParser:
 
     shared_parent = argparse.ArgumentParser(add_help=False)
     _add_shared_args(shared_parent)
+
+    info_brief_parent = argparse.ArgumentParser(add_help=False)
+    info_brief_parent.add_argument(
+        "--brief",
+        action="store_true",
+        help="For 'info backends': omit implementedBackends, backendCombos, and per-backend capabilities/descriptor "
+        "(smaller JSON for quick inspection).",
+    )
 
     subparsers = parser.add_subparsers(dest="operation", required=True)
 
@@ -323,7 +366,11 @@ def _build_parser() -> argparse.ArgumentParser:
     info = subparsers.add_parser("info", help="Show backend or corpus information.", parents=[shared_parent])
     info_sub = info.add_subparsers(dest="info_topic", required=False)
     info_sub.add_parser("corpus", help="Show corpus/backend configuration details.", parents=[shared_parent])
-    info_sub.add_parser("backends", help="Show implemented backends and per-corpus availability overview.", parents=[shared_parent])
+    info_sub.add_parser(
+        "backends",
+        help="Show implemented backends and per-corpus availability overview.",
+        parents=[shared_parent, info_brief_parent],
+    )
 
     # config --------------------------------------------------------------
     config = subparsers.add_parser("config", help="Manage flexicorp CLI configuration.", parents=[shared_parent])
@@ -466,17 +513,46 @@ def _load_project(args: argparse.Namespace) -> Dict[str, Any]:
     return project
 
 
-def _resolve_backend(arg_backend: str | None) -> str:
+def _infer_backend_for_cli(args: argparse.Namespace) -> str | None:
+    """
+    When ``--backend`` is omitted, infer the backend from ``--query-language`` /
+    ``--corpus-format`` for kwic/query so users are not stuck on the configured
+    default (often clickhouse) when they clearly asked for another engine.
+    """
+    op = getattr(args, "operation", None)
+    if op not in ("kwic", "query"):
+        return None
+    ql = (getattr(args, "query_language", None) or "").strip().lower()
+    cf = (getattr(args, "corpus_format", None) or "").strip().lower()
+    if cf == "manatee" or ql in ("manatee-cql", "manatee"):
+        return "manatee"
+    if cf == "cwb" or ql in ("cwb-cql", "cqp"):
+        return "cqp"
+    if ql == "bcql" or cf == "blacklab":
+        return "blacklab"
+    if cf == "clickhouse" or ql in ("clickcql", "clickql", "pmltq", "clickpmltq"):
+        return "clickql"
+    if ql == "teitok" or cf == "xml":
+        return "teitokxml"
+    return None
+
+
+def _resolve_backend(arg_backend: str | None, args: argparse.Namespace | None = None) -> str:
     """
     Resolve the backend to use for this CLI invocation.
 
     Order of precedence:
     1. Explicit --backend CLI argument.
-    2. User configuration (settings.default_backend).
-    3. Hard-coded default "clickhouse".
+    2. Inferred from query language / corpus format (kwic and query subcommands only).
+    3. User configuration (settings.default_backend).
+    4. Hard-coded default "clickhouse".
     """
     if arg_backend:
         return arg_backend
+    if args is not None:
+        inferred = _infer_backend_for_cli(args)
+        if inferred:
+            return inferred
     return get_default_backend()
 
 
@@ -630,6 +706,9 @@ def main(argv: list[str] | None = None) -> int:
             params["verbose"] = True
     elif args.operation == "kwic":
         # For CQP backend this is typically a raw CQP query.
+        # The ``query`` subcommand is registered as an alias of ``kwic``; when
+        # the user types ``flexicorp query``, argparse sets ``operation`` to
+        # ``query`` (see the separate branch below).
         if args.query:
             params["query"] = args.query
         elif getattr(args, "pattern", None):
@@ -639,8 +718,32 @@ def main(argv: list[str] | None = None) -> int:
             params["query"] = {"field": args.field, "value": args.value}
         params["window"] = args.window
         params["limit"] = args.limit
+        # Unified query API (pagination, ClickQL extras): needed when ``kwic`` is
+        # invoked via the ``query`` alias and for backends that implement ``query``.
+        params["start"] = getattr(args, "start", 0)
+        params["max"] = getattr(args, "limit", 50)
+        if getattr(args, "qid", None):
+            params["qid"] = args.qid
+        if getattr(args, "refresh_cache", False):
+            params["refresh_cache"] = True
+        if getattr(args, "extract_fragments", False):
+            params["extract_fragments"] = True
+        if getattr(args, "context_scope", None):
+            params["context_scope"] = args.context_scope
+        if getattr(args, "context_format", None):
+            params["context_format"] = args.context_format
+        if getattr(args, "context_level", None):
+            params["context_level"] = args.context_level
+        if getattr(args, "sql", None):
+            params["sql"] = args.sql
+        if getattr(args, "count_sql", None):
+            params["count_sql"] = args.count_sql
+        if getattr(args, "cache_key", None):
+            params["cache_key"] = args.cache_key
+        if getattr(args, "show_sql", False):
+            params["include_sql"] = True
     elif args.operation == "query":
-        # Unified query operation (same API as clickql; use for CQP when testing without ClickHouse).
+        # ``flexicorp query`` (alias of kwic): same params as the kwic branch.
         if args.query:
             params["query"] = args.query
         elif getattr(args, "pattern", None):
@@ -651,6 +754,8 @@ def main(argv: list[str] | None = None) -> int:
             params["query"] = ""
         params["start"] = getattr(args, "start", 0)
         params["max"] = getattr(args, "limit", 50)
+        params["window"] = args.window
+        params["limit"] = args.limit
         if getattr(args, "qid", None):
             params["qid"] = args.qid
         if getattr(args, "refresh_cache", False):
@@ -705,23 +810,25 @@ def main(argv: list[str] | None = None) -> int:
         if getattr(args, "database", None):
             params["database"] = args.database
 
+    backend = _resolve_backend(args.backend, args)
+    if args.operation == "daemon" and not args.backend:
+        backend = "clickhouse"
+
     # Global debug flag propagated into params for backends that support it.
     if getattr(args, "debug", False):
         params["debug"] = True
     if getattr(args, "query_language", None):
         params["query_language"] = args.query_language
         params["query_lang"] = args.query_language
-    elif args.operation == "query" and _resolve_backend(args.backend) == "manatee":
+    elif args.operation in ("kwic", "query") and backend == "manatee":
         params["query_language"] = "manatee-cql"
         params["query_lang"] = "manatee-cql"
 
     operation_name = args.operation.replace("-", "_")
-    # Keep "query" as operation when user ran the query subcommand (so backends that support query use it).
-    # Only map to kwic when backend does not support query (handled by backend returning error).
-
-    backend = _resolve_backend(args.backend)
-    if args.operation == "daemon" and not args.backend:
-        backend = "clickhouse"
+    # ``kwic`` subcommand dispatches ``operation`` kwic, but backends such as
+    # manatee/flexi/blacklab implement the unified ``query`` API only.
+    if operation_name in ("kwic", "query") and backend in ("manatee", "flexi", "blacklab"):
+        operation_name = "query"
 
     req = {
         "version": 1,
@@ -731,6 +838,7 @@ def main(argv: list[str] | None = None) -> int:
         "params": params,
     }
     res = handle_request(req)
+    res = _maybe_brief_info_backends(res, args)
     if getattr(args, "api", False):
         envelope = {
             "tool": "flexicorp",

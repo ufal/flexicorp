@@ -147,8 +147,48 @@ class ManateeBackend(CorpusBackend):
             return None
 
     @staticmethod
-    def _safe_pos2str(attr: Any, pos: int) -> Optional[str]:
+    def _corpus_max_token_index(corpus: Any) -> Optional[int]:
+        """Last valid token index for bounds checks before native ``pos2str`` (segfaults on bad pos)."""
+        try:
+            if hasattr(corpus, "size"):
+                n = int(corpus.size())
+                return max(0, n - 1)
+        except Exception:
+            pass
+        return None
+
+    @staticmethod
+    def _struct_beg_containing(struct_obj: Any, pos: int) -> Optional[int]:
+        """
+        Return ``beg`` of the struct instance that contains token position ``pos``,
+        or None. Struct ``id`` attributes must be read at region starts; passing an
+        arbitrary token index can crash the Manatee extension.
+        """
+        if struct_obj is None:
+            return None
+        try:
+            if hasattr(struct_obj, "num_at"):
+                ni = int(struct_obj.num_at(pos))
+                if ni >= 0:
+                    return int(struct_obj.beg(ni))
+        except Exception:
+            pass
+        try:
+            n = int(struct_obj.size())
+            for idx in range(n):
+                beg = int(struct_obj.beg(idx))
+                end = int(struct_obj.end(idx))
+                if beg <= pos <= end:
+                    return beg
+        except Exception:
+            return None
+        return None
+
+    @staticmethod
+    def _safe_pos2str(attr: Any, pos: int, *, max_pos: Optional[int] = None) -> Optional[str]:
         if attr is None:
+            return None
+        if max_pos is not None and (pos < 0 or pos > max_pos):
             return None
         try:
             return _decode_text(attr.pos2str(pos))
@@ -800,6 +840,10 @@ class ManateeBackend(CorpusBackend):
             docs.append({"id": doc_id, "title": title, "meta": meta})
         return {"docs": docs, "total": total, "doc_structure": getattr(doc_struct, "name", None)}
 
+    def kwic(self, req: FlexiRequest) -> Dict[str, Any]:
+        """Dispatchers and older clients may use ``operation`` kwic; Manatee only implements ``query``."""
+        return self.query(req)
+
     def query(self, req: FlexiRequest) -> Dict[str, Any]:
         project = dict(req.get("project") or {})
         params = dict(req.get("params") or {})
@@ -848,9 +892,11 @@ class ManateeBackend(CorpusBackend):
             }
 
         end = min(start + max_hits, total)
+        max_pos = self._corpus_max_token_index(corpus)
         token_attr = self._safe_get_pos_attr(corpus, "id") or self._safe_get_pos_attr(corpus, "word")
-        _doc_struct, doc_id_attr, _title_attr = self._doc_lookup(corpus)
+        doc_struct, doc_id_attr, _title_attr = self._doc_lookup(corpus)
         sentence_id_attr = self._sentence_id_attr(corpus)
+        sent_struct = self._safe_get_struct(corpus, "s")
         kl = manatee.KWICLines(corpus, conc.RS(True, start, end), "0", "0", "", "", "", "")
 
         hits: List[Dict[str, Any]] = []
@@ -859,10 +905,37 @@ class ManateeBackend(CorpusBackend):
             kwic_len_value = int(kl.get_kwiclen())
             kwic_len = kwic_len_value if kwic_len_value > 0 else 1
             match_end = match_start + kwic_len - 1
-            doc_id = self._safe_pos2str(doc_id_attr, match_start)
-            sentence_id = self._safe_pos2str(sentence_id_attr, match_start)
+            if max_pos is not None:
+                if match_start < 0 or match_start > max_pos:
+                    continue
+                match_end = min(match_end, max_pos)
+            if match_start > match_end:
+                continue
+
+            # Struct id attributes: use the region start that contains the match. Calling
+            # pos2str on a struct attribute at an arbitrary token index can segfault in _manatee.
+            if doc_id_attr is not None and doc_struct is not None:
+                doc_beg = self._struct_beg_containing(doc_struct, match_start)
+                doc_id = (
+                    self._safe_pos2str(doc_id_attr, doc_beg, max_pos=max_pos)
+                    if doc_beg is not None
+                    else None
+                )
+            else:
+                doc_id = None
+
+            if sentence_id_attr is not None and sent_struct is not None:
+                sent_beg = self._struct_beg_containing(sent_struct, match_start)
+                sentence_id = (
+                    self._safe_pos2str(sentence_id_attr, sent_beg, max_pos=max_pos)
+                    if sent_beg is not None
+                    else None
+                )
+            else:
+                sentence_id = None
+
             toks = [
-                self._safe_pos2str(token_attr, pos) or ""
+                self._safe_pos2str(token_attr, pos, max_pos=max_pos) or ""
                 for pos in range(match_start, match_end + 1)
             ]
             toks = [tok for tok in toks if tok]
