@@ -147,15 +147,43 @@ class ManateeBackend(CorpusBackend):
             return None
 
     @staticmethod
+    def _min_pos_limit(*limits: Optional[int]) -> Optional[int]:
+        vals = [v for v in limits if v is not None]
+        return min(vals) if vals else None
+
+    @staticmethod
     def _corpus_max_token_index(corpus: Any) -> Optional[int]:
-        """Last valid token index for bounds checks before native ``pos2str`` (segfaults on bad pos)."""
+        """Last valid global token index (min of ``size`` and ``search_size`` when both exist)."""
         try:
+            upper: List[int] = []
+            if hasattr(corpus, "search_size"):
+                ss = int(corpus.search_size())
+                if ss > 0:
+                    upper.append(ss - 1)
             if hasattr(corpus, "size"):
                 n = int(corpus.size())
-                return max(0, n - 1)
+                if n > 0:
+                    upper.append(n - 1)
+            if upper:
+                return min(upper)
         except Exception:
             pass
         return None
+
+    @staticmethod
+    def _positional_attr_max_pos(attr: Any, corpus: Any) -> Optional[int]:
+        """
+        Positional attributes can be shorter than ``corpus.size()``; ``pos2str`` may segfault
+        past ``attr.size() - 1`` even when the index is valid for the concordance.
+        """
+        try:
+            if attr is not None and hasattr(attr, "size"):
+                ns = int(attr.size())
+                if ns > 0:
+                    return max(0, ns - 1)
+        except Exception:
+            pass
+        return ManateeBackend._corpus_max_token_index(corpus)
 
     @staticmethod
     def _struct_beg_containing(struct_obj: Any, pos: int) -> Optional[int]:
@@ -893,7 +921,14 @@ class ManateeBackend(CorpusBackend):
 
         end = min(start + max_hits, total)
         max_pos = self._corpus_max_token_index(corpus)
-        token_attr = self._safe_get_pos_attr(corpus, "id") or self._safe_get_pos_attr(corpus, "word")
+        # Prefer word-like columns for KWIC; some ``id`` encodings crash in pos2str on certain indices.
+        token_attr = (
+            self._safe_get_pos_attr(corpus, "word")
+            or self._safe_get_pos_attr(corpus, "form")
+            or self._safe_get_pos_attr(corpus, "lemma")
+            or self._safe_get_pos_attr(corpus, "id")
+        )
+        token_lim = self._min_pos_limit(max_pos, self._positional_attr_max_pos(token_attr, corpus))
         doc_struct, doc_id_attr, _title_attr = self._doc_lookup(corpus)
         sentence_id_attr = self._sentence_id_attr(corpus)
         sent_struct = self._safe_get_struct(corpus, "s")
@@ -905,10 +940,10 @@ class ManateeBackend(CorpusBackend):
             kwic_len_value = int(kl.get_kwiclen())
             kwic_len = kwic_len_value if kwic_len_value > 0 else 1
             match_end = match_start + kwic_len - 1
-            if max_pos is not None:
-                if match_start < 0 or match_start > max_pos:
+            if token_lim is not None:
+                if match_start < 0 or match_start > token_lim:
                     continue
-                match_end = min(match_end, max_pos)
+                match_end = min(match_end, token_lim)
             if match_start > match_end:
                 continue
 
@@ -935,7 +970,7 @@ class ManateeBackend(CorpusBackend):
                 sentence_id = None
 
             toks = [
-                self._safe_pos2str(token_attr, pos, max_pos=max_pos) or ""
+                self._safe_pos2str(token_attr, pos, max_pos=token_lim) or ""
                 for pos in range(match_start, match_end + 1)
             ]
             toks = [tok for tok in toks if tok]

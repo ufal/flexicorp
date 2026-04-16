@@ -642,6 +642,11 @@ class FlexiBackend(CqpBackend):
         # Prefer word/form for display; fall back to id for token identifiers
         word_attr = self._get_manatee_posattr(corpus, "word") or self._get_manatee_posattr(corpus, "form")
         id_attr = self._get_manatee_posattr(corpus, "id")
+        attr_for_toks = word_attr if word_attr is not None else id_attr
+        token_lim = ManateeBackend._min_pos_limit(
+            max_pos,
+            ManateeBackend._positional_attr_max_pos(attr_for_toks, corpus),
+        )
         text_id_attr = self._get_manatee_struct_attr(corpus, "text", "id")
         sentence_id_attr = self._get_manatee_struct_attr(corpus, "s", "id")
         kl = manatee.KWICLines(
@@ -661,10 +666,10 @@ class FlexiBackend(CqpBackend):
             kwic_len_value = int(kl.get_kwiclen())
             kwic_len = kwic_len_value if kwic_len_value > 0 else len(parsed.pattern.items)
             match_end = match_start + kwic_len - 1
-            if max_pos is not None:
-                if match_start < 0 or match_start > max_pos:
+            if token_lim is not None:
+                if match_start < 0 or match_start > token_lim:
                     continue
-                match_end = min(match_end, max_pos)
+                match_end = min(match_end, token_lim)
             if match_start > match_end:
                 continue
 
@@ -678,11 +683,9 @@ class FlexiBackend(CqpBackend):
                 sent_beg = ManateeBackend._struct_beg_containing(sent_struct, match_start)
                 if sent_beg is not None:
                     sentence_id = ManateeBackend._safe_pos2str(sentence_id_attr, sent_beg, max_pos=max_pos)
-            # Use word/form for display (KWIC); fall back to id if no word attr
-            attr_for_toks = word_attr if word_attr is not None else id_attr
             toks = (
                 [
-                    ManateeBackend._safe_pos2str(attr_for_toks, pos, max_pos=max_pos) or ""
+                    ManateeBackend._safe_pos2str(attr_for_toks, pos, max_pos=token_lim) or ""
                     for pos in range(match_start, match_end + 1)
                 ]
                 if attr_for_toks
