@@ -1173,8 +1173,10 @@ class ManateeBackend(CorpusBackend):
         bulk_lex: Optional[List[List[str]]] = None
         if need_ranges and token_attr_name:
             bulk_lex = self._tokens_from_lexicon_files(file_scaffold, token_attr_name, need_ranges)
+        # Token *id* values (same as TEITOK XML <tok xml:id="…">). Needed for highlight_map — using
+        # surface lexicon strings breaks DOM matching in the UI (ids vs word forms).
         bulk_id_toks: Optional[List[List[str]]] = None
-        if context_spec and detected and need_ranges and file_scaffold is not None:
+        if need_ranges and file_scaffold is not None:
             pos_map = getattr(file_scaffold, "positional", None) or {}
             if isinstance(pos_map, dict) and "id" in pos_map:
                 bulk_id_toks = self._tokens_from_lexicon_files(file_scaffold, "id", need_ranges)
@@ -1229,16 +1231,17 @@ class ManateeBackend(CorpusBackend):
                     toks=toks,
                 ),
             }
-            if toks:
-                hit["highlight_map"] = build_highlight_map(toks)
+            hm_ids: List[str] = [str(t) for t in toks]
+            if bulk_id_toks is not None and row_idx < len(bulk_id_toks):
+                id_row = [t for t in bulk_id_toks[row_idx] if t]
+                if id_row:
+                    hm_ids = [str(t) for t in id_row]
+            if hm_ids:
+                hit["highlight_map"] = build_highlight_map(hm_ids)
             if detected and doc_id is not None:
                 hit["text_id"] = str(doc_id)
             if context_spec and detected and doc_id:
-                tok_ids_xml = [str(tok) for tok in toks]
-                if bulk_id_toks is not None and row_idx < len(bulk_id_toks):
-                    id_row = [t for t in bulk_id_toks[row_idx] if t]
-                    if id_row:
-                        tok_ids_xml = [str(t) for t in id_row]
+                tok_ids_xml = hm_ids
                 context = resolve_teitok_context(
                     root_dir=Path(detected.get("root") or ".").resolve(),
                     searchfolder=teitok_searchfolder,
