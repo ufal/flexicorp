@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 import xml.etree.ElementTree as ET
 
 from ..config import CqpConfig, ManateeConfig, get_cqp_config, get_manatee_config
@@ -57,11 +57,6 @@ def _split_conf_list(value: Any) -> List[str]:
 
 @dataclass
 class ManateeBackend(CorpusBackend):
-    # KonText uses non-zero left/right for real KWIC (see lib/kwiclib/__init__.py). Manatee leaves
-    # get_kwic() empty when left/right are "0" unless kwica is also empty (see get_groups_first_line).
-    KWIC_LEFT_CTX: ClassVar[str] = "-5"
-    KWIC_RIGHT_CTX: ClassVar[str] = "5"
-
     name: str = "manatee"
 
     def descriptor(self) -> Dict[str, Any]:
@@ -302,26 +297,6 @@ class ManateeBackend(CorpusBackend):
                 return [[""] * (b - a + 1) for a, b in ranges]
             except Exception:
                 return None
-
-    @staticmethod
-    def _strings_from_kwic_get_kwic(raw: Any) -> List[str]:
-        """
-        KonText (``lib/kwiclib/common.py`` ``tokens2strclass``) consumes the flat tuple from
-        ``KWICLines.get_kwic()`` as ``(token, class, token, class, ...)``. We keep token strings only.
-        Some bindings return an iterator; empty ``get_kwic()`` happens if left/right context is ``0``
-        while ``kwica`` is non-empty.
-        """
-        if raw is None:
-            return []
-        flat = list(raw)
-        if not flat:
-            return []
-        out: List[str] = []
-        for i in range(0, len(flat), 2):
-            s = str(flat[i]).strip()
-            if s:
-                out.append(s)
-        return out
 
     def _doc_structure_name(self, corpus: Any) -> Optional[str]:
         doc_struct = (self._safe_get_conf(corpus, "DOCSTRUCTURE") or "").strip()
@@ -1031,21 +1006,10 @@ class ManateeBackend(CorpusBackend):
         doc_struct, doc_id_attr, _title_attr = self._doc_lookup(corpus)
         sentence_id_attr = self._sentence_id_attr(corpus)
         sent_struct = self._safe_get_struct(corpus, "s")
-        # KonText (czcorpus/kontext) passes the positional attribute name into KWICLines as kwica
-        # and uses kl.get_kwic() — not per-token pos2str. See lib/kwiclib/__init__.py kwiclines().
-        # Do not use left=right="0" with non-empty kwica: get_kwic() stays empty (KonText uses kwica=""
-        # only for that case in get_groups_first_line).
-        kwica = str(token_attr_name or "").strip()
-        kl = manatee.KWICLines(
-            corpus,
-            conc.RS(True, start, end),
-            self.KWIC_LEFT_CTX,
-            self.KWIC_RIGHT_CTX,
-            kwica,
-            "",
-            "",
-            "",
-        )
+        # Use KonText's safe iteration-only pattern (get_groups_first_line): left=right="0" and
+        # empty kwica. Non-zero context + kwica can segfault in nextline() on some _manatee builds;
+        # with 0/0 + empty kwica, get_kwic() is empty — decode match tokens via batched lexicon or pos2str.
+        kl = manatee.KWICLines(corpus, conc.RS(True, start, end), "0", "0", "", "", "", "")
 
         rows: List[Dict[str, Any]] = []
         while kl.nextline():
@@ -1082,24 +1046,18 @@ class ManateeBackend(CorpusBackend):
             else:
                 sentence_id = None
 
-            toks_kwic = self._strings_from_kwic_get_kwic(kl.get_kwic())
             rows.append(
                 {
                     "match_start": match_start,
                     "match_end": match_end,
                     "doc_id": doc_id,
                     "sentence_id": sentence_id,
-                    "toks_kwic": toks_kwic,
                 }
             )
 
-        need_ranges = [
-            (int(r["match_start"]), int(r["match_end"]))
-            for r in rows
-            if kwica and not r["toks_kwic"]
-        ]
+        need_ranges = [(int(r["match_start"]), int(r["match_end"])) for r in rows]
         bulk_lex: Optional[List[List[str]]] = None
-        if need_ranges:
+        if need_ranges and token_attr_name:
             bulk_lex = self._tokens_from_lexicon_files(file_scaffold, token_attr_name, need_ranges)
 
         hits: List[Dict[str, Any]] = []
@@ -1109,11 +1067,10 @@ class ManateeBackend(CorpusBackend):
             match_end = int(r["match_end"])
             doc_id = r.get("doc_id")
             sentence_id = r.get("sentence_id")
-            toks = list(r["toks_kwic"])
-            if not toks and kwica:
-                if bulk_lex is not None and bidx < len(bulk_lex):
-                    toks = [t for t in bulk_lex[bidx] if t]
-                bidx += 1
+            toks: List[str] = []
+            if bulk_lex is not None and bidx < len(bulk_lex):
+                toks = [t for t in bulk_lex[bidx] if t]
+            bidx += 1
             if not toks:
                 toks = [
                     self._safe_pos2str(token_attr, pos, max_pos=token_lim) or ""
