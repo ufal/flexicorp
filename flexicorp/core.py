@@ -545,8 +545,23 @@ def handle_request(req: FlexiRequest) -> FlexiResponse:
             message=str(e) or f"Operation '{operation}' not implemented for backend '{backend_name}'.",
         )
     except Exception as e:  # pragma: no cover - defensive
-        # Avoid leaking secrets; keep message high-level.
-        msg = f"Internal error in backend '{backend_name}' during '{operation}': {e}"
+        err_text = str(e)
+        err_lc = err_text.lower()
+        if backend_name in {"clickhouse", "clickql"} and any(
+            needle in err_lc
+            for needle in (
+                "httpconnectionpool",
+                "newconnectionerror",
+                "connection refused",
+                "failed to establish a new connection",
+                "executing http request",
+                "max retries exceeded",
+            )
+        ):
+            msg = "ClickHouse server unavailable or misconfigured."
+        else:
+            # Avoid leaking secrets; keep message high-level.
+            msg = f"Internal error in backend '{backend_name}' during '{operation}': {e}"
         return _make_error_response(
             backend=backend_name,
             operation=operation,

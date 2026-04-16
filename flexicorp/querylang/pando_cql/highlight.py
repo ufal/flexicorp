@@ -63,11 +63,35 @@ _IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_-]*")
 _TWO_CHAR_OPS = (">>", "<<", "!>", "!<", "!=", "<=", ">=", "::")
 
 
+def _escape_html(text: str) -> str:
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
 def _classify_ident(text: str) -> TokenKind:
     low = text.lower()
     if low in _COMMAND_KEYWORDS or low in _OTHER_KEYWORDS:
         return "keyword"
     return "attr"
+
+
+def _looks_like_region_start(source: str, start: int) -> bool:
+    """
+    Heuristic for TEITOK-like region syntax: <tag...>
+    Treat '<' as region start only when the next non-space char is an identifier start.
+    """
+    j = start + 1
+    n = len(source)
+    while j < n and source[j].isspace():
+        j += 1
+    if j >= n:
+        return False
+    ch = source[j]
+    return ch.isalpha() or ch == "_"
 
 
 def _consume_string(source: str, start: int) -> int:
@@ -146,6 +170,9 @@ def _light_validate(source: str) -> str | None:
                     i = m.end()
                 if i < n and source[i] == ">":
                     i += 1
+                continue
+            if not _looks_like_region_start(source, i):
+                i += 1
                 continue
             j = i + 1
             while j < n and source[j] != ">":
@@ -226,6 +253,10 @@ def _tokenize_pando_cql(source: str) -> List[Dict[str, Any]]:
             continue
 
         if source[i] == "<":
+            if not _looks_like_region_start(source, i):
+                tokens.append({"text": "<", "kind": "op"})
+                i += 1
+                continue
             tokens.append({"text": "<", "kind": "bracket"})
             i += 1
             start_inner = i
@@ -237,6 +268,9 @@ def _tokenize_pando_cql(source: str) -> List[Dict[str, Any]]:
                     tokens.append({"text": inner, "kind": "attr"})
                 tokens.append({"text": ">", "kind": "bracket"})
                 i += 1
+            else:
+                # No closing '>': treat lone '<' as operator and continue lexing.
+                tokens[-1] = {"text": "<", "kind": "op"}
             continue
 
         if source[i] in "|&%":
@@ -299,6 +333,6 @@ def highlight_pando_cql(
             text = t["text"]
             kind = t.get("kind", "attr")
             cls = f"flexicorp-hl-{kind}"
-            parts.append(f'<span class="{cls}">{text}</span>')
+            parts.append(f'<span class="{cls}">{_escape_html(text)}</span>')
         out["html"] = "".join(parts)
     return out

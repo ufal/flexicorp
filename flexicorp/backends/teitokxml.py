@@ -180,6 +180,36 @@ def _scan_xmlfiles(root: Path, searchfolder: Optional[str]) -> List[Tuple[str, s
     return results
 
 
+def _split_searchfolders(value: Any) -> List[str]:
+    raw = str(value or "").strip()
+    if not raw:
+        return ["xmlfiles"]
+    folders = [part.strip().strip("/").replace("\\", "/") for part in raw.split(",")]
+    folders = [folder for folder in folders if folder]
+    return folders or ["xmlfiles"]
+
+
+def _resolve_scan_searchfolder(root: Path, value: Any) -> str:
+    folders = _split_searchfolders(value)
+    if len(folders) == 1:
+        return folders[0]
+
+    # TEITOK may configure searchfolder as a comma-separated list of subfolders
+    # (e.g. xmlfiles/facebook,xmlfiles/twitter,...). For recursive scanning we
+    # can safely collapse this to their common top-level root when present.
+    roots = {folder.split("/", 1)[0] for folder in folders if folder}
+    if len(roots) == 1:
+        common_root = next(iter(roots))
+        if (root / common_root).is_dir():
+            return common_root
+
+    # If there is no shared root, scan the first existing configured folder.
+    for folder in folders:
+        if (root / folder).is_dir():
+            return folder
+    return folders[0]
+
+
 def _get_searchfolder(project: Dict[str, Any]) -> Optional[str]:
     teitok_cfg = project.get("teitok") or {}
     sf = teitok_cfg.get("searchfolder")
@@ -269,7 +299,7 @@ def _load_settings_profile(root: Path, searchfolder: Optional[str]) -> Dict[str,
         "settings_path": None,
         "token_attrs": [],
         "meta_fields": [],
-        "searchfolder": searchfolder or "xmlfiles",
+        "searchfolder": _resolve_scan_searchfolder(root, searchfolder or "xmlfiles"),
     }
     settings_path = _find_settings_file(root)
     if settings_path is None:
@@ -310,7 +340,7 @@ def _load_settings_profile(root: Path, searchfolder: Optional[str]) -> Dict[str,
     if cqp_elem is not None:
         sf = str(cqp_elem.get("searchfolder") or "").strip()
         if sf:
-            profile["searchfolder"] = sf
+            profile["searchfolder"] = _resolve_scan_searchfolder(root, sf)
     return profile
 
 

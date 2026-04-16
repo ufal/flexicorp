@@ -27,6 +27,15 @@ _IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_\-.:]*")
 _KEYWORDS = frozenset({"within"})
 
 
+def _escape_html(text: str) -> str:
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
 def _tokenize_cwb_cql(source: str) -> List[Dict[str, Any]]:
     """Tokenize a CWB-CQL snippet into {text, kind} spans. No validation."""
     if not source:
@@ -110,8 +119,8 @@ def highlight_cwb_cql(
 
     HTML format uses classes: flexicorp-hl-bracket, flexicorp-hl-attr,
     flexicorp-hl-op, flexicorp-hl-string, flexicorp-hl-space, flexicorp-hl-wildcard,
-    flexicorp-hl-keyword. No character escaping is applied so that stripping tags
-    yields the original query string exactly.
+    flexicorp-hl-keyword. Token text is HTML-escaped before insertion so operators
+    like "<" render safely inside spans.
     """
     snippet = (snippet or "").strip()
     out: Dict[str, Any] = {"tokens": _tokenize_cwb_cql(snippet)}
@@ -125,9 +134,7 @@ def highlight_cwb_cql(
         for t in out["tokens"]:
             text = t["text"]
             kind = t.get("kind", "attr")
-            # No escaping: stripping all <span ...> and </span> must yield the
-            # original query character-for-character. Use flexicorp-hl-* classes.
             cls = f"flexicorp-hl-{kind}"
-            parts.append(f'<span class="{cls}">{text}</span>')
+            parts.append(f'<span class="{cls}">{_escape_html(text)}</span>')
         out["html"] = "".join(parts)
     return out
