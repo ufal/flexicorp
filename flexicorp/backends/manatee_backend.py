@@ -815,6 +815,12 @@ class ManateeBackend(CorpusBackend):
             for region, attrs in dict(meta.get("sattributes_by_region") or {}).items()
             if str(region).strip()
         }
+        # Keep this path independent of source CQP registry files. We always need text/s ids
+        # in Manatee output for context resolution; flexencoder emits these consistently.
+        if "text" in sattributes_by_region and "id" not in sattributes_by_region["text"]:
+            sattributes_by_region["text"].append("id")
+        if "s" in sattributes_by_region and "id" not in sattributes_by_region["s"]:
+            sattributes_by_region["s"].append("id")
 
         if "word" not in pattributes:
             pattributes.insert(0, "word")
@@ -852,12 +858,30 @@ class ManateeBackend(CorpusBackend):
         decode_cmd.append(str(source_cfg.corpus))
         for attr in pattributes:
             decode_cmd.extend(["-P", attr])
+        seen_sopts: set[str] = set()
         for region, attrs in sattributes_by_region.items():
-            decode_cmd.extend(["-S", region])
+            region_name = str(region).strip()
+            if not region_name:
+                continue
+            if region_name not in seen_sopts:
+                decode_cmd.extend(["-S", region_name])
+                seen_sopts.add(region_name)
             for attr in attrs:
-                decode_cmd.extend(["-S", f"{region}_{attr}"])
-        if "text" in sattributes_by_region:
+                attr_name = str(attr).strip()
+                if not attr_name:
+                    continue
+                struct_attr = f"{region_name}_{attr_name}"
+                if struct_attr in seen_sopts:
+                    continue
+                decode_cmd.extend(["-S", struct_attr])
+                seen_sopts.add(struct_attr)
+        # Always preserve canonical text/s ids when corresponding regions are requested.
+        if "text" in sattributes_by_region and "text_id" not in seen_sopts:
             decode_cmd.extend(["-S", "text_id"])
+            seen_sopts.add("text_id")
+        if "s" in sattributes_by_region and "s_id" not in seen_sopts:
+            decode_cmd.extend(["-S", "s_id"])
+            seen_sopts.add("s_id")
 
         prefix = "[flexicorp][manatee][reindex-cwb] "
         if verbose:
@@ -1178,10 +1202,20 @@ class ManateeBackend(CorpusBackend):
         # Token *id* values (same as TEITOK XML <tok xml:id="…">). Needed for highlight_map — using
         # surface lexicon strings breaks DOM matching in the UI (ids vs word forms).
         bulk_id_toks: Optional[List[List[str]]] = None
+        bulk_doc_ids: Optional[List[List[str]]] = None
+        bulk_sentence_ids: Optional[List[List[str]]] = None
         if need_ranges and file_scaffold is not None:
             pos_map = getattr(file_scaffold, "positional", None) or {}
-            if isinstance(pos_map, dict) and "id" in pos_map:
-                bulk_id_toks = self._tokens_from_lexicon_files(file_scaffold, "id", need_ranges)
+            if isinstance(pos_map, dict):
+                if "id" in pos_map:
+                    bulk_id_toks = self._tokens_from_lexicon_files(file_scaffold, "id", need_ranges)
+                # Prefer positional ids written by flexencoder for context location. These are in
+                # the same token stream as Manatee cpos and avoid fragile struct-attr reads.
+                point_ranges = [(a, a) for (a, _b) in need_ranges]
+                if "text_id" in pos_map:
+                    bulk_doc_ids = self._tokens_from_lexicon_files(file_scaffold, "text_id", point_ranges)
+                if "s_id" in pos_map:
+                    bulk_sentence_ids = self._tokens_from_lexicon_files(file_scaffold, "s_id", point_ranges)
 
         teitok_searchfolder = "xmlfiles"
         if context_spec and detected and project.get("root"):
@@ -1197,6 +1231,14 @@ class ManateeBackend(CorpusBackend):
             match_end = int(r["match_end"])
             doc_id = r.get("doc_id")
             sentence_id = r.get("sentence_id")
+            if bulk_doc_ids is not None and row_idx < len(bulk_doc_ids):
+                drow = [t for t in bulk_doc_ids[row_idx] if t]
+                if drow:
+                    doc_id = str(drow[0])
+            if bulk_sentence_ids is not None and row_idx < len(bulk_sentence_ids):
+                srow = [t for t in bulk_sentence_ids[row_idx] if t]
+                if srow:
+                    sentence_id = str(srow[0])
             toks: List[str] = []
             if bulk_lex is not None and row_idx < len(bulk_lex):
                 toks = [t for t in bulk_lex[row_idx] if t]

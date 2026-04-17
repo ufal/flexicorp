@@ -1292,13 +1292,14 @@ def prepare_runtime_registry(cfg: ManateeConfig) -> ManateeRuntimeSetup:
     registry_text = summary.registry_file.read_text(encoding="utf-8", errors="ignore")
     patched_lines: List[str] = []
     local_vertical = summary.registry_file.parent / "corpus.vrt"
+    structure_block_depth = 0
     for raw_line in registry_text.splitlines():
         line = raw_line.strip()
         if line.startswith("PATH "):
             patched_lines.append(f'PATH  "{resolved}"')
         elif line.startswith("VERTICAL ") and local_vertical.is_file():
             patched_lines.append(f'VERTICAL "{local_vertical}"')
-        elif line.startswith("ATTRIBUTE ") and "{" not in line:
+        elif line.startswith("ATTRIBUTE ") and "{" not in line and structure_block_depth == 0:
             # Wrap ATTRIBUTE into a block and force TYPE "FD_MI" (int_text),
             # so Manatee uses int_text instead of delta_text (no *.text.seg needed).
             parts = line.split()
@@ -1312,6 +1313,10 @@ def prepare_runtime_registry(cfg: ManateeConfig) -> ManateeRuntimeSetup:
             patched_lines.append("}")
         else:
             patched_lines.append(raw_line)
+        if line.startswith("STRUCTURE ") and "{" in line:
+            structure_block_depth += 1
+        elif structure_block_depth > 0 and line.startswith("}"):
+            structure_block_depth -= 1
 
     runtime_dir = Path(tempfile.mkdtemp(prefix="flexicorp-manatee-registry-"))
     runtime_file = runtime_dir / summary.registry_file.name
