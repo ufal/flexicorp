@@ -654,7 +654,14 @@ class ManateeBackend(CorpusBackend):
         cfg = get_cqp_config(cqp_project)
         if cfg is None:
             raise ManateeBackendError("Could not determine source CQP configuration for Manatee reindex.")
-        cfg = CqpBackend()._maybe_patch_registry_home(cfg, cqp_project, debug=False)
+        # Keep compatibility with CQP backend internals across refactors.
+        # Older code used `_maybe_patch_registry_home`; current code exposes
+        # `_prepare_runtime_registry` for the same purpose.
+        cqp_backend = CqpBackend()
+        if hasattr(cqp_backend, "_maybe_patch_registry_home"):
+            cfg = cqp_backend._maybe_patch_registry_home(cfg, cqp_project, debug=False)  # type: ignore[attr-defined]
+        elif hasattr(cqp_backend, "_prepare_runtime_registry"):
+            cfg = cqp_backend._prepare_runtime_registry(cfg, cqp_project, debug=False)  # type: ignore[attr-defined]
         return cfg, detected
 
     def _target_manatee_config(self, req: FlexiRequest, detected_cqp: Dict[str, Any]) -> ManateeConfig:
