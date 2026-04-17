@@ -5,6 +5,17 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+# ElementTree exposes TEI/TEITOK `xml:id` as this Clark notation key, not `id`.
+_XML_NS_ID = "{http://www.w3.org/XML/1998/namespace}id"
+
+
+def _elem_xml_id(elem: ET.Element) -> Optional[str]:
+    v = elem.get("id") or elem.get(_XML_NS_ID)
+    if v is None:
+        return None
+    s = str(v).strip()
+    return s if s else None
+
 
 def normalize_context_request(params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     raw_context = params.get("context")
@@ -115,7 +126,8 @@ def extract_teitok_fragment_xml(
     if tok_ids:
         for elem in xml_root.iter():
             local_tag = elem.tag.split("}", 1)[-1] if "}" in elem.tag else elem.tag
-            if local_tag in {"tok", "dtok"} and elem.get("id") in tok_id_set:
+            eid = _elem_xml_id(elem)
+            if local_tag in {"tok", "dtok"} and eid is not None and eid in tok_id_set:
                 matched_tokens.append(elem)
 
     if scope == "tok":
@@ -127,7 +139,8 @@ def extract_teitok_fragment_xml(
     if sentence_id:
         for elem in xml_root.iter():
             local_tag = elem.tag.split("}", 1)[-1] if "}" in elem.tag else elem.tag
-            if local_tag == target_tag and elem.get("id") == sentence_id:
+            eid = _elem_xml_id(elem)
+            if local_tag == target_tag and eid == sentence_id:
                 return ET.tostring(elem, encoding="unicode"), target_tag
 
     if tok_ids:
@@ -211,7 +224,7 @@ def resolve_teitok_context(
     if not derived_sentence_id and resolved_scope != "tok":
         try:
             parsed_fragment = ET.fromstring(fragment)
-            derived_sentence_id = parsed_fragment.get("id") or parsed_fragment.get("{http://www.w3.org/XML/1998/namespace}id")
+            derived_sentence_id = _elem_xml_id(parsed_fragment)
         except ET.ParseError:
             derived_sentence_id = sentence_id
     if derived_sentence_id:
