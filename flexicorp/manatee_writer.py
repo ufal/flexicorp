@@ -324,6 +324,11 @@ def convert_jsonl_to_manatee(
     # Materialize canonical TEITOK ids as positional attributes so Manatee queries can
     # always recover text/sentence ids without depending on structural attr encoding.
     for t in tokens:
+        tok_id = str(t.get("tok_id", "")).strip()
+        if tok_id and not str(t.get("id", "")).strip():
+            # ClickHouse JSONL stores token ids as tok_id; expose canonical "id" too so
+            # Manatee positional id / highlight_map use TEITOK token ids, not surface forms.
+            t["id"] = tok_id
         try:
             doc_id = int(t.get("doc_id", -1))
         except Exception:

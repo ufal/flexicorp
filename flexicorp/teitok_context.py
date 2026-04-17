@@ -136,13 +136,6 @@ def extract_teitok_fragment_xml(
             return " ".join(xml_parts), "tok"
         return None, "tok"
 
-    if sentence_id:
-        for elem in xml_root.iter():
-            local_tag = elem.tag.split("}", 1)[-1] if "}" in elem.tag else elem.tag
-            eid = _elem_xml_id(elem)
-            if local_tag == target_tag and eid == sentence_id:
-                return ET.tostring(elem, encoding="unicode"), target_tag
-
     if tok_ids:
         for elem in xml_root.iter():
             local_tag = elem.tag.split("}", 1)[-1] if "}" in elem.tag else elem.tag
@@ -167,6 +160,13 @@ def extract_teitok_fragment_xml(
                 local_tag = parent.tag.split("}", 1)[-1] if "}" in parent.tag else parent.tag
                 return ET.tostring(parent, encoding="unicode"), local_tag
             return ET.tostring(first_tok, encoding="unicode"), "tok"
+
+    if sentence_id:
+        for elem in xml_root.iter():
+            local_tag = elem.tag.split("}", 1)[-1] if "}" in elem.tag else elem.tag
+            eid = _elem_xml_id(elem)
+            if local_tag == target_tag and eid == sentence_id:
+                return ET.tostring(elem, encoding="unicode"), target_tag
 
     return None, scope
 

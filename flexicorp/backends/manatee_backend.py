@@ -233,6 +233,41 @@ class ManateeBackend(CorpusBackend):
             return None
 
     @staticmethod
+    def _tok_ids_from_sentence_fragment_by_offset(
+        fragment_xml: str,
+        *,
+        token_offset_start: int,
+        token_offset_end: int,
+    ) -> List[str]:
+        """
+        Extract token ids from an XML sentence fragment by token-index offsets.
+
+        Offsets are relative to sentence start cpos. This lets us recover exact matched
+        token ids even when Manatee positional attribute ``id`` is missing or malformed.
+        """
+        if token_offset_start < 0 or token_offset_end < token_offset_start:
+            return []
+        try:
+            root = ET.fromstring(fragment_xml)
+        except ET.ParseError:
+            return []
+        ids: List[str] = []
+        tok_idx = -1
+        for elem in root.iter():
+            local_tag = elem.tag.split("}", 1)[-1] if "}" in elem.tag else elem.tag
+            if local_tag not in {"tok", "dtok"}:
+                continue
+            tok_idx += 1
+            if tok_idx < token_offset_start:
+                continue
+            if tok_idx > token_offset_end:
+                break
+            tok_id = elem.get("id") or elem.get("{http://www.w3.org/XML/1998/namespace}id")
+            if tok_id:
+                ids.append(str(tok_id))
+        return ids
+
+    @staticmethod
     def _manatee_concordance_corpus(conc: Any, fallback: Any) -> Any:
         """
         KonText passes ``conc.corp()`` into ``KWICLines``, not the original ``Corpus`` handle
@@ -1176,6 +1211,7 @@ class ManateeBackend(CorpusBackend):
             if doc_id is None and flex_xidx and teitok_root is not None:
                 doc_id = text_id_stem_for_cpos(teitok_root, match_start)
 
+            sent_beg: Optional[int] = None
             if sentence_id_attr is not None and sent_struct is not None:
                 sent_beg = self._struct_beg_containing(sent_struct, match_start)
                 sentence_id = (
@@ -1192,6 +1228,7 @@ class ManateeBackend(CorpusBackend):
                     "match_end": match_end,
                     "doc_id": doc_id,
                     "sentence_id": sentence_id,
+                    "sentence_start": sent_beg if sent_struct is not None else None,
                 }
             )
 
@@ -1231,6 +1268,7 @@ class ManateeBackend(CorpusBackend):
             match_end = int(r["match_end"])
             doc_id = r.get("doc_id")
             sentence_id = r.get("sentence_id")
+            sentence_start = r.get("sentence_start")
             if bulk_doc_ids is not None and row_idx < len(bulk_doc_ids):
                 drow = [t for t in bulk_doc_ids[row_idx] if t]
                 if drow:
@@ -1270,8 +1308,6 @@ class ManateeBackend(CorpusBackend):
                 id_row = [t for t in bulk_id_toks[row_idx] if t]
                 if id_row:
                     hm_ids = [str(t) for t in id_row]
-            if hm_ids:
-                hit["highlight_map"] = build_highlight_map(hm_ids)
             if detected and doc_id is not None:
                 hit["text_id"] = str(doc_id)
             if context_spec and detected and doc_id:
@@ -1292,7 +1328,26 @@ class ManateeBackend(CorpusBackend):
                     xidx_resolver=None,
                 )
                 if context:
+                    if (
+                        isinstance(context.get("data"), str)
+                        and isinstance(sentence_start, int)
+                        and match_start >= sentence_start
+                    ):
+                        rel_start = match_start - sentence_start
+                        rel_end = match_end - sentence_start
+                        anchored_ids = self._tok_ids_from_sentence_fragment_by_offset(
+                            str(context["data"]),
+                            token_offset_start=rel_start,
+                            token_offset_end=rel_end,
+                        )
+                        if anchored_ids:
+                            hm_ids = anchored_ids
+                            locator = context.get("locator")
+                            if isinstance(locator, dict):
+                                locator["token_ids"] = list(anchored_ids)
                     hit["context"] = context
+            if hm_ids:
+                hit["highlight_map"] = build_highlight_map(hm_ids)
             hits.append(hit)
 
         return {
