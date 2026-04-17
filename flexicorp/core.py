@@ -349,8 +349,11 @@ def _run_flexencoder_reindex(
 
 def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
     """
-    Run reindex for multiple backends in one go. Uses flexencoder for CQP and/or
-    ClickHouse (single extraction pass), then runs BlackLab reindex separately if requested.
+    Run reindex for multiple backends in one go.
+
+    - Uses flexencoder for CQP and/or ClickHouse (single extraction pass).
+    - Uses native Manatee backend reindex for Manatee output (encodevert/mkstats/mksizes path).
+    - Runs BlackLab reindex separately if requested.
     """
     params = req.get("params") or {}
     backends_raw = params.get("reindex_backends")
@@ -391,17 +394,14 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
     results: List[Dict[str, Any]] = []
     errors: List[str] = []
 
-    flexencoder_backends = [b for b in backends if b in ("cqp", "clickhouse", "clickql", "manatee")]
+    flexencoder_backends = [b for b in backends if b in ("cqp", "clickhouse", "clickql")]
     if flexencoder_backends:
-        # CWB output only when CQP requested; Manatee/ClickHouse use JSONL only (no CWB required)
+        # CWB output when CQP requested; ClickHouse uses JSONL from the same flexencoder pass.
         output_cwb = root_dir / "cqp" if "cqp" in flexencoder_backends else None
-        needs_jsonl = any(b in ("clickhouse", "clickql", "manatee") for b in flexencoder_backends)
+        needs_jsonl = any(b in ("clickhouse", "clickql") for b in flexencoder_backends)
         output_clickhouse = (root_dir / "tmp" / "clickhouse") if needs_jsonl else None
-        output_manatee = (root_dir / "manatee") if "manatee" in flexencoder_backends else None
         if output_clickhouse:
             output_clickhouse.mkdir(parents=True, exist_ok=True)
-        if output_manatee:
-            output_manatee.mkdir(parents=True, exist_ok=True)
         try:
             r = _run_flexencoder_reindex(
                 root_dir, settings_path,
@@ -422,23 +422,6 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
                         errors.append(load_result.get("error", "ClickHouse load failed"))
                     else:
                         r["clickhouse_loaded"] = load_result.get("loaded", {})
-                if output_manatee:
-                    from .manatee_writer import convert_jsonl_to_manatee
-                    from .teitok import detect_teitok_cqp
-                    detected = detect_teitok_cqp(root_dir) or {}
-                    corpus_name = (detected.get("cqp") or {}).get("corpus") or project.get("cqp", {}).get("corpus") or "corpus"
-                    if isinstance(corpus_name, str):
-                        corpus_name = corpus_name.strip().lower().replace("-", "_")
-                    manatee_result = convert_jsonl_to_manatee(
-                        jsonl_dir,
-                        output_manatee / "corp",
-                        corpus_name=corpus_name,
-                        settings_path=settings_path,
-                    )
-                    if not manatee_result.get("ok"):
-                        errors.append(manatee_result.get("error", "Manatee conversion failed"))
-                    else:
-                        r["manatee_output"] = manatee_result
         except Exception as e:
             errors.append(f"flexencoder: {e}")
 
@@ -452,6 +435,15 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
                     results.append({"backend": "blacklab", **r})
             except Exception as e:
                 errors.append(f"blacklab: {e}")
+        elif name == "manatee":
+            try:
+                man = ensure_backend_loaded("manatee")
+                if man and hasattr(man, "reindex"):
+                    req_single = {**req, "backend": "manatee"}
+                    r = man.reindex(req_single)
+                    results.append({"backend": "manatee", **r})
+            except Exception as e:
+                errors.append(f"manatee: {e}")
 
     message = f"Reindex for {', '.join(backends)} finished."
     if errors:

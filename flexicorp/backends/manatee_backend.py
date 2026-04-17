@@ -238,6 +238,7 @@ class ManateeBackend(CorpusBackend):
         *,
         token_offset_start: int,
         token_offset_end: int,
+        expected_tokens: Optional[List[str]] = None,
     ) -> List[str]:
         """
         Extract token ids from an XML sentence fragment by token-index offsets.
@@ -251,21 +252,56 @@ class ManateeBackend(CorpusBackend):
             root = ET.fromstring(fragment_xml)
         except ET.ParseError:
             return []
-        ids: List[str] = []
-        tok_idx = -1
+
+        tok_ids_all: List[str] = []
+        tok_text_all: List[str] = []
         for elem in root.iter():
             local_tag = elem.tag.split("}", 1)[-1] if "}" in elem.tag else elem.tag
             if local_tag not in {"tok", "dtok"}:
                 continue
-            tok_idx += 1
-            if tok_idx < token_offset_start:
-                continue
-            if tok_idx > token_offset_end:
-                break
             tok_id = elem.get("id") or elem.get("{http://www.w3.org/XML/1998/namespace}id")
             if tok_id:
-                ids.append(str(tok_id))
-        return ids
+                tok_ids_all.append(str(tok_id))
+            else:
+                tok_ids_all.append("")
+            tok_text_all.append("".join(elem.itertext()).strip())
+
+        if not tok_ids_all:
+            return []
+
+        def _slice_ids(start_idx: int, end_idx: int) -> List[str]:
+            out: List[str] = []
+            for i in range(start_idx, min(end_idx + 1, len(tok_ids_all))):
+                tid = tok_ids_all[i]
+                if tid:
+                    out.append(tid)
+            return out
+
+        # 1) Primary anchor: sentence-relative cpos offsets.
+        if 0 <= token_offset_start < len(tok_ids_all):
+            by_offset = _slice_ids(token_offset_start, token_offset_end)
+        else:
+            by_offset = []
+
+        # 2) Validation/recovery: if expected surface tokens are known and offset points to
+        # wrong token(s), locate the expected sequence in the XML sentence and pick nearest hit.
+        exp = [str(t).strip() for t in (expected_tokens or []) if str(t).strip()]
+        if exp and len(exp) <= len(tok_text_all):
+            def _window_matches(i: int) -> bool:
+                if i < 0 or i + len(exp) > len(tok_text_all):
+                    return False
+                for j, et in enumerate(exp):
+                    if tok_text_all[i + j] != et:
+                        return False
+                return True
+
+            if not _window_matches(token_offset_start):
+                candidates = [i for i in range(0, len(tok_text_all) - len(exp) + 1) if _window_matches(i)]
+                if candidates:
+                    best = min(candidates, key=lambda i: abs(i - token_offset_start))
+                    return _slice_ids(best, best + len(exp) - 1)
+
+        return by_offset
 
     @staticmethod
     def _manatee_concordance_corpus(conc: Any, fallback: Any) -> Any:
@@ -1339,6 +1375,7 @@ class ManateeBackend(CorpusBackend):
                             str(context["data"]),
                             token_offset_start=rel_start,
                             token_offset_end=rel_end,
+                            expected_tokens=toks,
                         )
                         if anchored_ids:
                             hm_ids = anchored_ids
