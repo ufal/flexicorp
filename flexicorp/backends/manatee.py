@@ -1122,7 +1122,13 @@ def parse_manatee_registry(registry_file: Path) -> ManateeRegistrySummary:
                 docstructure = _strip_registry_value(line.split(None, 1)[1])
                 continue
             if line.startswith("ATTRIBUTE "):
-                name = line.split()[1]
+                tail = line.split(None, 1)[1] if " " in line else ""
+                name_token = tail.split("{", 1)[0].strip()
+                if " " in name_token:
+                    name_token = name_token.split()[0]
+                name = _strip_registry_value(name_token)
+                if not name:
+                    continue
                 if current_structure is not None:
                     current_structure.attributes.append(name)
                 else:
@@ -1130,7 +1136,13 @@ def parse_manatee_registry(registry_file: Path) -> ManateeRegistrySummary:
                     positional[name] = current_attribute
                 continue
             if line.startswith("STRUCTURE "):
-                name = line.split()[1]
+                tail = line.split(None, 1)[1] if " " in line else ""
+                name_token = tail.split("{", 1)[0].strip()
+                if " " in name_token:
+                    name_token = name_token.split()[0]
+                name = _strip_registry_value(name_token)
+                if not name:
+                    continue
                 current_structure = ManateeRegistryStructure(name=name, attributes=[])
                 structural[name] = current_structure
                 current_attribute = None
