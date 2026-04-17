@@ -726,6 +726,12 @@ class ManateeBackend(CorpusBackend):
         prefix: str,
     ) -> None:
         """Run encodevert, mkstats, mktokencov, mksizes to build Manatee corp/ from VRT (no compilecorp)."""
+        try:
+            step_timeout_sec = int(params.get("manatee_step_timeout_sec", 900))
+        except Exception:
+            step_timeout_sec = 900
+        if step_timeout_sec <= 0:
+            step_timeout_sec = 900
         tools_path = self._manatee_tools_path(project, params)
         if not tools_path and env.get("MANATEE_SRC"):
             tools_path = Path(env["MANATEE_SRC"]).expanduser().resolve()
@@ -768,6 +774,7 @@ class ManateeBackend(CorpusBackend):
             verbose=verbose,
             prefix=prefix,
             env=run_env,
+            timeout_sec=step_timeout_sec,
         )
         corpinfo_bin = shutil.which("corpinfo", path=run_env.get("PATH"))
         if corpinfo_bin:
@@ -797,6 +804,7 @@ class ManateeBackend(CorpusBackend):
                             verbose=verbose,
                             prefix=prefix,
                             env=run_env,
+                            timeout_sec=step_timeout_sec,
                         )
                     except ManateeBackendError:
                         pass
@@ -809,6 +817,7 @@ class ManateeBackend(CorpusBackend):
                     verbose=verbose,
                     prefix=prefix,
                     env=run_env,
+                    timeout_sec=step_timeout_sec,
                 )
             except ManateeBackendError:
                 pass
@@ -821,6 +830,7 @@ class ManateeBackend(CorpusBackend):
                     verbose=verbose,
                     prefix=prefix,
                     env=run_env,
+                    timeout_sec=step_timeout_sec,
                 )
             except ManateeBackendError:
                 try:
@@ -830,6 +840,7 @@ class ManateeBackend(CorpusBackend):
                         verbose=verbose,
                         prefix=prefix,
                         env=run_env,
+                        timeout_sec=step_timeout_sec,
                     )
                 except ManateeBackendError:
                     pass
@@ -843,6 +854,7 @@ class ManateeBackend(CorpusBackend):
         prefix: str,
         stdin_path: Optional[Path] = None,
         env: Optional[Dict[str, str]] = None,
+        timeout_sec: Optional[int] = None,
     ) -> subprocess.CompletedProcess[str]:
         if verbose:
             print(prefix + "Running: " + " ".join(str(part) for part in cmd), file=sys.stderr)
@@ -858,7 +870,12 @@ class ManateeBackend(CorpusBackend):
                 env=env,
                 capture_output=True,
                 check=False,
+                timeout=timeout_sec,
             )
+        except subprocess.TimeoutExpired as exc:
+            raise ManateeBackendError(
+                f"Command timed out after {timeout_sec}s: {' '.join(str(part) for part in cmd)}"
+            ) from exc
         finally:
             if stdin_handle is not None:
                 stdin_handle.close()
