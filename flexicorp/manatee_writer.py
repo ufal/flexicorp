@@ -248,6 +248,7 @@ def convert_jsonl_to_manatee(
     toks_path = jsonl_dir / "toks.jsonl"
     regions_path = jsonl_dir / "regions.jsonl"
     docs_path = jsonl_dir / "docs.jsonl"
+    sentences_path = jsonl_dir / "sentences.jsonl"
 
     if not toks_path.is_file():
         return {"ok": False, "error": f"Missing {toks_path}"}
@@ -273,7 +274,44 @@ def convert_jsonl_to_manatee(
             attr_specs.append((attr, attr))
             seen.add(attr)
 
-    # 1. Load tokens in document order
+    # 1. Load document/sentence id maps for stable TEITOK ids.
+    doc_text_id_by_doc_id: Dict[int, str] = {}
+    if docs_path.is_file():
+        with docs_path.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                row = json.loads(line)
+                try:
+                    doc_id = int(row.get("doc_id", -1))
+                except Exception:
+                    continue
+                if doc_id < 0:
+                    continue
+                text_id = str(row.get("text_id", "")).strip()
+                if text_id:
+                    doc_text_id_by_doc_id[doc_id] = text_id
+
+    sent_id_by_sentence_id: Dict[int, str] = {}
+    if sentences_path.is_file():
+        with sentences_path.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                row = json.loads(line)
+                try:
+                    sid = int(row.get("sentence_id", -1))
+                except Exception:
+                    continue
+                if sid < 0:
+                    continue
+                sent_id = str(row.get("sent_id", "")).strip()
+                if sent_id:
+                    sent_id_by_sentence_id[sid] = sent_id
+
+    # 2. Load tokens in document order
     tokens: List[Dict[str, Any]] = []
     with toks_path.open("r", encoding="utf-8") as f:
         for line in f:
@@ -283,14 +321,40 @@ def convert_jsonl_to_manatee(
             tokens.append(json.loads(line))
     tokens.sort(key=lambda t: (t.get("doc_id", 0), t.get("doc_pos", 0)))
 
-    # 2. Write all p-attributes (same as CWB)
+    # Materialize canonical TEITOK ids as positional attributes so Manatee queries can
+    # always recover text/sentence ids without depending on structural attr encoding.
+    for t in tokens:
+        try:
+            doc_id = int(t.get("doc_id", -1))
+        except Exception:
+            doc_id = -1
+        if doc_id >= 0 and not str(t.get("text_id", "")).strip():
+            text_id = doc_text_id_by_doc_id.get(doc_id)
+            if text_id:
+                t["text_id"] = text_id
+        try:
+            sentence_id = int(t.get("sentence_id", -1))
+        except Exception:
+            sentence_id = -1
+        if sentence_id >= 0 and not str(t.get("s_id", "")).strip():
+            sent_id = sent_id_by_sentence_id.get(sentence_id)
+            if sent_id:
+                t["s_id"] = sent_id
+
+    # Ensure core ids are present in Manatee positional attrs.
+    for forced_attr in ("id", "text_id", "s_id"):
+        if forced_attr not in seen:
+            attr_specs.append((forced_attr, forced_attr))
+            seen.add(forced_attr)
+
+    # 3. Write all p-attributes (same as CWB + forced ids)
     word_lex_size = 0
     for attr_name, jsonl_key in attr_specs:
         _, lex_size = _write_pattribute(output_dir, attr_name, tokens, jsonl_key)
         if attr_name == "word":
             word_lex_size = lex_size
 
-    # 3. Structures: .rng files from regions
+    # 4. Structures: .rng files from regions
     regions_by_type: Dict[str, List[Tuple[int, int]]] = {}
     doc_offsets: Dict[int, int] = {}
     global_pos = 0
@@ -326,7 +390,7 @@ def convert_jsonl_to_manatee(
                     f.write(struct.pack("<i", beg))
                     f.write(struct.pack("<i", end))
 
-    # 4. Sizes file (Manatee expects PATH/sizes)
+    # 5. Sizes file (Manatee expects PATH/sizes)
     doc_count = 0
     if docs_path.is_file():
         with docs_path.open("r", encoding="utf-8") as f:
@@ -337,7 +401,7 @@ def convert_jsonl_to_manatee(
         f.write(f"wordcount {word_lex_size}\n")
         f.write(f"doccount {doc_count}\nparcount 0\nsentcount 0\n")
 
-    # 5. Registry file (same ATTR/STRUCT as CWB)
+    # 6. Registry file (same ATTR/STRUCT as CWB)
     written_structures = set(regions_by_type.keys()) if regions_path.is_file() else set()
     registry_dir = output_dir.parent
     registry_dir.mkdir(parents=True, exist_ok=True)
@@ -356,7 +420,10 @@ def convert_jsonl_to_manatee(
         if written_structures:
             f.write("DOCSTRUCTURE text\n\n" if "text" in written_structures else "")
         for sname in sorted(written_structures):
-            f.write(f"STRUCTURE {sname} {{\n}}\n")
+            f.write(f"STRUCTURE {sname} {{\n")
+            if sname in {"text", "s"}:
+                f.write("        ATTRIBUTE id\n")
+            f.write("}\n")
 
     return {
         "ok": True,
