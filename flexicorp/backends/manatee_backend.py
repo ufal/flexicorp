@@ -1337,6 +1337,10 @@ class ManateeBackend(CorpusBackend):
                 srow = [t for t in bulk_sentence_ids[row_idx] if t]
                 if srow:
                     sentence_id = str(srow[0])
+                    # sentence_start was derived from struct lookup; when sentence_id comes
+                    # from positional s_id it may refer to a different coordinate stream.
+                    # Avoid offset-based re-anchoring against potentially mismatched starts.
+                    sentence_start = None
             toks: List[str] = []
             if bulk_lex is not None and row_idx < len(bulk_lex):
                 toks = [t for t in bulk_lex[row_idx] if t]
