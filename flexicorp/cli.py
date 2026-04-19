@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import faulthandler
 import importlib.util
 import json
 import os
@@ -11,6 +12,27 @@ from pathlib import Path
 from typing import Any, Dict
 
 from .core import handle_request
+
+# Install a Python-level handler for fatal signals (SIGSEGV, SIGFPE, SIGBUS,
+# SIGILL, SIGABRT) so native crashes in dependencies like the Manatee
+# ``_manatee.so`` C++ bindings emit a Python traceback on stderr *before*
+# the process dies. Without this the only signal a user sees is ``zsh:
+# segmentation fault``, which offers no way to tell whether the crash was
+# in Python, in a dependency's native code, or inside the CLI itself.
+#
+# ``faulthandler`` is stdlib; the cost is one stderr file descriptor held
+# open for the life of the process. It can be disabled by setting
+# ``FLEXICORP_NO_FAULTHANDLER=1`` if it interferes with an embedding that
+# installs its own signal handlers. Respect ``PYTHONFAULTHANDLER`` too —
+# running with ``-X faulthandler`` already enables it, and re-enabling is
+# a no-op but the env-var toggle is explicit.
+if not os.environ.get("FLEXICORP_NO_FAULTHANDLER"):
+    try:
+        faulthandler.enable()
+    except Exception:
+        # ``enable()`` can fail if stderr is closed; we just skip silently —
+        # worst case is the pre-fix behaviour (silent segfault).
+        pass
 
 
 @contextlib.contextmanager

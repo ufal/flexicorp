@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 import os
 from pathlib import Path
 import re
@@ -197,9 +198,8 @@ class ManateeBackend(CorpusBackend):
     @staticmethod
     def _struct_beg_containing(struct_obj: Any, pos: int) -> Optional[int]:
         """
-        Return ``beg`` of the struct instance that contains token position ``pos``,
-        or None. Struct ``id`` attributes must be read at region starts; passing an
-        arbitrary token index can crash the Manatee extension.
+        Return ``beg`` (the cpos where the region starts) of the struct
+        instance that contains token position ``pos``, or None.
 
         IMPORTANT — Manatee native API (see git/manatee-open-*/api/manatee.py,
         class Structure):
@@ -207,6 +207,19 @@ class ManateeBackend(CorpusBackend):
             (this is what Kontext uses: see kontext/lib/views/concordance.py).
           * ``beg(n)`` / ``end(n)`` — position bounds of instance ``n``. ``end`` is
             **EXCLUSIVE** (Kontext computes right context as ``end - pos - 1``).
+
+        Previous misconception (now fixed): a comment here used to say
+        "Struct ``id`` attributes must be read at region starts; passing an
+        arbitrary token index can crash the Manatee extension." That's
+        backwards. The crash on arbitrary cpos was caused elsewhere — by
+        passing a cpos to a region-indexed ``Structure.get_attr("id")``,
+        whose ``pos2str(n)`` expects ``n`` to be a **region index**, not a
+        cpos (and not ``beg(n)``). The fix is to use the ``StructPosAttr``
+        wrapper (``corpus.get_attr("text.id")``) which is cpos-indexed; see
+        the docstring on :meth:`_doc_lookup`. ``_struct_beg_containing``
+        itself only ever calls ``num_at_pos`` + ``beg`` (both safe), and
+        the ``beg`` it returns is now used only for downstream needs like
+        the xml-doc-offset XML context fallback — never as a pos2str index.
 
         The previous implementation called ``struct_obj.num_at(pos)`` — that method
         does NOT exist in Manatee; it always raised and fell through to the linear
@@ -524,17 +537,53 @@ class ManateeBackend(CorpusBackend):
         return doc_struct or None
 
     def _doc_lookup(self, corpus: Any) -> tuple[Any | None, Any | None, Any | None]:
+        """
+        Return ``(doc_struct, doc_id_attr, title_attr)`` where ``*_attr`` are
+        the **cpos-indexed** ``StructPosAttr`` wrappers (Manatee's own
+        ``Corpus::get_attr("text.id")``), NOT the raw region-indexed
+        ``Structure::get_attr("id")``.
+
+        Why this matters (see ``docs/manatee_xml_context_fix.md`` §S12 and
+        Manatee ``corp/struct.cc::StructPosAttr``):
+
+        * ``struct.get_attr("id")`` returns the raw ``PosAttr``. Its
+          ``pos2str(n)`` expects ``n`` to be a **region index** (0, 1, 2, …
+          across the list of ``<text>`` elements in the corpus). Calling it
+          with a cpos — even ``beg(num_at_pos(cpos))`` — reads past the
+          region array on any doc that isn't the very first one, and
+          segfaults the extension (no Python exception; ``_safe_pos2str``'s
+          try/except can't catch a SIGSEGV).
+        * ``corpus.get_attr("text.id")`` returns ``StructPosAttr`` — a
+          wrapper whose ``pos2str(cpos)`` internally calls
+          ``locate_rng(cpos)`` → ``num_at_pos`` → underlying
+          ``pa.pos2str(region_index)``. Out-of-range cpos returns "". This
+          is what Kontext uses in ``get_full_ref`` (``lib/conclib/__init__.py``
+          line 166: ``corp.get_attr(n).pos2str(pos)``).
+
+        The flexicorp segfault reported against tip (April 2026) was the
+        first path. Fix: always use the dotted ``corpus.get_attr`` form.
+        """
         doc_struct_name = self._doc_structure_name(corpus)
         doc_struct = self._safe_get_struct(corpus, doc_struct_name) if doc_struct_name else None
-        doc_id_attr = self._safe_get_struct_attr(doc_struct, "id")
-        title_attr = self._safe_get_struct_attr(doc_struct, "title")
-        if title_attr is None:
-            title_attr = self._safe_get_struct_attr(doc_struct, "name")
+        doc_id_attr: Any | None = None
+        title_attr: Any | None = None
+        if doc_struct_name:
+            doc_id_attr = self._safe_get_pos_attr(corpus, f"{doc_struct_name}.id")
+            title_attr = self._safe_get_pos_attr(corpus, f"{doc_struct_name}.title")
+            if title_attr is None:
+                title_attr = self._safe_get_pos_attr(corpus, f"{doc_struct_name}.name")
         return doc_struct, doc_id_attr, title_attr
 
     def _sentence_id_attr(self, corpus: Any) -> Any | None:
-        sent_struct = self._safe_get_struct(corpus, "s")
-        return self._safe_get_struct_attr(sent_struct, "id")
+        """
+        Return the **cpos-indexed** ``StructPosAttr`` wrapper for ``s.id``.
+
+        As in :meth:`_doc_lookup` we use ``corpus.get_attr("s.id")`` rather
+        than ``struct.get_attr("id")``; see that docstring for why
+        (TL;DR: the raw struct attr's ``pos2str`` takes a region index and
+        segfaults when given a cpos).
+        """
+        return self._safe_get_pos_attr(corpus, "s.id")
 
     def _detect_teitok(self, project: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         root = project.get("root")
@@ -988,6 +1037,338 @@ class ManateeBackend(CorpusBackend):
             )
         return proc
 
+    def _resolve_kontext_conf_path(self, params: Dict[str, Any]) -> Optional[Path]:
+        """
+        Resolve KonText main config path for post-reindex corpus registration.
+        Priority: explicit params -> KONTEXT_CONF -> common container paths.
+        """
+        for candidate in (
+            params.get("kontext_conf"),
+            params.get("kontext_config"),
+            os.environ.get("KONTEXT_CONF"),
+            "/opt/kontext/conf/config.xml",
+            "/etc/kontext/config.xml",
+        ):
+            if not candidate:
+                continue
+            p = Path(str(candidate)).expanduser().resolve()
+            if p.is_file():
+                return p
+        return None
+
+    def _read_kontext_manatee_registry_dir(self, kontext_conf: Path) -> Optional[Path]:
+        try:
+            root = ET.parse(kontext_conf).getroot()
+        except Exception:
+            return None
+        node = root.find("./corpora/manatee_registry")
+        if node is None:
+            return None
+        text = (node.text or "").strip()
+        if not text:
+            return None
+        return Path(text).expanduser().resolve()
+
+    def _read_kontext_redis_cfg(self, kontext_conf: Path) -> Optional[Dict[str, Any]]:
+        """
+        Read KonText auth/db settings needed for default_auth corpus ACL.
+        Returns None when config does not contain redis_db plugin settings.
+        """
+        try:
+            root = ET.parse(kontext_conf).getroot()
+        except Exception:
+            return None
+        db_node = root.find("./plugins/db")
+        if db_node is None:
+            return None
+        module = (db_node.findtext("module") or "").strip()
+        if module != "redis_db":
+            return None
+        host = (db_node.findtext("host") or "").strip()
+        if not host:
+            return None
+        port_raw = (db_node.findtext("port") or "6379").strip()
+        dbid_raw = (db_node.findtext("id") or "1").strip()
+        try:
+            port = int(port_raw)
+        except Exception:
+            port = 6379
+        try:
+            dbid = int(dbid_raw)
+        except Exception:
+            dbid = 1
+        anon_raw = (root.findtext("./plugins/auth/anonymous_user_id") or "0").strip()
+        try:
+            anon_id = int(anon_raw)
+        except Exception:
+            anon_id = 0
+        return {
+            "host": host,
+            "port": port,
+            "db": dbid,
+            "anon_id": anon_id,
+        }
+
+    def _run_kontext_acl_sync_script(
+        self,
+        *,
+        corpus_name: str,
+        redis_host: str,
+        redis_port: int,
+        redis_db: int,
+        anon_id: int,
+        kontext_lib_path: Optional[Path],
+        kontext_python: Optional[Path],
+    ) -> Dict[str, Any]:
+        out: Dict[str, Any] = {
+            "ok": False,
+            "action": "kontext-anon-acl",
+            "corpus": corpus_name,
+            "redis": {
+                "host": redis_host,
+                "port": redis_port,
+                "db": redis_db,
+                "anon_id": anon_id,
+            },
+        }
+        py_bin = kontext_python
+        if py_bin is None:
+            for cand in (
+                os.environ.get("KONTEXT_PYTHON"),
+                "/opt/kontext-venv/bin/python",
+                "/opt/kontext-venv/bin/python3",
+            ):
+                if not cand:
+                    continue
+                p = Path(str(cand)).expanduser().resolve()
+                if p.is_file():
+                    py_bin = p
+                    break
+        if py_bin is None:
+            out["message"] = "KonText python executable not found; skipped ACL sync."
+            return out
+        out["python"] = str(py_bin)
+        env = dict(os.environ)
+        if kontext_lib_path is not None and kontext_lib_path.is_dir():
+            prior = env.get("PYTHONPATH", "")
+            env["PYTHONPATH"] = (
+                str(kontext_lib_path) if prior == "" else str(kontext_lib_path) + os.pathsep + prior
+            )
+            out["pythonpath"] = str(kontext_lib_path)
+        script = f"""
+import json
+import redis
+try:
+    from plugins.default_auth import mk_list_key
+except Exception:
+    mk_list_key = None
+host = {redis_host!r}
+port = {redis_port!r}
+db = {redis_db!r}
+anon_id = {anon_id!r}
+corpus = {corpus_name!r}
+key = mk_list_key(anon_id) if callable(mk_list_key) else f"user:{{anon_id}}:corpora"
+r = redis.Redis(host=host, port=port, db=db, decode_responses=True)
+t = r.type(key)
+if t not in ("none", "string"):
+    r.delete(key)
+raw = r.get(key)
+vals = []
+if raw:
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            vals = [str(x) for x in parsed]
+    except Exception:
+        vals = []
+if corpus not in vals:
+    vals.append(corpus)
+r.set(key, json.dumps(vals))
+print(json.dumps({{"key": key, "values": vals}}))
+"""
+        try:
+            proc = subprocess.run(
+                [str(py_bin), "-c", script],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+                env=env,
+            )
+        except Exception as exc:
+            out["message"] = f"Could not run KonText ACL sync script: {exc}"
+            return out
+        if proc.returncode != 0:
+            out["message"] = f"KonText ACL sync script failed: {proc.stderr.strip() or proc.stdout.strip()}"
+            return out
+        payload: Dict[str, Any] = {}
+        if proc.stdout.strip():
+            try:
+                payload = json.loads(proc.stdout.strip().splitlines()[-1])
+            except Exception:
+                payload = {"raw_stdout": proc.stdout.strip()}
+        out["ok"] = True
+        out["message"] = "KonText anonymous ACL updated."
+        out["payload"] = payload
+        return out
+
+    def _ensure_kontext_registry_file(
+        self,
+        *,
+        source_registry_file: Path,
+        corpus_name: str,
+        kontext_registry_dir: Path,
+    ) -> Dict[str, Any]:
+        out: Dict[str, Any] = {
+            "ok": False,
+            "action": "registry-sync",
+            "source_registry_file": str(source_registry_file),
+            "target_registry_file": str(kontext_registry_dir / corpus_name),
+        }
+        if not source_registry_file.is_file():
+            out["message"] = f"Source registry file is missing: {source_registry_file}"
+            return out
+        try:
+            kontext_registry_dir.mkdir(parents=True, exist_ok=True)
+            target = kontext_registry_dir / corpus_name
+            shutil.copy2(source_registry_file, target)
+            out["ok"] = True
+            out["message"] = "Registry file copied to KonText manatee_registry."
+            return out
+        except Exception as exc:
+            out["message"] = f"Could not sync registry file to KonText path: {exc}"
+            return out
+
+    def _ensure_kontext_corplist_entry(
+        self,
+        *,
+        corplist_path: Path,
+        corpus_name: str,
+    ) -> Dict[str, Any]:
+        out: Dict[str, Any] = {
+            "ok": False,
+            "action": "corplist-update",
+            "corplist_path": str(corplist_path),
+            "corpus": corpus_name,
+            "changed": False,
+        }
+        try:
+            if corplist_path.is_file():
+                tree = ET.parse(corplist_path)
+                root = tree.getroot()
+            else:
+                root = ET.Element("kontext")
+                tree = ET.ElementTree(root)
+            corplist = root.find("corplist")
+            if corplist is None:
+                corplist = ET.SubElement(root, "corplist")
+            exists = False
+            for node in corplist.findall("corpus"):
+                ident = (node.get("ident") or "").strip()
+                if ident == corpus_name:
+                    exists = True
+                    break
+            if not exists:
+                ET.SubElement(corplist, "corpus", {"ident": corpus_name})
+                out["changed"] = True
+            corplist_path.parent.mkdir(parents=True, exist_ok=True)
+            tree.write(corplist_path, encoding="utf-8", xml_declaration=True)
+            out["ok"] = True
+            out["message"] = (
+                "KonText corplist updated."
+                if out["changed"]
+                else "KonText corplist already contained this corpus."
+            )
+            return out
+        except Exception as exc:
+            out["message"] = f"Could not update KonText corplist: {exc}"
+            return out
+
+    def _maybe_sync_kontext_registration(
+        self,
+        *,
+        params: Dict[str, Any],
+        source_registry_file: Path,
+        corpus_name: str,
+    ) -> Dict[str, Any]:
+        """
+        Best-effort post-reindex KonText registration:
+        - copy the corpus registry file into KonText manatee_registry
+        - ensure corpus ident exists in corplist.xml
+        This must not fail reindex itself.
+        """
+        result: Dict[str, Any] = {
+            "enabled": True,
+            "ok": False,
+            "steps": [],
+        }
+        kontext_conf = self._resolve_kontext_conf_path(params)
+        if kontext_conf is None:
+            result["enabled"] = False
+            result["message"] = (
+                "KonText config not found; skipped registration sync. "
+                "Set params.kontext_conf or KONTEXT_CONF to enable."
+            )
+            return result
+        result["kontext_conf"] = str(kontext_conf)
+        registry_dir = self._read_kontext_manatee_registry_dir(kontext_conf)
+        if registry_dir is None:
+            result["message"] = "KonText manatee_registry not found in config; skipped."
+            return result
+        result["kontext_registry_dir"] = str(registry_dir)
+        step_registry = self._ensure_kontext_registry_file(
+            source_registry_file=source_registry_file,
+            corpus_name=corpus_name,
+            kontext_registry_dir=registry_dir,
+        )
+        result["steps"].append(step_registry)
+
+        corplist_override = params.get("kontext_corplist")
+        if corplist_override:
+            corplist_path = Path(str(corplist_override)).expanduser().resolve()
+        else:
+            corplist_path = kontext_conf.parent / "corplist.xml"
+        step_corplist = self._ensure_kontext_corplist_entry(
+            corplist_path=corplist_path,
+            corpus_name=corpus_name,
+        )
+        result["steps"].append(step_corplist)
+        redis_cfg = self._read_kontext_redis_cfg(kontext_conf)
+        if redis_cfg is not None:
+            kontext_lib: Optional[Path] = None
+            for cand in (
+                params.get("kontext_lib"),
+                "/opt/vendor/git/kontext/lib",
+                "/opt/kontext/lib",
+            ):
+                if not cand:
+                    continue
+                p = Path(str(cand)).expanduser().resolve()
+                if p.is_dir():
+                    kontext_lib = p
+                    break
+            step_acl = self._run_kontext_acl_sync_script(
+                corpus_name=corpus_name,
+                redis_host=str(redis_cfg["host"]),
+                redis_port=int(redis_cfg["port"]),
+                redis_db=int(redis_cfg["db"]),
+                anon_id=int(redis_cfg["anon_id"]),
+                kontext_lib_path=kontext_lib,
+                kontext_python=Path(str(params["kontext_python"])).expanduser().resolve()
+                if params.get("kontext_python")
+                else None,
+            )
+            result["steps"].append(step_acl)
+        result["ok"] = bool(step_registry.get("ok")) and bool(step_corplist.get("ok"))
+        for step in result["steps"]:
+            if step.get("action") == "kontext-anon-acl":
+                result["ok"] = bool(result["ok"]) and bool(step.get("ok"))
+        if result["ok"]:
+            result["message"] = "KonText registry + corplist + ACL sync completed."
+        else:
+            result["message"] = "KonText sync finished with non-fatal warnings."
+        return result
+
     def _reindex_from_cwb(self, req: FlexiRequest) -> Dict[str, Any]:
         project = dict(req.get("project") or {})
         params = dict(req.get("params") or {})
@@ -1116,6 +1497,11 @@ class ManateeBackend(CorpusBackend):
             verbose=verbose,
             prefix=prefix,
         )
+        kontext_sync = self._maybe_sync_kontext_registration(
+            params=params,
+            source_registry_file=registry_path,
+            corpus_name=str(target_cfg.corpus),
+        )
 
         return {
             "status": "ok",
@@ -1134,6 +1520,7 @@ class ManateeBackend(CorpusBackend):
                 "Manatee corpus rebuilt from the existing CWB corpus via cwb-decode, "
                 "encodevert, mkstats, mktokencov, and mksizes (no compilecorp)."
             ),
+            "kontext_sync": kontext_sync,
         }
 
     def _make_query_hit_raw(
@@ -1367,8 +1754,14 @@ class ManateeBackend(CorpusBackend):
                 # ``resolve_teitok_context`` (xml-doc-offset) needs it to
                 # compute ``match_start - doc_beg``.
                 doc_beg = self._struct_beg_containing(doc_struct, match_start)
-            if doc_id_attr is not None and doc_beg is not None:
-                doc_id = self._safe_pos2str(doc_id_attr, doc_beg, max_pos=max_pos)
+            if doc_id_attr is not None:
+                # IMPORTANT: ``doc_id_attr`` is ``StructPosAttr`` (cpos-indexed
+                # wrapper) per :meth:`_doc_lookup`, so we feed it the **cpos**
+                # (``match_start``), NOT the region-start ``doc_beg`` nor a
+                # region index. Passing a cpos to the raw region-indexed
+                # ``Structure.get_attr("id")`` segfaults; see the docstring
+                # on :meth:`_doc_lookup` for the full story.
+                doc_id = self._safe_pos2str(doc_id_attr, match_start, max_pos=max_pos)
             if doc_id is None and text_id_fallback_dirs:
                 # Safe: text_id.* files live next to the Manatee corpus and are
                 # written in the SAME cpos stream as Manatee. Unlike xidx, they
@@ -1385,12 +1778,17 @@ class ManateeBackend(CorpusBackend):
             # without first rebuilding xidx in lockstep with Manatee cpos.
 
             sent_beg: Optional[int] = None
-            if sentence_id_attr is not None and sent_struct is not None:
+            if sent_struct is not None:
+                # ``sent_beg`` (cpos where ``<s>`` begins) is still useful for
+                # rendering / debugging; keep it even when we don't need it
+                # to index ``sentence_id_attr`` (``StructPosAttr`` handles the
+                # cpos→region mapping for us).
                 sent_beg = self._struct_beg_containing(sent_struct, match_start)
-                sentence_id = (
-                    self._safe_pos2str(sentence_id_attr, sent_beg, max_pos=max_pos)
-                    if sent_beg is not None
-                    else None
+            if sentence_id_attr is not None:
+                # Same rationale as ``doc_id`` above: ``sentence_id_attr`` is
+                # ``StructPosAttr`` (cpos-indexed); feed it ``match_start``.
+                sentence_id = self._safe_pos2str(
+                    sentence_id_attr, match_start, max_pos=max_pos
                 )
             else:
                 sentence_id = None
