@@ -4,10 +4,11 @@ import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from ..config import get_project_root
 from ..core import CorpusBackend, FlexiRequest, register_backend
+from ..flexencoder_xidx import read_xidx_docs_lines, xidx_rel_to_doc_id
 
 
 @dataclass
@@ -15,12 +16,11 @@ class PandoBackend(CorpusBackend):
     """
     Pando (tree-aware) backend.
 
-    Initial implementation is CLI-based:
-    - reindex: expect JSONL events written by flexencoder and call `pando-index`.
-    - query: call `pando ... --json` and adapt the result.
-
-    Later we can add an in-process bindings mode (import pando.IndexBuilder / Corpus)
-    and fall back to the CLI when bindings are not available.
+    CLI-based:
+    - reindex: JSONL events + `pando-index` into ``<project>/pando/``.
+    - query: ``pando <index> <ClickCQL> --json``.
+    - list_docs: document IDs from flexencoder ``xidx/docs.tbl`` (same list Pando uses with ``xidx/``),
+      so teitokxml can sync ``doc_index_status`` for the ``pando`` backend.
     """
 
     name: str = "pando"
@@ -39,7 +39,7 @@ class PandoBackend(CorpusBackend):
     def capabilities(self) -> Dict[str, bool]:
         return {
             "status": False,
-            "list_docs": False,
+            "list_docs": True,
             "kwic": False,
             "freq": False,
             "stats_freq_pattributes": False,
@@ -121,6 +121,57 @@ class PandoBackend(CorpusBackend):
             "output_dir": str(output_dir),
             "stdout": completed.stdout,
         }
+
+    # ------------------------------------------------------------------ list_docs
+    def list_docs(self, req: FlexiRequest) -> Dict[str, Any]:
+        """
+        Enumerate documents from flexencoder ``xidx/docs.tbl`` (same TEITOK document list
+        Pando uses with ``xidx/`` for XML fragments). Requires a flexencoder-built ``xidx/``
+        next to the ``pando/`` index directory.
+        """
+        project = dict(req.get("project") or {})
+        params = dict(req.get("params") or {})
+        root = get_project_root(project)
+        raw_limit = int(params.get("limit", 50))
+        offset = max(0, int(params.get("offset", 0)))
+        # limit <= 0 means "no cap" for this page (teitokxml sync uses large batches).
+        limit = raw_limit if raw_limit > 0 else 10**9
+        filter_text = str(params.get("filter") or "").strip().lower()
+
+        index_dir = self._index_dir(project)
+        if not index_dir.is_dir():
+            raise RuntimeError(f"Pando index directory not found: {index_dir}")
+
+        rel_paths = read_xidx_docs_lines(root)
+        if not rel_paths:
+            docs_tbl = root / "xidx" / "docs.tbl"
+            return {
+                "docs": [],
+                "total": 0,
+                "warnings": [
+                    f"Pando list_docs: no document list at {docs_tbl}. "
+                    "Run flexencoder so xidx/docs.tbl exists beside the Pando index.",
+                ],
+            }
+
+        docs: List[Dict[str, Any]] = []
+        for rel in rel_paths:
+            doc_id = xidx_rel_to_doc_id(rel)
+            title = doc_id
+            row = {
+                "id": doc_id,
+                "title": title,
+                "meta": {"relative_path": rel},
+            }
+            if filter_text:
+                hay = f"{doc_id} {rel} {title}".lower()
+                if filter_text not in hay:
+                    continue
+            docs.append(row)
+
+        total = len(docs)
+        sliced = docs[offset : offset + limit]
+        return {"docs": sliced, "total": total}
 
     # ------------------------------------------------------------------ query
     def query(self, req: FlexiRequest) -> Dict[str, Any]:

@@ -14,7 +14,7 @@ import xml.etree.ElementTree as ET
 from ..config import CqpConfig, ManateeConfig, get_cqp_config, get_manatee_config
 from ..core import CorpusBackend, FlexiRequest, register_backend
 from ..highlight_contract import build_highlight_map, resolve_legend
-from ..flexencoder_xidx import has_flexencoder_xidx, text_id_stem_for_cpos
+from ..flexencoder_xidx import has_flexencoder_xidx  # text_id_stem_for_cpos intentionally NOT imported: uses xidx cpos which does not match Manatee cpos (see docs/manatee_xml_context_fix.md INV-1).
 from ..teitok import detect_teitok_cqp, detect_teitok_manatee
 from ..teitok_context import normalize_context_request, resolve_teitok_context
 from .cqp import CqpBackend
@@ -200,22 +200,56 @@ class ManateeBackend(CorpusBackend):
         Return ``beg`` of the struct instance that contains token position ``pos``,
         or None. Struct ``id`` attributes must be read at region starts; passing an
         arbitrary token index can crash the Manatee extension.
+
+        IMPORTANT — Manatee native API (see git/manatee-open-*/api/manatee.py,
+        class Structure):
+          * ``num_at_pos(pos)`` — returns struct instance index containing ``pos``
+            (this is what Kontext uses: see kontext/lib/views/concordance.py).
+          * ``beg(n)`` / ``end(n)`` — position bounds of instance ``n``. ``end`` is
+            **EXCLUSIVE** (Kontext computes right context as ``end - pos - 1``).
+
+        The previous implementation called ``struct_obj.num_at(pos)`` — that method
+        does NOT exist in Manatee; it always raised and fell through to the linear
+        scan, which additionally used ``beg <= pos <= end`` (wrong: treats the
+        exclusive ``end`` as inclusive). The combination mis-resolved sentence/
+        document ids at region boundaries (off-by-one sentence; wrong doc_id at
+        doc edges). Do not "simplify" this back.
         """
         if struct_obj is None:
             return None
+        # Preferred path: Manatee's own index lookup (O(log n) internally).
         try:
-            if hasattr(struct_obj, "num_at"):
-                ni = int(struct_obj.num_at(pos))
+            num_at_pos = getattr(struct_obj, "num_at_pos", None)
+            if callable(num_at_pos):
+                ni = int(num_at_pos(pos))
                 if ni >= 0:
                     return int(struct_obj.beg(ni))
         except Exception:
             pass
+        # Compatibility fallback: some older/alt builds expose ``num_at``.
+        try:
+            num_at = getattr(struct_obj, "num_at", None)
+            if callable(num_at):
+                ni = int(num_at(pos))
+                if ni >= 0:
+                    return int(struct_obj.beg(ni))
+        except Exception:
+            pass
+        # Last resort: binary search over beg/end. ``end`` is exclusive.
         try:
             n = int(struct_obj.size())
-            for idx in range(n):
-                beg = int(struct_obj.beg(idx))
-                end = int(struct_obj.end(idx))
-                if beg <= pos <= end:
+            if n <= 0:
+                return None
+            lo, hi = 0, n - 1
+            while lo <= hi:
+                mid = (lo + hi) // 2
+                beg = int(struct_obj.beg(mid))
+                end = int(struct_obj.end(mid))
+                if pos < beg:
+                    hi = mid - 1
+                elif pos >= end:  # EXCLUSIVE end — do not change to ``pos > end``.
+                    lo = mid + 1
+                else:
                     return beg
         except Exception:
             return None
@@ -231,6 +265,49 @@ class ManateeBackend(CorpusBackend):
             return _decode_text(attr.pos2str(pos))
         except Exception:
             return None
+
+    @staticmethod
+    def _tok_ids_from_fragment_by_surface_match(
+        fragment_xml: str, expected_tokens: List[str]
+    ) -> List[str]:
+        """
+        When lexicon ``id`` is unavailable, Manatee ``toks`` are surface strings. Match those
+        to ``<tok xml:id>`` / ``<dtok>`` in XML fragment text and return the real ids for
+        highlight_map / jmp=.
+        """
+        if not fragment_xml or not expected_tokens:
+            return []
+        exp = [str(t).strip() for t in expected_tokens if str(t).strip()]
+        if not exp:
+            return []
+        try:
+            root = ET.fromstring(fragment_xml)
+        except ET.ParseError:
+            return []
+        flat: List[tuple[str, str]] = []
+        for elem in root.iter():
+            local_tag = elem.tag.split("}", 1)[-1] if "}" in elem.tag else elem.tag
+            if local_tag not in {"tok", "dtok"}:
+                continue
+            tid = elem.get("id") or elem.get(
+                "{http://www.w3.org/XML/1998/namespace}id"
+            )
+            text = "".join(elem.itertext()).strip()
+            if tid:
+                flat.append((str(tid), text))
+        if len(exp) == 1:
+            for tid, tx in flat:
+                if tx == exp[0]:
+                    return [tid]
+            return []
+        n = len(exp)
+        if len(flat) < n:
+            return []
+        for i in range(0, len(flat) - n + 1):
+            window = [flat[i + j][1] for j in range(n)]
+            if window == exp:
+                return [flat[i + j][0] for j in range(n)]
+        return []
 
     @staticmethod
     def _tok_ids_from_sentence_fragment_by_offset(
@@ -324,44 +401,45 @@ class ManateeBackend(CorpusBackend):
     @staticmethod
     def _concordance_spans_via_cpos(conc: Any, start: int, end: int) -> Optional[List[tuple[int, int]]]:
         """
-        Bonito/Manatee ``Concordance`` exposes ``cpos(i)`` per result line. Using it avoids
-        ``KWICLines.nextline()``, which can segfault on some ``_manatee`` builds/corpora.
+        Return per-result match spans ``(match_start, match_end_inclusive)`` for
+        concordance line indices ``[start, end)``, or ``None`` to signal the
+        caller to fall back to ``KWICLines``.
 
-        Optional end-of-match APIs (when not returned as a pair from ``cpos``): ``cpos_end``,
-        ``endpos``, ``cend`` — some builds expose one of these with the line index.
+        Native Manatee API (see git/manatee-open-*/api/manatee.py, class
+        Concordance):
 
-        Returns ``None`` if ``cpos`` is missing or any call raises (caller falls back to KWICLines).
+          * ``beg_at(i)`` — start cpos of match line ``i``.
+          * ``end_at(i)`` — end cpos of match line ``i``, **EXCLUSIVE**.
+
+        There is no ``cpos`` / ``get_cpos`` on Manatee Concordance — earlier
+        versions of this function searched for those names and always returned
+        ``None``, forcing every query through ``KWICLines.nextline()``. That
+        path computes ``match_end = match_start + kwiclen - 1`` from rendered
+        token lengths, which can drift relative to the true end cpos and is
+        also segfault-prone on some ``_manatee`` builds.
+
+        We convert Manatee's exclusive ``end_at`` to our inclusive ``match_end``
+        by subtracting 1, matching the convention used downstream in
+        ``query()`` and the rest of FlexiCorp's hit shape.
         """
         if start >= end:
             return []
-        cpos_fn = getattr(conc, "cpos", None)
-        if not callable(cpos_fn):
-            cpos_fn = getattr(conc, "get_cpos", None)
-        if not callable(cpos_fn):
+        beg_fn = getattr(conc, "beg_at", None)
+        end_fn = getattr(conc, "end_at", None)
+        if not callable(beg_fn) or not callable(end_fn):
+            # Surface as None so the caller can fall back to KWICLines on
+            # ancient builds. Do NOT reintroduce a probe for "cpos"/"get_cpos"
+            # — those names do not exist in Manatee and probing them historically
+            # masked real bugs.
             return None
         spans: List[tuple[int, int]] = []
         try:
             for i in range(start, end):
-                raw = cpos_fn(i)
-                if isinstance(raw, (tuple, list)) and len(raw) >= 2:
-                    ms, me = int(raw[0]), int(raw[1])
-                    if me < ms:
-                        me = ms
-                    spans.append((ms, me))
-                    continue
-                ms = int(raw)
-                me = ms
-                for name in ("cpos_end", "endpos", "cend"):
-                    fn = getattr(conc, name, None)
-                    if not callable(fn):
-                        continue
-                    try:
-                        me = int(fn(i))
-                        break
-                    except Exception:
-                        continue
-                if me < ms:
-                    me = ms
+                ms = int(beg_fn(i))
+                me_excl = int(end_fn(i))
+                # Convert exclusive → inclusive. Empty/zero-length matches
+                # collapse to a single-token span at ``ms``.
+                me = me_excl - 1 if me_excl > ms else ms
                 spans.append((ms, me))
             return spans
         except Exception:
@@ -699,12 +777,30 @@ class ManateeBackend(CorpusBackend):
                 return p
             if p.is_dir() and (p / "encodevert").exists():
                 return p.parent  # p is src/
-        # Fallback: flexicorp repo layout with git/manatee-open-*
+        # Fallback: walk up from this file looking for a flexicorp checkout
+        # that contains ``git/manatee-open*/src/encodevert``. Historically this
+        # used a hard-coded ``parents[3]`` which was off-by-one (it climbed one
+        # level above the repo root to ``/Users/<you>/programming/``, so the
+        # user-visible error ``encodevert not found. Set MANATEE_SRC…`` fired
+        # on hosts where encodevert was sitting right inside the checkout
+        # under ``git/manatee-open-2.225.8/src/encodevert``).
+        #
+        # The scan below is structural: it looks for any parent directory
+        # whose ``git/`` child has a ``manatee-open*`` subdir with the expected
+        # binary, and returns the first hit. No fragile index counting.
         try:
-            repo_root = Path(__file__).resolve().parents[3]
-            for name in ("manatee-open-2.225.8", "manatee-open"):
-                manatee_dir = repo_root / "git" / name
-                if manatee_dir.is_dir():
+            here = Path(__file__).resolve()
+            for ancestor in here.parents:
+                git_dir = ancestor / "git"
+                if not git_dir.is_dir():
+                    continue
+                try:
+                    candidates = sorted(git_dir.glob("manatee-open*"))
+                except OSError:
+                    continue
+                for manatee_dir in candidates:
+                    if not manatee_dir.is_dir():
+                        continue
                     src = manatee_dir / "src"
                     if (src / "encodevert").exists() or (src / "encodevert.exe").exists():
                         return manatee_dir
@@ -1210,7 +1306,12 @@ class ManateeBackend(CorpusBackend):
         teitok_root: Optional[Path] = None
         if root_raw:
             teitok_root = Path(str(root_raw)).expanduser().resolve()
-        flex_xidx = bool(teitok_root and has_flexencoder_xidx(teitok_root))
+        # NOTE: ``has_flexencoder_xidx(teitok_root)`` is deliberately not
+        # consulted on the Manatee path any more — xidx cpos and Manatee cpos
+        # are different streams (INV-1). The previous ``flex_xidx`` gate only
+        # guarded the removed ``text_id_stem_for_cpos`` fallback. The import is
+        # kept for the raw-text context work tracked separately.
+        _ = has_flexencoder_xidx  # retain the symbol; explicit no-op use.
 
         if root_raw:
             root_path = Path(str(root_raw)).expanduser().resolve()
@@ -1259,17 +1360,29 @@ class ManateeBackend(CorpusBackend):
             # streams unless rebuilt in perfect lockstep. Using xidx first mis-mapped hits to unrelated
             # sentences (queries matched in Manatee but context showed wrong XML).
             doc_id: Optional[str] = None
-            if doc_id_attr is not None and doc_struct is not None:
+            doc_beg: Optional[int] = None
+            if doc_struct is not None:
+                # Resolve doc_beg even when doc_id_attr is missing — the
+                # ``s.id``-less / no-positional-id fallback in
+                # ``resolve_teitok_context`` (xml-doc-offset) needs it to
+                # compute ``match_start - doc_beg``.
                 doc_beg = self._struct_beg_containing(doc_struct, match_start)
-                doc_id = (
-                    self._safe_pos2str(doc_id_attr, doc_beg, max_pos=max_pos)
-                    if doc_beg is not None
-                    else None
-                )
+            if doc_id_attr is not None and doc_beg is not None:
+                doc_id = self._safe_pos2str(doc_id_attr, doc_beg, max_pos=max_pos)
             if doc_id is None and text_id_fallback_dirs:
+                # Safe: text_id.* files live next to the Manatee corpus and are
+                # written in the SAME cpos stream as Manatee. Unlike xidx, they
+                # honour the ``"--"`` token skip performed by the CWB writer.
                 doc_id = text_id_from_cwb_style_index_files(text_id_fallback_dirs, match_start)
-            if doc_id is None and flex_xidx and teitok_root is not None:
-                doc_id = text_id_stem_for_cpos(teitok_root, match_start)
+            # NOTE: We intentionally do NOT fall back to
+            # ``text_id_stem_for_cpos(teitok_root, match_start)`` here.
+            # ``text_id_stem_for_cpos`` reads flexencoder's xidx, which uses
+            # a 1-based global_pos that increments on every token (no "--" skip).
+            # Manatee cpos is 0-based and skips "--" — see
+            # ``docs/manatee_xml_context_fix.md`` §2 (INV-1). Feeding Manatee cpos
+            # into xidx caused the "wrong sentence" and "shifted highlights"
+            # bugs reported against prior revisions. Do not reintroduce it
+            # without first rebuilding xidx in lockstep with Manatee cpos.
 
             sent_beg: Optional[int] = None
             if sentence_id_attr is not None and sent_struct is not None:
@@ -1287,6 +1400,7 @@ class ManateeBackend(CorpusBackend):
                     "match_start": match_start,
                     "match_end": match_end,
                     "doc_id": doc_id,
+                    "doc_beg": doc_beg,
                     "sentence_id": sentence_id,
                     "sentence_start": sent_beg if sent_struct is not None else None,
                 }
@@ -1299,20 +1413,28 @@ class ManateeBackend(CorpusBackend):
         # Token *id* values (same as TEITOK XML <tok xml:id="…">). Needed for highlight_map — using
         # surface lexicon strings breaks DOM matching in the UI (ids vs word forms).
         bulk_id_toks: Optional[List[List[str]]] = None
-        bulk_doc_ids: Optional[List[List[str]]] = None
-        bulk_sentence_ids: Optional[List[List[str]]] = None
         if need_ranges and file_scaffold is not None:
             pos_map = getattr(file_scaffold, "positional", None) or {}
-            if isinstance(pos_map, dict):
-                if "id" in pos_map:
-                    bulk_id_toks = self._tokens_from_lexicon_files(file_scaffold, "id", need_ranges)
-                # Prefer positional ids written by flexencoder for context location. These are in
-                # the same token stream as Manatee cpos and avoid fragile struct-attr reads.
-                point_ranges = [(a, a) for (a, _b) in need_ranges]
-                if "text_id" in pos_map:
-                    bulk_doc_ids = self._tokens_from_lexicon_files(file_scaffold, "text_id", point_ranges)
-                if "s_id" in pos_map:
-                    bulk_sentence_ids = self._tokens_from_lexicon_files(file_scaffold, "s_id", point_ranges)
+            if isinstance(pos_map, dict) and "id" in pos_map:
+                bulk_id_toks = self._tokens_from_lexicon_files(file_scaffold, "id", need_ranges)
+        # TOMBSTONE: previous revisions read ``text_id`` / ``s_id`` as POSITIONAL
+        # attributes from the lexicon files here and used them to override
+        # ``doc_id`` / ``sentence_id`` derived from the Manatee structures.
+        # That was wrong on two counts:
+        #   1) ``_reindex_from_cwb`` writes ``text_id`` / ``s_id`` as structural
+        #      attributes on ``<text>`` and ``<s>`` (``cwb-decode -S text_id
+        #      -S s_id`` → VRT attrs), not as positional columns. Under the
+        #      canonical reindex path the ``"text_id" in pos_map`` guard was
+        #      always false and the block was dead code.
+        #   2) On hand-built corpora where someone *did* add ``text_id`` /
+        #      ``s_id`` as positional attrs, the values still come from a
+        #      different coordinate stream than the structural ids used
+        #      elsewhere in this function — mixing them produced the "wrong
+        #      sentence id at document boundaries" symptom.
+        # The canonical resolution path is the Manatee structure lookup
+        # (``_struct_beg_containing`` + ``_safe_pos2str`` on the struct attr)
+        # performed above, with a CWB-style ``text_id.*`` file fallback.
+        # See ``docs/manatee_xml_context_fix.md`` §2 (INV-5) and §3 (RC-C).
 
         teitok_searchfolder = "xmlfiles"
         if context_spec and detected and project.get("root"):
@@ -1327,20 +1449,12 @@ class ManateeBackend(CorpusBackend):
             match_start = int(r["match_start"])
             match_end = int(r["match_end"])
             doc_id = r.get("doc_id")
+            doc_beg = r.get("doc_beg")
             sentence_id = r.get("sentence_id")
             sentence_start = r.get("sentence_start")
-            if bulk_doc_ids is not None and row_idx < len(bulk_doc_ids):
-                drow = [t for t in bulk_doc_ids[row_idx] if t]
-                if drow:
-                    doc_id = str(drow[0])
-            if bulk_sentence_ids is not None and row_idx < len(bulk_sentence_ids):
-                srow = [t for t in bulk_sentence_ids[row_idx] if t]
-                if srow:
-                    sentence_id = str(srow[0])
-                    # sentence_start was derived from struct lookup; when sentence_id comes
-                    # from positional s_id it may refer to a different coordinate stream.
-                    # Avoid offset-based re-anchoring against potentially mismatched starts.
-                    sentence_start = None
+            # Do NOT override doc_id / sentence_id from positional bulk reads
+            # here — see the tombstone above this loop (§2 INV-5 / §3 RC-C).
+            # Manatee structure lookup is the canonical source.
             toks: List[str] = []
             if bulk_lex is not None and row_idx < len(bulk_lex):
                 toks = [t for t in bulk_lex[row_idx] if t]
@@ -1376,8 +1490,29 @@ class ManateeBackend(CorpusBackend):
                 hit["text_id"] = str(doc_id)
             if context_spec and detected and doc_id:
                 tok_ids_xml = hm_ids
-                # Resolve context from TEITOK XML via doc_id + token ids (Manatee-aligned). Do not use
-                # flexencoder xidx fragments keyed by Manatee cpos — coordinate systems differ.
+                # CRITICAL: For the Manatee path we resolve XML context via
+                # ``<text>``/``<s>`` xml:id lookup against the on-disk TEITOK
+                # XML — NOT via ``flexencoder_xidx``.
+                #
+                # Why: flexencoder's xidx (``tokens.bin`` + ``regions.bin``)
+                # indexes by its own ``global_pos`` (1-based, no skipping). The
+                # Manatee writer drops ``"--"`` placeholder tokens, so Manatee
+                # cpos is a different stream from xidx cpos
+                # (see docs/manatee_xml_context_fix.md §2 INV-1). Feeding
+                # Manatee cpos into xidx caused the historical
+                # "wrong sentence" / "shifted highlights" / "single-word
+                # context" bugs reported against earlier revisions.
+                #
+                # The CWB backend can keep using xidx because its writer also
+                # skips ``"--"`` (see flexencoder/flexencoder_cwb.cpp ~line
+                # 267) — its cpos stream matches xidx by construction.
+                #
+                # ``prefer="xml"`` + ``xidx_resolver=None`` together force
+                # ``resolve_teitok_context`` down the
+                # ``extract_teitok_fragment_xml`` path, which finds the
+                # ``<s xml:id="…">`` (or ``<text xml:id="…">``) directly. Do
+                # NOT remove either argument unless you have first rebuilt
+                # xidx in lockstep with Manatee cpos.
                 ctx_spec = dict(context_spec)
                 ctx_spec["prefer"] = "xml"
                 context = resolve_teitok_context(
@@ -1390,8 +1525,15 @@ class ManateeBackend(CorpusBackend):
                     match_end=match_end,
                     context_spec=ctx_spec,
                     xidx_resolver=None,
+                    # Doc-relative cpos offset fallback — used when
+                    # ``sentence_id`` is None and ``tok_ids`` are surface
+                    # forms (common on corpora without ``s.id`` or an ``id``
+                    # positional attr on disk). Lets ``resolve_teitok_context``
+                    # count <tok>/<dtok> in the XML and walk up to <s>.
+                    doc_cpos_base=int(doc_beg) if isinstance(doc_beg, int) else None,
                 )
                 if context:
+                    anchored_ids: Optional[List[str]] = None
                     if (
                         isinstance(context.get("data"), str)
                         and isinstance(sentence_start, int)
@@ -1405,11 +1547,20 @@ class ManateeBackend(CorpusBackend):
                             token_offset_end=rel_end,
                             expected_tokens=toks,
                         )
-                        if anchored_ids:
-                            hm_ids = anchored_ids
-                            locator = context.get("locator")
-                            if isinstance(locator, dict):
-                                locator["token_ids"] = list(anchored_ids)
+                    if (
+                        not anchored_ids
+                        and isinstance(context.get("data"), str)
+                        and toks
+                    ):
+                        anchored_ids = self._tok_ids_from_fragment_by_surface_match(
+                            str(context["data"]),
+                            toks,
+                        )
+                    if anchored_ids:
+                        hm_ids = [str(x) for x in anchored_ids]
+                        locator = context.get("locator")
+                        if isinstance(locator, dict):
+                            locator["token_ids"] = list(anchored_ids)
                     hit["context"] = context
             if hm_ids:
                 hit["highlight_map"] = build_highlight_map(hm_ids)

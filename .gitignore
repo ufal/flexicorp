@@ -9,6 +9,8 @@ env/
 
 # Packaging / build artifacts
 build/
+# Legacy name from a one-off macOS out-of-tree build; prefer cmake -B flexicorp_pando/build
+flexicorp_pando/build-darwin/
 dist/
 *.egg-info/
 

@@ -1,13 +1,114 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import importlib.util
 import json
+import os
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any, Dict
 
 from .core import handle_request
-from .teitok import detect_teitok_cqp, detect_teitok_manatee
+
+
+@contextlib.contextmanager
+def _isolate_stdout_for_api():
+    """
+    Guarantee that stdout carries ONLY our JSON envelope when --api is set.
+
+    Motivation
+    ----------
+    Several native dependencies (notably the Manatee `_manatee.so` C++ bindings,
+    but also some CWB utilities) write warnings or error messages directly to
+    the process's stdout via C stdio / C++ iostreams. Those writes bypass
+    Python's `sys.stdout` object entirely — they go straight to file
+    descriptor 1 at the OS level. If any such write happens while we're
+    preparing the response, it lands *before* our `json.dump(...)` output on
+    stdout, and the TEITOK PHP wrapper then reports
+    "flexicorp did not return valid JSON" even though the Python side
+    produced a perfectly well-formed envelope.
+
+    Fix
+    ---
+    For the duration of request handling we swap file descriptor 1 to point
+    at a temporary file. Anything that native code (or stray Python) writes
+    to "stdout" during that window goes into the temp file. On exit we
+    restore the original stdout FD, copy the captured bytes to stderr as
+    diagnostic output (prefixed so it's obvious where they came from), and
+    then the caller can write the JSON envelope cleanly to the real stdout.
+
+    This is strictly defence-in-depth: on a well-behaved code path the temp
+    file is empty and we skip the copy. It costs one temp-file open per
+    request and is invisible to downstream tooling.
+    """
+    # Ensure Python's own stdout buffer is flushed before we swap the FD,
+    # so nothing we've already written gets redirected into the trap file.
+    try:
+        sys.stdout.flush()
+    except Exception:
+        pass
+
+    saved_fd = os.dup(1)
+    tmp = tempfile.TemporaryFile(mode="w+b")
+    try:
+        os.dup2(tmp.fileno(), 1)
+        try:
+            yield
+        finally:
+            # Flush the Python-level stdout that currently points at the trap
+            # file, then restore the real stdout FD.
+            try:
+                sys.stdout.flush()
+            except Exception:
+                pass
+            os.dup2(saved_fd, 1)
+    finally:
+        os.close(saved_fd)
+        try:
+            tmp.seek(0)
+            captured = tmp.read()
+        except Exception:
+            captured = b""
+        finally:
+            try:
+                tmp.close()
+            except Exception:
+                pass
+        if captured:
+            try:
+                sys.stderr.buffer.write(
+                    b"[flexicorp] captured stray stdout (routed to stderr to keep --api output valid JSON):\n"
+                )
+                sys.stderr.buffer.write(captured)
+                if not captured.endswith(b"\n"):
+                    sys.stderr.buffer.write(b"\n")
+                sys.stderr.flush()
+            except Exception:
+                pass
+
+def _load_local_teitok_detectors() -> tuple[Any, Any]:
+    """
+    Load TEITOK detector helpers from this package's local ``teitok.py``.
+
+    In mixed bind-mount setups, ``flexicorp`` can become a namespace package and
+    ``from .teitok import ...`` may resolve to top-level ``/opt/flexicorp/teitok``
+    (PHP assets) instead of ``flexicorp/teitok.py``.
+    """
+    module_path = Path(__file__).with_name("teitok.py")
+    spec = importlib.util.spec_from_file_location("_flexicorp_cli_teitok_local", module_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Unable to load local teitok helpers from {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)  # type: ignore[assignment]
+    return module.detect_teitok_cqp, module.detect_teitok_manatee
+
+
+try:
+    from .teitok import detect_teitok_cqp, detect_teitok_manatee
+except Exception:
+    detect_teitok_cqp, detect_teitok_manatee = _load_local_teitok_detectors()
 from .settings import (
     get_auto_install_optional_deps,
     get_default_backend,
@@ -849,7 +950,14 @@ def main(argv: list[str] | None = None) -> int:
         "project": project,
         "params": params,
     }
-    res = handle_request(req)
+    # In --api mode we must guarantee stdout ends up as a single JSON document,
+    # so native libraries (Manatee _manatee.so, certain CWB utilities) can't
+    # corrupt it with status messages. See _isolate_stdout_for_api docstring.
+    if getattr(args, "api", False):
+        with _isolate_stdout_for_api():
+            res = handle_request(req)
+    else:
+        res = handle_request(req)
     res = _maybe_brief_info_backends(res, args)
     if getattr(args, "api", False):
         envelope = {

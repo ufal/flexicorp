@@ -187,6 +187,23 @@ def has_flexencoder_xidx(project_root: Path) -> bool:
     return (d / "tokens.bin").is_file() and (d / "docs.tbl").is_file()
 
 
+def read_xidx_docs_lines(project_root: Path) -> List[str]:
+    """
+    Relative paths from ``xidx/docs.tbl`` (one non-empty line per indexed document),
+    or an empty list if the file is missing. Same ordering as flexencoder / xidx token stream.
+    """
+    root = Path(project_root).expanduser().resolve()
+    docs_tbl = flexencoder_xidx_dir(root) / "docs.tbl"
+    if not docs_tbl.is_file():
+        return []
+    return [line.strip() for line in _read_lines_cached(str(docs_tbl.resolve())) if line.strip()]
+
+
+def xidx_rel_to_doc_id(rel: str) -> str:
+    """TEITOK-style document id: basename of path, ``.xml`` stripped when present."""
+    return _stem_from_rel(rel)
+
+
 def text_id_stem_for_cpos(project_root: Path, cpos: int) -> Optional[str]:
     """
     TEITOK document identifier (basename without ``.xml``) for a global corpus position,
@@ -218,6 +235,150 @@ def _read_binary(path: Path) -> bytes:
     if not path.is_file():
         return b""
     return path.read_bytes()
+
+
+# ---------------------------------------------------------------------------
+# by-id fragment lookup (see docs/xidx_by_id_index.md — Phase 1)
+#
+# Build a (scope_name_verbatim, xml_id) -> (doc_idx, xml_start, xml_end) map
+# by sweeping regions.bin once and joining with the three .tbl dictionaries.
+# The source of truth is regions.bin stride-56 records; stride-40 corpora
+# lack the xml_start/xml_end columns and therefore cannot use this fast path
+# (callers fall back to extract_teitok_fragment_xml).
+#
+# Design decisions captured in docs/xidx_by_id_index.md §8:
+#   * D-1: scope names are matched VERBATIM; aliasing is the caller's job.
+#   * D-2: returned bytes are verbatim from the source XML; no parsing, no
+#     whitespace normalisation.
+#   * D-3: scope="text" returns the <text> element bytes, not the whole
+#     document (regions.bin already stores element-level bounds).
+# ---------------------------------------------------------------------------
+
+_BY_ID_STRIDE = 56  # only stride-56 region records carry xml_start/xml_end
+
+
+@lru_cache(maxsize=16)
+def _load_id_map_cached(
+    root_str: str,
+) -> Dict[Tuple[str, str], Tuple[int, int, int]]:
+    """
+    Build ``(scope_name, xml_id) -> (doc_idx, xml_start, xml_end)`` for one
+    flexencoder project root. Cached per root via ``lru_cache`` so repeated
+    callers (e.g. successive hits in a KWIC page) share the build cost.
+
+    Returns an empty dict if the xidx directory is missing, incomplete, or
+    uses stride-40 region records (no byte-range columns).
+    """
+    root = Path(root_str)
+    xidx = flexencoder_xidx_dir(root)
+    regions_path = xidx / "regions.bin"
+    region_types_tbl = xidx / "region_types.tbl"
+    region_ids_tbl = xidx / "region_ids.tbl"
+    docs_tbl = xidx / "docs.tbl"
+    if not regions_path.is_file():
+        return {}
+    if not region_types_tbl.is_file() or not region_ids_tbl.is_file():
+        return {}
+    if not docs_tbl.is_file():
+        return {}
+
+    regions_blob = _read_binary(regions_path)
+    if not regions_blob or len(regions_blob) % _BY_ID_STRIDE != 0:
+        # stride-40 (no xml bounds) or corrupted file — cannot serve by-id.
+        return {}
+
+    region_types = _read_lines_cached(str(region_types_tbl.resolve()))
+    region_ids = _read_lines_cached(str(region_ids_tbl.resolve()))
+    if not region_types or not region_ids:
+        return {}
+
+    out: Dict[Tuple[str, str], Tuple[int, int, int]] = {}
+    stride = _BY_ID_STRIDE
+    n_types = len(region_types)
+    n_ids = len(region_ids)
+    off = 0
+    while off + stride <= len(regions_blob):
+        rec = regions_blob[off : off + stride]
+        off += stride
+        rtype = _u32le(rec, 0)
+        rdoc = _u32le(rec, 4)
+        xml_start = _i64le(rec, 32)
+        xml_end = _i64le(rec, 40)
+        region_id_idx = _u32le(rec, 48)
+        if rtype >= n_types or region_id_idx >= n_ids:
+            continue
+        if xml_start < 0 or xml_end <= xml_start:
+            continue
+        scope_name = region_types[rtype]
+        xml_id = region_ids[region_id_idx]
+        if not scope_name or not xml_id:
+            continue
+        key = (scope_name, xml_id)
+        # If the same (scope, id) appears more than once (it shouldn't in a
+        # well-formed TEITOK corpus), keep the first occurrence — stable
+        # behaviour under rebuilds.
+        if key not in out:
+            out[key] = (rdoc, xml_start, xml_end)
+    return out
+
+
+def has_xidx_by_id_index(project_root: Path) -> bool:
+    """True when all files needed for the by-id fast path are present."""
+    xidx = flexencoder_xidx_dir(project_root)
+    return (
+        (xidx / "regions.bin").is_file()
+        and (xidx / "region_types.tbl").is_file()
+        and (xidx / "region_ids.tbl").is_file()
+        and (xidx / "docs.tbl").is_file()
+    )
+
+
+def fragment_by_id(
+    project_root: Path,
+    scope: str,
+    xml_id: str,
+) -> Optional[bytes]:
+    """
+    Return the raw byte slice of the region identified by ``(scope, xml_id)``,
+    or ``None`` if the id is unknown for that scope.
+
+    Behaviour is the contract documented in ``docs/xidx_by_id_index.md``:
+
+      * scope name is matched VERBATIM against ``region_types.tbl`` (no
+        aliasing; see D-1).
+      * bytes are returned verbatim from the source XML; no parsing, no
+        whitespace normalisation (D-2).
+      * for ``scope="text"``, returns the ``<text>`` element bytes, not the
+        whole document (D-3).
+
+    First call per project root builds an in-memory index by sweeping
+    ``regions.bin``; subsequent calls are an ``O(1)`` dict lookup plus a
+    single ``pread`` from the source file.
+    """
+    if not scope or not xml_id:
+        return None
+    root = Path(project_root).expanduser().resolve()
+    m = _load_id_map_cached(str(root))
+    hit = m.get((scope, xml_id))
+    if hit is None:
+        return None
+    doc_idx, xml_start, xml_end = hit
+    docs_tbl = flexencoder_xidx_dir(root) / "docs.tbl"
+    docs = _read_lines_cached(str(docs_tbl.resolve()))
+    if doc_idx >= len(docs):
+        return None
+    xml_path = root / docs[doc_idx]
+    if not xml_path.is_file():
+        return None
+    try:
+        with xml_path.open("rb") as fh:
+            fh.seek(xml_start)
+            data = fh.read(xml_end - xml_start)
+    except OSError:
+        return None
+    if len(data) != xml_end - xml_start:
+        return None
+    return data
 
 
 def lookup_xml_fragment(

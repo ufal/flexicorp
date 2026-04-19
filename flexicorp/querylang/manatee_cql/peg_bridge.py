@@ -7,6 +7,29 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict
 
+# JSON-style unicode escapes we forgive in incoming query strings. Same
+# rationale as `flexicorp.querylang.cwb_cql.parser._JSON_QUOTE_ESCAPES`: some
+# TEITOK UI paths ship the query as JSON but forget to decode it, so the
+# bridge sees `[form=\u0022bez\u0022]` instead of `[form="bez"]`. Decoding
+# only quote characters is strictly safe because `\u0022` / `\u0027` are never
+# valid tokens in Manatee CQL.
+_JSON_QUOTE_ESCAPES = {
+    r"\u0022": '"',
+    r"\u0027": "'",
+    r"\U00000022": '"',
+    r"\U00000027": "'",
+}
+
+
+def _normalize_json_unicode_quotes(source: str) -> str:
+    if not source or ("\\u" not in source and "\\U" not in source):
+        return source
+    out = source
+    for needle, replacement in _JSON_QUOTE_ESCAPES.items():
+        if needle in out:
+            out = out.replace(needle, replacement)
+    return out
+
 
 @dataclass
 class ManateeCqlPegError(RuntimeError):
@@ -34,6 +57,9 @@ def _run_bridge(query: str, *, start_rule: str = "Query") -> Dict[str, Any]:
             "Manatee CQL PEG bridge requires a local Node.js binary ('node' or 'nodejs').",
             error_type="unavailable",
         )
+    # Tolerate JSON-encoded quote characters before handing the query to the
+    # Node PEG parser (which does not unescape source-level \uXXXX on its own).
+    query = _normalize_json_unicode_quotes(query)
     proc = subprocess.run(
         [node_bin, str(_bridge_script_path())],
         input=json.dumps({"query": query, "start_rule": start_rule}),

@@ -11,6 +11,39 @@ _SIMPLE_CONSTRAINT_RE = re.compile(
     r"^\s*(?P<attr>[A-Za-z_][A-Za-z0-9_\-.:]*)\s*(?P<op>=|!=)\s*\"(?P<value>(?:\\.|[^\"])*)\"\s*(?:%(?P<flags>[A-Za-z]+))?\s*$"
 )
 
+# JSON-style unicode escapes we forgive in incoming query strings.
+# Rationale: some callers (notably certain TEITOK UI code paths) stringify the
+# query as JSON but fail to decode it before putting it on argv, so what the
+# parser sees is e.g. `[form=\u0022bez\u0022]` instead of `[form="bez"]`. The
+# sequences `\u0022` / `\u0027` have no meaning in CWB-CQL — the language uses
+# the raw `"` / `'` characters as delimiters — so silently decoding them at
+# the top of the pipeline cannot change the semantics of any legitimate
+# query. We deliberately limit this to quote characters and do NOT run a
+# blanket `unicode_escape` decode: that would clobber legitimate regex
+# patterns inside string literals (e.g. `\n`, `\t`, or literal `\\u` sequences
+# the author wants to keep).
+_JSON_QUOTE_ESCAPES = {
+    r"\u0022": '"',
+    r"\u0027": "'",
+    r"\U00000022": '"',
+    r"\U00000027": "'",
+}
+
+
+def _normalize_json_unicode_quotes(source: str) -> str:
+    """Replace literal `\\u0022` / `\\u0027` byte sequences with `"` / `'`.
+
+    Only quote characters are decoded; everything else is passed through
+    verbatim. This is intentionally narrow — see `_JSON_QUOTE_ESCAPES` above.
+    """
+    if not source or "\\u" not in source and "\\U" not in source:
+        return source
+    out = source
+    for needle, replacement in _JSON_QUOTE_ESCAPES.items():
+        if needle in out:
+            out = out.replace(needle, replacement)
+    return out
+
 
 class CwbCqlParseError(ValueError):
     pass
@@ -44,7 +77,11 @@ def _parse_token(inner: str) -> TokenPattern:
 
 
 def parse_cwb_cql(source: str) -> CwbQuery:
-    text = (source or "").strip()
+    # Tolerate JSON-encoded quote characters in the incoming query — some
+    # callers (notably certain TEITOK UI paths) forget to decode the JSON
+    # stringification before shipping argv. See `_normalize_json_unicode_quotes`
+    # for the strict, narrow scope of what this step rewrites.
+    text = _normalize_json_unicode_quotes((source or "").strip())
     if not text:
         raise CwbCqlParseError("Empty cwb-cql query.")
 
