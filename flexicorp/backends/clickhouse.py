@@ -19,6 +19,7 @@ from ..highlight_contract import build_highlight_map, resolve_legend
 from ..teitok import detect_teitok_cqp
 
 clickhouse_connect = None
+MIN_CLICKHOUSE_VERSION = (22, 3, 0)
 
 
 @dataclass
@@ -66,13 +67,15 @@ class ClickHouseBackend(CorpusBackend):
 
     def _get_client(self, cfg: ClickHouseConfig):
         module = self._get_clickhouse_module()
-        return module.get_client(
+        client = module.get_client(
             host=cfg.host,
             port=cfg.port,
             username=cfg.username,
             password=cfg.password,
             database=cfg.database,
         )
+        self._assert_supported_clickhouse_version(client, cfg)
+        return client
 
     def _get_clickhouse_module(self):
         global clickhouse_connect
@@ -96,6 +99,41 @@ class ClickHouseBackend(CorpusBackend):
             parameters={"db": database, "table": table},
         )
         return [str(row[0]) for row in rows.result_rows]
+
+    @staticmethod
+    def _parse_clickhouse_version_tuple(raw: Any) -> tuple[int, int, int]:
+        text = str(raw or "").strip()
+        m = re.match(r"^\s*(\d+)\.(\d+)\.(\d+)", text)
+        if not m:
+            return (0, 0, 0)
+        return (int(m.group(1)), int(m.group(2)), int(m.group(3)))
+
+    def _assert_supported_clickhouse_version(self, client: Any, cfg: ClickHouseConfig) -> None:
+        raw_version = client.command("SELECT version()")
+        server_version = self._parse_clickhouse_version_tuple(raw_version)
+        if server_version >= MIN_CLICKHOUSE_VERSION:
+            return
+        min_text = ".".join(str(x) for x in MIN_CLICKHOUSE_VERSION)
+        got_text = str(raw_version or "unknown")
+        raise RuntimeError(
+            "ClickHouse server version is too old for flexicorp ClickQL/ClickHouse backend. "
+            f"Detected {got_text}, required >= {min_text}. "
+            "Please upgrade ClickHouse in this container."
+        )
+
+    def _get_table_column_types(self, client: Any, database: str, table: str) -> Dict[str, str]:
+        rows = client.query(
+            "SELECT name, type FROM system.columns WHERE database = %(db)s AND table = %(table)s",
+            parameters={"db": database, "table": table},
+        )
+        out: Dict[str, str] = {}
+        for row in rows.result_rows:
+            if not row:
+                continue
+            name = str(row[0])
+            ctype = str(row[1]) if len(row) > 1 else ""
+            out[name] = ctype
+        return out
 
     def _cfg_for_database(self, cfg: ClickHouseConfig, database: Optional[str]) -> ClickHouseConfig:
         if not database:
@@ -145,6 +183,13 @@ class ClickHouseBackend(CorpusBackend):
 
         from .cqp import CqpBackend
 
+        # ClickHouse already carries XML byte offsets (token/sentence) and token ids.
+        # Prefer XML-based fallback resolution over xidx/cpos translation to avoid
+        # cross-backend position drift when corpora were indexed with different
+        # placeholder-token handling histories.
+        context_for_fallback = dict(context_spec)
+        context_for_fallback["prefer"] = "xml"
+
         return CqpBackend()._resolve_teitok_context(
             cfg=helper_cfg,
             root_dir=root_dir,
@@ -154,7 +199,7 @@ class ClickHouseBackend(CorpusBackend):
             tok_ids=[str(tok) for tok in (hit.get("toks") or [])],
             match_start=hit.get("match_start"),
             match_end=hit.get("match_end"),
-            context_spec=context_spec,
+            context_spec=context_for_fallback,
         )
 
     def _resolve_teitok_context_from_row_offsets(
@@ -458,6 +503,7 @@ class ClickHouseBackend(CorpusBackend):
         date_col = doc_cols.get("date", "date")
         token_count_col = doc_cols.get("token_count", "size_tokens")
         available_cols = set(self._get_table_columns(client, cfg.database, cfg.docs_table or ""))
+        col_types = self._get_table_column_types(client, cfg.database, cfg.docs_table or "")
 
         def has_col(name: Any) -> bool:
             return bool(name) and str(name) in available_cols
@@ -481,7 +527,12 @@ class ClickHouseBackend(CorpusBackend):
         token_count_expr = str(token_count_col) if has_col(token_count_col) else (
             "size" if has_col("size") else "NULL"
         )
-        meta_expr = "toJSONString(metadata)" if has_col("metadata") else "NULL"
+        metadata_type = str(col_types.get("metadata", "")).lower()
+        if has_col("metadata"):
+            # Legacy ClickHouse fallback stores metadata as String (JSON blob), not Map.
+            meta_expr = "metadata" if metadata_type.startswith("string") else "toJSONString(metadata)"
+        else:
+            meta_expr = "NULL"
         backend_id_expr = "doc_id" if has_col("doc_id") else "NULL"
 
         table = cfg.docs_table
@@ -1007,6 +1058,16 @@ class ClickqlBackend(ClickHouseBackend):
 
     def _row_to_hit(self, row: Dict[str, Any], *, group_meta_by_id: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
         """Convert a result row to a unified hit with doc_id, sentence_id, toks, highlight_map."""
+        def _int_from_row(*keys: str) -> Optional[int]:
+            for key in keys:
+                if row.get(key) is None:
+                    continue
+                try:
+                    return int(row.get(key))
+                except (TypeError, ValueError):
+                    continue
+            return None
+
         sentence_id = None
         for key in ("t1_sentence_id", "sentence_id", "t1.sentence_id"):
             if row.get(key) is not None:
@@ -1020,11 +1081,9 @@ class ClickqlBackend(ClickHouseBackend):
         )
         match_start = None
         match_end = None
-        if row.get("t1_tok_pos") is not None:
-            try:
-                match_start = int(row.get("t1_tok_pos"))
-            except (TypeError, ValueError):
-                match_start = None
+        # Prefer corpus-global token positions (`tok_pos`) for TEITOK XML context
+        # lookup; `doc_pos` is document-local and only used as a fallback.
+        match_start = _int_from_row("t1_tok_pos", "t1.tok_pos", "t1_doc_pos", "t1.doc_pos")
         toks: List[Any] = []
         groups: List[Dict[str, Any]] = []
         for i in range(1, 11):
@@ -1041,11 +1100,12 @@ class ClickqlBackend(ClickHouseBackend):
                         if k in {"name", "label", "query_span", "color", "textColor"}
                     })
                 groups.append(group)
-                tok_pos = row.get(f"t{i}_tok_pos") or row.get(f"t{i}.tok_pos")
-                try:
-                    tok_pos_int = int(tok_pos) if tok_pos is not None else None
-                except (TypeError, ValueError):
-                    tok_pos_int = None
+                tok_pos_int = _int_from_row(
+                    f"t{i}_tok_pos",
+                    f"t{i}.tok_pos",
+                    f"t{i}_doc_pos",
+                    f"t{i}.doc_pos",
+                )
                 if tok_pos_int is not None:
                     if match_start is None or tok_pos_int < match_start:
                         match_start = tok_pos_int

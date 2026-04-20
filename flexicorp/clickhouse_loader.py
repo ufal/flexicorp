@@ -17,6 +17,7 @@ from typing import Any, Dict
 
 from .config import ClickHouseConfig, get_clickhouse_config
 
+MIN_CLICKHOUSE_VERSION = (22, 3, 0)
 
 def _get_clickhouse_client(cfg: ClickHouseConfig):
     import clickhouse_connect
@@ -29,15 +30,59 @@ def _get_clickhouse_client(cfg: ClickHouseConfig):
     )
 
 
-def _create_tables(client: Any, database: str, feats_present: bool = True) -> None:
+def _parse_clickhouse_version_tuple(raw: Any) -> tuple[int, int, int]:
+    text = str(raw or "").strip()
+    parts = text.split(".")
+    if len(parts) < 3:
+        return (0, 0, 0)
+    try:
+        return (int(parts[0]), int(parts[1]), int(parts[2].split("-", 1)[0]))
+    except Exception:
+        return (0, 0, 0)
+
+
+def _assert_supported_clickhouse_version(client: Any) -> None:
+    raw_version = client.command("SELECT version()")
+    server_version = _parse_clickhouse_version_tuple(raw_version)
+    if server_version >= MIN_CLICKHOUSE_VERSION:
+        return
+    min_text = ".".join(str(x) for x in MIN_CLICKHOUSE_VERSION)
+    raise RuntimeError(
+        "ClickHouse server version is too old for flexicorp ClickHouse indexing. "
+        f"Detected {raw_version}, required >= {min_text}. Please upgrade ClickHouse."
+    )
+
+
+def _supports_map_type(client: Any) -> bool:
+    """
+    Return True when this ClickHouse server supports Map(String, String).
+
+    Older ClickHouse releases (common in legacy single-container TEITOK demos)
+    reject Map with:
+      "Unknown data type family: Map"
+    """
+    try:
+        client.query("SELECT CAST(map('k', 'v') AS Map(String, String))")
+        return True
+    except Exception:
+        return False
+
+
+def _create_tables(
+    client: Any,
+    database: str,
+    feats_present: bool = True,
+    map_supported: bool = True,
+) -> None:
     """Create core tables (docs, sentences, regions, toks, dep_edges)."""
-    toks_feats_col = ", `feats` Map(String, String)" if feats_present else ""
+    map_or_string = "Map(String, String)" if map_supported else "String"
+    toks_feats_col = f", `feats` {map_or_string}" if feats_present else ""
     client.command(f"CREATE DATABASE IF NOT EXISTS `{database}`")
     client.command(f"""
         CREATE TABLE IF NOT EXISTS `{database}`.`docs` (
             `doc_id` UInt64,
             `text_id` String,
-            `metadata` Map(String, String)
+            `metadata` {map_or_string}
         ) ENGINE = MergeTree() ORDER BY (doc_id)
     """)
     client.command(f"""
@@ -49,7 +94,7 @@ def _create_tables(client: Any, database: str, feats_present: bool = True) -> No
             `xml_start` Nullable(UInt64),
             `xml_end` Nullable(UInt64),
             `fulltext` String,
-            `metadata` Map(String, String)
+            `metadata` {map_or_string}
         ) ENGINE = MergeTree() ORDER BY (doc_id, sentence_id)
     """)
     client.command(f"""
@@ -62,7 +107,7 @@ def _create_tables(client: Any, database: str, feats_present: bool = True) -> No
             `props` Array(String),
             `xml_start` Nullable(UInt64),
             `xml_end` Nullable(UInt64),
-            `metadata` Map(String, String)
+            `metadata` {map_or_string}
         ) ENGINE = MergeTree() ORDER BY (seq_id, region_id)
     """)
     client.command(f"""
@@ -80,7 +125,7 @@ def _create_tables(client: Any, database: str, feats_present: bool = True) -> No
             `dep_rel` String,
             `head_tok_pos` Nullable(UInt64){toks_feats_col},
             `region_ids` Array(UInt64),
-            `metadata` Map(String, String),
+            `metadata` {map_or_string},
             `xml_start` Nullable(UInt64),
             `xml_end` Nullable(UInt64),
             `is_empty` Nullable(UInt8),
@@ -99,14 +144,40 @@ def _create_tables(client: Any, database: str, feats_present: bool = True) -> No
     """)
 
 
-def _recreate_tables(client: Any, database: str, feats_present: bool) -> None:
+def _recreate_tables(client: Any, database: str, feats_present: bool, map_supported: bool) -> None:
     """Drop and recreate tables for clean reindex (handles schema changes)."""
     for table in ("dep_edges", "toks", "regions", "sentences", "docs"):
         try:
             client.command(f"DROP TABLE IF EXISTS `{database}`.`{table}`")
         except Exception:
             pass
-    _create_tables(client, database, feats_present=feats_present)
+    _create_tables(client, database, feats_present=feats_present, map_supported=map_supported)
+
+
+def _normalize_jsonl_for_legacy_clickhouse(path: Path, table: str) -> bytes:
+    """
+    Convert map-like dict fields to JSON strings for old ClickHouse versions.
+
+    Fields normalized:
+      - metadata (docs/sentences/regions/toks)
+      - feats (toks)
+    """
+    out_lines = []
+    with path.open("r", encoding="utf-8") as f:
+        for raw in f:
+            line = raw.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            if isinstance(row, dict):
+                if isinstance(row.get("metadata"), dict):
+                    row["metadata"] = json.dumps(row["metadata"], ensure_ascii=False)
+                if table == "toks" and isinstance(row.get("feats"), dict):
+                    row["feats"] = json.dumps(row["feats"], ensure_ascii=False)
+            out_lines.append(json.dumps(row, ensure_ascii=False))
+    if not out_lines:
+        return b""
+    return ("\n".join(out_lines) + "\n").encode("utf-8")
 
 
 def _detect_feats_in_toks(path: Path) -> bool:
@@ -141,13 +212,20 @@ def load_jsonl_into_clickhouse(
         return {"ok": False, "error": "No ClickHouse configuration available."}
     try:
         client = _get_clickhouse_client(cfg)
+        _assert_supported_clickhouse_version(client)
     except Exception as e:
         return {"ok": False, "error": f"ClickHouse connection failed: {e}"}
     database = cfg.database
     toks_path = output_dir / "toks.jsonl"
     feats_present = _detect_feats_in_toks(toks_path)
+    map_supported = _supports_map_type(client)
     try:
-        _recreate_tables(client, database, feats_present=feats_present)
+        _recreate_tables(
+            client,
+            database,
+            feats_present=feats_present,
+            map_supported=map_supported,
+        )
     except Exception as e:
         return {"ok": False, "error": f"Failed to create tables: {e}"}
     tables = [
@@ -163,7 +241,10 @@ def load_jsonl_into_clickhouse(
         if not path.is_file():
             continue
         try:
-            data = path.read_bytes()
+            if map_supported:
+                data = path.read_bytes()
+            else:
+                data = _normalize_jsonl_for_legacy_clickhouse(path, table)
             if data.strip():
                 client.raw_insert(
                     table=f"`{database}`.`{table}`",

@@ -58,7 +58,13 @@ def format_clickhouse_error_message(
             "(expected tables are missing); try reindex."
         )
 
-    if "authentication failed" in low or ("password" in low and "failed" in low):
+    if (
+        "authentication failed" in low
+        or ("password" in low and "failed" in low)
+        or "unknown user" in low
+        or "http error 401" in low
+        or "unauthorized" in low
+    ):
         return "ClickHouse authentication failed (check user and password in configuration)."
 
     first = raw.split("\n")[0].strip()

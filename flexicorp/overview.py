@@ -1,14 +1,36 @@
 from __future__ import annotations
 
 from pathlib import Path
+import errno
 import json
 from typing import Any, Dict, List
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from .backends.manatee import load_manatee_bindings
 from .clickhouse_errors import format_clickhouse_error_message
 from .config import get_blacklab_settings, get_clickhouse_config, get_project_root
 from .core import available_backend_names, backend_descriptor, ensure_backend_loaded
+from .env_config import resolve_pmltq_native_server_url
 from .teitok import detect_teitok_cqp, detect_teitok_manatee
+
+_PMLTQ_REFUSED_ERRNOS = {errno.ECONNREFUSED}
+if hasattr(errno, "WSAECONNREFUSED"):
+    _PMLTQ_REFUSED_ERRNOS.add(int(errno.WSAECONNREFUSED))
+
+
+def _deepest_errno(exc: BaseException) -> int | None:
+    """Best-effort errno from URLError/OSError chains (e.g. connection refused)."""
+    cur: BaseException | None = exc
+    for _ in range(12):
+        if isinstance(cur, OSError) and cur.errno is not None:
+            return int(cur.errno)
+        if isinstance(cur, URLError) and isinstance(cur.reason, BaseException):
+            cur = cur.reason
+            continue
+        break
+    return None
+
 
 _STATS_CAPABILITY_DEFAULTS: Dict[str, bool] = {
     "stats_freq_pattributes": False,
@@ -258,6 +280,95 @@ def _clickhouse_status(project: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
+def _pmltq_http_status(project: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Native PML-TQ: HTTP API (e.g. PMLTQ server) + PostgreSQL corpus DB — not ClickHouse.
+    Availability is a best-effort GET /v1/treebanks. Base URL defaults to localhost:19100;
+    override via project, env-config.json, or PMLTQ_URL (see ``resolve_pmltq_native_server_url``).
+
+    When the URL is only the implicit default and nothing listens (connection refused), the
+    overview still treats the row as *available* for display: most projects use PML-TQ only
+    via ClickHouse. ``native_http_reachable`` stays false so ``availableBackends`` does not
+    claim the native HTTP backend is query-ready.
+    """
+    base, source = resolve_pmltq_native_server_url(project)
+    url = f"{base}/v1/treebanks"
+
+    def _default_refused_ok(exc: BaseException) -> bool:
+        if source != "default":
+            return False
+        n = _deepest_errno(exc)
+        return n is not None and n in _PMLTQ_REFUSED_ERRNOS
+
+    try:
+        req = Request(url, method="GET", headers={"Accept": "application/json"})
+        with urlopen(req, timeout=2.5) as resp:
+            code = int(getattr(resp, "status", 0) or 0)
+        if 200 <= code < 500:
+            return {
+                "available": True,
+                "native_http_reachable": True,
+                "reason": f"PMLTQ HTTP API reachable at {base} (source: {source}).",
+                "url": base,
+                "url_source": source,
+            }
+        return {
+            "available": False,
+            "native_http_reachable": False,
+            "reason": f"PMLTQ HTTP unexpected response (HTTP {code}) at {url} (configured from {source}: {base}).",
+            "url": base,
+            "url_source": source,
+        }
+    except HTTPError as exc:
+        return {
+            "available": False,
+            "native_http_reachable": False,
+            "reason": f"PMLTQ HTTP error at {url}: HTTP {exc.code} (source: {source}, base: {base}).",
+            "url": base,
+            "url_source": source,
+        }
+    except URLError as exc:
+        if _default_refused_ok(exc):
+            return {
+                "available": True,
+                "native_http_reachable": False,
+                "reason": (
+                    "Native PML-TQ HTTP is not listening on the default address (127.0.0.1:19100). "
+                    "This is normal when you only use PML-TQ via ClickHouse. Set PMLTQ_URL or "
+                    "env-config `pmltq.server.url` if the native server runs elsewhere."
+                ),
+                "url": base,
+                "url_source": source,
+            }
+        return {
+            "available": False,
+            "native_http_reachable": False,
+            "reason": f"PMLTQ HTTP server not reachable at {base} (source: {source}): {exc}",
+            "url": base,
+            "url_source": source,
+        }
+    except Exception as exc:
+        if _default_refused_ok(exc):
+            return {
+                "available": True,
+                "native_http_reachable": False,
+                "reason": (
+                    "Native PML-TQ HTTP is not listening on the default address (127.0.0.1:19100). "
+                    "This is normal when you only use PML-TQ via ClickHouse. Set PMLTQ_URL or "
+                    "env-config `pmltq.server.url` if the native server runs elsewhere."
+                ),
+                "url": base,
+                "url_source": source,
+            }
+        return {
+            "available": False,
+            "native_http_reachable": False,
+            "reason": f"PMLTQ HTTP probe failed for {base} (source: {source}): {exc}",
+            "url": base,
+            "url_source": source,
+        }
+
+
 def _clickql_status(project: Dict[str, Any], clickhouse_status: Dict[str, Any]) -> Dict[str, Any]:
     cfg = get_clickhouse_config(project)
     if cfg is None:
@@ -424,6 +535,7 @@ def build_backend_overview(project: Dict[str, Any]) -> Dict[str, Any]:
     clickql_status = _clickql_status(project, clickhouse_status)
     blacklab_status = _blacklab_status(project)
     flexi_status = _flexi_status(cqp_status, manatee_status)
+    pmltq_http_status = _pmltq_http_status(project)
 
     backend_status: Dict[str, Dict[str, Any]] = {
         "flexi": {
@@ -484,6 +596,17 @@ def build_backend_overview(project: Dict[str, Any]) -> Dict[str, Any]:
             "capabilities": implemented_backends.get("blacklab", {}).get("capabilities", {}),
             "descriptor": implemented_backends.get("blacklab", {}).get("descriptor", {}),
         },
+        "pmltq": {
+            "label": "pmltq",
+            "implemented": bool(implemented_backends.get("pmltq", {}).get("implemented")),
+            "available": bool(pmltq_http_status.get("available")),
+            "native_http_reachable": bool(
+                pmltq_http_status.get("native_http_reachable", False)
+            ),
+            "reason": pmltq_http_status.get("reason", ""),
+            "capabilities": implemented_backends.get("pmltq", {}).get("capabilities", {}),
+            "descriptor": implemented_backends.get("pmltq", {}).get("descriptor", {}),
+        },
     }
 
     query_engines: Dict[str, Dict[str, Any]] = {
@@ -507,10 +630,30 @@ def build_backend_overview(project: Dict[str, Any]) -> Dict[str, Any]:
             "available": bool(clickhouse_status.get("available")),
             "reason": clickhouse_status.get("reason", ""),
         },
+        # PML-TQ here is only the FlexiCorp *query-language* path: PEG translation → SQL on the
+        # ClickHouse/ClickQL schema (combo `clickql:pmltq:clickhouse`). Native PMLTQ (HTTP server +
+        # PostgreSQL) is a different backend (`pmltq` in flexicorp) and is not this availability bit.
+        "pmltq": {
+            "label": "PML-TQ (ClickHouse)",
+            "available": bool(clickql_status.get("available")),
+            "reason": (
+                "PML-TQ query language over indexed ClickHouse data (ClickQL translation path)."
+                if clickql_status.get("available")
+                else clickql_status.get("reason", "")
+            ),
+        },
         "blacklab": {
             "label": "blacklab",
             "available": bool(blacklab_status.get("available")),
             "reason": blacklab_status.get("reason", ""),
+        },
+        "pmltq_native": {
+            "label": "PML-TQ (HTTP server)",
+            "available": bool(pmltq_http_status.get("available")),
+            "native_http_reachable": bool(
+                pmltq_http_status.get("native_http_reachable", False)
+            ),
+            "reason": pmltq_http_status.get("reason", ""),
         },
     }
 
@@ -520,6 +663,7 @@ def build_backend_overview(project: Dict[str, Any]) -> Dict[str, Any]:
             "backend": "flexi",
             "queryLanguage": "cwb-cql",
             "corpusFormat": "cwb",
+            "comboLabel": "flexi (CWB/CQP)",
             "available": bool(cqp_status.get("available")),
             "reason": "CWB/CQP index available (CQP backend usable)." if cqp_status.get("available") else "CWB/CQP index not available for this corpus.",
         },
@@ -528,6 +672,7 @@ def build_backend_overview(project: Dict[str, Any]) -> Dict[str, Any]:
             "backend": "flexi",
             "queryLanguage": "manatee-cql",
             "corpusFormat": "manatee",
+            "comboLabel": "flexi (Manatee)",
             "available": bool(manatee_status.get("corpus_available", manatee_status.get("available"))),
             "reason": "Manatee index available for this corpus." if manatee_status.get("corpus_available", manatee_status.get("available")) else "Manatee index not available for this corpus.",
         },
@@ -536,6 +681,7 @@ def build_backend_overview(project: Dict[str, Any]) -> Dict[str, Any]:
             "backend": "manatee",
             "queryLanguage": "manatee-cql",
             "corpusFormat": "manatee",
+            "comboLabel": "Manatee",
             "available": bool(manatee_status.get("available")),
             "reason": manatee_status.get("reason", ""),
         },
@@ -544,6 +690,7 @@ def build_backend_overview(project: Dict[str, Any]) -> Dict[str, Any]:
             "backend": "cqp",
             "queryLanguage": "cwb-cql",
             "corpusFormat": "cwb",
+            "comboLabel": "Corpus WorkBench (CQP)",
             "available": bool(cqp_status.get("available")),
             "reason": cqp_status.get("reason", ""),
         },
@@ -552,6 +699,7 @@ def build_backend_overview(project: Dict[str, Any]) -> Dict[str, Any]:
             "backend": "teitokxml",
             "queryLanguage": "teitok",
             "corpusFormat": "xml",
+            "comboLabel": "TEITOK XML",
             "available": bool(teitokxml_status.get("available")),
             "reason": teitokxml_status.get("reason", ""),
         },
@@ -560,6 +708,7 @@ def build_backend_overview(project: Dict[str, Any]) -> Dict[str, Any]:
             "backend": "clickql",
             "queryLanguage": "clickcql",
             "corpusFormat": "clickhouse",
+            "comboLabel": "ClickQL (ClickHouse)",
             "available": bool(clickql_status.get("available")),
             "reason": clickql_status.get("reason", ""),
         },
@@ -568,28 +717,54 @@ def build_backend_overview(project: Dict[str, Any]) -> Dict[str, Any]:
             "backend": "clickql",
             "queryLanguage": "pmltq",
             "corpusFormat": "clickhouse",
+            "comboLabel": "PML-TQ (ClickHouse / ClickQL)",
             "available": bool(clickql_status.get("available")),
-            "reason": "ClickHouse daemon reachable for PML-TQ translation over the ClickQL schema." if clickql_status.get("available") else clickql_status.get("reason", ""),
+            "reason": "PML-TQ query language translated to SQL on the ClickHouse index (not the PMLTQ HTTP server)." if clickql_status.get("available") else clickql_status.get("reason", ""),
         },
         {
             "id": "clickql:sql:clickhouse",
             "backend": "clickql",
             "queryLanguage": "sql",
             "corpusFormat": "clickhouse",
+            "comboLabel": "ClickQL (raw SQL)",
             "available": bool(clickhouse_status.get("available")),
-            "reason": "ClickHouse daemon reachable for direct SQL execution." if clickhouse_status.get("available") else clickhouse_status.get("reason", ""),
+            "reason": "SQL against the ClickHouse index via the ClickQL backend." if clickhouse_status.get("available") else clickhouse_status.get("reason", ""),
+        },
+        {
+            "id": "clickhouse:sql:clickhouse",
+            "backend": "clickhouse",
+            "queryLanguage": "sql",
+            "corpusFormat": "clickhouse",
+            "comboLabel": "ClickHouse (SQL)",
+            "available": bool(clickhouse_status.get("available")),
+            "reason": "Direct ClickHouse SQL (native clickhouse backend)." if clickhouse_status.get("available") else clickhouse_status.get("reason", ""),
+        },
+        {
+            "id": "pmltq:pmltq:pmltq",
+            "backend": "pmltq",
+            "queryLanguage": "pmltq",
+            "corpusFormat": "pmltq",
+            "comboLabel": "PML-TQ (HTTP / PostgreSQL)",
+            "available": bool(pmltq_http_status.get("available")),
+            "native_http_reachable": bool(
+                pmltq_http_status.get("native_http_reachable", False)
+            ),
+            "reason": pmltq_http_status.get("reason", ""),
         },
         {
             "id": "blacklab:bcql:blacklab",
             "backend": "blacklab",
             "queryLanguage": "bcql",
             "corpusFormat": "blacklab",
+            "comboLabel": "BlackLab (BCQL)",
             "available": bool(blacklab_status.get("available")),
             "reason": blacklab_status.get("reason", ""),
         },
     ]
 
     for combo in backend_combos:
+        if not combo.get("comboLabel"):
+            combo["comboLabel"] = str(combo.get("id") or "")
         backend_name = str(combo.get("backend") or "")
         st = backend_status.get(backend_name) or {}
         combo["capabilities"] = dict(st.get("capabilities") or {})
@@ -606,10 +781,28 @@ def build_backend_overview(project: Dict[str, Any]) -> Dict[str, Any]:
         else:
             combo["reindexAvailable"] = bool(combo.get("capabilities", {}).get("reindex"))
 
+    def _backend_listable(name: str, st: Dict[str, Any]) -> bool:
+        if not st.get("available"):
+            return False
+        if name == "pmltq" and not st.get("native_http_reachable", False):
+            return False
+        return True
+
+    def _query_engine_listable(name: str, st: Dict[str, Any]) -> bool:
+        if not st.get("available"):
+            return False
+        if name == "pmltq_native" and not st.get("native_http_reachable", False):
+            return False
+        return True
+
     return {
         "implementedBackends": implemented_backends,
-        "availableBackends": [name for name, st in backend_status.items() if st.get("available")],
-        "availableQueryEngines": [name for name, st in query_engines.items() if st.get("available")],
+        "availableBackends": [
+            name for name, st in backend_status.items() if _backend_listable(name, st)
+        ],
+        "availableQueryEngines": [
+            name for name, st in query_engines.items() if _query_engine_listable(name, st)
+        ],
         "backendStatus": backend_status,
         "queryEngines": query_engines,
         "backendCombos": backend_combos,

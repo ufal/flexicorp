@@ -138,6 +138,7 @@ from .settings import (
     set_default_backend,
     get_config_file,
 )
+from .env_admin import run_env_check_corpus, run_env_list, run_env_status
 
 
 def _brief_backend_overview_payload(result: Dict[str, Any]) -> Dict[str, Any]:
@@ -183,7 +184,7 @@ def _add_shared_args(parser: argparse.ArgumentParser) -> None:
         "--backend",
         "-b",
         default=None,
-        help="Backend to use (e.g. blacklab, clickhouse, clickql, cqp, flexi, manatee). "
+        help="Backend to use (e.g. blacklab, clickhouse, clickql, cqp, flexi, manatee, pmltq). "
         "When omitted, kwic/query can infer the backend from --query-language / --corpus-format "
         "(e.g. manatee-cql + manatee → manatee). Otherwise defaults to flexicorp settings "
         "(or 'clickhouse' if unset).",
@@ -247,7 +248,7 @@ def _add_shared_args(parser: argparse.ArgumentParser) -> None:
         "--query-lang",
         "--cql",
         dest="query_language",
-        help="Logical query language to use (e.g. bcql, cwb-cql, cqp, cql, clickql, clickcql). "
+        help="Logical query language to use (e.g. bcql, cwb-cql, cqp, cql, clickql, clickcql, pmltq). "
         "Alias: --cql.",
     )
     parser.add_argument(
@@ -448,7 +449,11 @@ def _build_parser() -> argparse.ArgumentParser:
     reindex.add_argument(
         "--reindex-backends",
         metavar="BACKENDS",
-        help="Comma-separated list of backends to reindex in one run (e.g. cqp,clickhouse,manatee). Uses flexencoder for CQP, ClickHouse, and Manatee, then runs BlackLab separately if requested.",
+        help=(
+            "Comma-separated list of backends to reindex in one run "
+            "(e.g. cqp,clickhouse,clickql,manatee,blacklab,pmltq). "
+            "Uses flexencoder for CQP/ClickHouse/ClickQL; BlackLab, Manatee, and PML-TQ each use their backend reindex."
+        ),
     )
 
     # highlight -----------------------------------------------------------
@@ -499,7 +504,7 @@ def _build_parser() -> argparse.ArgumentParser:
     config = subparsers.add_parser("config", help="Manage flexicorp CLI configuration.", parents=[shared_parent])
     config.add_argument(
         "--set-default-backend",
-        choices=["blacklab", "clickhouse", "clickql", "cqp", "flexi", "manatee"],
+        choices=["blacklab", "clickhouse", "clickql", "cqp", "flexi", "manatee", "pmltq"],
         metavar="BACKEND",
         help="Set the default backend to use when --backend is not provided.",
     )
@@ -514,6 +519,33 @@ def _build_parser() -> argparse.ArgumentParser:
         "--show",
         action="store_true",
         help="Show current flexicorp configuration for the CLI.",
+    )
+
+    # env -----------------------------------------------------------------
+    env = subparsers.add_parser(
+        "env",
+        help="Inspect environment adapters (frontends + backends; e.g. teitok/fcs/pando/cqp/manatee/blacklab/kontext/pmltq, plus optional clickhouse/teitokxml).",
+        parents=[shared_parent],
+    )
+    env.add_argument(
+        "env_action",
+        nargs="?",
+        choices=["status", "check-corpus", "list"],
+        default="status",
+        help="Environment operation (default: status).",
+    )
+    env.add_argument(
+        "--env-backends",
+        default="teitok,fcs,pando,cqp,manatee,blacklab,kontext,pmltq",
+        help="Comma-separated subset of environment backends to inspect.",
+    )
+    env.add_argument(
+        "--corpus-id",
+        help="Optional corpus id label for check-corpus reporting.",
+    )
+    env.add_argument(
+        "--env-config",
+        help="Optional env-admin config JSON path (defaults: FLEXICORP_ENV_CONFIG, /etc/flexicorp/env-config.json, ~/.config/flexicorp/env-config.json, ~/.flexicorp/env-config.json, /tmp/flexicorp/env-config.json).",
     )
 
     return parser
@@ -644,6 +676,31 @@ def _load_project(args: argparse.Namespace) -> Dict[str, Any]:
             bl_cfg["field"] = opt_cfg["blacklab_field"]
         if bl_cfg:
             project["blacklab"] = bl_cfg
+
+    # Native PMLTQ HTTP backend connection handling ----------------------
+    if args.backend in {"pmltq", None}:
+        opt_cfg = _parse_options(getattr(args, "options", None))
+        pml_cfg: Dict[str, Any] = dict(project.get("pmltq_server") or {})
+        if opt_cfg.get("pmltq_url"):
+            pml_cfg["url"] = opt_cfg["pmltq_url"]
+        if opt_cfg.get("pmltq_treebank"):
+            pml_cfg["treebank"] = opt_cfg["pmltq_treebank"]
+        elif args.backend == "pmltq" and getattr(args, "corpus", None):
+            pml_cfg["treebank"] = args.corpus
+        if opt_cfg.get("pmltq_token"):
+            pml_cfg["token"] = opt_cfg["pmltq_token"]
+        if opt_cfg.get("pmltq_cookie"):
+            pml_cfg["cookie"] = opt_cfg["pmltq_cookie"]
+        if opt_cfg.get("pmltq_username"):
+            pml_cfg["username"] = opt_cfg["pmltq_username"]
+        if "pmltq_password" in opt_cfg:
+            pml_cfg["password"] = opt_cfg["pmltq_password"]
+        if opt_cfg.get("pmltq_timeout"):
+            pml_cfg["timeout"] = opt_cfg["pmltq_timeout"]
+        if opt_cfg.get("pmltq_verify_tls"):
+            pml_cfg["verify_tls"] = opt_cfg["pmltq_verify_tls"]
+        if pml_cfg:
+            project["pmltq_server"] = pml_cfg
 
     return project
 
@@ -828,6 +885,57 @@ def main(argv: list[str] | None = None) -> int:
         config_parser.print_help()
         return 0
 
+    if args.operation == "env":
+        project = _load_project(args)
+        action = getattr(args, "env_action", "status")
+        if action == "list":
+            res = run_env_list()
+        elif action == "check-corpus":
+            res = run_env_check_corpus(
+                project,
+                backend_list=getattr(args, "env_backends", None),
+                corpus_id=getattr(args, "corpus_id", None),
+                env_config_path=getattr(args, "env_config", None),
+            )
+        else:
+            res = run_env_status(
+                project,
+                backend_list=getattr(args, "env_backends", None),
+                env_config_path=getattr(args, "env_config", None),
+            )
+        if getattr(args, "api", False):
+            envelope = {
+                "tool": "flexicorp",
+                "version": 1,
+                "success": bool(res.get("ok")),
+                "asked": {
+                    "argv": raw_argv,
+                    "request": {
+                        "operation": "env",
+                        "action": action,
+                        "project": project,
+                        "params": {
+                            "env_backends": getattr(args, "env_backends", None),
+                            "corpus_id": getattr(args, "corpus_id", None),
+                            "env_config": getattr(args, "env_config", None),
+                        },
+                    },
+                },
+                "done": {
+                    "backend": "env",
+                    "operation": "env",
+                    "result": res,
+                    "warnings": [],
+                    "errors": [] if res.get("ok") else [f"Environment checks failed: {res.get('failed_backends', [])}"],
+                },
+            }
+            json.dump(envelope, fp=sys.stdout, ensure_ascii=False, indent=2)
+            print()
+        else:
+            json.dump(res, fp=sys.stdout, ensure_ascii=False, indent=2)
+            print()
+        return 0
+
     project = _load_project(args)
 
     params: Dict[str, Any] = {}
@@ -962,7 +1070,7 @@ def main(argv: list[str] | None = None) -> int:
     operation_name = args.operation.replace("-", "_")
     # ``kwic`` subcommand dispatches ``operation`` kwic, but backends such as
     # manatee/flexi/blacklab implement the unified ``query`` API only.
-    if operation_name in ("kwic", "query") and backend in ("manatee", "flexi", "blacklab"):
+    if operation_name in ("kwic", "query") and backend in ("manatee", "flexi", "blacklab", "pmltq"):
         operation_name = "query"
 
     req = {

@@ -90,6 +90,7 @@ BUILTIN_BACKEND_MODULES: Dict[str, str] = {
     "cqp": "flexicorp.backends.cqp",
     "flexi": "flexicorp.backends.flexi",
     "manatee": "flexicorp.backends.manatee_backend",
+    "pmltq": "flexicorp.backends.pmltq_backend",
     "teitokxml": "flexicorp.backends.teitokxml",
 }
 
@@ -287,6 +288,33 @@ def _handle_info(req: FlexiRequest) -> FlexiResponse | None:
         )
 
 
+def _flexicorp_scripts_flexencoder() -> Optional[str]:
+    """
+    Last-resort: <repo>/scripts/flexencoder beside the ``flexicorp`` package
+    (``flexicorp/core.py`` -> parent.parent / scripts/flexencoder).
+    Override with FLEXICORP_ROOT or FLEXICORP_HOME pointing at the repository root.
+
+    May be the wrong OS/arch (e.g. Linux binary in a macOS checkout); callers should
+    prefer ``PATH`` / Homebrew before this (see ``_find_flexencoder``).
+    """
+    for key in ("FLEXICORP_ROOT", "FLEXICORP_HOME"):
+        raw = os.environ.get(key, "").strip()
+        if not raw:
+            continue
+        cand = Path(raw).expanduser() / "scripts" / "flexencoder"
+        if cand.is_file() and os.access(cand, os.X_OK):
+            return str(cand.resolve())
+    try:
+        pkg_dir = Path(__file__).resolve().parent
+        repo_root = pkg_dir.parent
+        cand = repo_root / "scripts" / "flexencoder"
+        if cand.is_file() and os.access(cand, os.X_OK):
+            return str(cand.resolve())
+    except Exception:
+        pass
+    return None
+
+
 def _find_flexencoder(project_root: Path) -> Optional[str]:
     """Locate flexencoder binary for multi-backend reindex. Returns path or None."""
     scripts = project_root / "Scripts" / "flexencoder"
@@ -297,11 +325,19 @@ def _find_flexencoder(project_root: Path) -> Optional[str]:
         cand = Path(tt_root) / "Scripts" / "flexencoder"
         if cand.is_file() and os.access(cand, os.X_OK):
             return str(cand)
-    for p in ["/usr/local/bin/flexencoder", "/opt/homebrew/bin/flexencoder", "/usr/bin/flexencoder"]:
+    # Prefer PATH / Homebrew before <repo>/scripts/flexencoder: the committed script may be
+    # built for another OS (e.g. Linux ELF) and raises Exec format error on macOS.
+    which = shutil.which("flexencoder")
+    if which:
+        return which
+    for p in ("/opt/homebrew/bin/flexencoder", "/usr/local/bin/flexencoder", "/usr/bin/flexencoder"):
         cand = Path(p)
         if cand.is_file() and os.access(cand, os.X_OK):
             return str(cand)
-    return shutil.which("flexencoder")
+    dev = _flexicorp_scripts_flexencoder()
+    if dev:
+        return dev
+    return None
 
 
 def _run_flexencoder_reindex(
@@ -316,7 +352,7 @@ def _run_flexencoder_reindex(
     if not flexencoder_bin:
         raise RuntimeError(
             "flexencoder not found (required for multi-backend reindex). "
-            "Install under project Scripts/, TT_ROOT/Scripts/, or PATH."
+            "Install under project Scripts/, TT_ROOT/Scripts/, flexicorp scripts/flexencoder, FLEXICORP_ROOT, or PATH."
         )
     cmd = [
         flexencoder_bin,
@@ -356,6 +392,8 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
     - Uses flexencoder for CQP and/or ClickHouse (single extraction pass).
     - Uses native Manatee backend reindex for Manatee output (encodevert/mkstats/mksizes path).
     - Runs BlackLab reindex separately if requested.
+    - Runs native PML-TQ export/import when ``pmltq`` is requested (flexencoder JSONL →
+      ``tmp/pmltq-export``, optional ``pmltq_import_cmd``).
     """
     params = req.get("params") or {}
     backends_raw = params.get("reindex_backends")
@@ -446,6 +484,15 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
                     results.append({"backend": "manatee", **r})
             except Exception as e:
                 errors.append(f"manatee: {e}")
+        elif name == "pmltq":
+            try:
+                pm = ensure_backend_loaded("pmltq")
+                if pm and hasattr(pm, "reindex"):
+                    req_single = {**req, "backend": "pmltq"}
+                    r = pm.reindex(req_single)
+                    results.append({"backend": "pmltq", **r})
+            except Exception as e:
+                errors.append(f"pmltq: {e}")
 
     message = f"Reindex for {', '.join(backends)} finished."
     if errors:
@@ -490,7 +537,7 @@ def handle_request(req: FlexiRequest) -> FlexiResponse:
             reindex_backends = [b.strip() for b in reindex_backends.split(",") if b.strip()]
         if isinstance(reindex_backends, list) and len(reindex_backends) > 0:
             return _handle_reindex_multi({**req, "params": {**params, "reindex_backends": reindex_backends}})
-        if backend_name in ("cqp", "clickhouse", "clickql", "manatee", "pando"):
+        if backend_name in ("cqp", "clickhouse", "clickql", "manatee", "pando", "pmltq"):
             return _handle_reindex_multi({**req, "params": {**params, "reindex_backends": [backend_name]}})
 
     req, query_policy_meta = apply_query_policy(req)
