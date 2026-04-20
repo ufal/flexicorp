@@ -1291,6 +1291,37 @@ def inspect_native_files(cfg: ManateeConfig) -> Dict[str, object]:
     }
 
 
+def _text_file_format_code(text_path: Path) -> Optional[str]:
+    """
+    Probe a Manatee ``.text`` file and return a short tag describing its
+    on-disk format, or ``None`` if the file is missing / unreadable.
+
+    - ``"int_text"`` — FINIT header (``\\xa3finIT`` + padding, 15 bytes)
+      followed by int32 LE token-ids. Must be declared as ``TYPE "FD_MI"``
+      in the Manatee registry.
+    - ``"delta_text"`` — anything else. Must use Manatee's default TYPE
+      (``MD_MD``) or whatever explicit ``TYPE`` the registry already set;
+      MUST NOT be force-wrapped as ``FD_MI`` or Manatee will misread
+      delta offsets as raw int32s → native SIGSEGV.
+
+    This is the *ground truth* for the rewrite decision in
+    :func:`prepare_runtime_registry`; an earlier version used the
+    presence of a ``.text.seg`` file as a proxy but that's a weaker
+    signal (e.g. a user could have a stale ``.text.seg`` lying around,
+    or a delta variant storing its index elsewhere).
+    """
+    try:
+        if not text_path.is_file():
+            return None
+        with text_path.open("rb") as fh:
+            head = fh.read(len(_FINIT_TEXT_HEADER_PREFIX))
+    except OSError:
+        return None
+    if head == _FINIT_TEXT_HEADER_PREFIX:
+        return "int_text"
+    return "delta_text"
+
+
 def prepare_runtime_registry(cfg: ManateeConfig) -> ManateeRuntimeSetup:
     summary = parse_manatee_registry(resolve_manatee_registry_file(cfg))
     if summary.resolved_data_path is None or not summary.resolved_data_path.is_dir():
@@ -1305,32 +1336,148 @@ def prepare_runtime_registry(cfg: ManateeConfig) -> ManateeRuntimeSetup:
     patched_lines: List[str] = []
     local_vertical = summary.registry_file.parent / "corpus.vrt"
     structure_block_depth = 0
+    # Tracks seen ATTRIBUTE names inside the currently-open STRUCTURE
+    # block so we can drop duplicate declarations that would otherwise
+    # make Manatee SIGSEGV on corpus open (see S16 in
+    # ``docs/manatee_xml_context_fix.md``). Reset at every STRUCTURE
+    # opener and cleared on the matching close brace.
+    struct_seen_attrs: set[str] = set()
+    struct_dedup_drops: List[str] = []  # for debug
+    debug_enabled = os.environ.get("FLEXICORP_MANATEE_DEBUG") not in (None, "", "0")
+    decisions: List[str] = []
     for raw_line in registry_text.splitlines():
         line = raw_line.strip()
         if line.startswith("PATH "):
             patched_lines.append(f'PATH  "{resolved}"')
         elif line.startswith("VERTICAL ") and local_vertical.is_file():
             patched_lines.append(f'VERTICAL "{local_vertical}"')
-        elif line.startswith("ATTRIBUTE ") and "{" not in line and structure_block_depth == 0:
-            # Wrap ATTRIBUTE into a block and force TYPE "FD_MI" (int_text),
-            # so Manatee uses int_text instead of delta_text (no *.text.seg needed).
+        elif (
+            structure_block_depth > 0
+            and line.startswith("ATTRIBUTE ")
+            and "{" not in line
+        ):
+            # Inside a STRUCTURE block — dedupe. Manatee's C++ corpus
+            # open path allocates one PosAttr per ATTRIBUTE declaration
+            # inside a structure and keys them by name; two with the
+            # same name leaves a dangling pointer and the next
+            # ``Concordance`` build crashes. Silently drop the second
+            # declaration (keep the first one's exact text). See S16.
             parts = line.split()
-            attr_name = parts[1] if len(parts) > 1 else ""
-            if attr_name.startswith('"') and attr_name.endswith('"'):
-                disp_name = attr_name
+            attr_name_raw = parts[1] if len(parts) > 1 else ""
+            bare_name = attr_name_raw.strip('"') if attr_name_raw else ""
+            if bare_name and bare_name in struct_seen_attrs:
+                struct_dedup_drops.append(bare_name)
+                # Drop this line entirely — do not append to patched_lines.
             else:
-                disp_name = f'"{attr_name}"' if attr_name else '"word"'
-            patched_lines.append(f"ATTRIBUTE {disp_name} {{")
-            patched_lines.append('TYPE "FD_MI"')
-            patched_lines.append("}")
+                if bare_name:
+                    struct_seen_attrs.add(bare_name)
+                patched_lines.append(raw_line)
+        elif line.startswith("ATTRIBUTE ") and "{" not in line and structure_block_depth == 0:
+            # Decide per-attribute whether to wrap this bare declaration into
+            # a block that forces ``TYPE "FD_MI"`` (int_text), or pass it
+            # through untouched.
+            #
+            # Background. Flexicorp's manatee writer (``flexicorp/manatee_writer.py``)
+            # emits the ``.text`` file in int_text format (FINIT header + int32
+            # LE per token) and relies on this registry rewrite to advertise
+            # ``TYPE "FD_MI"``. That's fine when the corpus was built by us —
+            # and necessary, because without the override Manatee defaults to
+            # delta_text and tries to read a nonexistent ``.text.seg`` file.
+            #
+            # But when the corpus was built by the normal Kontext / TEITOK
+            # flow (``cwb-decode`` + ``encodevert`` + ``compilecorp``), the
+            # ``.text`` file IS delta_text. Forcing ``FD_MI`` tells Manatee
+            # to interpret a delta_text file as int_text → it reads garbage
+            # offsets → SIGSEGV inside ``_manatee.so`` the moment a
+            # ``Concordance`` touches that attribute (the live-reproduced
+            # symptom was ``[form="bez"]`` crashing in
+            # ``manatee.Concordance.__init__`` while Kontext reading the
+            # exact same corpus worked fine). See S14/S15 in
+            # ``docs/manatee_xml_context_fix.md``.
+            #
+            # Decision order (S15 — ground-truth rewrite):
+            #   1. If the parsed summary already has an explicit ``TYPE``
+            #      for this attribute — honour it and pass through.
+            #   2. Probe ``<name>.text`` on disk and check the FINIT
+            #      signature. This is the authoritative test:
+            #        - FINIT present   → int_text  → force TYPE "FD_MI".
+            #        - FINIT absent    → delta_text → pass through
+            #          (Manatee default MD_MD handles delta + seg index).
+            #        - file missing    → pass through (let Manatee error
+            #          naturally, don't inject a bad TYPE).
+            #   The S14 fix used ``.text.seg`` presence as a weaker proxy;
+            #   S15 replaces it with the file-header probe because some
+            #   Kontext corpora don't keep ``.text.seg`` next to ``.text``
+            #   (e.g. the TEITOK corpus ``infoveillance`` in the live
+            #   repro) — that broke the S14 heuristic and re-segfaulted.
+            parts = line.split()
+            attr_name_raw = parts[1] if len(parts) > 1 else ""
+            bare_name = attr_name_raw.strip('"') if attr_name_raw else ""
+            if attr_name_raw.startswith('"') and attr_name_raw.endswith('"'):
+                disp_name = attr_name_raw
+            else:
+                disp_name = f'"{attr_name_raw}"' if attr_name_raw else '"word"'
+
+            attr_meta = summary.positional.get(bare_name) if bare_name else None
+            already_typed = attr_meta is not None and attr_meta.type_code is not None
+            fmt_code: Optional[str] = None
+            if bare_name:
+                fmt_code = _text_file_format_code(resolved / f"{bare_name}.text")
+
+            if already_typed:
+                decision = f"pass-through (registry already has TYPE={attr_meta.type_code!r})"
+                patched_lines.append(raw_line)
+            elif fmt_code == "int_text":
+                decision = "force TYPE \"FD_MI\" (FINIT header on .text)"
+                patched_lines.append(f"ATTRIBUTE {disp_name} {{")
+                patched_lines.append('TYPE "FD_MI"')
+                patched_lines.append("}")
+            elif fmt_code == "delta_text":
+                decision = "pass-through (delta_text on disk — Manatee default MD_MD)"
+                patched_lines.append(raw_line)
+            else:
+                # .text file missing or unreadable. Don't guess — let
+                # Manatee error naturally with its own message.
+                decision = "pass-through (.text missing or unreadable)"
+                patched_lines.append(raw_line)
+            decisions.append(f"[flexicorp/manatee] ATTRIBUTE {bare_name!r}: {decision}")
         else:
             patched_lines.append(raw_line)
         if line.startswith("STRUCTURE ") and "{" in line:
             structure_block_depth += 1
+            # Start a fresh per-structure dedupe scope. Only the
+            # top-level structure matters in practice (Manatee doesn't
+            # allow nested STRUCTURE blocks) but keeping this at every
+            # opener is harmless.
+            struct_seen_attrs = set()
         elif structure_block_depth > 0 and line.startswith("}"):
             structure_block_depth -= 1
+            if structure_block_depth == 0:
+                struct_seen_attrs = set()
 
     runtime_dir = Path(tempfile.mkdtemp(prefix="flexicorp-manatee-registry-"))
     runtime_file = runtime_dir / summary.registry_file.name
     runtime_file.write_text("\n".join(patched_lines) + "\n", encoding="utf-8")
+    if debug_enabled:
+        import sys as _sys
+        _sys.stderr.write(
+            f"[flexicorp/manatee] runtime registry written: {runtime_file}\n"
+            f"[flexicorp/manatee] data PATH resolved to: {resolved}\n"
+        )
+        for d in decisions:
+            _sys.stderr.write(d + "\n")
+        if struct_dedup_drops:
+            _sys.stderr.write(
+                "[flexicorp/manatee] dropped duplicate STRUCTURE-level ATTRIBUTE "
+                f"declarations (would have SIGSEGVd Manatee): {struct_dedup_drops}\n"
+            )
+        try:
+            _sys.stderr.write(
+                "[flexicorp/manatee] runtime registry contents:\n"
+                + "\n".join(f"    {ln}" for ln in patched_lines)
+                + "\n"
+            )
+        except Exception:
+            pass
+        _sys.stderr.flush()
     return ManateeRuntimeSetup(summary=summary, runtime_registry_dir=runtime_dir)

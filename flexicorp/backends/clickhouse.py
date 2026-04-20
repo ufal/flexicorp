@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 import importlib
 
+from ..clickhouse_errors import format_clickhouse_error_message
 from ..config import ClickHouseConfig, CqpConfig, get_clickhouse_config
 from ..core import CorpusBackend, FlexiRequest, register_backend
 from ..dependency_utils import ensure_package_installed
@@ -339,7 +340,10 @@ class ClickHouseBackend(CorpusBackend):
                 except Exception:
                     payload["corpus_ready"] = False
         except Exception as e:
-            payload["error"] = str(e)
+            payload["error"] = format_clickhouse_error_message(
+                e, host=cfg.host, port=cfg.port, database=cfg.database
+            )
+            payload["error_detail"] = str(e)
         return payload
 
     def daemon(self, req: FlexiRequest) -> Dict[str, Any]:
@@ -430,7 +434,10 @@ class ClickHouseBackend(CorpusBackend):
             except Exception as e:
                 payload["docs_count"] = None
                 payload["tokens_count"] = None
-                payload["table_error"] = str(e)
+                payload["table_error"] = format_clickhouse_error_message(
+                    e, host=cfg.host, port=cfg.port, database=cfg.database
+                )
+                payload["table_error_detail"] = str(e)
         else:
             payload["docs_count"] = None
             payload["tokens_count"] = None

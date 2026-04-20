@@ -5,6 +5,7 @@ import json
 from typing import Any, Dict, List
 
 from .backends.manatee import load_manatee_bindings
+from .clickhouse_errors import format_clickhouse_error_message
 from .config import get_blacklab_settings, get_clickhouse_config, get_project_root
 from .core import available_backend_names, backend_descriptor, ensure_backend_loaded
 from .teitok import detect_teitok_cqp, detect_teitok_manatee
@@ -246,8 +247,15 @@ def _clickhouse_status(project: Dict[str, Any]) -> Dict[str, Any]:
         return {"available": False, "daemon_reachable": False, "reason": reason, "details": payload}
     except Exception as e:
         err = str(e)
-        reason = err if err else "ClickHouse daemon unavailable or authentication failed."
-        return {"available": False, "daemon_reachable": False, "reason": reason, "details": {"error": err}}
+        reason = format_clickhouse_error_message(
+            e, host=cfg.host, port=cfg.port, database=cfg.database
+        )
+        return {
+            "available": False,
+            "daemon_reachable": False,
+            "reason": reason,
+            "details": {"error": err},
+        }
 
 
 def _clickql_status(project: Dict[str, Any], clickhouse_status: Dict[str, Any]) -> Dict[str, Any]:

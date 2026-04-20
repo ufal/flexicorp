@@ -394,6 +394,44 @@ class ManateeBackend(CorpusBackend):
         return by_offset
 
     @staticmethod
+    def _flat_surface_tokens(pairs: Any) -> List[str]:
+        """
+        Turn a Manatee ``KWICLines.get_left/get_kwic/get_right`` result into a
+        flat list of surface-token strings.
+
+        The native return is a flat sequence of alternating
+        ``(token_str, class_str)``: ``("dog", "", "ran", "", "<s>", "strc", ...)``.
+        Kontext's :func:`tokens2strclass` (``lib/kwiclib/common.py``) pairs them
+        up and splits multi-word tokens on whitespace; structural markers
+        (class containing ``"strc"``) and attribute rows (class ``"attr"``)
+        are not real tokens and must be dropped.
+
+        We mirror that logic here because flexicorp exposes plain surface
+        strings in ``hit["toks"]`` / ``hit["left_toks"]`` / ``hit["right_toks"]``
+        — no rendering of inline structural tags.
+        """
+        out: List[str] = []
+        try:
+            items = list(pairs)
+        except Exception:
+            return out
+        for i in range(0, len(items), 2):
+            tok = items[i]
+            cls = items[i + 1] if i + 1 < len(items) else ""
+            cls_txt = str(cls) if cls is not None else ""
+            if "strc" in cls_txt or "attr" in cls_txt:
+                continue
+            tok_str = _decode_text(tok) or ""
+            # Manatee can glue multiple surface tokens into one chunk when
+            # multiple attrs are requested (see Kontext ``split_chunk``).
+            # Splitting on whitespace is safe when ``attrs="word"`` because
+            # surface forms don't contain spaces themselves.
+            for piece in tok_str.split():
+                if piece:
+                    out.append(piece)
+        return out
+
+    @staticmethod
     def _manatee_concordance_corpus(conc: Any, fallback: Any) -> Any:
         """
         KonText passes ``conc.corp()`` into ``KWICLines``, not the original ``Corpus`` handle
@@ -698,11 +736,23 @@ class ManateeBackend(CorpusBackend):
             if not region_name:
                 continue
             lines.append(f"STRUCTURE {region_name} {{")
+            # Dedupe attributes per-region. Manatee does NOT tolerate
+            # duplicate `ATTRIBUTE <name>` lines inside the same
+            # `STRUCTURE` block — it allocates two PosAttr with the
+            # same name and the C++ corpus-open path SIGSEGVs the next
+            # time a `Concordance` tries to resolve either one. See
+            # S16 in ``docs/manatee_xml_context_fix.md``.
+            seen_attrs: set[str] = set()
             for attr in attrs:
-                attr_name = str(attr or "").strip()
-                if attr_name:
-                    lines.append(f"        ATTRIBUTE {attr_name.lower()}")
-            if region_name == "text":
+                attr_name = str(attr or "").strip().lower()
+                if attr_name and attr_name not in seen_attrs:
+                    seen_attrs.add(attr_name)
+                    lines.append(f"        ATTRIBUTE {attr_name}")
+            if region_name == "text" and "id" not in seen_attrs:
+                # Ensure text.id is always declared (TEITOK/Kontext
+                # require it) — but only if the caller didn't already
+                # include it in ``sattributes_by_region['text']``.
+                seen_attrs.add("id")
                 lines.append("        ATTRIBUTE id")
             lines.append("}")
             lines.append("")
@@ -1670,8 +1720,13 @@ print(json.dumps({{"key": key, "values": vals}}))
             file_scaffold = load_manatee_corpus_scaffold(cfg)
         except Exception:
             file_scaffold = None
-        token_attr_name, token_attr = self._pick_token_attr_for_query(corpus_kw, file_scaffold)
-        token_lim = self._min_pos_limit(max_pos, self._positional_attr_max_pos(token_attr, corpus_kw))
+        # ``token_lim`` is the inclusive upper cpos used to clamp match spans
+        # before feeding them into the XML-context fallback. We no longer
+        # compute per-attribute limits (that was the old "safe lexicon read"
+        # path); Manatee's ``KWICLines`` will refuse out-of-range positions
+        # on its own. Using the corpus-level max keeps the downstream clamp
+        # correct without probing any positional attribute.
+        token_lim = max_pos
         doc_struct, doc_id_attr, _title_attr = self._doc_lookup(corpus_kw)
         sentence_id_attr = self._sentence_id_attr(corpus_kw)
         sent_struct = self._safe_get_struct(corpus_kw, "s")
@@ -1711,29 +1766,85 @@ print(json.dumps({{"key": key, "values": vals}}))
                 if sub.is_dir():
                     text_id_fallback_dirs.append(sub)
 
-        match_spans: List[tuple[int, int]] = []
-        cpos_spans = self._concordance_spans_via_cpos(conc, start, end)
-        if cpos_spans is not None and len(cpos_spans) == end - start:
-            match_spans = cpos_spans
-        else:
-            # KonText uses conc.corp() for KWICLines (see lib/kwiclib/__init__.py).
-            # left=right="0", empty kwica: iteration-only; tokens come from lexicon / pos2str.
-            kl = manatee.KWICLines(corpus_kw, conc.RS(True, start, end), "0", "0", "", "", "", "")
-            while kl.nextline():
-                match_start = int(kl.get_pos())
-                kwic_len_value = int(kl.get_kwiclen())
-                kwic_len = kwic_len_value if kwic_len_value > 0 else 1
-                match_end = match_start + kwic_len - 1
-                if token_lim is not None:
-                    if match_start < 0 or match_start > token_lim:
-                        continue
-                    match_end = min(match_end, token_lim)
-                if match_start > match_end:
-                    continue
-                match_spans.append((match_start, match_end))
+        # =====================================================================
+        # Kontext-aligned KWICLines call.
+        #
+        # Goal: for the pure-Manatee parts (tokens + ``doc.id`` + ``s.id``),
+        # flexicorp must behave EXACTLY like Kontext. The reference is
+        # ``lib/kwiclib/__init__.py::kwiclines`` (call site at line 551) and
+        # ``lib/conclib/__init__.py::get_full_ref`` (line 166) — both use
+        # ``KWICLines`` with ``refs`` when they need structural attrs for the
+        # current hit, and tokens come from ``kl.get_left/kwic/right``.
+        #
+        # Why this matters:
+        #   * "View → show structures: s_id" in the Kontext UI is implemented
+        #     by pushing ``=s.id`` into the ``refs`` argument. The displayed
+        #     value for each hit comes from ``kl.get_ref_list()`` and is
+        #     identical to what ``corpus.get_attr("s.id").pos2str(kl.get_pos())``
+        #     returns (both exercise the same ``StructPosAttr`` wrapper). So
+        #     if we want the same ``s.id`` Kontext shows, we ask for it the
+        #     same way.
+        #   * Previous revisions of this file maintained a parallel path that
+        #     read ``<attr>.text`` / ``<attr>.lex`` on disk ourselves — that
+        #     could go silently empty when the scaffold was missing, giving
+        #     ``toks: []`` on otherwise-successful queries. It also duplicated
+        #     logic that Manatee already handles correctly for Kontext.
+        #
+        # The per-hit ``doc_beg`` / ``sent_beg`` (cpos where the enclosing
+        # ``<text>`` / ``<s>`` begins) is still computed because the TEITOK
+        # XML-context fallback (``resolve_teitok_context`` with
+        # ``prefer="xml"``) uses it as ``doc_cpos_base``. That's our one
+        # legitimate deviation — see docs/kontext_alignment_reference.md §4.
+        # =====================================================================
+        doc_struct_name = self._doc_structure_name(corpus_kw) or "text"
+        # ``ref_specs`` is our source of truth for the position of each value
+        # in ``kl.get_ref_list()``; only include specs whose underlying attr
+        # actually exists, so the two lists stay index-parallel.
+        ref_specs: List[str] = []
+        if doc_id_attr is not None:
+            ref_specs.append(f"={doc_struct_name}.id")
+        if sentence_id_attr is not None:
+            ref_specs.append("=s.id")
+        refs_arg = ",".join(ref_specs)
+
+        # Kontext's defaults (``lib/kwiclib/__init__.py`` lines 72–114):
+        # ``leftctx='-5'``, ``rightctx='5'``. The sign on ``leftctx`` is
+        # required by Manatee — a bare ``"5"`` for left context does the wrong
+        # thing. Callers can still override via ``params``.
+        left_ctx = str(params.get("left_context", "-5")).strip() or "-5"
+        right_ctx = str(params.get("right_context", "5")).strip() or "5"
+        # Manatee quirk: an unsigned positive value means "N structural units"
+        # and can trigger a segfault when no matching struct exists. Kontext
+        # normalises by prefixing ``-`` for the left side; we do the same.
+        if left_ctx and left_ctx[0] not in "+-":
+            left_ctx = f"-{left_ctx}"
+
+        # Kontext: ``manatee.KWICLines(conc.corp(), conc.RS(True, from, to),
+        #                              leftctx, rightctx, attrs, ctxattrs,
+        #                              structs, refs)``. We pass ``structs=""``
+        # because we don't render inline ``<s>``/``<text>`` tags in the hit
+        # shape; ``tokens2strclass``-style drop of class ``strc`` in
+        # :meth:`_flat_surface_tokens` keeps tokens clean.
+        kl = manatee.KWICLines(
+            corpus_kw,
+            conc.RS(True, start, end),
+            left_ctx, right_ctx,
+            "word",   # attrs — token surface forms for left/kwic/right
+            "word",   # ctxattrs — same
+            "",       # structs — do not interleave structural markers
+            refs_arg,
+        )
 
         rows: List[Dict[str, Any]] = []
-        for match_start, match_end in match_spans:
+        while kl.nextline():
+            try:
+                match_start = int(kl.get_pos())
+                kwic_len_value = int(kl.get_kwiclen())
+            except Exception:
+                # Defensive: a malformed line shouldn't kill the whole page.
+                continue
+            kwic_len = kwic_len_value if kwic_len_value > 0 else 1
+            match_end = match_start + kwic_len - 1
             if token_lim is not None:
                 if match_start < 0 or match_start > token_lim:
                     continue
@@ -1741,57 +1852,45 @@ print(json.dumps({{"key": key, "values": vals}}))
             if match_start > match_end:
                 continue
 
-            # Document id for TEITOK XML: prefer Manatee registry structures, then CWB-style
-            # text_id.* beside the corpus. Do NOT prefer flexencoder xidx here: xidx/tokens.bin uses
-            # flexencoder's global positions; Manatee concordance uses Manatee cpos — they are different
-            # streams unless rebuilt in perfect lockstep. Using xidx first mis-mapped hits to unrelated
-            # sentences (queries matched in Manatee but context showed wrong XML).
+            kwic_toks = self._flat_surface_tokens(kl.get_kwic())
+            left_toks = self._flat_surface_tokens(kl.get_left())
+            right_toks = self._flat_surface_tokens(kl.get_right())
+
+            # ``get_ref_list()`` yields one value per ref spec, in declaration
+            # order. Decode and map by spec so downstream code is robust to
+            # the optional presence of either struct attr.
+            ref_values: List[str] = []
+            if ref_specs:
+                try:
+                    ref_values = [_decode_text(v) or "" for v in kl.get_ref_list()]
+                except Exception:
+                    ref_values = []
             doc_id: Optional[str] = None
+            sentence_id: Optional[str] = None
+            for spec, val in zip(ref_specs, ref_values):
+                if not val:
+                    continue
+                if spec == f"={doc_struct_name}.id":
+                    doc_id = val
+                elif spec == "=s.id":
+                    sentence_id = val
+
+            # Fallback for doc_id only: the CWB-style ``text_id.*`` helper
+            # files live next to the Manatee corpus and were written in the
+            # SAME cpos stream as Manatee (they honour the ``"--"`` skip — see
+            # docs/manatee_xml_context_fix.md §2 INV-1). Never fall back to
+            # xidx here: that's a different cpos stream.
+            if not doc_id and text_id_fallback_dirs:
+                doc_id = text_id_from_cwb_style_index_files(text_id_fallback_dirs, match_start)
+
+            # ``doc_beg`` / ``sent_beg`` stay useful for the XML context
+            # fallback even when we have doc_id / sentence_id from refs.
             doc_beg: Optional[int] = None
             if doc_struct is not None:
-                # Resolve doc_beg even when doc_id_attr is missing — the
-                # ``s.id``-less / no-positional-id fallback in
-                # ``resolve_teitok_context`` (xml-doc-offset) needs it to
-                # compute ``match_start - doc_beg``.
                 doc_beg = self._struct_beg_containing(doc_struct, match_start)
-            if doc_id_attr is not None:
-                # IMPORTANT: ``doc_id_attr`` is ``StructPosAttr`` (cpos-indexed
-                # wrapper) per :meth:`_doc_lookup`, so we feed it the **cpos**
-                # (``match_start``), NOT the region-start ``doc_beg`` nor a
-                # region index. Passing a cpos to the raw region-indexed
-                # ``Structure.get_attr("id")`` segfaults; see the docstring
-                # on :meth:`_doc_lookup` for the full story.
-                doc_id = self._safe_pos2str(doc_id_attr, match_start, max_pos=max_pos)
-            if doc_id is None and text_id_fallback_dirs:
-                # Safe: text_id.* files live next to the Manatee corpus and are
-                # written in the SAME cpos stream as Manatee. Unlike xidx, they
-                # honour the ``"--"`` token skip performed by the CWB writer.
-                doc_id = text_id_from_cwb_style_index_files(text_id_fallback_dirs, match_start)
-            # NOTE: We intentionally do NOT fall back to
-            # ``text_id_stem_for_cpos(teitok_root, match_start)`` here.
-            # ``text_id_stem_for_cpos`` reads flexencoder's xidx, which uses
-            # a 1-based global_pos that increments on every token (no "--" skip).
-            # Manatee cpos is 0-based and skips "--" — see
-            # ``docs/manatee_xml_context_fix.md`` §2 (INV-1). Feeding Manatee cpos
-            # into xidx caused the "wrong sentence" and "shifted highlights"
-            # bugs reported against prior revisions. Do not reintroduce it
-            # without first rebuilding xidx in lockstep with Manatee cpos.
-
             sent_beg: Optional[int] = None
             if sent_struct is not None:
-                # ``sent_beg`` (cpos where ``<s>`` begins) is still useful for
-                # rendering / debugging; keep it even when we don't need it
-                # to index ``sentence_id_attr`` (``StructPosAttr`` handles the
-                # cpos→region mapping for us).
                 sent_beg = self._struct_beg_containing(sent_struct, match_start)
-            if sentence_id_attr is not None:
-                # Same rationale as ``doc_id`` above: ``sentence_id_attr`` is
-                # ``StructPosAttr`` (cpos-indexed); feed it ``match_start``.
-                sentence_id = self._safe_pos2str(
-                    sentence_id_attr, match_start, max_pos=max_pos
-                )
-            else:
-                sentence_id = None
 
             rows.append(
                 {
@@ -1800,16 +1899,19 @@ print(json.dumps({{"key": key, "values": vals}}))
                     "doc_id": doc_id,
                     "doc_beg": doc_beg,
                     "sentence_id": sentence_id,
-                    "sentence_start": sent_beg if sent_struct is not None else None,
+                    "sentence_start": sent_beg,
+                    "toks": kwic_toks,
+                    "left_toks": left_toks,
+                    "right_toks": right_toks,
                 }
             )
 
+        # Positional ``id`` lookup (per-token ``<tok xml:id>`` values used by
+        # the highlight_map / jmp=). This is a legitimate flexicorp extension
+        # — Kontext has no equivalent — so it's the ONE lexicon-file read we
+        # retain. When the attr isn't on disk we fall through to surface
+        # matching against the TEITOK XML fragment below.
         need_ranges = [(int(r["match_start"]), int(r["match_end"])) for r in rows]
-        bulk_lex: Optional[List[List[str]]] = None
-        if need_ranges and token_attr_name:
-            bulk_lex = self._tokens_from_lexicon_files(file_scaffold, token_attr_name, need_ranges)
-        # Token *id* values (same as TEITOK XML <tok xml:id="…">). Needed for highlight_map — using
-        # surface lexicon strings breaks DOM matching in the UI (ids vs word forms).
         bulk_id_toks: Optional[List[List[str]]] = None
         if need_ranges and file_scaffold is not None:
             pos_map = getattr(file_scaffold, "positional", None) or {}
@@ -1850,24 +1952,25 @@ print(json.dumps({{"key": key, "values": vals}}))
             doc_beg = r.get("doc_beg")
             sentence_id = r.get("sentence_id")
             sentence_start = r.get("sentence_start")
-            # Do NOT override doc_id / sentence_id from positional bulk reads
-            # here — see the tombstone above this loop (§2 INV-5 / §3 RC-C).
-            # Manatee structure lookup is the canonical source.
-            toks: List[str] = []
-            if bulk_lex is not None and row_idx < len(bulk_lex):
-                toks = [t for t in bulk_lex[row_idx] if t]
-            if not toks:
-                # Native pos2str on positional attrs can segfault in _manatee (not catchable in Python).
-                # Lexicon path above is the only safe source for token strings here.
-                toks = []
+            # Tokens come from Kontext-style ``KWICLines.get_kwic()`` above —
+            # no lexicon-file override here. See the tombstone further down
+            # this function for why the old positional ``text_id``/``s_id``
+            # override path was removed (§2 INV-5 / §3 RC-C).
+            toks: List[str] = list(r.get("toks") or [])
+            left_toks: List[str] = list(r.get("left_toks") or [])
+            right_toks: List[str] = list(r.get("right_toks") or [])
             hit: Dict[str, Any] = {
                 "doc_id": doc_id,
                 "sentence_id": sentence_id,
                 "toks": toks,
+                "left_toks": left_toks,
+                "right_toks": right_toks,
                 "row": {
                     "doc_id": doc_id,
                     "sentence_id": sentence_id,
                     "toks": toks,
+                    "left_toks": left_toks,
+                    "right_toks": right_toks,
                 },
                 "match_start": match_start,
                 "match_end": match_end,

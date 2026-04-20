@@ -10,6 +10,8 @@ import shutil
 import subprocess
 import sys
 
+from .clickhouse_errors import format_clickhouse_error_message
+from .config import get_clickhouse_config
 from .query_policy import apply_query_policy
 
 
@@ -537,20 +539,15 @@ def handle_request(req: FlexiRequest) -> FlexiResponse:
             message=str(e) or f"Operation '{operation}' not implemented for backend '{backend_name}'.",
         )
     except Exception as e:  # pragma: no cover - defensive
-        err_text = str(e)
-        err_lc = err_text.lower()
-        if backend_name in {"clickhouse", "clickql"} and any(
-            needle in err_lc
-            for needle in (
-                "httpconnectionpool",
-                "newconnectionerror",
-                "connection refused",
-                "failed to establish a new connection",
-                "executing http request",
-                "max retries exceeded",
-            )
-        ):
-            msg = "ClickHouse server unavailable or misconfigured."
+        if backend_name in {"clickhouse", "clickql"}:
+            project = dict(req.get("project") or {})
+            ch = get_clickhouse_config(project)
+            if ch is not None:
+                msg = format_clickhouse_error_message(
+                    e, host=ch.host, port=ch.port, database=ch.database
+                )
+            else:
+                msg = format_clickhouse_error_message(e)
         else:
             # Avoid leaking secrets; keep message high-level.
             msg = f"Internal error in backend '{backend_name}' during '{operation}': {e}"
