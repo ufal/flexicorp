@@ -844,34 +844,62 @@ class KontextEnvAdapter:
                     target_ok = any(c.lower() in body_l for c in target_candidates)
             except Exception as exc:
                 parse_error = str(exc)
-            out["checks"]["http_target_corpus"] = {
+            ht_check: Dict[str, Any] = {
                 "ok": target_ok,
                 "url": ok_url,
                 "candidate_ids": target_candidates,
                 "error": parse_error,
             }
+            _dm = bool(cfg.get("demo_mode"))
+            if not target_ok:
+                if _dm:
+                    ht_check["note"] = (
+                        "Demo mode: the corpus id is expected to appear in the /corpora/corplist response "
+                        "for typical unauthenticated walkthroughs."
+                    )
+                else:
+                    ht_check["note"] = (
+                        "Corpus not present in this HTTP corplist snapshot — often normal when ACL hides it "
+                        "from anonymous users, or when probing a different base URL than your browser uses."
+                    )
+            out["checks"]["http_target_corpus"] = ht_check
 
         # Optional but important for "shows in Kontext UI": anonymous ACL entry in redis_db/default_auth setups.
         redis_cfg = self._read_kontext_redis_acl_cfg(conf_path)
         if redis_cfg is not None and target_candidates:
-            out["checks"]["anon_acl_corpus"] = self._redis_acl_contains_corpus(
+            acl_res = self._redis_acl_contains_corpus(
                 host=str(redis_cfg["host"]),
                 port=int(redis_cfg["port"]),
                 db=int(redis_cfg["db"]),
                 key=str(redis_cfg["key"]),
                 target_candidates=target_candidates,
             )
+            demo_mode = bool(cfg.get("demo_mode"))
+            if not acl_res.get("ok") and not demo_mode:
+                acl_res["note"] = (
+                    "Anonymous user ACL does not include this corpus — common for "
+                    "restricted/production corpora. Enable kontext.demo_mode in env-config "
+                    "if this check should be strict (e.g. public demo stacks)."
+                )
+            elif not acl_res.get("ok") and demo_mode:
+                acl_res["note"] = (
+                    "Demo mode: anonymous users typically need this corpus in the Redis ACL "
+                    "to appear without logging in."
+                )
+            out["checks"]["anon_acl_corpus"] = acl_res
 
-        # config/corplist are required; http probe is diagnostic (non-fatal).
+        # config/corplist are required; http + anonymous ACL are only gatekeepers when demo_mode is on.
+        demo_mode = bool(cfg.get("demo_mode"))
         required_keys = ["config_xml", "corplist_xml"]
         if target_id:
             required_keys.append("corplist_target_corpus")
             if registry_dir is not None:
                 required_keys.append("registry_target_corpus")
-            if "http_target_corpus" in out["checks"]:
-                required_keys.append("http_target_corpus")
-            if "anon_acl_corpus" in out["checks"]:
-                required_keys.append("anon_acl_corpus")
+            if demo_mode:
+                if "http_target_corpus" in out["checks"]:
+                    required_keys.append("http_target_corpus")
+                if "anon_acl_corpus" in out["checks"]:
+                    required_keys.append("anon_acl_corpus")
         required_failed = [
             k
             for k in required_keys
