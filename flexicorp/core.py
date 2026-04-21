@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 
 from .clickhouse_errors import format_clickhouse_error_message
 from .config import get_clickhouse_config
@@ -345,9 +346,11 @@ def _run_flexencoder_reindex(
     settings_path: Path,
     output_cwb: Optional[Path] = None,
     output_clickhouse: Optional[Path] = None,
+    output_pando: Optional[Path] = None,
+    output_xidx: Optional[Path] = None,
     debug: bool = False,
 ) -> Dict[str, Any]:
-    """Run flexencoder with optional CWB and/or ClickHouse output. Returns result dict."""
+    """Run flexencoder with optional CWB/ClickHouse/Pando outputs. Returns result dict."""
     flexencoder_bin = _find_flexencoder(project_root)
     if not flexencoder_bin:
         raise RuntimeError(
@@ -363,6 +366,10 @@ def _run_flexencoder_reindex(
         cmd.extend(["--output", str(output_cwb)])
     if output_clickhouse:
         cmd.extend(["--output-clickhouse", str(output_clickhouse)])
+    if output_pando:
+        cmd.extend(["--output-pando", str(output_pando)])
+    if output_xidx:
+        cmd.extend(["--output-xidx", str(output_xidx)])
     proc = subprocess.run(
         cmd,
         cwd=str(project_root),
@@ -375,25 +382,127 @@ def _run_flexencoder_reindex(
     if debug and proc.stderr:
         print(proc.stderr, file=sys.stderr)
     if proc.returncode != 0:
+        err_text = (proc.stderr or proc.stdout or "").strip()
+        if output_xidx and "--output-xidx" in err_text and "Unknown argument" in err_text:
+            raise RuntimeError(
+                "flexencoder does not support --output-xidx yet, so staging-safe xidx cannot be guaranteed. "
+                "Please rebuild/install the updated flexencoder binary from this checkout."
+            )
         raise RuntimeError(
-            f"flexencoder failed with exit code {proc.returncode}: {proc.stderr or proc.stdout}"
+            f"flexencoder failed with exit code {proc.returncode}: {err_text}"
         )
     return {
         "engine": "flexencoder",
+        "binary": str(flexencoder_bin),
         "output_cwb": str(output_cwb) if output_cwb else None,
         "output_clickhouse": str(output_clickhouse) if output_clickhouse else None,
+        "output_pando": str(output_pando) if output_pando else None,
+        "output_xidx": str(output_xidx) if output_xidx else None,
     }
+
+
+def _swap_staged_trees_atomically(
+    swap_items: List[Dict[str, Any]],
+) -> List[Dict[str, str]]:
+    """
+    Swap multiple staged trees in one transaction-like operation.
+
+    Each item must contain: {"label": str, "staging": Path, "live": Path}.
+    On failure, attempts rollback for all items already touched.
+    Returns metadata for successful swaps.
+    """
+    ts = int(time.time())
+    plan: List[Dict[str, Any]] = []
+    for item in swap_items:
+        label = str(item["label"])
+        staging = Path(item["staging"])
+        live = Path(item["live"])
+        if not staging.is_dir():
+            raise RuntimeError(f"Staging {label} directory missing: {staging}")
+        live.parent.mkdir(parents=True, exist_ok=True)
+        backup = live.parent / f"{label}.bak_before_reindex.{ts}"
+        plan.append(
+            {
+                "label": label,
+                "staging": staging,
+                "live": live,
+                "backup": backup,
+                "had_live": live.exists(),
+            }
+        )
+
+    moved_backups: List[Dict[str, Any]] = []
+    moved_staging: List[Dict[str, Any]] = []
+    try:
+        for step in plan:
+            if step["had_live"]:
+                shutil.move(str(step["live"]), str(step["backup"]))
+                moved_backups.append(step)
+        for step in plan:
+            shutil.move(str(step["staging"]), str(step["live"]))
+            moved_staging.append(step)
+    except Exception as e:
+        rollback_errors: List[str] = []
+        for step in reversed(moved_staging):
+            try:
+                if step["live"].exists():
+                    shutil.move(str(step["live"]), str(step["staging"]))
+            except Exception as re:
+                rollback_errors.append(f"restore_staging:{step['label']}={re}")
+        for step in reversed(moved_backups):
+            try:
+                if step["backup"].exists() and not step["live"].exists():
+                    shutil.move(str(step["backup"]), str(step["live"]))
+            except Exception as re:
+                rollback_errors.append(f"restore_live:{step['label']}={re}")
+        if rollback_errors:
+            raise RuntimeError(f"staging swap failed: {e}; rollback issues: {'; '.join(rollback_errors)}")
+        raise RuntimeError(f"staging swap failed: {e}")
+
+    for step in moved_backups:
+        try:
+            if step["backup"].is_dir():
+                shutil.rmtree(step["backup"], ignore_errors=True)
+        except Exception:
+            pass
+
+    return [
+        {"label": str(step["label"]), "staging": str(step["staging"]), "live": str(step["live"])}
+        for step in plan
+    ]
+
+
+def _apply_staging_cqp_registry(req: FlexiRequest, root_dir: Path, staging_dir: Path) -> FlexiRequest:
+    from .teitok import cqp_registry_dir_for_corpus, detect_teitok_cqp
+
+    detected = detect_teitok_cqp(root_dir)
+    if not detected:
+        return req
+    corpus = (detected.get("cqp") or {}).get("corpus")
+    reg = cqp_registry_dir_for_corpus(staging_dir / "cqp", str(corpus) if corpus else None)
+    project = dict(req.get("project") or {})
+    cqp = dict(project.get("cqp") or {})
+    cqp["registry"] = str(reg)
+    if corpus and not cqp.get("corpus"):
+        cqp["corpus"] = corpus
+    project["cqp"] = cqp
+    return {**req, "project": project}
 
 
 def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
     """
     Run reindex for multiple backends in one go.
 
-    - Uses flexencoder for CQP and/or ClickHouse (single extraction pass).
+    - Uses flexencoder for CQP/ClickHouse/Pando (single extraction pass).
     - Uses native Manatee backend reindex for Manatee output (encodevert/mkstats/mksizes path).
     - Runs BlackLab reindex separately if requested.
     - Runs native PML-TQ export/import when ``pmltq`` is requested (flexencoder JSONL →
       ``tmp/pmltq-export``, optional ``pmltq_import_cmd``).
+
+    When ``params.reindex_staging`` is true (typically with ``reindex_job_id``), flexencoder
+    writes under ``tmp/flexicorp-reindex-staging/<job_id>/``; Manatee decodes from that tree;
+    staged xidx/CWB/Pando trees can then be swapped into ``project/xidx``, ``project/cqp``,
+    and ``project/pando`` before ClickHouse JSONL is loaded into the live database.
     """
     params = req.get("params") or {}
     backends_raw = params.get("reindex_backends")
@@ -407,7 +516,7 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
         return _make_error_response(
             backend="flexencoder",
             operation="reindex",
-            message="reindex_backends is required (list or comma-separated, e.g. cqp,clickhouse,manatee).",
+            message="reindex_backends is required (list or comma-separated, e.g. cqp,clickhouse,pando,manatee).",
         )
 
     project = dict(req.get("project") or {})
@@ -434,26 +543,63 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
     results: List[Dict[str, Any]] = []
     errors: List[str] = []
 
-    flexencoder_backends = [b for b in backends if b in ("cqp", "clickhouse", "clickql")]
+    use_staging = bool(params.get("reindex_staging"))
+    staging_dir: Optional[Path] = None
+    if use_staging:
+        raw_sd = params.get("reindex_staging_dir")
+        if isinstance(raw_sd, str) and raw_sd.strip():
+            staging_dir = Path(raw_sd.strip()).resolve()
+        else:
+            job_id = str(params.get("reindex_job_id") or "").strip()
+            if job_id:
+                staging_dir = (root_dir / "tmp" / "flexicorp-reindex-staging" / job_id).resolve()
+            else:
+                use_staging = False
+    if use_staging and staging_dir is not None:
+        try:
+            if staging_dir.exists():
+                shutil.rmtree(staging_dir, ignore_errors=True)
+            staging_dir.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            return _make_error_response(
+                backend="flexencoder",
+                operation="reindex",
+                message=f"Could not prepare reindex staging directory {staging_dir}: {e}",
+            )
+
+    flexencoder_backends = [b for b in backends if b in ("cqp", "clickhouse", "clickql", "pando")]
+    flex_out_base = staging_dir if use_staging and staging_dir is not None else root_dir
+
     if flexencoder_backends:
-        # CWB output when CQP requested; ClickHouse uses JSONL from the same flexencoder pass.
-        output_cwb = root_dir / "cqp" if "cqp" in flexencoder_backends else None
+        # CWB/Pando output and ClickHouse JSONL can share the same flexencoder extraction pass.
+        output_cwb = (flex_out_base / "cqp") if "cqp" in flexencoder_backends else None
         needs_jsonl = any(b in ("clickhouse", "clickql") for b in flexencoder_backends)
-        output_clickhouse = (root_dir / "tmp" / "clickhouse") if needs_jsonl else None
+        output_clickhouse = (flex_out_base / "tmp" / "clickhouse") if needs_jsonl else None
+        output_pando = (flex_out_base / "pando") if "pando" in flexencoder_backends else None
+        output_xidx = (flex_out_base / "xidx") if (use_staging and staging_dir is not None) else None
+        defer_ch_load = bool(use_staging and needs_jsonl)
         if output_clickhouse:
             output_clickhouse.mkdir(parents=True, exist_ok=True)
         try:
             r = _run_flexencoder_reindex(
-                root_dir, settings_path,
+                root_dir,
+                settings_path,
                 output_cwb=output_cwb,
                 output_clickhouse=output_clickhouse,
+                output_pando=output_pando,
+                output_xidx=output_xidx,
                 debug=debug,
             )
             results.append(r)
-            if output_clickhouse and r.get("output_clickhouse"):
+            if (
+                output_clickhouse
+                and r.get("output_clickhouse")
+                and not defer_ch_load
+            ):
                 jsonl_dir = Path(r["output_clickhouse"])
                 if any(b in ("clickhouse", "clickql") for b in flexencoder_backends):
                     from .clickhouse_loader import load_jsonl_into_clickhouse
+
                     load_result = load_jsonl_into_clickhouse(
                         jsonl_dir,
                         {"root": str(root_dir), **project},
@@ -464,6 +610,13 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
                         r["clickhouse_loaded"] = load_result.get("loaded", {})
         except Exception as e:
             errors.append(f"flexencoder: {e}")
+
+    staging_cqp = staging_dir / "cqp" if staging_dir is not None else None
+    live_cqp = root_dir / "cqp"
+    staging_pando = staging_dir / "pando" if staging_dir is not None else None
+    live_pando = root_dir / "pando"
+    staging_xidx = staging_dir / "xidx" if staging_dir is not None else None
+    live_xidx = root_dir / "xidx"
 
     for name in backends:
         if name == "blacklab":
@@ -480,6 +633,8 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
                 man = ensure_backend_loaded("manatee")
                 if man and hasattr(man, "reindex"):
                     req_single = {**req, "backend": "manatee"}
+                    if use_staging and staging_dir is not None:
+                        req_single = _apply_staging_cqp_registry(req_single, root_dir, staging_dir)
                     r = man.reindex(req_single)
                     results.append({"backend": "manatee", **r})
             except Exception as e:
@@ -494,6 +649,73 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
             except Exception as e:
                 errors.append(f"pmltq: {e}")
 
+    if errors:
+        message = f"Reindex for {', '.join(backends)} finished."
+        message += " " + "; ".join(errors)
+        return {
+            "ok": False,
+            "backend": "flexencoder",
+            "operation": "reindex",
+            "result": {
+                "reindex_backends": backends,
+                "results": results,
+                "message": message,
+            },
+            "warnings": [],
+            "errors": errors,
+        }
+
+    # Transactional staging swap + deferred ClickHouse load after other tools consumed staged CWB.
+    if not errors and use_staging and staging_dir is not None:
+        swap_items: List[Dict[str, Any]] = []
+        if staging_xidx is not None and staging_xidx.is_dir():
+            swap_items.append({"label": "xidx", "staging": staging_xidx, "live": live_xidx})
+        if staging_cqp is not None and staging_cqp.is_dir() and "cqp" in flexencoder_backends:
+            swap_items.append({"label": "cqp", "staging": staging_cqp, "live": live_cqp})
+        if staging_pando is not None and staging_pando.is_dir() and "pando" in flexencoder_backends:
+            swap_items.append({"label": "pando", "staging": staging_pando, "live": live_pando})
+        if swap_items:
+            try:
+                swapped = _swap_staged_trees_atomically(swap_items)
+                for step in swapped:
+                    results.append(
+                        {
+                            "reindex_step": f"swap_{step['label']}",
+                            "staging": step["staging"],
+                            "live": step["live"],
+                        }
+                    )
+            except Exception as e:
+                errors.append(f"staging_swap: {e}")
+
+    needs_jsonl = any(b in ("clickhouse", "clickql") for b in flexencoder_backends)
+    if (
+        not errors
+        and use_staging
+        and staging_dir is not None
+        and needs_jsonl
+        and flexencoder_backends
+    ):
+        jsonl_dir = staging_dir / "tmp" / "clickhouse"
+        if jsonl_dir.is_dir():
+            try:
+                from .clickhouse_loader import load_jsonl_into_clickhouse
+
+                load_result = load_jsonl_into_clickhouse(
+                    jsonl_dir,
+                    {"root": str(root_dir), **project},
+                )
+                if load_result.get("ok"):
+                    for item in results:
+                        if isinstance(item, dict) and item.get("output_clickhouse"):
+                            item["clickhouse_loaded"] = load_result.get("loaded", {})
+                            break
+                    results.append({"reindex_step": "clickhouse_load", "loaded": load_result.get("loaded", {})})
+                else:
+                    errors.append(load_result.get("error", "ClickHouse load failed"))
+            except Exception as e:
+                errors.append(f"clickhouse_load: {e}")
+
     message = f"Reindex for {', '.join(backends)} finished."
     if errors:
         message += " " + "; ".join(errors)
@@ -505,6 +727,7 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
             "reindex_backends": backends,
             "results": results,
             "message": message,
+            **({"reindex_staging": str(staging_dir)} if staging_dir is not None else {}),
         },
         "warnings": [],
         "errors": errors,

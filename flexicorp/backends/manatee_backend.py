@@ -988,21 +988,39 @@ class ManateeBackend(CorpusBackend):
                         pattributes = attrs
             except Exception:
                 pass
-        for attr in pattributes:
-            for stat in ("arf", "docf", "aldf"):
-                mkstats_bin = shutil.which("mkstats", path=run_env.get("PATH"))
-                if mkstats_bin:
-                    try:
-                        self._run_logged_command(
-                            [mkstats_bin, corpus_name, attr, stat],
-                            cwd=registry_dir,
-                            verbose=verbose,
-                            prefix=prefix,
-                            env=run_env,
-                            timeout_sec=step_timeout_sec,
-                        )
-                    except ManateeBackendError:
-                        pass
+        try:
+            self._compile_manatee_stats_in_process(
+                registry_dir=registry_dir,
+                corpus_name=corpus_name,
+                pattributes=pattributes,
+                params=params,
+                env=run_env,
+                verbose=verbose,
+                prefix=prefix,
+            )
+        except ManateeBackendError as exc:
+            if verbose:
+                print(
+                    prefix
+                    + "Falling back to mkstats subprocess loop after in-process compile failure: "
+                    + str(exc),
+                    file=sys.stderr,
+                )
+            mkstats_bin = shutil.which("mkstats", path=run_env.get("PATH"))
+            if mkstats_bin:
+                for attr in pattributes:
+                    for stat in ("arf", "docf", "aldf"):
+                        try:
+                            self._run_logged_command(
+                                [mkstats_bin, corpus_name, attr, stat],
+                                cwd=registry_dir,
+                                verbose=verbose,
+                                prefix=prefix,
+                                env=run_env,
+                                timeout_sec=step_timeout_sec,
+                            )
+                        except ManateeBackendError:
+                            pass
         mktokencov_bin = shutil.which("mktokencov", path=run_env.get("PATH"))
         if mktokencov_bin:
             try:
@@ -1039,6 +1057,98 @@ class ManateeBackend(CorpusBackend):
                     )
                 except ManateeBackendError:
                     pass
+
+    def _compile_manatee_stats_in_process(
+        self,
+        *,
+        registry_dir: Path,
+        corpus_name: str,
+        pattributes: List[str],
+        params: Dict[str, Any],
+        env: Dict[str, str],
+        verbose: bool,
+        prefix: str,
+    ) -> None:
+        """Compile core positional stats in one Python process to avoid mkstats startup overhead."""
+        if not pattributes:
+            return
+        timeout_sec: Optional[int] = None
+        if "manatee_stats_timeout_sec" in params:
+            try:
+                parsed_timeout = int(params.get("manatee_stats_timeout_sec"))
+                if parsed_timeout > 0:
+                    timeout_sec = parsed_timeout
+            except Exception:
+                timeout_sec = None
+        python_bin = env.get("PYTHON") or sys.executable or shutil.which("python3", path=env.get("PATH"))
+        if not python_bin:
+            raise ManateeBackendError("Could not resolve a Python interpreter for in-process Manatee stats compile.")
+
+        script = r"""
+import json
+import sys
+
+import manatee
+
+corpus_name = sys.argv[1]
+attrs = json.loads(sys.argv[2])
+verbose = sys.argv[3] == "1"
+prefix = sys.argv[4]
+
+corp = manatee.Corpus(corpus_name)
+doc_structure = (corp.get_conf("DOCSTRUCTURE") or "").strip()
+
+def has_stat(attr_obj, name):
+    try:
+        attr_obj.get_stat(name)
+        return True
+    except Exception:
+        return False
+
+for attr_name in attrs:
+    try:
+        attr_obj = corp.get_attr(attr_name)
+    except Exception as exc:
+        print(prefix + f"Skipping stats for {attr_name}: cannot open attr ({exc})", file=sys.stderr)
+        continue
+    if not has_stat(attr_obj, "frq"):
+        try:
+            if verbose:
+                print(prefix + f"Compiling frq for {attr_name}", file=sys.stderr)
+            corp.compile_frq(attr_name)
+            attr_obj = corp.get_attr(attr_name)
+        except Exception as exc:
+            print(prefix + f"frq compile failed for {attr_name}: {exc}", file=sys.stderr)
+    if not has_stat(attr_obj, "arf"):
+        try:
+            if verbose:
+                print(prefix + f"Compiling arf for {attr_name}", file=sys.stderr)
+            corp.compile_arf(attr_name)
+        except Exception as exc:
+            print(prefix + f"arf compile failed for {attr_name}: {exc}", file=sys.stderr)
+    if doc_structure and not has_stat(attr_obj, "docf"):
+        try:
+            if verbose:
+                print(prefix + f"Compiling docf for {attr_name}", file=sys.stderr)
+            corp.compile_docf(attr_name, doc_structure)
+        except Exception as exc:
+            print(prefix + f"docf compile failed for {attr_name}: {exc}", file=sys.stderr)
+    if not has_stat(attr_obj, "aldf"):
+        try:
+            if verbose:
+                print(prefix + f"Compiling aldf for {attr_name}", file=sys.stderr)
+            corp.compile_aldf(attr_name)
+        except Exception as exc:
+            print(prefix + f"aldf compile failed for {attr_name}: {exc}", file=sys.stderr)
+"""
+        self._run_logged_command(
+            [python_bin, "-c", script, corpus_name, json.dumps(pattributes), "1" if verbose else "0", prefix],
+            cwd=registry_dir,
+            verbose=verbose,
+            prefix=prefix,
+            env=env,
+            timeout_sec=timeout_sec,
+        )
 
     def _run_logged_command(
         self,

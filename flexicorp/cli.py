@@ -451,9 +451,43 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar="BACKENDS",
         help=(
             "Comma-separated list of backends to reindex in one run "
-            "(e.g. cqp,clickhouse,clickql,manatee,blacklab,pmltq). "
-            "Uses flexencoder for CQP/ClickHouse/ClickQL; BlackLab, Manatee, and PML-TQ each use their backend reindex."
+            "(e.g. cqp,clickhouse,clickql,pando,manatee,blacklab,pmltq). "
+            "Uses flexencoder for CQP/ClickHouse/ClickQL/Pando; BlackLab, Manatee, and PML-TQ each use their backend reindex."
         ),
+    )
+    reindex.add_argument(
+        "--background",
+        action="store_true",
+        help=(
+            "Enqueue a detached reindex worker instead of blocking. "
+            "Writes job state under project/tmp/flexicorp-reindex-jobs/; poll via ``flexicorp reindex-status``."
+        ),
+    )
+    reindex.add_argument(
+        "--force",
+        action="store_true",
+        help="With --background: terminate any existing reindex lock for this corpus/backend set, then start.",
+    )
+    reindex.add_argument(
+        "--staging",
+        action="store_true",
+        help=(
+            "With --background: build CWB (and flexencoder outputs) under tmp/flexicorp-reindex-staging/<job_id>/, "
+            "then swap into project/cqp and load ClickHouse after the swap."
+        ),
+    )
+
+    # reindex-status -------------------------------------------------------
+    reindex_status = subparsers.add_parser(
+        "reindex-status",
+        help="Show status for a background reindex job (tmp/flexicorp-reindex-jobs/<job_id>.json).",
+        parents=[shared_parent],
+    )
+    reindex_status.add_argument(
+        "--job-id",
+        required=True,
+        dest="job_id",
+        help="Job id returned in done.result.indexer.job_id when using --background.",
     )
 
     # highlight -----------------------------------------------------------
@@ -803,6 +837,9 @@ def _repair_shared_args_from_argv(args: argparse.Namespace, argv_tokens: list[st
     bool_map = {
         "--api": "api",
         "--debug": "debug",
+        "--background": "background",
+        "--force": "force",
+        "--staging": "staging",
     }
     append_map = {
         "--options": "options",
@@ -937,6 +974,55 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     project = _load_project(args)
+
+    if args.operation == "reindex-status":
+        from .reindex_jobs.store import read_job
+
+        root = Path(project.get("root") or args.folder or ".").resolve()
+        job_id = str(getattr(args, "job_id", "") or "").strip()
+        st = read_job(root, job_id) if job_id else None
+        payload: Dict[str, Any]
+        if st is None:
+            payload = {
+                "status": "unknown",
+                "job_id": job_id,
+                "message": "No such job (or project root mismatch).",
+            }
+            out_ok = False
+        else:
+            payload = {
+                "status": st.status,
+                "job_id": st.job_id,
+                "progress": st.progress,
+                "error": st.error,
+                "result": st.result,
+            }
+            out_ok = True
+        if getattr(args, "api", False):
+            envelope = {
+                "tool": "flexicorp",
+                "version": 1,
+                "success": out_ok,
+                "asked": {"argv": raw_argv, "request": {"operation": "reindex-status", "job_id": job_id}},
+                "done": {
+                    "backend": "flexencoder",
+                    "operation": "reindex_status",
+                    "result": payload,
+                    "warnings": [],
+                    "errors": [] if out_ok else ["job not found"],
+                },
+            }
+            json.dump(envelope, fp=sys.stdout, ensure_ascii=False, indent=2)
+            print()
+        else:
+            json.dump(
+                {"ok": out_ok, "backend": "flexencoder", "operation": "reindex_status", "result": payload},
+                fp=sys.stdout,
+                ensure_ascii=False,
+                indent=2,
+            )
+            print()
+        return 0 if out_ok else 1
 
     params: Dict[str, Any] = {}
     # Merge backend-specific -O key=value options into params (backends inspect as needed).
@@ -1080,6 +1166,58 @@ def main(argv: list[str] | None = None) -> int:
         "project": project,
         "params": params,
     }
+    if args.operation == "reindex" and getattr(args, "background", False):
+        from .reindex_jobs.runner import enqueue_background_reindex
+
+        p = dict(req.get("params") or {})
+        if not p.get("reindex_backends"):
+            rb_arg = getattr(args, "reindex_backends", None)
+            if isinstance(rb_arg, str) and rb_arg.strip():
+                p["reindex_backends"] = [b.strip() for b in rb_arg.split(",") if b.strip()]
+            elif backend in ("cqp", "clickhouse", "clickql", "manatee", "pmltq"):
+                p["reindex_backends"] = [backend]
+        req = {**req, "params": p}
+
+        root = Path(project.get("root") or args.folder or ".").resolve()
+        ok, payload, enqueue_errors = enqueue_background_reindex(
+            req,
+            project_root=root,
+            force=bool(getattr(args, "force", False)),
+            staging=bool(getattr(args, "staging", False)),
+        )
+        if getattr(args, "api", False):
+            envelope = {
+                "tool": "flexicorp",
+                "version": 1,
+                "success": ok,
+                "asked": {"argv": raw_argv, "request": req},
+                "done": {
+                    "backend": "flexencoder",
+                    "operation": "reindex",
+                    "result": payload,
+                    "warnings": [],
+                    "errors": enqueue_errors,
+                },
+            }
+            json.dump(envelope, fp=sys.stdout, ensure_ascii=False, indent=2)
+            print()
+        else:
+            json.dump(
+                {
+                    "ok": ok,
+                    "backend": "flexencoder",
+                    "operation": "reindex",
+                    "result": payload,
+                    "errors": enqueue_errors,
+                    "warnings": [],
+                },
+                fp=sys.stdout,
+                ensure_ascii=False,
+                indent=2,
+            )
+            print()
+        return 0 if ok else 1
+
     # In --api mode we must guarantee stdout ends up as a single JSON document,
     # so native libraries (Manatee _manatee.so, certain CWB utilities) can't
     # corrupt it with status messages. See _isolate_stdout_for_api docstring.

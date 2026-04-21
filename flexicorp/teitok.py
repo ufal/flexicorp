@@ -234,6 +234,20 @@ def detect_teitok_cqp(start: Path) -> Optional[Dict[str, Any]]:
     }
 
 
+def cqp_registry_dir_for_corpus(cqp_root: Path, corpus: Optional[str]) -> Path:
+    """
+    Registry directory under ``cqp_root`` for a named corpus (mirrors detect_teitok_cqp).
+
+    Used when flexencoder writes to a staging ``cqp/`` tree so Manatee/CWB tools can
+    point at the in-progress build before it replaces the live ``project/cqp``.
+    """
+    if corpus:
+        corpus_entry = cqp_root / str(corpus).lower()
+        if corpus_entry.is_dir():
+            return corpus_entry
+    return cqp_root
+
+
 def detect_teitok_manatee(start: Path) -> Optional[Dict[str, Any]]:
     """
     Detect a TEITOK-local Manatee registry/configuration.
