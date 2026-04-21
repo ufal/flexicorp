@@ -1715,6 +1715,15 @@ print(json.dumps({{"key": key, "values": vals}}))
             else:
                 root = ET.Element("kontext")
                 tree = ET.ElementTree(root)
+            # KonText default_corparch loads corplist via tree.find(root_elm_path). With the usual
+            # root_elm_path "/corplist", lxml matches a *child* <corplist>, not a document root
+            # <corplist> — so a file that is only <corplist>…</corplist> yields zero corpora.
+            # Normalize root-only corplist by wrapping to <kontext><corplist>…</corplist></kontext>.
+            if root.tag == "corplist":
+                wrap = ET.Element("kontext")
+                wrap.append(root)
+                tree = ET.ElementTree(wrap)
+                root = wrap
             corplist = root.find("corplist")
             if corplist is None:
                 corplist = ET.SubElement(root, "corplist")
