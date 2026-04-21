@@ -537,6 +537,121 @@ class KontextEnvAdapter:
     kind = "frontend"
     depends_on_backends = ["manatee"]
 
+    @staticmethod
+    def _read_kontext_corplist_path(conf_path: Path) -> Optional[Path]:
+        try:
+            xml_root = ET.parse(conf_path).getroot()
+        except Exception:
+            return None
+        node = xml_root.find(".//plugins/default_corparch/corplist")
+        if node is not None and node.text and node.text.strip():
+            cand = Path(node.text.strip()).expanduser()
+            if not cand.is_absolute():
+                cand = (conf_path.parent / cand).resolve()
+            else:
+                cand = cand.resolve()
+            return cand
+        return (conf_path.parent / "corplist.xml").resolve()
+
+    @staticmethod
+    def _read_kontext_redis_acl_cfg(conf_path: Path) -> Optional[Dict[str, Any]]:
+        try:
+            root = ET.parse(conf_path).getroot()
+        except Exception:
+            return None
+        db_node = root.find("./plugins/db")
+        if db_node is None:
+            return None
+        module = (db_node.findtext("module") or "").strip()
+        if module != "redis_db":
+            return None
+        host = (db_node.findtext("host") or "").strip()
+        if not host:
+            return None
+        try:
+            port = int((db_node.findtext("port") or "6379").strip())
+        except Exception:
+            port = 6379
+        try:
+            dbid = int((db_node.findtext("id") or "1").strip())
+        except Exception:
+            dbid = 1
+        anon_raw = (root.findtext("./plugins/auth/anonymous_user_id") or "0").strip()
+        try:
+            anon_id = int(anon_raw)
+        except Exception:
+            anon_id = 0
+        return {
+            "host": host,
+            "port": port,
+            "db": dbid,
+            "anon_id": anon_id,
+            "key": f"user:{anon_id}:corpora",
+        }
+
+    @staticmethod
+    def _redis_acl_contains_corpus(
+        *,
+        host: str,
+        port: int,
+        db: int,
+        key: str,
+        target_candidates: List[str],
+    ) -> Dict[str, Any]:
+        out: Dict[str, Any] = {
+            "ok": False,
+            "host": host,
+            "port": port,
+            "db": db,
+            "key": key,
+            "found": False,
+            "error": "",
+        }
+        if not target_candidates:
+            out["ok"] = True
+            out["found"] = True
+            return out
+        redis_cli = shutil.which("redis-cli")
+        if not redis_cli:
+            out["error"] = "redis-cli not found"
+            return out
+        try:
+            proc = subprocess.run(
+                [redis_cli, "-h", host, "-p", str(port), "-n", str(db), "GET", key],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+                check=False,
+            )
+        except Exception as exc:
+            out["error"] = str(exc)
+            return out
+        if proc.returncode != 0:
+            out["error"] = (proc.stderr or proc.stdout or "").strip() or f"redis-cli exit {proc.returncode}"
+            return out
+        raw = (proc.stdout or "").strip()
+        if not raw:
+            out["error"] = "empty ACL list"
+            return out
+        vals: List[str] = []
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, list):
+                vals = [str(x).strip() for x in parsed if str(x).strip()]
+        except Exception:
+            vals = []
+        if not vals:
+            vals = [v.strip() for v in raw.split(",") if v.strip()]
+        cand = {c.lower() for c in target_candidates}
+        have = {v.lower() for v in vals}
+        found = any(c in have for c in cand)
+        out["ok"] = found
+        out["found"] = found
+        out["values_sample"] = vals[:20]
+        if not found:
+            out["error"] = "target corpus missing from anonymous ACL"
+        return out
+
     def check(self, ctx: EnvContext) -> Dict[str, Any]:
         root = ctx.project_root
         cfg = dict((ctx.env_config or {}).get("kontext") or {})
@@ -573,7 +688,7 @@ class KontextEnvAdapter:
             return out
 
         out["checks"]["config_xml"] = {"ok": conf_path.is_file(), "path": str(conf_path)}
-        corplist_path = conf_path.parent / "corplist.xml"
+        corplist_path = self._read_kontext_corplist_path(conf_path) or (conf_path.parent / "corplist.xml")
         out["checks"]["corplist_xml"] = {"ok": corplist_path.is_file(), "path": str(corplist_path)}
 
         registry_dir = None
@@ -697,6 +812,55 @@ class KontextEnvAdapter:
             "candidates": [u.rstrip("/") + "/corpora/corplist" for u in candidate_base_urls],
             "error": " ; ".join(errors[:3]),
         }
+        if target_candidates and http_ok and ok_url:
+            target_ok = False
+            parse_error = ""
+            try:
+                with urlopen(ok_url, timeout=2.0) as resp:
+                    body = resp.read(128000).decode("utf-8", errors="replace")
+                ids: List[str] = []
+                try:
+                    payload = json.loads(body)
+                except Exception:
+                    payload = None
+                if payload is not None:
+                    def _collect_ids(node: Any) -> None:
+                        if isinstance(node, dict):
+                            for k in ("id", "ident", "name", "corpus", "corpname"):
+                                v = node.get(k)
+                                if isinstance(v, str) and v.strip():
+                                    ids.append(v.strip())
+                            for v in node.values():
+                                _collect_ids(v)
+                        elif isinstance(node, list):
+                            for it in node:
+                                _collect_ids(it)
+                    _collect_ids(payload)
+                if ids:
+                    have = {x.lower() for x in ids}
+                    target_ok = any(c.lower() in have for c in target_candidates)
+                else:
+                    body_l = body.lower()
+                    target_ok = any(c.lower() in body_l for c in target_candidates)
+            except Exception as exc:
+                parse_error = str(exc)
+            out["checks"]["http_target_corpus"] = {
+                "ok": target_ok,
+                "url": ok_url,
+                "candidate_ids": target_candidates,
+                "error": parse_error,
+            }
+
+        # Optional but important for "shows in Kontext UI": anonymous ACL entry in redis_db/default_auth setups.
+        redis_cfg = self._read_kontext_redis_acl_cfg(conf_path)
+        if redis_cfg is not None and target_candidates:
+            out["checks"]["anon_acl_corpus"] = self._redis_acl_contains_corpus(
+                host=str(redis_cfg["host"]),
+                port=int(redis_cfg["port"]),
+                db=int(redis_cfg["db"]),
+                key=str(redis_cfg["key"]),
+                target_candidates=target_candidates,
+            )
 
         # config/corplist are required; http probe is diagnostic (non-fatal).
         required_keys = ["config_xml", "corplist_xml"]
@@ -704,6 +868,10 @@ class KontextEnvAdapter:
             required_keys.append("corplist_target_corpus")
             if registry_dir is not None:
                 required_keys.append("registry_target_corpus")
+            if "http_target_corpus" in out["checks"]:
+                required_keys.append("http_target_corpus")
+            if "anon_acl_corpus" in out["checks"]:
+                required_keys.append("anon_acl_corpus")
         required_failed = [
             k
             for k in required_keys

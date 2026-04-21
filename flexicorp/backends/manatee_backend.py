@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from typing import Any, Dict, List, Optional
 import xml.etree.ElementTree as ET
 
@@ -971,7 +972,7 @@ class ManateeBackend(CorpusBackend):
         env: Dict[str, str],
         verbose: bool,
         prefix: str,
-    ) -> None:
+    ) -> Dict[str, Any]:
         """Run encodevert, mkstats, mktokencov, mksizes to build Manatee corp/ from VRT (no compilecorp)."""
         try:
             step_timeout_sec = int(params.get("manatee_step_timeout_sec", 900))
@@ -979,11 +980,19 @@ class ManateeBackend(CorpusBackend):
             step_timeout_sec = 900
         if step_timeout_sec <= 0:
             step_timeout_sec = 900
+        diagnostics: Dict[str, Any] = {
+            "corpus": corpus_name,
+            "registry_dir": str(registry_dir),
+            "vrt_path": str(vrt_path),
+            "pattributes": list(pattributes),
+            "steps": {},
+        }
         tools_path = self._manatee_tools_path(project, params)
         if not tools_path and env.get("MANATEE_SRC"):
             tools_path = Path(env["MANATEE_SRC"]).expanduser().resolve()
             if not tools_path.is_dir():
                 tools_path = None
+        diagnostics["tools_path"] = str(tools_path) if tools_path is not None else ""
         if tools_path is not None:
             env = dict(env)
             env["MANATEE_SRC"] = str(tools_path)
@@ -1008,6 +1017,12 @@ class ManateeBackend(CorpusBackend):
             if run_env.get("PYTHONPATH"):
                 py_path = py_path + os.pathsep + run_env["PYTHONPATH"]
             run_env["PYTHONPATH"] = py_path
+        diagnostics["env"] = {
+            "MANATEE_REGISTRY": str(run_env.get("MANATEE_REGISTRY") or ""),
+            "MANATEE_SRC": str(run_env.get("MANATEE_SRC") or ""),
+            "PATH_head": (run_env.get("PATH", "").split(os.pathsep)[:8]),
+            "PYTHONPATH_head": (run_env.get("PYTHONPATH", "").split(os.pathsep)[:8]),
+        }
         manatee_progress_path = self._manatee_reindex_progress_path(project, params)
         self._write_manatee_reindex_progress(
             manatee_progress_path,
@@ -1018,11 +1033,13 @@ class ManateeBackend(CorpusBackend):
         )
 
         encodevert_bin = shutil.which("encodevert", path=run_env.get("PATH"))
+        diagnostics["encodevert_bin"] = str(encodevert_bin or "")
         if not encodevert_bin:
             raise ManateeBackendError(
                 "encodevert not found. Set MANATEE_SRC (or project.manatee.tools_path) to the Manatee build directory, "
                 "or put encodevert on PATH."
             )
+        t0 = time.monotonic()
         self._run_logged_command(
             [encodevert_bin, "-m", "0", "-c", corpus_name, str(vrt_path)],
             cwd=registry_dir,
@@ -1031,6 +1048,7 @@ class ManateeBackend(CorpusBackend):
             env=run_env,
             timeout_sec=step_timeout_sec,
         )
+        diagnostics["steps"]["encodevert"] = {"ok": True, "elapsed_s": round(time.monotonic() - t0, 3)}
         self._write_manatee_reindex_progress(
             manatee_progress_path,
             phase="mkstats",
@@ -1055,46 +1073,72 @@ class ManateeBackend(CorpusBackend):
                         pattributes = attrs
             except Exception:
                 pass
-        try:
-            self._compile_manatee_stats_in_process(
+        stats_mode = str(params.get("manatee_stats_mode") or "auto").strip().lower()
+        if stats_mode not in {"auto", "inprocess", "mkstats"}:
+            stats_mode = "auto"
+        diagnostics["stats_mode_requested"] = stats_mode
+        mkstats_timeout_sec: Optional[int] = None
+        if "manatee_mkstats_timeout_sec" in params:
+            try:
+                parsed = int(params.get("manatee_mkstats_timeout_sec"))
+                if parsed > 0:
+                    mkstats_timeout_sec = parsed
+            except Exception:
+                mkstats_timeout_sec = None
+        mkstats_bin = shutil.which("mkstats", path=run_env.get("PATH"))
+        diagnostics["mkstats_bin"] = str(mkstats_bin or "")
+        prefer_mkstats = stats_mode == "mkstats" or (stats_mode == "auto" and bool(mkstats_bin))
+        diagnostics["stats_mode_effective"] = "mkstats" if prefer_mkstats else "inprocess"
+        if prefer_mkstats:
+            if not mkstats_bin:
+                raise ManateeBackendError(
+                    "manatee_stats_mode requested mkstats, but mkstats was not found on PATH."
+                )
+            diagnostics["steps"]["mkstats"] = self._compile_manatee_stats_with_mkstats(
+                mkstats_bin=mkstats_bin,
                 registry_dir=registry_dir,
                 corpus_name=corpus_name,
                 pattributes=pattributes,
-                params=params,
                 env=run_env,
                 verbose=verbose,
                 prefix=prefix,
+                timeout_sec=mkstats_timeout_sec,
                 progress_path=manatee_progress_path,
             )
-        except ManateeBackendError as exc:
-            if verbose:
-                print(
-                    prefix
-                    + "Falling back to mkstats subprocess loop after in-process compile failure: "
-                    + str(exc),
-                    file=sys.stderr,
+        else:
+            try:
+                diagnostics["steps"]["mkstats_inprocess"] = self._compile_manatee_stats_in_process(
+                    registry_dir=registry_dir,
+                    corpus_name=corpus_name,
+                    pattributes=pattributes,
+                    params=params,
+                    env=run_env,
+                    verbose=verbose,
+                    prefix=prefix,
+                    progress_path=manatee_progress_path,
                 )
-            mkstats_bin = shutil.which("mkstats", path=run_env.get("PATH"))
-            if mkstats_bin:
-                for attr in pattributes:
-                    for stat in ("arf", "docf", "aldf"):
-                        try:
-                            self._run_logged_command(
-                                [mkstats_bin, corpus_name, attr, stat],
-                                cwd=registry_dir,
-                                verbose=verbose,
-                                prefix=prefix,
-                                env=run_env,
-                                timeout_sec=step_timeout_sec,
-                            )
-                            self._write_manatee_reindex_progress(
-                                manatee_progress_path,
-                                phase="mkstats",
-                                current=f"{attr}:{stat}",
-                            )
-                        except ManateeBackendError:
-                            pass
+            except ManateeBackendError as exc:
+                if verbose:
+                    print(
+                        prefix
+                        + "Falling back to mkstats subprocess loop after in-process compile failure: "
+                        + str(exc),
+                        file=sys.stderr,
+                    )
+                if mkstats_bin:
+                    diagnostics["steps"]["mkstats_fallback"] = self._compile_manatee_stats_with_mkstats(
+                        mkstats_bin=mkstats_bin,
+                        registry_dir=registry_dir,
+                        corpus_name=corpus_name,
+                        pattributes=pattributes,
+                        env=run_env,
+                        verbose=verbose,
+                        prefix=prefix,
+                        timeout_sec=mkstats_timeout_sec,
+                        progress_path=manatee_progress_path,
+                    )
         mktokencov_bin = shutil.which("mktokencov", path=run_env.get("PATH"))
+        diagnostics["mktokencov_bin"] = str(mktokencov_bin or "")
         if mktokencov_bin:
             try:
                 self._write_manatee_reindex_progress(
@@ -1102,6 +1146,7 @@ class ManateeBackend(CorpusBackend):
                     phase="mktokencov",
                     current="mktokencov",
                 )
+                t0 = time.monotonic()
                 self._run_logged_command(
                     [mktokencov_bin, corpus_name],
                     cwd=registry_dir,
@@ -1110,9 +1155,14 @@ class ManateeBackend(CorpusBackend):
                     env=run_env,
                     timeout_sec=step_timeout_sec,
                 )
+                diagnostics["steps"]["mktokencov"] = {
+                    "ok": True,
+                    "elapsed_s": round(time.monotonic() - t0, 3),
+                }
             except ManateeBackendError:
-                pass
+                diagnostics["steps"]["mktokencov"] = {"ok": False}
         mksizes_bin = shutil.which("mksizes", path=run_env.get("PATH"))
+        diagnostics["mksizes_bin"] = str(mksizes_bin or "")
         if mksizes_bin:
             try:
                 self._write_manatee_reindex_progress(
@@ -1120,6 +1170,7 @@ class ManateeBackend(CorpusBackend):
                     phase="mksizes",
                     current="mksizes --no-alignsizes",
                 )
+                t0 = time.monotonic()
                 self._run_logged_command(
                     [mksizes_bin, corpus_name, "--no-alignsizes"],
                     cwd=registry_dir,
@@ -1128,6 +1179,11 @@ class ManateeBackend(CorpusBackend):
                     env=run_env,
                     timeout_sec=step_timeout_sec,
                 )
+                diagnostics["steps"]["mksizes"] = {
+                    "ok": True,
+                    "variant": "--no-alignsizes",
+                    "elapsed_s": round(time.monotonic() - t0, 3),
+                }
             except ManateeBackendError:
                 try:
                     self._write_manatee_reindex_progress(
@@ -1135,6 +1191,7 @@ class ManateeBackend(CorpusBackend):
                         phase="mksizes",
                         current="mksizes",
                     )
+                    t0 = time.monotonic()
                     self._run_logged_command(
                         [mksizes_bin, corpus_name],
                         cwd=registry_dir,
@@ -1143,8 +1200,13 @@ class ManateeBackend(CorpusBackend):
                         env=run_env,
                         timeout_sec=step_timeout_sec,
                     )
+                    diagnostics["steps"]["mksizes"] = {
+                        "ok": True,
+                        "variant": "default",
+                        "elapsed_s": round(time.monotonic() - t0, 3),
+                    }
                 except ManateeBackendError:
-                    pass
+                    diagnostics["steps"]["mksizes"] = {"ok": False}
         self._write_manatee_reindex_progress(
             manatee_progress_path,
             phase="done",
@@ -1152,6 +1214,81 @@ class ManateeBackend(CorpusBackend):
             total=1,
             current="done",
         )
+        return diagnostics
+
+    def _compile_manatee_stats_with_mkstats(
+        self,
+        *,
+        mkstats_bin: str,
+        registry_dir: Path,
+        corpus_name: str,
+        pattributes: List[str],
+        env: Dict[str, str],
+        verbose: bool,
+        prefix: str,
+        timeout_sec: Optional[int],
+        progress_path: Optional[Path] = None,
+    ) -> Dict[str, Any]:
+        if not pattributes:
+            return {"ok": True, "mode": "mkstats", "total": 0, "done": 0, "items": []}
+        # Keep the same stat set as the in-process path.
+        all_steps = [(attr, stat) for attr in pattributes for stat in ("frq", "arf", "docf", "aldf")]
+        done = 0
+        total = len(all_steps)
+        step_items: List[Dict[str, Any]] = []
+        self._write_manatee_reindex_progress(
+            progress_path,
+            phase="mkstats",
+            done=done,
+            total=total,
+            current="",
+        )
+        for attr, stat in all_steps:
+            current = f"{stat}:{attr}"
+            self._write_manatee_reindex_progress(
+                progress_path,
+                phase="mkstats",
+                done=done,
+                total=total,
+                current=current,
+            )
+            try:
+                t0 = time.monotonic()
+                self._run_logged_command(
+                    [mkstats_bin, corpus_name, attr, stat],
+                    cwd=registry_dir,
+                    verbose=verbose,
+                    prefix=prefix,
+                    env=env,
+                    timeout_sec=timeout_sec,
+                )
+                step_items.append(
+                    {
+                        "attr": attr,
+                        "stat": stat,
+                        "ok": True,
+                        "elapsed_s": round(time.monotonic() - t0, 3),
+                    }
+                )
+            except ManateeBackendError:
+                # Non-fatal parity with old behavior and in-process branch.
+                step_items.append({"attr": attr, "stat": stat, "ok": False})
+            done += 1
+            self._write_manatee_reindex_progress(
+                progress_path,
+                phase="mkstats",
+                done=done,
+                total=total,
+                current=current,
+            )
+        return {
+            "ok": True,
+            "mode": "mkstats",
+            "timeout_sec": timeout_sec,
+            "total": total,
+            "done": done,
+            "items": step_items,
+        }
 
     def _compile_manatee_stats_in_process(
         self,
@@ -1164,10 +1301,10 @@ class ManateeBackend(CorpusBackend):
         verbose: bool,
         prefix: str,
         progress_path: Optional[Path] = None,
-    ) -> None:
+    ) -> Dict[str, Any]:
         """Compile core positional stats in one Python process to avoid mkstats startup overhead."""
         if not pattributes:
-            return
+            return {"ok": True, "mode": "inprocess", "total_attrs": 0}
         timeout_sec: Optional[int] = None
         if "manatee_stats_timeout_sec" in params:
             try:
@@ -1270,6 +1407,7 @@ for attr_name, stat_name in todo:
     write_progress(done, total, f"{stat_name}:{attr_name}")
 
 """
+        t0 = time.monotonic()
         self._run_logged_command(
             [
                 python_bin,
@@ -1287,6 +1425,14 @@ for attr_name, stat_name in todo:
             env=env,
             timeout_sec=timeout_sec,
         )
+        return {
+            "ok": True,
+            "mode": "inprocess",
+            "python_bin": str(python_bin),
+            "timeout_sec": timeout_sec,
+            "total_attrs": len(pattributes),
+            "elapsed_s": round(time.monotonic() - t0, 3),
+        }
 
     def _run_logged_command(
         self,
@@ -1784,7 +1930,7 @@ print(json.dumps({{"key": key, "values": vals}}))
 
         compile_env = dict(os.environ)
         compile_env["MANATEE_REGISTRY"] = str(registry_dir)
-        self._run_manatee_compile(
+        compile_diagnostics = self._run_manatee_compile(
             registry_dir=registry_dir,
             corpus_name=str(target_cfg.corpus),
             vrt_path=vrt_path,
@@ -1814,6 +1960,7 @@ print(json.dumps({{"key": key, "values": vals}}))
             "data_path": str(corp_dir),
             "vrt": str(vrt_path),
             "corpus": str(target_cfg.corpus),
+            "compile_diagnostics": compile_diagnostics,
             "message": (
                 "Manatee corpus rebuilt from the existing CWB corpus via cwb-decode, "
                 "encodevert, mkstats, mktokencov, and mksizes (no compilecorp)."
