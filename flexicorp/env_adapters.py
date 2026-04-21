@@ -543,9 +543,17 @@ class KontextEnvAdapter:
             xml_root = ET.parse(conf_path).getroot()
         except Exception:
             return None
-        node = xml_root.find(".//plugins/default_corparch/corplist")
-        if node is not None and node.text and node.text.strip():
-            cand = Path(node.text.strip()).expanduser()
+        for xpath in (
+            ".//plugins/default_corparch/corplist",
+            ".//plugins/corparch/file",
+        ):
+            node = xml_root.find(xpath)
+            if node is None:
+                continue
+            text = (node.text or "").strip()
+            if not text:
+                continue
+            cand = Path(text).expanduser()
             if not cand.is_absolute():
                 cand = (conf_path.parent / cand).resolve()
             else:
@@ -586,7 +594,7 @@ class KontextEnvAdapter:
             "port": port,
             "db": dbid,
             "anon_id": anon_id,
-            "key": f"user:{anon_id}:corpora",
+            "key": f"corplist:user:{anon_id}",
         }
 
     @staticmethod

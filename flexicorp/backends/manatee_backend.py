@@ -1501,17 +1501,29 @@ for attr_name, stat_name in todo:
         return None
 
     def _read_kontext_manatee_registry_dir(self, kontext_conf: Path) -> Optional[Path]:
+        """
+        KonText registry directory from config.xml.
+
+        Typical current installs set ``plugins/default_corparch/manatee_registry``
+        (same XPath as ``KonTextFrontendEnvAdapter`` in env_adapters.py).
+        Older configs used ``corpora/manatee_registry``.
+        """
         try:
             root = ET.parse(kontext_conf).getroot()
         except Exception:
             return None
-        node = root.find("./corpora/manatee_registry")
-        if node is None:
-            return None
-        text = (node.text or "").strip()
-        if not text:
-            return None
-        return Path(text).expanduser().resolve()
+        for xpath in (
+            ".//plugins/default_corparch/manatee_registry",
+            "./corpora/manatee_registry",
+            ".//corpora/manatee_registry",
+        ):
+            node = root.find(xpath)
+            if node is None:
+                continue
+            text = (node.text or "").strip()
+            if text:
+                return Path(text).expanduser().resolve()
+        return None
 
     def _read_kontext_redis_cfg(self, kontext_conf: Path) -> Optional[Dict[str, Any]]:
         """
@@ -1611,7 +1623,7 @@ port = {redis_port!r}
 db = {redis_db!r}
 anon_id = {anon_id!r}
 corpus = {corpus_name!r}
-key = mk_list_key(anon_id) if callable(mk_list_key) else f"user:{{anon_id}}:corpora"
+key = mk_list_key(anon_id) if callable(mk_list_key) else f"corplist:user:{{anon_id}}"
 r = redis.Redis(host=host, port=port, db=db, decode_responses=True)
 t = r.type(key)
 if t not in ("none", "string"):
@@ -1757,7 +1769,10 @@ print(json.dumps({{"key": key, "values": vals}}))
         result["kontext_conf"] = str(kontext_conf)
         registry_dir = self._read_kontext_manatee_registry_dir(kontext_conf)
         if registry_dir is None:
-            result["message"] = "KonText manatee_registry not found in config; skipped."
+            result["message"] = (
+                "KonText manatee_registry not found in config.xml "
+                "(set plugins/default_corparch/manatee_registry or corpora/manatee_registry); skipped."
+            )
             return result
         result["kontext_registry_dir"] = str(registry_dir)
         step_registry = self._ensure_kontext_registry_file(
