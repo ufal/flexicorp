@@ -472,23 +472,6 @@ def _swap_staged_trees_atomically(
     ]
 
 
-def _apply_staging_cqp_registry(req: FlexiRequest, root_dir: Path, staging_dir: Path) -> FlexiRequest:
-    from .teitok import cqp_registry_dir_for_corpus, detect_teitok_cqp
-
-    detected = detect_teitok_cqp(root_dir)
-    if not detected:
-        return req
-    corpus = (detected.get("cqp") or {}).get("corpus")
-    reg = cqp_registry_dir_for_corpus(staging_dir / "cqp", str(corpus) if corpus else None)
-    project = dict(req.get("project") or {})
-    cqp = dict(project.get("cqp") or {})
-    cqp["registry"] = str(reg)
-    if corpus and not cqp.get("corpus"):
-        cqp["corpus"] = corpus
-    project["cqp"] = cqp
-    return {**req, "project": project}
-
-
 def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
     """
     Run reindex for multiple backends in one go.
@@ -500,8 +483,7 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
       ``tmp/pmltq-export``, optional ``pmltq_import_cmd``).
 
     When ``params.reindex_staging`` is true (typically with ``reindex_job_id``), flexencoder
-    writes under ``tmp/flexicorp-reindex-staging/<job_id>/``; Manatee decodes from that tree;
-    staged xidx/CWB/Pando trees can then be swapped into ``project/xidx``, ``project/cqp``,
+    writes under ``tmp/flexicorp-reindex-staging/<job_id>/``; staged xidx/CWB/Pando trees can then be swapped into ``project/xidx``, ``project/cqp``,
     and ``project/pando`` before ClickHouse JSONL is loaded into the live database.
     """
     params = req.get("params") or {}
@@ -633,8 +615,6 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
                 man = ensure_backend_loaded("manatee")
                 if man and hasattr(man, "reindex"):
                     req_single = {**req, "backend": "manatee"}
-                    if use_staging and staging_dir is not None:
-                        req_single = _apply_staging_cqp_registry(req_single, root_dir, staging_dir)
                     r = man.reindex(req_single)
                     results.append({"backend": "manatee", **r})
             except Exception as e:

@@ -907,6 +907,58 @@ class ManateeBackend(CorpusBackend):
             pass
         return None
 
+    def _manatee_reindex_progress_path(
+        self, project: Dict[str, Any], params: Dict[str, Any]
+    ) -> Optional[Path]:
+        job_id = str(params.get("reindex_job_id") or "").strip()
+        root_raw = str(project.get("root") or "").strip()
+        if not job_id or not root_raw:
+            return None
+        try:
+            root = Path(root_raw).expanduser().resolve()
+        except Exception:
+            return None
+        if not root.is_dir():
+            return None
+        return root / "tmp" / "flexicorp-reindex-jobs" / f"{job_id}.manatee.json"
+
+    def _write_manatee_reindex_progress(
+        self,
+        progress_path: Optional[Path],
+        *,
+        phase: str,
+        done: Optional[int] = None,
+        total: Optional[int] = None,
+        current: str = "",
+    ) -> None:
+        if progress_path is None:
+            return
+        payload: Dict[str, Any] = {"phase": phase, "current": str(current or "")}
+        if done is not None:
+            payload["done"] = max(0, int(done))
+        if total is not None:
+            payload["total"] = max(0, int(total))
+        try:
+            progress_path.parent.mkdir(parents=True, exist_ok=True)
+            fd, tmp = tempfile.mkstemp(
+                dir=str(progress_path.parent),
+                prefix=f".{progress_path.name}.",
+                suffix=".tmp",
+                text=True,
+            )
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                    json.dump(payload, fh, ensure_ascii=False)
+                os.replace(tmp, progress_path)
+            finally:
+                try:
+                    if os.path.exists(tmp):
+                        os.unlink(tmp)
+                except OSError:
+                    pass
+        except Exception:
+            return
+
     def _run_manatee_compile(
         self,
         *,
@@ -956,6 +1008,14 @@ class ManateeBackend(CorpusBackend):
             if run_env.get("PYTHONPATH"):
                 py_path = py_path + os.pathsep + run_env["PYTHONPATH"]
             run_env["PYTHONPATH"] = py_path
+        manatee_progress_path = self._manatee_reindex_progress_path(project, params)
+        self._write_manatee_reindex_progress(
+            manatee_progress_path,
+            phase="encodevert",
+            done=0,
+            total=0,
+            current="encodevert",
+        )
 
         encodevert_bin = shutil.which("encodevert", path=run_env.get("PATH"))
         if not encodevert_bin:
@@ -970,6 +1030,13 @@ class ManateeBackend(CorpusBackend):
             prefix=prefix,
             env=run_env,
             timeout_sec=step_timeout_sec,
+        )
+        self._write_manatee_reindex_progress(
+            manatee_progress_path,
+            phase="mkstats",
+            done=0,
+            total=0,
+            current="mkstats",
         )
         corpinfo_bin = shutil.which("corpinfo", path=run_env.get("PATH"))
         if corpinfo_bin:
@@ -997,6 +1064,7 @@ class ManateeBackend(CorpusBackend):
                 env=run_env,
                 verbose=verbose,
                 prefix=prefix,
+                progress_path=manatee_progress_path,
             )
         except ManateeBackendError as exc:
             if verbose:
@@ -1019,11 +1087,21 @@ class ManateeBackend(CorpusBackend):
                                 env=run_env,
                                 timeout_sec=step_timeout_sec,
                             )
+                            self._write_manatee_reindex_progress(
+                                manatee_progress_path,
+                                phase="mkstats",
+                                current=f"{attr}:{stat}",
+                            )
                         except ManateeBackendError:
                             pass
         mktokencov_bin = shutil.which("mktokencov", path=run_env.get("PATH"))
         if mktokencov_bin:
             try:
+                self._write_manatee_reindex_progress(
+                    manatee_progress_path,
+                    phase="mktokencov",
+                    current="mktokencov",
+                )
                 self._run_logged_command(
                     [mktokencov_bin, corpus_name],
                     cwd=registry_dir,
@@ -1037,6 +1115,11 @@ class ManateeBackend(CorpusBackend):
         mksizes_bin = shutil.which("mksizes", path=run_env.get("PATH"))
         if mksizes_bin:
             try:
+                self._write_manatee_reindex_progress(
+                    manatee_progress_path,
+                    phase="mksizes",
+                    current="mksizes --no-alignsizes",
+                )
                 self._run_logged_command(
                     [mksizes_bin, corpus_name, "--no-alignsizes"],
                     cwd=registry_dir,
@@ -1047,6 +1130,11 @@ class ManateeBackend(CorpusBackend):
                 )
             except ManateeBackendError:
                 try:
+                    self._write_manatee_reindex_progress(
+                        manatee_progress_path,
+                        phase="mksizes",
+                        current="mksizes",
+                    )
                     self._run_logged_command(
                         [mksizes_bin, corpus_name],
                         cwd=registry_dir,
@@ -1057,6 +1145,13 @@ class ManateeBackend(CorpusBackend):
                     )
                 except ManateeBackendError:
                     pass
+        self._write_manatee_reindex_progress(
+            manatee_progress_path,
+            phase="done",
+            done=1,
+            total=1,
+            current="done",
+        )
 
     def _compile_manatee_stats_in_process(
         self,
@@ -1068,6 +1163,7 @@ class ManateeBackend(CorpusBackend):
         env: Dict[str, str],
         verbose: bool,
         prefix: str,
+        progress_path: Optional[Path] = None,
     ) -> None:
         """Compile core positional stats in one Python process to avoid mkstats startup overhead."""
         if not pattributes:
@@ -1087,6 +1183,7 @@ class ManateeBackend(CorpusBackend):
         script = r"""
 import json
 import sys
+from pathlib import Path
 
 import manatee
 
@@ -1094,9 +1191,33 @@ corpus_name = sys.argv[1]
 attrs = json.loads(sys.argv[2])
 verbose = sys.argv[3] == "1"
 prefix = sys.argv[4]
+progress_path = sys.argv[5] if len(sys.argv) > 5 else ""
 
 corp = manatee.Corpus(corpus_name)
 doc_structure = (corp.get_conf("DOCSTRUCTURE") or "").strip()
+
+def write_progress(done, total, current):
+    if not progress_path:
+        return
+    try:
+        p = Path(progress_path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        tmp = p.with_suffix(p.suffix + ".tmp")
+        tmp.write_text(
+            json.dumps(
+                {
+                    "phase": "mkstats",
+                    "done": int(done),
+                    "total": int(total),
+                    "current": str(current or ""),
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        tmp.replace(p)
+    except Exception:
+        pass
 
 def has_stat(attr_obj, name):
     try:
@@ -1105,44 +1226,61 @@ def has_stat(attr_obj, name):
     except Exception:
         return False
 
+todo = []
 for attr_name in attrs:
     try:
         attr_obj = corp.get_attr(attr_name)
-    except Exception as exc:
-        print(prefix + f"Skipping stats for {attr_name}: cannot open attr ({exc})", file=sys.stderr)
+    except Exception:
         continue
     if not has_stat(attr_obj, "frq"):
-        try:
+        todo.append((attr_name, "frq"))
+    if not has_stat(attr_obj, "arf"):
+        todo.append((attr_name, "arf"))
+    if doc_structure and not has_stat(attr_obj, "docf"):
+        todo.append((attr_name, "docf"))
+    if not has_stat(attr_obj, "aldf"):
+        todo.append((attr_name, "aldf"))
+
+total = len(todo)
+done = 0
+write_progress(done, total, "")
+
+for attr_name, stat_name in todo:
+    write_progress(done, total, f"{stat_name}:{attr_name}")
+    try:
+        if stat_name == "frq":
             if verbose:
                 print(prefix + f"Compiling frq for {attr_name}", file=sys.stderr)
             corp.compile_frq(attr_name)
-            attr_obj = corp.get_attr(attr_name)
-        except Exception as exc:
-            print(prefix + f"frq compile failed for {attr_name}: {exc}", file=sys.stderr)
-    if not has_stat(attr_obj, "arf"):
-        try:
+        elif stat_name == "arf":
             if verbose:
                 print(prefix + f"Compiling arf for {attr_name}", file=sys.stderr)
             corp.compile_arf(attr_name)
-        except Exception as exc:
-            print(prefix + f"arf compile failed for {attr_name}: {exc}", file=sys.stderr)
-    if doc_structure and not has_stat(attr_obj, "docf"):
-        try:
+        elif stat_name == "docf":
             if verbose:
                 print(prefix + f"Compiling docf for {attr_name}", file=sys.stderr)
             corp.compile_docf(attr_name, doc_structure)
-        except Exception as exc:
-            print(prefix + f"docf compile failed for {attr_name}: {exc}", file=sys.stderr)
-    if not has_stat(attr_obj, "aldf"):
-        try:
+        elif stat_name == "aldf":
             if verbose:
                 print(prefix + f"Compiling aldf for {attr_name}", file=sys.stderr)
             corp.compile_aldf(attr_name)
-        except Exception as exc:
-            print(prefix + f"aldf compile failed for {attr_name}: {exc}", file=sys.stderr)
+    except Exception as exc:
+        print(prefix + f"{stat_name} compile failed for {attr_name}: {exc}", file=sys.stderr)
+    done += 1
+    write_progress(done, total, f"{stat_name}:{attr_name}")
+
 """
         self._run_logged_command(
-            [python_bin, "-c", script, corpus_name, json.dumps(pattributes), "1" if verbose else "0", prefix],
+            [
+                python_bin,
+                "-c",
+                script,
+                corpus_name,
+                json.dumps(pattributes),
+                "1" if verbose else "0",
+                prefix,
+                str(progress_path) if progress_path is not None else "",
+            ],
             cwd=registry_dir,
             verbose=verbose,
             prefix=prefix,

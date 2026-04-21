@@ -878,6 +878,7 @@ class PmltqEnvAdapter:
         env_root = dict((ctx.env_config or {}).get("clickhouse") or {})
         cfg.update(env_root)
         pmltq_block = dict((ctx.env_config or {}).get("pmltq") or {})
+        skip_native_http = pmltq_block.get("native_http") is False
         legacy = pmltq_block.get("clickhouse")
         if isinstance(legacy, dict):
             cfg.update(dict(legacy))
@@ -899,15 +900,28 @@ class PmltqEnvAdapter:
         clickql_path_ok = bool(tcp_ok and has_hint)
         available = clickql_path_ok
 
-        native_base, native_src = resolve_pmltq_native_server_url(
-            None, env_config=ctx.env_config
-        )
-        nat = _probe_native_pmltq_api(native_base)
-        tb_ids: List[str] = list(nat.get("treebank_ids") or [])
-        transport_ok = bool(
-            nat.get("http_ok") and nat.get("parse_ok") and not (nat.get("error") or "")
-        )
-        catalog_err = str(nat.get("catalog_error") or "")
+        if skip_native_http:
+            native_base, native_src = "", "env_config.native_http_false"
+            nat = {
+                "http_ok": False,
+                "parse_ok": False,
+                "treebank_ids": [],
+                "error": "",
+                "catalog_error": "",
+            }
+            tb_ids = []
+            transport_ok = False
+            catalog_err = ""
+        else:
+            native_base, native_src = resolve_pmltq_native_server_url(
+                None, env_config=ctx.env_config
+            )
+            nat = _probe_native_pmltq_api(native_base)
+            tb_ids = list(nat.get("treebank_ids") or [])
+            transport_ok = bool(
+                nat.get("http_ok") and nat.get("parse_ok") and not (nat.get("error") or "")
+            )
+            catalog_err = str(nat.get("catalog_error") or "")
         # Same canonical corpus id as ClickHouse / flexencoder (TEITOK cqp/@corpus → database, e.g. tt_infov).
         expected_tb = str(database or "").strip()
         expected_ok = True
@@ -923,12 +937,12 @@ class PmltqEnvAdapter:
                 )
         native_db_ok = bool(tb_ids) and expected_ok
         native_err = str(nat.get("error") or "")
-        if not native_db_ok:
+        if not skip_native_http and not native_db_ok:
             if catalog_extra:
                 native_err = native_err + ("; " if native_err else "") + catalog_extra
             elif catalog_err:
                 native_err = native_err + ("; " if native_err else "") + catalog_err
-        native_stack_ok = bool(transport_ok and native_db_ok)
+        native_stack_ok = bool(not skip_native_http and transport_ok and native_db_ok)
 
         reason_parts: List[str] = []
         if clickql_path_ok:
@@ -941,7 +955,12 @@ class PmltqEnvAdapter:
                 "PML-TQ→ClickHouse path not ready: need reachable ClickHouse and tmp/pmltqload.sql "
                 "(query language is translated to SQL; not the native PML-TQ server)."
             )
-        if native_stack_ok:
+        if skip_native_http:
+            reason_parts.append(
+                "Native PML-TQ HTTP disabled via env-config (pmltq.native_http=false); "
+                "optional perl-pmltq-server stack was not probed."
+            )
+        elif native_stack_ok:
             reason_parts.append(
                 f"Native PML-TQ HTTP at {native_base} (source {native_src}): OK — "
                 f"{len(tb_ids)} treebank(s) in PostgreSQL-backed catalog."
@@ -979,10 +998,18 @@ class PmltqEnvAdapter:
                     "ok": transport_ok,
                     "base_url": native_base,
                     "url_source": native_src,
-                    "probe": f"{native_base.rstrip('/')}/v1/treebanks",
+                    "probe": (
+                        ""
+                        if skip_native_http
+                        else f"{native_base.rstrip('/')}/v1/treebanks"
+                    ),
                     "http_code": nat.get("http_code"),
                     "error": nat.get("error") or None,
-                    "note": "HTTP+JSON transport only; catalog/DB is native_pmltq_postgres.",
+                    "note": (
+                        "Skipped (env-config pmltq.native_http=false)."
+                        if skip_native_http
+                        else "HTTP+JSON transport only; catalog/DB is native_pmltq_postgres."
+                    ),
                 },
                 "native_pmltq_postgres": {
                     "ok": native_db_ok,

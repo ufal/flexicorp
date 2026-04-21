@@ -11,7 +11,7 @@ from .backends.manatee import load_manatee_bindings
 from .clickhouse_errors import format_clickhouse_error_message
 from .config import get_blacklab_settings, get_clickhouse_config, get_project_root
 from .core import available_backend_names, backend_descriptor, ensure_backend_loaded
-from .env_config import resolve_pmltq_native_server_url
+from .env_config import load_env_config, resolve_pmltq_native_server_url
 from .teitok import detect_teitok_cqp, detect_teitok_manatee
 
 _PMLTQ_REFUSED_ERRNOS = {errno.ECONNREFUSED}
@@ -290,7 +290,23 @@ def _pmltq_http_status(project: Dict[str, Any]) -> Dict[str, Any]:
     overview still treats the row as *available* for display: most projects use PML-TQ only
     via ClickHouse. ``native_http_reachable`` stays false so ``availableBackends`` does not
     claim the native HTTP backend is query-ready.
+
+    Opt out of the native HTTP probe when ``env-config.json`` sets ``pmltq.native_http`` to
+    ``false`` (flexitools-demo / ClickHouse-only deployments).
     """
+    loaded_cfg, _loaded_src = load_env_config()
+    _pmltq_env = dict((loaded_cfg or {}).get("pmltq") or {})
+    if _pmltq_env.get("native_http") is False:
+        return {
+            "available": True,
+            "native_http_reachable": False,
+            "reason": (
+                "Native PML-TQ HTTP not used (env-config pmltq.native_http=false); "
+                "use the PML-TQ query language via ClickHouse/ClickQL when the corpus is indexed."
+            ),
+            "url": "",
+            "url_source": "env_config.native_http_false",
+        }
     base, source = resolve_pmltq_native_server_url(project)
     url = f"{base}/v1/treebanks"
 

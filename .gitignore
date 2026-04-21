@@ -18,6 +18,7 @@ dist/
 .DS_Store
 .idea/
 .vscode/
+.cursor/
 
 # Test / tooling caches
 .pytest_cache/
@@ -29,6 +30,7 @@ data/
 scripts/
 tmp/
 teitok/
+teitok_teitok_ui/
 git/
 dev/
 

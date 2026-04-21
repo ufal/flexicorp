@@ -35,6 +35,7 @@ def _progress_thread(
             preflight_files_total=preflight_files_total,
             preflight_bytes_total=preflight_bytes_total,
             preflight_rel_sizes=preflight_rel_sizes,
+            job_id=job_id,
             phase="running",
         )
         update_job_progress(project_root, job_id, payload)
@@ -86,8 +87,10 @@ def run_worker(job_id: str, project_root_s: str) -> int:
             **st.progress,
             "phase": "running",
             "searchfolder": str(preflight.get("searchfolder") or ""),
-            "files_total": preflight_files_total,
-            "bytes_total_est": preflight_bytes_total,
+            # Keep preflight estimates for diagnostics, but do not expose them
+            # as live done/total progress counters until we have real done counts.
+            "preflight_files_total_est": preflight_files_total,
+            "preflight_bytes_total_est": preflight_bytes_total,
         }
         write_job(project_root, st)
 
@@ -152,6 +155,7 @@ def run_worker(job_id: str, project_root_s: str) -> int:
                 preflight_files_total=preflight_files_total,
                 preflight_bytes_total=preflight_bytes_total,
                 preflight_rel_sizes=preflight_rel_sizes,
+                job_id=job_id,
                 phase=st2.status,
             ),
         }
