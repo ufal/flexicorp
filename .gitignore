@@ -9,6 +9,8 @@ env/
 
 # Packaging / build artifacts
 build/
+target/
+fqs/target/
 # Legacy name from a one-off macOS out-of-tree build; prefer cmake -B flexicorp_pando/build
 flexicorp_pando/build-darwin/
 dist/
@@ -28,6 +30,7 @@ dist/
 # Project-local directories not needed for the Python package
 data/
 scripts/
+tests/
 tmp/
 teitok/
 teitok_teitok_ui/
