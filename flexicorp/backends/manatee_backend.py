@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import hashlib
 from typing import Any, Dict, List, Optional
 import xml.etree.ElementTree as ET
 
@@ -696,6 +697,19 @@ class ManateeBackend(CorpusBackend):
         pattributes: List[str],
         sattributes_by_region: Dict[str, List[str]],
     ) -> str:
+        """
+        Build a Manatee registry for a TEITOK project.
+
+        After the initial ``word`` and dynamic ``lc`` block, each ``ATTRIBUTE`` line
+        must follow the **same order** as the tab-separated **data** columns in
+        ``corpus.vrt`` (Manatee matches columns to declarations in order). Column
+        order normally comes from TEITOK ``<pattributes>`` in cqpsettings /
+        settings.xml—the same schema flexencoder uses when writing ``corpus.vrt``.
+        Dynamic ``lc`` does not consume a vertical column.
+
+        ``id``, when present as a positional column, is appended last in
+        ``pattributes`` before building lines so it stays aligned with VRT rows.
+        """
         lines: List[str] = [
             f'NAME "{title}"',
             f'PATH "{corp_path}"',
@@ -711,15 +725,16 @@ class ManateeBackend(CorpusBackend):
             "        TYPE index",
             "        TRANSQUERY yes",
             "}",
-            "ATTRIBUTE id",
         ]
-        seen = {"word", "id"}
+        seen = {"word"}
         for attr in pattributes:
             key = str(attr or "").strip()
             if not key or key in seen:
                 continue
             seen.add(key)
             lines.append(f"ATTRIBUTE {key.lower()}")
+        if "id" not in seen:
+            lines.append("ATTRIBUTE id")
         lines.extend(
             [
                 "",
@@ -860,7 +875,16 @@ class ManateeBackend(CorpusBackend):
         return ManateeConfig(registry=registry_dir, corpus=corpus_name)
 
     def _manatee_tools_path(self, project: Dict[str, Any], params: Dict[str, Any]) -> Optional[Path]:
-        """Resolve path to Manatee build (src + api) for encodevert, corpinfo, mkstats, mktokencov, mksizes."""
+        """Resolve Manatee-open tree (contains ``src/`` and ``api/``) for compilecorp, encodevert, etc."""
+
+        def _looks_like_manatee_root(root: Path) -> bool:
+            if not root.is_dir():
+                return False
+            api_cc = root / "api" / "compilecorp"
+            src_ev = root / "src" / "encodevert"
+            src_ev_exe = root / "src" / "encodevert.exe"
+            return api_cc.is_file() or src_ev.is_file() or src_ev_exe.is_file()
+
         for candidate in (
             params.get("manatee_src"),
             params.get("manatee_tools_path"),
@@ -871,9 +895,7 @@ class ManateeBackend(CorpusBackend):
             if not candidate:
                 continue
             p = Path(str(candidate)).expanduser().resolve()
-            if p.is_dir() and (
-                (p / "src" / "encodevert").exists() or (p / "src" / "encodevert.exe").exists()
-            ):
+            if _looks_like_manatee_root(p):
                 return p
             if p.is_dir() and (p / "encodevert").exists():
                 return p.parent  # p is src/
@@ -901,8 +923,9 @@ class ManateeBackend(CorpusBackend):
                 for manatee_dir in candidates:
                     if not manatee_dir.is_dir():
                         continue
+                    api_cc = manatee_dir / "api" / "compilecorp"
                     src = manatee_dir / "src"
-                    if (src / "encodevert").exists() or (src / "encodevert.exe").exists():
+                    if api_cc.is_file() or (src / "encodevert").exists() or (src / "encodevert.exe").exists():
                         return manatee_dir
         except Exception:
             pass
@@ -960,20 +983,17 @@ class ManateeBackend(CorpusBackend):
         except Exception:
             return
 
-    def _run_manatee_compile(
+    def _manatee_compile_prepare_run_env(
         self,
         *,
         registry_dir: Path,
-        corpus_name: str,
         vrt_path: Path,
+        corpus_name: str,
         pattributes: List[str],
         project: Dict[str, Any],
         params: Dict[str, Any],
         env: Dict[str, str],
-        verbose: bool,
-        prefix: str,
-    ) -> Dict[str, Any]:
-        """Run encodevert, mkstats, mktokencov, mksizes to build Manatee corp/ from VRT (no compilecorp)."""
+    ) -> tuple[int, Dict[str, str], Dict[str, Any], Optional[Path], Optional[Path]]:
         try:
             step_timeout_sec = int(params.get("manatee_step_timeout_sec", 900))
         except Exception:
@@ -993,9 +1013,9 @@ class ManateeBackend(CorpusBackend):
             if not tools_path.is_dir():
                 tools_path = None
         diagnostics["tools_path"] = str(tools_path) if tools_path is not None else ""
+        env_local = dict(env)
         if tools_path is not None:
-            env = dict(env)
-            env["MANATEE_SRC"] = str(tools_path)
+            env_local["MANATEE_SRC"] = str(tools_path)
         path_prepend: List[Path] = []
         if tools_path is not None:
             src_dir = tools_path / "src"
@@ -1005,7 +1025,7 @@ class ManateeBackend(CorpusBackend):
             if api_dir.is_dir():
                 path_prepend.append(api_dir)
         path_str = os.pathsep.join(str(p) for p in path_prepend)
-        run_env = dict(env)
+        run_env = dict(env_local)
         if path_str:
             run_env["PATH"] = path_str + os.pathsep + run_env.get("PATH", os.environ.get("PATH", ""))
         if tools_path is not None and "PYTHONPATH" not in run_env:
@@ -1024,6 +1044,105 @@ class ManateeBackend(CorpusBackend):
             "PYTHONPATH_head": (run_env.get("PYTHONPATH", "").split(os.pathsep)[:8]),
         }
         manatee_progress_path = self._manatee_reindex_progress_path(project, params)
+        return step_timeout_sec, run_env, diagnostics, tools_path, manatee_progress_path
+
+    @staticmethod
+    def _resolve_compilecorp_binary(tools_path: Optional[Path], run_env: Dict[str, str]) -> Optional[str]:
+        if tools_path is not None:
+            cand = tools_path / "api" / "compilecorp"
+            if cand.is_file():
+                return str(cand)
+        return shutil.which("compilecorp", path=run_env.get("PATH"))
+
+    def _run_manatee_compile_compilecorp(
+        self,
+        *,
+        registry_dir: Path,
+        corpus_name: str,
+        params: Dict[str, Any],
+        verbose: bool,
+        prefix: str,
+        step_timeout_sec: int,
+        run_env: Dict[str, str],
+        diagnostics: Dict[str, Any],
+        tools_path: Optional[Path],
+        manatee_progress_path: Optional[Path],
+    ) -> Dict[str, Any]:
+        """Run ``api/compilecorp`` (expects ``MANATEE_REGISTRY`` and registry entry with VERTICAL)."""
+        diagnostics["compile_pipeline"] = "compilecorp"
+        self._write_manatee_reindex_progress(
+            manatee_progress_path,
+            phase="compilecorp",
+            done=0,
+            total=0,
+            current="compilecorp",
+        )
+        compilecorp_bin = self._resolve_compilecorp_binary(tools_path, run_env)
+        diagnostics["compilecorp_bin"] = str(compilecorp_bin or "")
+        if not compilecorp_bin:
+            raise ManateeBackendError(
+                "compilecorp not found. Set MANATEE_SRC to the manatee-open tree "
+                "(must contain api/compilecorp) or put compilecorp on PATH."
+            )
+        extra: List[str] = []
+        raw_extra = params.get("manatee_compilecorp_extra_args")
+        if isinstance(raw_extra, list):
+            extra = [str(x) for x in raw_extra if str(x).strip()]
+        elif isinstance(raw_extra, str) and raw_extra.strip():
+            extra = raw_extra.split()
+        argv = [
+            compilecorp_bin,
+            "--recompile-corpus",
+            "--no-sketches",
+            "--no-subcorpora",
+            "--no-align",
+            "--no-check",
+            "--no-trends",
+            "--no-lcm",
+        ]
+        argv.extend(extra)
+        argv.append(corpus_name)
+        t0 = time.monotonic()
+        self._run_logged_command(
+            argv,
+            cwd=registry_dir,
+            verbose=verbose,
+            prefix=prefix,
+            env=run_env,
+            timeout_sec=step_timeout_sec,
+        )
+        diagnostics["steps"]["compilecorp"] = {
+            "ok": True,
+            "elapsed_s": round(time.monotonic() - t0, 3),
+            "argv_tail": argv[:16],
+        }
+        self._write_manatee_reindex_progress(
+            manatee_progress_path,
+            phase="done",
+            done=1,
+            total=1,
+            current="done",
+        )
+        return diagnostics
+
+    def _run_manatee_compile_encodevert(
+        self,
+        *,
+        registry_dir: Path,
+        corpus_name: str,
+        vrt_path: Path,
+        pattributes: List[str],
+        project: Dict[str, Any],
+        params: Dict[str, Any],
+        verbose: bool,
+        prefix: str,
+        step_timeout_sec: int,
+        run_env: Dict[str, str],
+        diagnostics: Dict[str, Any],
+        manatee_progress_path: Optional[Path],
+    ) -> Dict[str, Any]:
+        """Legacy: encodevert then mkstats / in-process stats, mktokencov, mksizes."""
+        diagnostics["compile_pipeline"] = "encodevert"
         self._write_manatee_reindex_progress(
             manatee_progress_path,
             phase="encodevert",
@@ -1215,6 +1334,80 @@ class ManateeBackend(CorpusBackend):
             current="done",
         )
         return diagnostics
+
+    def _run_manatee_compile(
+        self,
+        *,
+        registry_dir: Path,
+        corpus_name: str,
+        vrt_path: Path,
+        pattributes: List[str],
+        project: Dict[str, Any],
+        params: Dict[str, Any],
+        env: Dict[str, str],
+        verbose: bool,
+        prefix: str,
+    ) -> Dict[str, Any]:
+        """
+        Build ``corp/`` from ``corpus.vrt``.
+
+        Default: ``manatee-open/api/compilecorp`` (needs ``api`` + ``src`` on ``PATH`` for helpers).
+
+        Legacy: ``manatee_compile_pipeline=encodevert`` — ``encodevert`` plus mkstats / in-process
+        stats, ``mktokencov``, ``mksizes``.
+
+        Override with ``params['manatee_compile_pipeline']`` or env ``FLEXICORP_MANATEE_COMPILE_PIPELINE``:
+        ``compilecorp`` | ``encodevert``.
+        """
+        step_timeout_sec, run_env, diagnostics, tools_path, manatee_progress_path = (
+            self._manatee_compile_prepare_run_env(
+                registry_dir=registry_dir,
+                vrt_path=vrt_path,
+                corpus_name=corpus_name,
+                pattributes=pattributes,
+                project=project,
+                params=params,
+                env=env,
+            )
+        )
+        raw = (
+            params.get("manatee_compile_pipeline")
+            or os.environ.get("FLEXICORP_MANATEE_COMPILE_PIPELINE")
+            or "compilecorp"
+        )
+        pipeline = str(raw).strip().lower().replace("-", "_")
+        encodevert_aliases = {"encodevert", "encodevert_mkstats", "legacy"}
+        if pipeline in encodevert_aliases:
+            return self._run_manatee_compile_encodevert(
+                registry_dir=registry_dir,
+                corpus_name=corpus_name,
+                vrt_path=vrt_path,
+                pattributes=pattributes,
+                project=project,
+                params=params,
+                verbose=verbose,
+                prefix=prefix,
+                step_timeout_sec=step_timeout_sec,
+                run_env=run_env,
+                diagnostics=diagnostics,
+                manatee_progress_path=manatee_progress_path,
+            )
+        if pipeline not in ("compilecorp", "compile_corp", ""):
+            raise ManateeBackendError(
+                f"Unknown manatee_compile_pipeline {raw!r}; use compilecorp or encodevert."
+            )
+        return self._run_manatee_compile_compilecorp(
+            registry_dir=registry_dir,
+            corpus_name=corpus_name,
+            params=params,
+            verbose=verbose,
+            prefix=prefix,
+            step_timeout_sec=step_timeout_sec,
+            run_env=run_env,
+            diagnostics=diagnostics,
+            tools_path=tools_path,
+            manatee_progress_path=manatee_progress_path,
+        )
 
     def _compile_manatee_stats_with_mkstats(
         self,
@@ -1516,6 +1709,9 @@ for attr_name, stat_name in todo:
             ".//plugins/default_corparch/corplist",
             ".//plugins/corparch/file",
             ".//plugins/corparch/corplist",
+            ".//{*}plugins/{*}default_corparch/{*}corplist",
+            ".//{*}plugins/{*}corparch/{*}file",
+            ".//{*}plugins/{*}corparch/{*}corplist",
         ):
             node = root.find(xpath)
             if node is None:
@@ -1550,6 +1746,12 @@ for attr_name, stat_name in todo:
             "./plugins/corparch/manatee_registry",
             "./corpora/manatee_registry",
             ".//corpora/manatee_registry",
+            ".//{*}plugins/{*}default_corparch/{*}manatee_registry",
+            ".//{*}plugins/{*}corparch/{*}manatee_registry",
+            "./{*}plugins/{*}default_corparch/{*}manatee_registry",
+            "./{*}plugins/{*}corparch/{*}manatee_registry",
+            "./{*}corpora/{*}manatee_registry",
+            ".//{*}corpora/{*}manatee_registry",
         ):
             node = root.find(xpath)
             if node is None:
@@ -1568,17 +1770,36 @@ for attr_name, stat_name in todo:
             root = ET.parse(kontext_conf).getroot()
         except Exception:
             return None
-        db_node = root.find("./plugins/db")
+        db_node = (
+            root.find("./plugins/db")
+            or root.find("./{*}plugins/{*}db")
+            or root.find(".//plugins/db")
+            or root.find(".//{*}plugins/{*}db")
+        )
         if db_node is None:
             return None
-        module = (db_node.findtext("module") or "").strip()
+        module = (
+            (db_node.findtext("module") or "").strip()
+            or (db_node.findtext("{*}module") or "").strip()
+        )
         if module != "redis_db":
             return None
-        host = (db_node.findtext("host") or "").strip()
+        host = (
+            (db_node.findtext("host") or "").strip()
+            or (db_node.findtext("{*}host") or "").strip()
+        )
         if not host:
             return None
-        port_raw = (db_node.findtext("port") or "6379").strip()
-        dbid_raw = (db_node.findtext("id") or "1").strip()
+        port_raw = (
+            (db_node.findtext("port") or "").strip()
+            or (db_node.findtext("{*}port") or "").strip()
+            or "6379"
+        )
+        dbid_raw = (
+            (db_node.findtext("id") or "").strip()
+            or (db_node.findtext("{*}id") or "").strip()
+            or "1"
+        )
         try:
             port = int(port_raw)
         except Exception:
@@ -1587,7 +1808,13 @@ for attr_name, stat_name in todo:
             dbid = int(dbid_raw)
         except Exception:
             dbid = 1
-        anon_raw = (root.findtext("./plugins/auth/anonymous_user_id") or "0").strip()
+        anon_raw = (
+            (root.findtext("./plugins/auth/anonymous_user_id") or "").strip()
+            or (root.findtext("./{*}plugins/{*}auth/{*}anonymous_user_id") or "").strip()
+            or (root.findtext(".//plugins/auth/anonymous_user_id") or "").strip()
+            or (root.findtext(".//{*}plugins/{*}auth/{*}anonymous_user_id") or "").strip()
+            or "0"
+        )
         try:
             anon_id = int(anon_raw)
         except Exception:
@@ -1614,6 +1841,7 @@ for attr_name, stat_name in todo:
             "ok": False,
             "action": "kontext-anon-acl",
             "corpus": corpus_name,
+            "changed": False,
             "redis": {
                 "host": redis_host,
                 "port": redis_port,
@@ -1671,10 +1899,11 @@ if raw:
             vals = [str(x) for x in parsed]
     except Exception:
         vals = []
+orig = list(vals)
 if corpus not in vals:
     vals.append(corpus)
 r.set(key, json.dumps(vals))
-print(json.dumps({{"key": key, "values": vals}}))
+print(json.dumps({{"key": key, "values": vals, "changed": vals != orig}}))
 """
         try:
             proc = subprocess.run(
@@ -1700,6 +1929,7 @@ print(json.dumps({{"key": key, "values": vals}}))
         out["ok"] = True
         out["message"] = "KonText anonymous ACL updated."
         out["payload"] = payload
+        out["changed"] = bool(payload.get("changed"))
         return out
 
     def _ensure_kontext_registry_file(
@@ -1714,6 +1944,7 @@ print(json.dumps({{"key": key, "values": vals}}))
             "action": "registry-sync",
             "source_registry_file": str(source_registry_file),
             "target_registry_file": str(kontext_registry_dir / corpus_name),
+            "changed": False,
         }
         if not source_registry_file.is_file():
             out["message"] = f"Source registry file is missing: {source_registry_file}"
@@ -1721,8 +1952,14 @@ print(json.dumps({{"key": key, "values": vals}}))
         try:
             kontext_registry_dir.mkdir(parents=True, exist_ok=True)
             target = kontext_registry_dir / corpus_name
+            same = False
+            if target.is_file():
+                src_hash = hashlib.sha256(source_registry_file.read_bytes()).hexdigest()
+                tgt_hash = hashlib.sha256(target.read_bytes()).hexdigest()
+                same = src_hash == tgt_hash
             shutil.copy2(source_registry_file, target)
             out["ok"] = True
+            out["changed"] = not same
             out["message"] = "Registry file copied to KonText manatee_registry."
             return out
         except Exception as exc:
@@ -1782,6 +2019,52 @@ print(json.dumps({{"key": key, "values": vals}}))
         except Exception as exc:
             out["message"] = f"Could not update KonText corplist: {exc}"
             return out
+
+    def _maybe_reload_kontext_app(self, *, params: Dict[str, Any], changed: bool) -> Dict[str, Any]:
+        out: Dict[str, Any] = {
+            "ok": False,
+            "action": "kontext-reload",
+            "changed": bool(changed),
+            "executed": False,
+            "command": "",
+        }
+        if not changed:
+            out["ok"] = True
+            out["message"] = "Skipped KonText reload (no KonText-facing changes detected)."
+            return out
+        cmd = str(params.get("kontext_reload_cmd") or os.environ.get("KONTEXT_RELOAD_CMD") or "").strip()
+        if not cmd:
+            out["message"] = (
+                "KonText changes detected, but reload command is not configured. "
+                "Set params.kontext_reload_cmd or KONTEXT_RELOAD_CMD."
+            )
+            return out
+        out["command"] = cmd
+        try:
+            proc = subprocess.run(
+                cmd,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=20,
+                check=False,
+            )
+        except Exception as exc:
+            out["message"] = f"Could not run KonText reload command: {exc}"
+            return out
+        out["executed"] = True
+        out["returncode"] = int(proc.returncode)
+        out["stdout"] = (proc.stdout or "").strip()[-4000:]
+        out["stderr"] = (proc.stderr or "").strip()[-4000:]
+        if proc.returncode == 0:
+            out["ok"] = True
+            out["message"] = "KonText reload command executed."
+        else:
+            out["message"] = (
+                "KonText reload command failed: "
+                + (out["stderr"] or out["stdout"] or f"exit code {proc.returncode}")
+            )
+        return out
 
     def _maybe_sync_kontext_registration(
         self,
@@ -1861,9 +2144,18 @@ print(json.dumps({{"key": key, "values": vals}}))
                 else None,
             )
             result["steps"].append(step_acl)
+        changed_any = False
+        for step in result["steps"]:
+            if bool(step.get("changed")):
+                changed_any = True
+                break
+        step_reload = self._maybe_reload_kontext_app(params=params, changed=changed_any)
+        result["steps"].append(step_reload)
         result["ok"] = bool(step_registry.get("ok")) and bool(step_corplist.get("ok"))
         for step in result["steps"]:
             if step.get("action") == "kontext-anon-acl":
+                result["ok"] = bool(result["ok"]) and bool(step.get("ok"))
+            if step.get("action") == "kontext-reload":
                 result["ok"] = bool(result["ok"]) and bool(step.get("ok"))
         if result["ok"]:
             result["message"] = "KonText registry + corplist + ACL sync completed."
@@ -1871,7 +2163,11 @@ print(json.dumps({{"key": key, "values": vals}}))
             result["message"] = "KonText sync finished with non-fatal warnings."
         return result
 
-    def _reindex_from_cwb(self, req: FlexiRequest) -> Dict[str, Any]:
+    def _prepare_teitok_manatee_reindex(self, req: FlexiRequest) -> Dict[str, Any]:
+        """
+        Shared TEITOK Manatee reindex setup: registry text aligned with cqpsettings
+        ``pattributes`` order (same column order flexencoder uses for ``corpus.vrt``).
+        """
         project = dict(req.get("project") or {})
         params = dict(req.get("params") or {})
         verbose = bool(params.get("verbose") or params.get("debug"))
@@ -1917,6 +2213,113 @@ print(json.dumps({{"key": key, "values": vals}}))
             sattributes_by_region=sattributes_by_region,
         )
         registry_path.write_text(registry_text, encoding="utf-8")
+
+        return {
+            "project": project,
+            "params": params,
+            "verbose": verbose,
+            "source_cfg": source_cfg,
+            "detected_cqp": detected_cqp,
+            "target_cfg": target_cfg,
+            "meta": meta,
+            "root_dir": root_dir,
+            "settings_path": settings_path,
+            "server": server,
+            "path": path,
+            "pattributes": pattributes,
+            "sattributes_by_region": sattributes_by_region,
+            "registry_dir": registry_dir,
+            "corp_dir": corp_dir,
+            "vrt_path": vrt_path,
+            "registry_path": registry_path,
+        }
+
+    def _reindex_from_existing_vertical(self, req: FlexiRequest) -> Dict[str, Any]:
+        """
+        Build Manatee indexes from ``manatee/corpus.vrt`` already produced by flexencoder
+        (or any writer that shares TEITOK ``pattributes`` column order). Does not run
+        ``cwb-decode``.
+        """
+        ctx = self._prepare_teitok_manatee_reindex(req)
+        project = ctx["project"]
+        params = ctx["params"]
+        verbose = ctx["verbose"]
+        target_cfg = ctx["target_cfg"]
+        root_dir = ctx["root_dir"]
+        settings_path = ctx["settings_path"]
+        pattributes = ctx["pattributes"]
+        registry_dir = ctx["registry_dir"]
+        vrt_path = ctx["vrt_path"]
+        registry_path = ctx["registry_path"]
+
+        if not vrt_path.is_file() or vrt_path.stat().st_size == 0:
+            raise ManateeBackendError(
+                f"manatee_reindex_strategy=existing_vertical requires a non-empty vertical file at {vrt_path} "
+                "(run flexencoder first, or use manatee_reindex_strategy=cwb_decode)."
+            )
+
+        prefix = "[flexicorp][manatee][reindex-vrt] "
+        if verbose:
+            print(
+                prefix + f"Using existing vertical {vrt_path} (flexencoder / TEITOK column order).",
+                file=sys.stderr,
+            )
+
+        compile_env = dict(os.environ)
+        compile_env["MANATEE_REGISTRY"] = str(registry_dir)
+        compile_diagnostics = self._run_manatee_compile(
+            registry_dir=registry_dir,
+            corpus_name=str(target_cfg.corpus),
+            vrt_path=vrt_path,
+            pattributes=pattributes,
+            project=project,
+            params=params,
+            env=compile_env,
+            verbose=verbose,
+            prefix=prefix,
+        )
+        kontext_sync = self._maybe_sync_kontext_registration(
+            params=params,
+            source_registry_file=registry_path,
+            corpus_name=str(target_cfg.corpus),
+        )
+
+        return {
+            "status": "ok",
+            "strategy": "existing_vertical",
+            "source_backend": "flexencoder_vrt",
+            "root": str(root_dir),
+            "settings": str(settings_path),
+            "registry": str(registry_dir),
+            "registry_file": str(registry_path),
+            "data_path": str(registry_dir / "corp"),
+            "vrt": str(vrt_path),
+            "corpus": str(target_cfg.corpus),
+            "compile_diagnostics": compile_diagnostics,
+            "message": (
+                "Manatee corpus built from existing corpus.vrt (default: compilecorp; "
+                "set manatee_compile_pipeline=encodevert for legacy encodevert+mktokencov+mksizes; "
+                "no cwb-decode)."
+            ),
+            "kontext_sync": kontext_sync,
+        }
+
+    def _reindex_from_cwb(self, req: FlexiRequest) -> Dict[str, Any]:
+        ctx = self._prepare_teitok_manatee_reindex(req)
+        project = ctx["project"]
+        params = ctx["params"]
+        verbose = ctx["verbose"]
+        source_cfg = ctx["source_cfg"]
+        target_cfg = ctx["target_cfg"]
+        root_dir = ctx["root_dir"]
+        settings_path = ctx["settings_path"]
+        pattributes = ctx["pattributes"]
+        sattributes_by_region = ctx["sattributes_by_region"]
+        registry_dir = ctx["registry_dir"]
+        corp_dir = ctx["corp_dir"]
+        vrt_path = ctx["vrt_path"]
+        registry_path = ctx["registry_path"]
+        server, path = ctx["server"], ctx["path"]
 
         cwb_decode_bin = self._find_executable(
             str(params.get("cwb_decode_binary") or "cwb-decode"),
@@ -2021,7 +2424,8 @@ print(json.dumps({{"key": key, "values": vals}}))
             "compile_diagnostics": compile_diagnostics,
             "message": (
                 "Manatee corpus rebuilt from the existing CWB corpus via cwb-decode, "
-                "encodevert, mkstats, mktokencov, and mksizes (no compilecorp)."
+                "cwb-decode refreshed corpus.vrt, then compilecorp by default "
+                "(or encodevert+mktokencov+mksizes when manatee_compile_pipeline=encodevert)."
             ),
             "kontext_sync": kontext_sync,
         }
@@ -2146,6 +2550,8 @@ print(json.dumps({{"key": key, "values": vals}}))
         cfg = self._get_config(project)
         corpus = self._open_corpus(cfg)
         manatee = self._load_manatee_module(Path(cfg.registry).expanduser().resolve().parent)
+        # Four-arg ctor matches Manatee/CQP samples; ``Concordance()`` + ``load_from_query``
+        # with bad sample/full sizes (e.g. ``-1, -1`` after ``0, 0``) can SIGSEGV in SWIG.
         conc = manatee.Concordance(corpus, query_text, 0, -1)
         if hasattr(conc, "sync"):
             conc.sync()
@@ -2534,7 +2940,66 @@ print(json.dumps({{"key": key, "values": vals}}))
         }
 
     def reindex(self, req: FlexiRequest) -> Dict[str, Any]:
-        return self._reindex_from_cwb(req)
+        """
+        TEITOK Manatee rebuild.
+
+        Typical flow: flexencoder writes ``manatee/corpus.vrt``; reindex compiles with
+        ``api/compilecorp`` by default (``manatee_compile_pipeline=encodevert`` for the legacy
+        encodevert + stats tools). No CWB corpus is required unless you use ``cwb_decode``.
+
+        ``params['manatee_reindex_strategy']`` (or env ``FLEXICORP_MANATEE_REINDEX_STRATEGY``):
+
+        - ``auto`` (default): use ``<manatee_registry>/corpus.vrt`` if it exists and is
+          non-empty (flexencoder path). If it is missing or empty, raise with a hint to run
+          flexencoder — **no silent fallback** to ``cwb-decode`` (many projects no longer
+          ship CWB).
+        - ``existing_vertical`` (aliases: ``flexencoder``, ``vrt``): same as ``auto`` for the
+          vertical step; fails clearly if ``corpus.vrt`` is absent.
+        - ``cwb_decode`` (aliases: ``cwb``, ``cwb_first``): legacy — refresh ``corpus.vrt``
+          from an indexed CWB corpus via ``cwb-decode``, then compile.
+
+        Registry ``ATTRIBUTE`` order follows TEITOK ``pattributes`` so it matches
+        ``corpus.vrt`` columns from flexencoder.
+        """
+        params = dict(req.get("params") or {})
+        raw = (
+            params.get("manatee_reindex_strategy")
+            or params.get("manatee_vertical_source")
+            or os.environ.get("FLEXICORP_MANATEE_REINDEX_STRATEGY")
+            or "auto"
+        )
+        strategy = str(raw).strip().lower().replace("-", "_")
+
+        prefer_existing = {
+            "existing_vertical",
+            "existing",
+            "flexencoder",
+            "vrt",
+            "vertical",
+            "auto",
+            "",
+        }
+        prefer_cwb = {"cwb_decode", "cwb", "cwb_first"}
+
+        if strategy in prefer_cwb:
+            return self._reindex_from_cwb(req)
+
+        if strategy not in prefer_existing:
+            raise ManateeBackendError(
+                f"Unknown manatee_reindex_strategy {raw!r}; use auto, existing_vertical, or cwb_decode."
+            )
+
+        _, detected_cqp = self._source_cqp_config(req)
+        target_cfg = self._target_manatee_config(req, detected_cqp)
+        vrt_candidate = Path(target_cfg.registry).expanduser().resolve() / "corpus.vrt"
+        if vrt_candidate.is_file() and vrt_candidate.stat().st_size > 0:
+            return self._reindex_from_existing_vertical(req)
+
+        raise ManateeBackendError(
+            "Manatee reindex: missing or empty corpus.vrt under the manatee registry directory. "
+            "Run flexencoder to produce it, or set manatee_reindex_strategy=cwb_decode if you "
+            "still maintain a CWB-indexed corpus to stream from."
+        )
 
 
 register_backend(ManateeBackend())
