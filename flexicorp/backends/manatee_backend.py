@@ -1490,6 +1490,7 @@ for attr_name, stat_name in todo:
             params.get("kontext_conf"),
             params.get("kontext_config"),
             os.environ.get("KONTEXT_CONF"),
+            "/opt/kontext/config.xml",
             "/opt/kontext/conf/config.xml",
             "/etc/kontext/config.xml",
         ):
@@ -1498,6 +1499,36 @@ for attr_name, stat_name in todo:
             p = Path(str(candidate)).expanduser().resolve()
             if p.is_file():
                 return p
+        return None
+
+    def _read_kontext_corplist_path(self, kontext_conf: Path) -> Optional[Path]:
+        """
+        Resolve KonText corplist.xml path from config.xml.
+
+        Newer configs often use ``plugins/corparch/file`` while some variants
+        used ``plugins/default_corparch/corplist``.
+        """
+        try:
+            root = ET.parse(kontext_conf).getroot()
+        except Exception:
+            return None
+        for xpath in (
+            ".//plugins/default_corparch/corplist",
+            ".//plugins/corparch/file",
+            ".//plugins/corparch/corplist",
+        ):
+            node = root.find(xpath)
+            if node is None:
+                continue
+            text = (node.text or "").strip()
+            if not text:
+                continue
+            cand = Path(text).expanduser()
+            if not cand.is_absolute():
+                cand = (kontext_conf.parent / cand).resolve()
+            else:
+                cand = cand.resolve()
+            return cand
         return None
 
     def _read_kontext_manatee_registry_dir(self, kontext_conf: Path) -> Optional[Path]:
@@ -1514,6 +1545,9 @@ for attr_name, stat_name in todo:
             return None
         for xpath in (
             ".//plugins/default_corparch/manatee_registry",
+            ".//plugins/corparch/manatee_registry",
+            "./plugins/default_corparch/manatee_registry",
+            "./plugins/corparch/manatee_registry",
             "./corpora/manatee_registry",
             ".//corpora/manatee_registry",
         ):
@@ -1795,7 +1829,7 @@ print(json.dumps({{"key": key, "values": vals}}))
         if corplist_override:
             corplist_path = Path(str(corplist_override)).expanduser().resolve()
         else:
-            corplist_path = kontext_conf.parent / "corplist.xml"
+            corplist_path = self._read_kontext_corplist_path(kontext_conf) or (kontext_conf.parent / "corplist.xml")
         step_corplist = self._ensure_kontext_corplist_entry(
             corplist_path=corplist_path,
             corpus_name=corpus_name,
