@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<TEI>
-<teiHeader><revisionDesc><change when="2024-12-04" who="MJLOCAL">XML file created</change></revisionDesc></teiHeader>
-<text id="" xml:space="preserve">
-<p>This is a test to test the tokenizer.</p>
-</text>
-</TEI>

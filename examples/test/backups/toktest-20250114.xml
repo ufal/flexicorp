@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<TEI>
-<teiHeader><revisionDesc><change when="2024-12-04" who="MJLOCAL">XML file created</change></revisionDesc></teiHeader>
-<text id="" xml:space="preserve">
-<p id="p-1"><tok id="w-1">This</tok> <tok id="w-2">is</tok> <tok id="w-3">a</tok> <tok id="w-4">test</tok> <tok id="w-5">to</tok> <tok id="w-6">test</tok> <tok id="w-7">the</tok> <tok id="w-8">tokenizer</tok><tok id="w-9">.</tok></p>
-</text>
-
-</TEI>

@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<TEI>
-<teiHeader><revisionDesc><change when="2024-10-15" who="VCG">XML file created</change></revisionDesc></teiHeader>
-<text id="" xml:space="preserve">
-<pb n="1r" id="e-1"/> <lb n="1" id="e-2"/> <tok id="w-1">Esto</tok> <tok id="w-2">es</tok> <tok id="w-3">prueua</tok>
-</text>
-
-</TEI>

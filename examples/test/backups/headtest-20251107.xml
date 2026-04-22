@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<TEI>
-<teiHeader><revisionDesc><change when="2025-11-07" who="MJLOCAL">XML file created</change></revisionDesc></teiHeader>
-<text id="" xml:space="preserve">
-<p>This is a simple sentence to test how the head_lemma is dealt with in CQL.</p>
-</text>
-</TEI>
