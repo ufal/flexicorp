@@ -11,6 +11,7 @@ env/
 build/
 target/
 fqs/target/
+fqs/Cargo.lock
 # Legacy name from a one-off macOS out-of-tree build; prefer cmake -B flexicorp_pando/build
 flexicorp_pando/build-darwin/
 dist/
