@@ -26,6 +26,7 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 from ..env_config import resolve_pmltq_native_server_url
+from ..highlight_contract import build_highlight_map
 from ..teitok import detect_teitok_clickhouse, detect_teitok_cqp
 from ..teitok_context import resolve_teitok_context
 from ..core import CorpusBackend, FlexiRequest, _flexicorp_scripts_flexencoder, register_backend
@@ -110,10 +111,23 @@ class PmltqBackend(CorpusBackend):
         for key in (
             "pmltq_write_pml",
             "pmltq_run_import",
+            "pmltq_run_sql",
             "pmltq_lang",
             "pmltq_pml_dir",
             "pmltq_pml_layers",
+            "pmltq_pml_gzip",
             "pmltq_import_cmd",
+            "pmltq_sql_cmd",
+            "pmltq_conversion_mode",
+            "pmltq_converter_cmd",
+            "pmltq_converter_workdir",
+            "pmltq_schema_dir",
+            "pmltq_schema_mode",
+            "pmltq_schema_bundle_dir",
+            "pmltq_schema_file",
+            "pmltq_data_dir",
+            "pmltq_files_mode",
+            "pmltq_files_suffix",
         ):
             if key in params:
                 cfg[key] = params[key]
@@ -164,12 +178,28 @@ class PmltqBackend(CorpusBackend):
             "verify_tls": verify_tls,
             "export_dir": str(cfg.get("export_dir") or cfg.get("pmltq_export_dir") or "").strip(),
             "import_cmd": str(cfg.get("import_cmd") or cfg.get("pmltq_import_cmd") or "").strip(),
+            "sql_cmd": str(cfg.get("sql_cmd") or cfg.get("pmltq_sql_cmd") or "").strip(),
             "flexencoder": str(cfg.get("flexencoder") or cfg.get("pmltq_flexencoder") or "").strip(),
-            "pmltq_write_pml": _as_bool(cfg.get("pmltq_write_pml", True)),
+            # Keep SQL and PML stages explicitly separated:
+            # - SQL stage is for flexicorp queryability.
+            # - PML stage is optional server-facing export/import.
+            "pmltq_run_sql": _as_bool(cfg.get("pmltq_run_sql", True)),
+            "pmltq_write_pml": _as_bool(cfg.get("pmltq_write_pml", False)),
             "pmltq_run_import": _as_bool(cfg.get("pmltq_run_import", True)),
             "pmltq_lang": str(cfg.get("pmltq_lang") or "en").strip() or "en",
             "pmltq_pml_dir": str(cfg.get("pmltq_pml_dir") or "").strip(),
-            "pmltq_pml_layers": str(cfg.get("pmltq_pml_layers") or "wa").strip().lower() or "wa",
+            "pmltq_pml_layers": str(cfg.get("pmltq_pml_layers") or "pdt3").strip().lower() or "pdt3",
+            "pmltq_pml_gzip": _as_bool(cfg.get("pmltq_pml_gzip", True)),
+            "pmltq_conversion_mode": str(cfg.get("pmltq_conversion_mode") or "legacy").strip().lower() or "legacy",
+            "pmltq_converter_cmd": str(cfg.get("pmltq_converter_cmd") or "").strip(),
+            "pmltq_converter_workdir": str(cfg.get("pmltq_converter_workdir") or "").strip(),
+            "pmltq_schema_dir": str(cfg.get("pmltq_schema_dir") or "").strip(),
+            "pmltq_schema_mode": str(cfg.get("pmltq_schema_mode") or "reference").strip().lower() or "reference",
+            "pmltq_schema_bundle_dir": str(cfg.get("pmltq_schema_bundle_dir") or "").strip(),
+            "pmltq_schema_file": str(cfg.get("pmltq_schema_file") or "").strip(),
+            "pmltq_data_dir": str(cfg.get("pmltq_data_dir") or "").strip(),
+            "pmltq_files_mode": str(cfg.get("pmltq_files_mode") or "id").strip().lower() or "id",
+            "pmltq_files_suffix": str(cfg.get("pmltq_files_suffix") or "").strip(),
         }
 
     def _headers(self, cfg: Dict[str, Any]) -> Dict[str, str]:
@@ -225,6 +255,9 @@ class PmltqBackend(CorpusBackend):
 
     def _query_url(self, cfg: Dict[str, Any], treebank: str) -> str:
         return f"{cfg['base_url']}/v1/treebanks/{quote(treebank, safe='')}/query"
+
+    def _node_url(self, cfg: Dict[str, Any], treebank: str) -> str:
+        return f"{cfg['base_url']}/v1/treebanks/{quote(treebank, safe='')}/node"
 
     def _normalize_nodes(self, nodes: List[Any]) -> List[Dict[str, Any]]:
         out: List[Dict[str, Any]] = []
@@ -294,13 +327,44 @@ class PmltqBackend(CorpusBackend):
             out.append(cc)
         return out
 
+    def _resolve_node_locator(
+        self, *, cfg: Dict[str, Any], treebank: str, idx_ref: str
+    ) -> Dict[str, Any]:
+        idx_text = str(idx_ref or "").strip()
+        if not idx_text:
+            return {}
+        # Node endpoint expects idx=<ordinal>/<type>.
+        url = f"{self._node_url(cfg, treebank)}?idx={quote(idx_text, safe='')}"
+        resp = self._request_json(method="GET", url=url, cfg=cfg)
+        handle = str(resp.get("node") or "").strip()
+        if not handle:
+            return {}
+        doc_id = ""
+        sentence_id = ""
+        token_ord = ""
+        if "##" in handle:
+            left, right = handle.split("##", 1)
+            doc_id = left.strip()
+            parts = right.strip().split(".")
+            if len(parts) > 0:
+                sentence_id = parts[0].strip()
+            if len(parts) > 1:
+                token_ord = parts[1].strip()
+        return {
+            "handle": handle,
+            "doc_id": doc_id,
+            "sentence_id": sentence_id,
+            "token_ord": token_ord,
+        }
+
     def _resolve_hit_context(
         self,
         *,
         project: Dict[str, Any],
         teitok_detected: Optional[Dict[str, Any]],
         context_spec: Optional[Dict[str, Any]],
-        node_id: str,
+        sentence_id: str,
+        tok_ids: List[str],
         doc_id: str,
     ) -> Optional[Dict[str, Any]]:
         if not context_spec:
@@ -316,8 +380,8 @@ class PmltqBackend(CorpusBackend):
             root_dir=Path(str(detected.get("root") or root)).resolve(),
             searchfolder=searchfolder,
             doc_id=doc_id,
-            sentence_id=None,
-            tok_ids=[node_id] if node_id else [],
+            sentence_id=sentence_id or None,
+            tok_ids=[t for t in tok_ids if str(t).strip()],
             match_start=None,
             match_end=None,
             context_spec=context_spec,
@@ -376,27 +440,255 @@ class PmltqBackend(CorpusBackend):
             files[name] = {"path": str(path), "lines": line_count, "bytes": path.stat().st_size}
         return {"export_dir": str(export_dir), "files": files}
 
+    def _normalize_conversion_mode(self, value: Any) -> str:
+        mode = str(value or "legacy").strip().lower()
+        if mode in {"legacy", "jsonl", "jsonl_to_pml", "direct"}:
+            return "legacy"
+        if mode in {"external", "wrapper", "upstream"}:
+            return "external"
+        return "legacy"
+
+    def _collect_pml_outputs(self, pml_dir: Path) -> Dict[str, Any]:
+        files: List[str] = []
+        if pml_dir.is_dir():
+            for patt in ("*.pml", "*.a", "*.m", "*.w", "*.xml"):
+                for fp in sorted(pml_dir.glob(patt)):
+                    if fp.is_file():
+                        files.append(str(fp.resolve()))
+        return {
+            "ok": bool(files),
+            "out_dir": str(pml_dir),
+            "files": files,
+            "triplets": 0,
+            "bundles": 0,
+            "message": f"Detected {len(files)} converter output file(s) in {pml_dir}.",
+        }
+
+    def _run_external_converter(
+        self,
+        *,
+        root_dir: Path,
+        export_dir: Path,
+        pml_out: Path,
+        cfg: Dict[str, Any],
+        params: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        cmd = str(params.get("pmltq_converter_cmd") or cfg.get("pmltq_converter_cmd") or "").strip()
+        if not cmd:
+            raise RuntimeError(
+                "PMLTQ external conversion mode requires -O pmltq_converter_cmd='...'. "
+                "This path is opt-in and leaves non-PMLTQ backends untouched."
+            )
+
+        workdir_raw = str(params.get("pmltq_converter_workdir") or cfg.get("pmltq_converter_workdir") or "").strip()
+        workdir = Path(workdir_raw).expanduser() if workdir_raw else root_dir
+        if not workdir.is_absolute():
+            workdir = (root_dir / workdir).resolve()
+        pml_out.mkdir(parents=True, exist_ok=True)
+        env = os.environ.copy()
+        files_mode = str(cfg.get("pmltq_files_mode") or "").strip().lower()
+        files_suffix = str(cfg.get("pmltq_files_suffix") or "").strip()
+        if not files_mode:
+            files_mode = "ordinal" if bool(cfg.get("pmltq_write_pml", False)) else "id"
+        if not files_suffix:
+            files_suffix = ".a.gz" if bool(cfg.get("pmltq_write_pml", False)) else ""
+        env.update(
+            {
+                "FLEXICORP_PROJECT_ROOT": str(root_dir),
+                "FLEXICORP_PMLTQ_EXPORT_DIR": str(export_dir),
+                "FLEXICORP_PML_DIR": str(pml_out),
+                "FLEXICORP_PMLTQ_TREEBANK": str(cfg.get("treebank") or ""),
+                "FLEXICORP_PMLTQ_SCHEMA_DIR": str(cfg.get("pmltq_schema_dir") or ""),
+                "FLEXICORP_PMLTQ_SCHEMA_MODE": str(cfg.get("pmltq_schema_mode") or "reference"),
+            }
+        )
+        proc = subprocess.run(
+            cmd,
+            cwd=str(workdir),
+            text=True,
+            capture_output=True,
+            check=False,
+            shell=True,
+            env=env,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"PMLTQ converter command failed (exit {proc.returncode}): {(proc.stderr or proc.stdout).strip()}"
+            )
+        out = self._collect_pml_outputs(pml_out)
+        if not out.get("ok"):
+            raise RuntimeError(
+                f"PMLTQ converter command succeeded but no PML-like output files were found in {pml_out}."
+            )
+        out["converter"] = {
+            "mode": "external",
+            "command": cmd,
+            "workdir": str(workdir),
+            "stdout_tail": (proc.stdout or "")[-1200:],
+            "stderr_tail": (proc.stderr or "")[-1200:],
+        }
+        return out
+
+    def _run_sql_stage(
+        self,
+        *,
+        root_dir: Path,
+        export_dir: Path,
+        pml_out: Optional[Path],
+        cfg: Dict[str, Any],
+        params: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        sql_cmd = str(params.get("pmltq_sql_cmd") or cfg.get("sql_cmd") or "").strip()
+        if not sql_cmd:
+            # Default integrated SQL builder: TEITOK/CWB VRT -> PMLTQ SQL tables.
+            sql_cmd = (
+                f'"{sys.executable}" -m flexicorp.pmltq.sql_from_vrt '
+                "--load --recreate-db"
+            )
+        if not sql_cmd:
+            raise RuntimeError(
+                "PMLTQ SQL stage is enabled but no SQL builder command is configured. "
+                "Set -O pmltq_sql_cmd='...' (or disable with -O pmltq_run_sql=no)."
+            )
+
+        settings_xml = self._resolve_settings_xml(root_dir)
+        cqp_detected = detect_teitok_cqp(root_dir) or {}
+        cqp_cfg = dict(cqp_detected.get("cqp") or {})
+        # Prefer the same VRT conventions Manatee/CWB uses in TEITOK projects.
+        vrt_candidates = [
+            root_dir / "manatee" / "corpus.vrt",
+            root_dir / "cqp" / "corpus.vrt",
+            root_dir / "tmp" / "corpus.vrt",
+        ]
+        vrt_path = next((p for p in vrt_candidates if p.is_file()), None)
+
+        files_mode = str(cfg.get("pmltq_files_mode") or "").strip().lower()
+        files_suffix = str(cfg.get("pmltq_files_suffix") or "").strip()
+        if not files_mode:
+            files_mode = "ordinal" if bool(cfg.get("pmltq_write_pml", False)) else "id"
+        if not files_suffix:
+            files_suffix = ".a.gz" if bool(cfg.get("pmltq_write_pml", False)) else ""
+
+        env = os.environ.copy()
+        env.update(
+            {
+                "FLEXICORP_PROJECT_ROOT": str(root_dir),
+                "FLEXICORP_PMLTQ_EXPORT_DIR": str(export_dir),
+                "FLEXICORP_PML_DIR": str(pml_out) if pml_out is not None else "",
+                "FLEXICORP_PMLTQ_TREEBANK": str(cfg.get("treebank") or ""),
+                "FLEXICORP_PMLTQ_URL": str(cfg.get("base_url") or ""),
+                # Inputs expected by CWB/VRT-driven builders (teitok2pmltq-style).
+                "FLEXICORP_PMLTQ_SETTINGS_XML": str(settings_xml) if settings_xml is not None else "",
+                "FLEXICORP_PMLTQ_VRT": str(vrt_path) if vrt_path is not None else "",
+                "FLEXICORP_PMLTQ_CQP_REGISTRY": str(cqp_cfg.get("registry") or ""),
+                "FLEXICORP_PMLTQ_CQP_CORPUS": str(cqp_cfg.get("corpus") or ""),
+                "FLEXICORP_PMLTQ_SCHEMA_FILE": str(cfg.get("pmltq_schema_file") or ""),
+                "FLEXICORP_PMLTQ_DATA_DIR": str(cfg.get("pmltq_data_dir") or ""),
+                "FLEXICORP_PMLTQ_FILES_MODE": files_mode,
+                "FLEXICORP_PMLTQ_FILES_SUFFIX": files_suffix,
+            }
+        )
+        # Ensure `python -m flexicorp...` SQL commands can resolve this checkout.
+        flexicorp_parent = Path(__file__).resolve().parents[2]
+        pp_parts = [p for p in str(env.get("PYTHONPATH", "")).split(os.pathsep) if p]
+        if str(flexicorp_parent) not in pp_parts:
+            pp_parts.insert(0, str(flexicorp_parent))
+            env["PYTHONPATH"] = os.pathsep.join(pp_parts)
+        proc = subprocess.run(
+            sql_cmd,
+            cwd=str(root_dir),
+            text=True,
+            capture_output=True,
+            check=False,
+            shell=True,
+            env=env,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"PMLTQ SQL stage command failed (exit {proc.returncode}): {(proc.stderr or proc.stdout).strip()}"
+            )
+        return {
+            "configured": True,
+            "executed": True,
+            "command": sql_cmd,
+            "exit_code": proc.returncode,
+            "inputs": {
+                "settings_xml": str(settings_xml) if settings_xml is not None else "",
+                "vrt": str(vrt_path) if vrt_path is not None else "",
+                "cqp_registry": str(cqp_cfg.get("registry") or ""),
+                "cqp_corpus": str(cqp_cfg.get("corpus") or ""),
+            },
+            "stdout_tail": (proc.stdout or "")[-1200:],
+            "stderr_tail": (proc.stderr or "")[-1200:],
+        }
+
+    def _emit_schema_bundle(
+        self, *, root_dir: Path, pml_out: Path, cfg: Dict[str, Any], params: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        bundle_raw = str(
+            params.get("pmltq_schema_bundle_dir")
+            or cfg.get("pmltq_schema_bundle_dir")
+            or cfg.get("pmltq_schema_dir")
+            or ""
+        ).strip()
+        if not bundle_raw:
+            return {"configured": False, "copied": [], "missing": []}
+        bundle_dir = Path(bundle_raw).expanduser()
+        if not bundle_dir.is_absolute():
+            bundle_dir = (root_dir / bundle_dir).resolve()
+        if not bundle_dir.is_dir():
+            return {
+                "configured": True,
+                "source": str(bundle_dir),
+                "copied": [],
+                "missing": ["bundle_dir_not_found"],
+            }
+        wanted = [
+            "adata_30_schema.xml",
+            "mdata_30_schema.xml",
+            "wdata_30_schema.xml",
+            "conll2009_schema.xml",
+            "tdata_30_schema.xml",
+        ]
+        copied: List[str] = []
+        missing: List[str] = []
+        pml_out.mkdir(parents=True, exist_ok=True)
+        for name in wanted:
+            src = bundle_dir / name
+            if not src.is_file():
+                missing.append(name)
+                continue
+            dst = pml_out / name
+            shutil.copy2(src, dst)
+            copied.append(str(dst))
+        return {
+            "configured": True,
+            "source": str(bundle_dir),
+            "copied": copied,
+            "missing": missing,
+        }
+
     def _row_to_hit(
         self,
         *,
         row: Any,
         row_index: int,
         node_schema: List[Dict[str, Any]],
-        project: Dict[str, Any],
-        teitok_detected: Optional[Dict[str, Any]],
-        context_spec: Optional[Dict[str, Any]],
     ) -> Dict[str, Any]:
         cells = row if isinstance(row, list) else [row]
         bindings: List[Dict[str, Any]] = []
-        primary_doc_id = ""
         primary_node_id = ""
         primary_node_type = ""
+        primary_idx_ref = ""
         for idx, cell in enumerate(cells):
             node_info = node_schema[idx] if idx < len(node_schema) else {"index": idx, "alias": "", "node_type": ""}
             parsed = self._split_node_ref(str(cell or ""))
             if not primary_node_id and parsed.get("node_id"):
                 primary_node_id = str(parsed.get("node_id") or "")
                 primary_node_type = str(parsed.get("node_type") or node_info.get("node_type") or "")
+                ordinal = parsed.get("ordinal")
+                if ordinal is not None and primary_node_type:
+                    primary_idx_ref = f"{int(ordinal)}/{primary_node_type}"
             bindings.append(
                 {
                     "index": idx,
@@ -408,24 +700,8 @@ class PmltqBackend(CorpusBackend):
                 }
             )
 
-        context: Optional[Dict[str, Any]] = None
-        for candidate in self._candidate_doc_ids(primary_node_id):
-            context = self._resolve_hit_context(
-                project=project,
-                teitok_detected=teitok_detected,
-                context_spec=context_spec,
-                node_id=primary_node_id,
-                doc_id=candidate,
-            )
-            if context:
-                primary_doc_id = candidate
-                break
-        if not primary_doc_id:
-            candidates = self._candidate_doc_ids(primary_node_id)
-            primary_doc_id = candidates[0] if candidates else ""
-
         hit: Dict[str, Any] = {
-            "doc_id": primary_doc_id or None,
+            "doc_id": None,
             "sentence_id": None,
             "match_start": None,
             "match_end": None,
@@ -437,10 +713,106 @@ class PmltqBackend(CorpusBackend):
             "node_type": primary_node_type or None,
             "bindings": bindings,
             "raw": row,
+            "_primary_node_id": primary_node_id,
+            "_primary_idx_ref": primary_idx_ref,
         }
-        if context:
-            hit["context"] = context
         return hit
+
+    def _attach_print_context(
+        self,
+        *,
+        hits: List[Dict[str, Any]],
+        cfg: Dict[str, Any],
+        treebank: str,
+        project: Dict[str, Any],
+        context_spec: Optional[Dict[str, Any]],
+    ) -> None:
+        def _uniq(values: List[str]) -> List[str]:
+            out: List[str] = []
+            seen = set()
+            for raw in values:
+                v = str(raw or "").strip()
+                if not v or v in seen:
+                    continue
+                seen.add(v)
+                out.append(v)
+            return out
+
+        if not hits:
+            return
+        if not context_spec:
+            for hit in hits:
+                hit.pop("_primary_node_id", None)
+                hit.pop("_primary_idx_ref", None)
+            return
+        teitok_detected = detect_teitok_cqp(Path(str(project.get("root") or ".")).resolve())
+        node_locator_cache: Dict[str, Dict[str, Any]] = {}
+        for hit in hits:
+            primary_node_id = str(hit.get("_primary_node_id") or "").strip()
+            idx_ref = str(hit.get("_primary_idx_ref") or "").strip()
+            resolved_doc_id = ""
+            resolved_sentence_id = ""
+            tok_ids_for_context: List[str] = [primary_node_id] if primary_node_id else []
+            if idx_ref:
+                locator = node_locator_cache.get(idx_ref)
+                if locator is None:
+                    try:
+                        locator = self._resolve_node_locator(cfg=cfg, treebank=treebank, idx_ref=idx_ref)
+                    except Exception:
+                        locator = {}
+                    node_locator_cache[idx_ref] = locator
+                if locator:
+                    resolved_doc_id = str(locator.get("doc_id") or "").strip()
+                    resolved_sentence_id = str(locator.get("sentence_id") or "").strip()
+            tok_ids_for_context = _uniq(tok_ids_for_context)
+
+            doc_candidates: List[str] = []
+            if resolved_doc_id:
+                doc_candidates.extend(
+                    [resolved_doc_id, f"{resolved_doc_id}.xml", f"xmlfiles/{resolved_doc_id}.xml"]
+                )
+            doc_candidates.extend(self._candidate_doc_ids(primary_node_id))
+
+            context: Optional[Dict[str, Any]] = None
+            seen_docs: set[str] = set()
+            for candidate in doc_candidates:
+                candidate = str(candidate or "").strip()
+                if not candidate or candidate in seen_docs:
+                    continue
+                seen_docs.add(candidate)
+                context = self._resolve_hit_context(
+                    project=project,
+                    teitok_detected=teitok_detected,
+                    context_spec=context_spec,
+                    sentence_id=resolved_sentence_id,
+                    tok_ids=tok_ids_for_context,
+                    doc_id=candidate,
+                )
+                if context:
+                    hit["doc_id"] = candidate
+                    hit["context"] = context
+                    if resolved_sentence_id:
+                        hit["sentence_id"] = resolved_sentence_id
+                    locator = context.get("locator") if isinstance(context, dict) else None
+                    if isinstance(locator, dict):
+                        ctx_sentence_id = str(locator.get("sentence_id") or "").strip()
+                        if ctx_sentence_id:
+                            hit["sentence_id"] = ctx_sentence_id
+                        tok_ids_ctx = locator.get("token_ids")
+                        if isinstance(tok_ids_ctx, list) and tok_ids_ctx:
+                            hit["toks"] = _uniq([str(t) for t in tok_ids_ctx if str(t or "").strip()])
+                    break
+            if not hit.get("doc_id"):
+                fallback = next((c for c in doc_candidates if str(c or "").strip()), "")
+                hit["doc_id"] = fallback or None
+            hit_tok_ids = _uniq([str(t) for t in (hit.get("toks") or []) if str(t or "").strip()])
+            if hit_tok_ids:
+                # Keep highlighting centralized in the UI: emit the same highlight_map
+                # contract used by other backends.
+                hit["highlight_map"] = build_highlight_map(hit_tok_ids)
+        for hit in hits:
+            hit.pop("_primary_node_id", None)
+            hit.pop("_primary_idx_ref", None)
 
     def status(self, req: FlexiRequest) -> Dict[str, Any]:
         cfg = self._resolve_cfg(req)
@@ -499,7 +871,11 @@ class PmltqBackend(CorpusBackend):
             "reindex": {
                 "flexencoder": str(cfg.get("flexencoder") or "auto"),
                 "export_dir": str(cfg.get("export_dir") or "tmp/pmltq-export"),
-                "write_pml": _as_bool(cfg.get("pmltq_write_pml", True)),
+                "run_sql": _as_bool(cfg.get("pmltq_run_sql", True)),
+                "sql_cmd_configured": bool(cfg.get("sql_cmd")),
+                "sql_cmd_default": "python -m flexicorp.pmltq.sql_from_vrt --load --recreate-db",
+                "write_pml": _as_bool(cfg.get("pmltq_write_pml", False)),
+                "conversion_mode": self._normalize_conversion_mode(cfg.get("pmltq_conversion_mode")),
                 "run_import": _as_bool(cfg.get("pmltq_run_import", True)),
                 "import_cmd_configured": bool(cfg.get("import_cmd") or cfg.get("pmltq_run_import", True)),
             },
@@ -564,25 +940,53 @@ class PmltqBackend(CorpusBackend):
 
         pml_out: Optional[Path] = None
         pml_result: Optional[Dict[str, Any]] = None
-        if cfg.get("pmltq_write_pml", True):
+        schema_bundle_result: Dict[str, Any] = {"configured": False, "copied": [], "missing": []}
+        if cfg.get("pmltq_write_pml", False):
+            conversion_mode = self._normalize_conversion_mode(cfg.get("pmltq_conversion_mode"))
             pml_raw = str(cfg.get("pmltq_pml_dir") or "").strip()
             if pml_raw:
                 pml_out = Path(pml_raw).expanduser()
                 pml_out = (root_dir / pml_out).resolve() if not pml_out.is_absolute() else pml_out.resolve()
             else:
                 pml_out = (export_dir / "pml").resolve()
-            pml_result = convert_jsonl_to_pml(
-                export_dir,
-                pml_out,
-                lang=str(cfg.get("pmltq_lang") or "en"),
-                pml_layers=str(cfg.get("pmltq_pml_layers") or "wa"),
-            )
+            if conversion_mode == "external":
+                pml_result = self._run_external_converter(
+                    root_dir=root_dir,
+                    export_dir=export_dir,
+                    pml_out=pml_out,
+                    cfg=cfg,
+                    params=params,
+                )
+            else:
+                pml_result = convert_jsonl_to_pml(
+                    export_dir,
+                    pml_out,
+                    lang=str(cfg.get("pmltq_lang") or "en"),
+                    pml_layers=str(cfg.get("pmltq_pml_layers") or "pdt3"),
+                    gzip_output=bool(cfg.get("pmltq_pml_gzip", True)),
+                )
             if not pml_result.get("ok"):
                 raise RuntimeError(pml_result.get("message") or "JSONL to PML conversion failed.")
+            schema_bundle_result = self._emit_schema_bundle(
+                root_dir=root_dir,
+                pml_out=pml_out,
+                cfg=cfg,
+                params=params,
+            )
+
+        sql_result: Dict[str, Any] = {"configured": False, "executed": False}
+        if bool(cfg.get("pmltq_run_sql", True)):
+            sql_result = self._run_sql_stage(
+                root_dir=root_dir,
+                export_dir=export_dir,
+                pml_out=pml_out,
+                cfg=cfg,
+                params=params,
+            )
 
         run_import = bool(cfg.get("pmltq_run_import", True))
         import_cmd = ""
-        if run_import:
+        if run_import and cfg.get("pmltq_write_pml", False):
             if "pmltq_import_cmd" in params:
                 import_cmd = str(params.get("pmltq_import_cmd") or "").strip()
             else:
@@ -636,7 +1040,10 @@ class PmltqBackend(CorpusBackend):
 
         notes = [
             "Export payload mirrors ClickHouse flexencoder JSONL schema (docs/sentences/regions/toks/dep_edges).",
-            "PML: default is compact .w + .a (no .m); use -O pmltq_pml_layers=pdt3 for full PDT triplets or flat for one .flat.xml per doc.",
+            "SQL stage is the flexicorp-query path and should stay enabled by default (configure via -O pmltq_sql_cmd='...').",
+            "PML/PMLTQ-server export is an optional separate stage (enable with -O pmltq_write_pml=yes).",
+            "Conversion mode defaults to legacy JSONL->PML in flexicorp; opt into wrapper mode with -O pmltq_conversion_mode=external.",
+            "PML: default is PDT-like .w + .m + .a triplets (pdt3); use -O pmltq_pml_layers=wa for compact .w + .a, flat for one .flat.xml per doc, or conll2009 for conll2pml-like .pml + schema output.",
             "Default post step: python -m flexicorp.pml.pml_post_export (override with -O pmltq_import_cmd=... or disable with -O pmltq_run_import=no).",
         ]
 
@@ -647,11 +1054,13 @@ class PmltqBackend(CorpusBackend):
             "flexencoder": flexencoder_bin,
             "settings_xml": str(settings_xml),
             "export": export_stats,
+            "sql": sql_result,
             "import": import_result,
             "notes": notes,
         }
         if pml_result is not None and pml_out is not None:
             out["pml"] = {"dir": str(pml_out), **pml_result}
+            out["pml"]["schemas"] = schema_bundle_result
         return out
 
     def raw_query(self, req: FlexiRequest) -> Dict[str, Any]:
@@ -688,12 +1097,36 @@ class PmltqBackend(CorpusBackend):
         if start > 0:
             payload["offset"] = start
 
-        response = self._request_json(
-            method="POST",
-            url=self._query_url(cfg, treebank),
-            cfg=cfg,
-            payload=payload,
-        )
+        treebank_used = treebank
+        try:
+            response = self._request_json(
+                method="POST",
+                url=self._query_url(cfg, treebank_used),
+                cfg=cfg,
+                payload=payload,
+            )
+        except RuntimeError as exc:
+            alt_treebank = ""
+            if "-" in treebank:
+                alt_treebank = treebank.replace("-", "_")
+            elif "_" in treebank:
+                alt_treebank = treebank.replace("_", "-")
+            err = str(exc)
+            if (
+                alt_treebank
+                and alt_treebank != treebank
+                and "Treebank" in err
+                and "not found" in err
+            ):
+                response = self._request_json(
+                    method="POST",
+                    url=self._query_url(cfg, alt_treebank),
+                    cfg=cfg,
+                    payload=payload,
+                )
+                treebank_used = alt_treebank
+            else:
+                raise
         rows = response.get("results") if isinstance(response.get("results"), list) else []
         nodes = response.get("nodes") if isinstance(response.get("nodes"), list) else []
         node_schema = self._normalize_nodes(nodes)
@@ -703,28 +1136,41 @@ class PmltqBackend(CorpusBackend):
             scope = str(params.get("context_scope") or params.get("context_level") or "s").strip() or "s"
             fmt = str(params.get("context_format") or "xml").strip() or "xml"
             context_spec = {"scope": scope, "format": fmt, "prefer": "xml", "fallback": True}
-        teitok_detected = detect_teitok_cqp(Path(str(project.get("root") or ".")).resolve()) if context_spec else None
-
         hits = [
             self._row_to_hit(
                 row=row,
                 row_index=idx + start,
                 node_schema=node_schema,
-                project=project,
-                teitok_detected=teitok_detected,
-                context_spec=context_spec,
             )
             for idx, row in enumerate(rows)
         ]
+        self._attach_print_context(
+            hits=hits,
+            cfg=cfg,
+            treebank=treebank_used,
+            project=project,
+            context_spec=context_spec,
+        )
+
+        total_raw = response.get("total")
+        if total_raw is None:
+            total_raw = response.get("count")
+        if total_raw is None:
+            total_raw = response.get("totalResults")
+        total: Optional[int] = None
+        total_exact = False
+        if isinstance(total_raw, int):
+            total = int(total_raw)
+            total_exact = True
 
         return {
-            "treebank": treebank,
+            "treebank": treebank_used,
             "query": query_text,
             "start": start,
             "limit": limit,
             "returned": len(hits),
-            "total": None,
-            "total_exact": False,
+            "total": total,
+            "total_exact": total_exact,
             "hits": hits,
             "nodes": nodes,
             "results": rows,

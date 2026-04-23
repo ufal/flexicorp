@@ -78,20 +78,24 @@ def fragment_to_text(fragment: str) -> str:
 
 
 def _doc_path_candidates(root_dir: Path, searchfolder: str, doc_id: str) -> List[Path]:
-    searchfolder = searchfolder.strip("/").replace("\\", "/")
-    normalized_doc_id = doc_id.strip().replace("\\", "/")
-    stripped = normalized_doc_id
-    if stripped.startswith(searchfolder + "/"):
-        stripped = stripped[len(searchfolder) + 1 :]
-    elif stripped.startswith("xmlfiles/"):
-        stripped = stripped[len("xmlfiles/") :]
+    raw_folders = [part.strip() for part in str(searchfolder or "").split(",")]
+    folders = [part.strip("/").replace("\\", "/") for part in raw_folders if part.strip()]
+    if not folders:
+        folders = ["xmlfiles"]
 
-    candidates: List[Path] = [
-        root_dir / searchfolder / stripped,
-        root_dir / normalized_doc_id,
-    ]
-    if stripped and not stripped.endswith(".xml"):
-        candidates.append(root_dir / searchfolder / f"{stripped}.xml")
+    normalized_doc_id = doc_id.strip().replace("\\", "/")
+    candidates: List[Path] = [root_dir / normalized_doc_id]
+    for folder in folders:
+        stripped = normalized_doc_id
+        if stripped.startswith(folder + "/"):
+            stripped = stripped[len(folder) + 1 :]
+        elif stripped.startswith("xmlfiles/"):
+            stripped = stripped[len("xmlfiles/") :]
+
+        candidates.append(root_dir / folder / stripped)
+        if stripped and not stripped.endswith(".xml"):
+            candidates.append(root_dir / folder / f"{stripped}.xml")
+    if normalized_doc_id and not normalized_doc_id.endswith(".xml"):
         candidates.append(root_dir / f"{normalized_doc_id}.xml")
     seen: set[str] = set()
     out: List[Path] = []
