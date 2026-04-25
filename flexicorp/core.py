@@ -665,6 +665,21 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
                             "live": step["live"],
                         }
                     )
+                if any(str(s.get("label")) == "cqp" for s in swapped):
+                    from .cqp_registry_fixup import rewrite_cqp_registries_after_reindex_swap
+
+                    try:
+                        n_reg = rewrite_cqp_registries_after_reindex_swap(live_cqp, staging_dir)
+                        if n_reg:
+                            results.append(
+                                {
+                                    "reindex_step": "cqp_registry_home_fixup",
+                                    "registry_files_updated": n_reg,
+                                    "live_cqp": str(live_cqp),
+                                }
+                            )
+                    except Exception as e:
+                        errors.append(f"cqp_registry_home_fixup: {e}")
             except Exception as e:
                 errors.append(f"staging_swap: {e}")
 

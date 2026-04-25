@@ -319,6 +319,18 @@ def _build_parser() -> argparse.ArgumentParser:
     # status --------------------------------------------------------------
     subparsers.add_parser("status", help="Show corpus/backend status.", parents=[shared_parent])
 
+    # corpus-health -------------------------------------------------------
+    corpus_health = subparsers.add_parser(
+        "corpus-health",
+        help="Check CWB registry HOME/INFO under project cqp/ (stale reindex staging, missing paths after host moves).",
+        parents=[shared_parent],
+    )
+    corpus_health.add_argument(
+        "--fix",
+        action="store_true",
+        help="Rewrite stale HOME/INFO in on-disk registry files (same rules as post-reindex swap).",
+    )
+
     # list-docs -----------------------------------------------------------
     list_docs = subparsers.add_parser("list-docs", help="List documents.", parents=[shared_parent])
     list_docs.add_argument("--limit", type=int, default=50, help="Maximum number of documents to return (default: 50).")
@@ -1023,6 +1035,31 @@ def main(argv: list[str] | None = None) -> int:
             )
             print()
         return 0 if out_ok else 1
+
+    if args.operation == "corpus-health":
+        from .corpus_health import run_corpus_health
+
+        res = run_corpus_health(project, fix=bool(getattr(args, "fix", False)))
+        if getattr(args, "api", False):
+            envelope = {
+                "tool": "flexicorp",
+                "version": 1,
+                "success": bool(res.get("ok")),
+                "asked": {"argv": raw_argv, "request": {"operation": "corpus-health", "project": project}},
+                "done": {
+                    "backend": "corpus_health",
+                    "operation": "corpus_health",
+                    "result": res,
+                    "warnings": [],
+                    "errors": [] if res.get("ok") else ["corpus-health reported CWB registry path errors"],
+                },
+            }
+            json.dump(envelope, fp=sys.stdout, ensure_ascii=False, indent=2)
+            print()
+        else:
+            json.dump(res, fp=sys.stdout, ensure_ascii=False, indent=2)
+            print()
+        return 0 if res.get("ok") else 1
 
     params: Dict[str, Any] = {}
     # Merge backend-specific -O key=value options into params (backends inspect as needed).

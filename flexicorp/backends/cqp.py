@@ -18,10 +18,16 @@ import xml.etree.ElementTree as ET
 from functools import lru_cache
 
 from ..config import CqpConfig, get_cqp_config, get_project_root
+from ..cqp_registry_fixup import preferred_cqp_local_home
 from ..core import CorpusBackend, FlexiRequest, register_backend
 from ..highlight_contract import build_highlight_map, resolve_legend
 from ..teitok import detect_teitok_cqp
-from ..teitok_context import normalize_context_request, resolve_teitok_context
+from ..teitok_context import (
+    maybe_downgrade_teitok_fragment_params,
+    normalize_context_request,
+    resolve_cqp_corpus_home_for_fragment_policy,
+    resolve_teitok_context,
+)
 from ..querylang.cwb_cql import SequencePattern, parse_cwb_cql
 
 
@@ -124,14 +130,10 @@ class CqpBackend(CorpusBackend):
         except OSError:
             return cfg
 
-        local_home_candidates: List[Path] = []
         root = project.get("root")
-        if root:
-            local_home_candidates.append((Path(root).expanduser().resolve() / "cqp").resolve())
-        local_home_candidates.append(registry_file.parent.resolve())
-
-        local_home = next((candidate for candidate in local_home_candidates if candidate.is_dir()), None)
-        if local_home is None:
+        project_cqp = (Path(root).expanduser().resolve() / "cqp").resolve() if root else None
+        local_home = preferred_cqp_local_home(registry_file, project_cqp)
+        if not local_home.is_dir():
             return cfg
 
         lines = original_text.splitlines()
@@ -1190,6 +1192,14 @@ class CqpBackend(CorpusBackend):
 
         query_text = self._normalize_simple_cqp_token_query(query_text)
 
+        detected = self._detect_teitok(cfg, project)
+        cqp_home = resolve_cqp_corpus_home_for_fragment_policy(
+            str(cfg.registry) if cfg.registry else None,
+            str(cfg.corpus) if cfg.corpus else None,
+        )
+        params, fragment_policy_note = maybe_downgrade_teitok_fragment_params(
+            project, detected, params, cqp_corpus_home=cqp_home
+        )
         context_spec = self._normalize_context_request(params)
         if context_spec is None and cached_meta and isinstance(cached_meta.get("context_spec"), dict):
             context_spec = self._normalize_context_request({"context": cached_meta.get("context_spec")})
@@ -1201,8 +1211,6 @@ class CqpBackend(CorpusBackend):
             else:
                 query_lang = "cqp"
         legend = resolve_legend(params)
-
-        detected = self._detect_teitok(cfg, project)
         level = str((context_spec or {}).get("scope") or (cached_meta or {}).get("level") or params.get("lvl") or "s")
         mode = str((cached_meta or {}).get("mode") or ("teitok" if detected else "generic"))
         if mode not in {"teitok", "generic"}:
@@ -1277,6 +1285,8 @@ class CqpBackend(CorpusBackend):
         result["total"] = total
         if qid_result:
             result["qid"] = qid_result
+        if fragment_policy_note:
+            result["fragment_context_policy"] = {"downgraded": True, "reason": fragment_policy_note}
         return result
 
     def _query_teitok_hits(

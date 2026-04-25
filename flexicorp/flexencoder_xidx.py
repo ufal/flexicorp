@@ -492,6 +492,20 @@ def lookup_xml_fragment(
     frag_xml_start = tr.xml_start
     frag_xml_end = tr.xml_end
 
+    if scope in {"tok", "dtok"}:
+        xr_tok = _xml_bounds_for_corpus_range(by_doc, tr.doc_idx, corpus_pos_start, corpus_pos_end)
+        if xr_tok:
+            frag_xml_start, frag_xml_end = xr_tok
+        try:
+            xsize_tok = xml_path.stat().st_size
+        except OSError:
+            return None
+        if frag_xml_start < 0 or frag_xml_end < frag_xml_start or frag_xml_end > xsize_tok:
+            return None
+        return xml_path.read_bytes()[frag_xml_start:frag_xml_end].decode(
+            "utf-8", errors="replace"
+        )
+
     scope_idx = _find_scope_type_idx(region_types, scope)
     if scope_idx >= 0 and regions_blob:
         span = _find_region_span_for_pos(

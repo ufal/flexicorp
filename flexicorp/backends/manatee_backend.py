@@ -19,7 +19,11 @@ from ..core import CorpusBackend, FlexiRequest, register_backend
 from ..highlight_contract import build_highlight_map, resolve_legend
 from ..flexencoder_xidx import has_flexencoder_xidx  # text_id_stem_for_cpos intentionally NOT imported: uses xidx cpos which does not match Manatee cpos (see docs/manatee_xml_context_fix.md INV-1).
 from ..teitok import detect_teitok_cqp, detect_teitok_manatee
-from ..teitok_context import normalize_context_request, resolve_teitok_context
+from ..teitok_context import (
+    maybe_downgrade_teitok_fragment_params,
+    normalize_context_request,
+    resolve_teitok_context,
+)
 from .cqp import CqpBackend
 from .manatee import (
     ManateeFormatError,
@@ -2545,7 +2549,6 @@ print(json.dumps({{"key": key, "values": vals, "changed": vals != orig}}))
 
         start = max(0, int(params.get("start", 0)))
         max_hits = max(0, min(int(params.get("max", 50)), 5000))
-        context_spec = normalize_context_request(params)
         detected = self._detect_teitok(project)
         cfg = self._get_config(project)
         corpus = self._open_corpus(cfg)
@@ -2557,8 +2560,15 @@ print(json.dumps({{"key": key, "values": vals, "changed": vals != orig}}))
             conc.sync()
 
         total = int(conc.size())
+        corpus_kw = self._manatee_concordance_corpus(conc, corpus)
+        has_s_or_u = self._safe_get_struct(corpus_kw, "s") is not None or self._safe_get_struct(corpus_kw, "u") is not None
+        params, fragment_policy_note = maybe_downgrade_teitok_fragment_params(
+            project, detected, params, manatee_has_s_or_u_struct=has_s_or_u
+        )
+        context_spec = normalize_context_request(params)
+
         if max_hits <= 0 or start >= total:
-            return {
+            out_empty: Dict[str, Any] = {
                 "total": total,
                 "start": start,
                 "hits": [],
@@ -2570,9 +2580,11 @@ print(json.dumps({{"key": key, "values": vals, "changed": vals != orig}}))
                 "corpus": cfg.corpus,
                 "legend": resolve_legend(params),
             }
+            if fragment_policy_note:
+                out_empty["fragment_context_policy"] = {"downgraded": True, "reason": fragment_policy_note}
+            return out_empty
 
         end = min(start + max_hits, total)
-        corpus_kw = self._manatee_concordance_corpus(conc, corpus)
         max_pos = self._corpus_max_token_index(corpus_kw)
         file_scaffold: Any | None = None
         try:
@@ -2926,7 +2938,7 @@ print(json.dumps({{"key": key, "values": vals, "changed": vals != orig}}))
                 hit["highlight_map"] = build_highlight_map(hm_ids)
             hits.append(hit)
 
-        return {
+        out_q: Dict[str, Any] = {
             "total": total,
             "start": start,
             "hits": hits,
@@ -2938,6 +2950,9 @@ print(json.dumps({{"key": key, "values": vals, "changed": vals != orig}}))
             "corpus": cfg.corpus,
             "legend": resolve_legend(params),
         }
+        if fragment_policy_note:
+            out_q["fragment_context_policy"] = {"downgraded": True, "reason": fragment_policy_note}
+        return out_q
 
     def reindex(self, req: FlexiRequest) -> Dict[str, Any]:
         """

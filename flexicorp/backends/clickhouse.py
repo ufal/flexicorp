@@ -12,11 +12,15 @@ from typing import Any, Dict, List, Optional
 import importlib
 
 from ..clickhouse_errors import format_clickhouse_error_message
-from ..config import ClickHouseConfig, CqpConfig, get_clickhouse_config
+from ..config import ClickHouseConfig, CqpConfig, get_clickhouse_config, get_cqp_config
 from ..core import CorpusBackend, FlexiRequest, register_backend
 from ..dependency_utils import ensure_package_installed
 from ..highlight_contract import build_highlight_map, resolve_legend
 from ..teitok import detect_teitok_cqp
+from ..teitok_context import (
+    maybe_downgrade_teitok_fragment_params,
+    resolve_cqp_corpus_home_for_fragment_policy,
+)
 
 clickhouse_connect = None
 MIN_CLICKHOUSE_VERSION = (22, 3, 0)
@@ -823,6 +827,20 @@ class ClickqlBackend(ClickHouseBackend):
         legend: List[Dict[str, Any]] = []
         translator_langs = {"cql", "clickcql", "clickql", "cwb-cql", "cwb", "pmltq", "clickpmltq"}
         project = dict(req.get("project") or {})
+        detected_ch: Optional[Dict[str, Any]] = None
+        cqp_home_ch: Optional[Path] = None
+        root = project.get("root")
+        if root:
+            detected_ch = detect_teitok_cqp(Path(str(root)).expanduser().resolve())
+            cqp_cfg = get_cqp_config(project)
+            if cqp_cfg:
+                cqp_home_ch = resolve_cqp_corpus_home_for_fragment_policy(
+                    str(cqp_cfg.registry) if cqp_cfg.registry else None,
+                    str(cqp_cfg.corpus) if cqp_cfg.corpus else None,
+                )
+        params, _frag_note_ch = maybe_downgrade_teitok_fragment_params(
+            project, detected_ch, params, cqp_corpus_home=cqp_home_ch
+        )
         context_spec = self._normalize_context_request(params)
         translation_engine = "sql"
         result_type = "hits"

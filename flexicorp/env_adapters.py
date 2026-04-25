@@ -18,6 +18,7 @@ from urllib.request import Request, urlopen
 from .env_config import resolve_pmltq_native_server_url
 
 from .clickhouse_errors import format_clickhouse_error_message
+from .cqp_registry_fixup import scan_cqp_registry_path_issues
 
 
 def _parse_native_pmltq_treebanks_payload(payload: Any) -> List[str]:
@@ -322,14 +323,34 @@ class CqpEnvAdapter:
             if available
             else "CQP setup incomplete (detection, cqp binary, or registry path missing)."
         )
+        checks: Dict[str, Any] = {
+            "teitok_detected": {"ok": bool(detected), "details": detected},
+            "registry_dir": {"ok": reg_ok, "path": registry},
+            "cqp_binary": cqp_binary,
+        }
+        cqp_root = ctx.project_root / "cqp"
+        if cqp_root.is_dir():
+            issues = scan_cqp_registry_path_issues(cqp_root)
+            err_n = sum(1 for i in issues if i.get("severity") == "error")
+            warn_n = sum(1 for i in issues if i.get("severity") == "warning")
+            checks["cwb_registry_path_scan"] = {
+                "ok": err_n == 0,
+                "error_count": err_n,
+                "warning_count": warn_n,
+                "issues": issues[:50],
+                "issues_truncated": len(issues) > 50,
+                "hint": "Run `flexicorp corpus-health --project-root ...` for full JSON; add `--fix` to rewrite stale HOME/INFO.",
+            }
+            if err_n > 0:
+                available = False
+                reason = (
+                    f"CWB registry path errors under {cqp_root} ({err_n}); "
+                    "see checks.cwb_registry_path_scan. Run `flexicorp corpus-health --fix` after backup if appropriate."
+                )
         return {
             "available": available,
             "reason": reason,
-            "checks": {
-                "teitok_detected": {"ok": bool(detected), "details": detected},
-                "registry_dir": {"ok": reg_ok, "path": registry},
-                "cqp_binary": cqp_binary,
-            },
+            "checks": checks,
         }
 
 

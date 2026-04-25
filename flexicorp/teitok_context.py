@@ -3,8 +3,9 @@ from __future__ import annotations
 import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from .config import _load_project_sidecar_config, get_project_root
 from .flexencoder_xidx import fragment_by_id as _xidx_fragment_by_id
 
 # ElementTree exposes TEI/TEITOK `xml:id` as this Clark notation key, not `id`.
@@ -26,7 +27,7 @@ def normalize_context_request(params: Dict[str, Any]) -> Optional[Dict[str, Any]
     )
     if not raw_context and not has_context_flags and not (
         params.get("extract_fragments") or params.get("extract_xml")
-    ):
+    ) and not params.get("flexicorp_fragment_kwic_cpos_span"):
         return None
 
     context: Dict[str, Any] = dict(raw_context) if isinstance(raw_context, dict) else {}
@@ -59,12 +60,27 @@ def normalize_context_request(params: Dict[str, Any]) -> Optional[Dict[str, Any]
 
     prefer = str(context.get("prefer") or "xidx").strip().lower()
     fallback = bool(context.get("fallback", True))
-    return {
+    out: Dict[str, Any] = {
         "scope": scope,
         "format": fmt,
         "prefer": prefer,
         "fallback": fallback,
     }
+    if context.get("flexicorp_fragment_kwic_cpos_span") or params.get("flexicorp_fragment_kwic_cpos_span"):
+        out["flexicorp_fragment_kwic_cpos_span"] = True
+    if context.get("kwic_window") is not None:
+        try:
+            out["kwic_window"] = int(context["kwic_window"])
+        except (TypeError, ValueError):
+            pass
+    elif params.get("flexicorp_fragment_kwic_cpos_span"):
+        w = params.get("window")
+        if w is not None:
+            try:
+                out["kwic_window"] = int(w)
+            except (TypeError, ValueError):
+                pass
+    return out
 
 
 def fragment_to_text(fragment: str) -> str:
@@ -357,12 +373,24 @@ def resolve_teitok_context(
     offset_sentence_id: Optional[str] = None
 
     if prefer == "xidx" and xidx_resolver is not None and match_start is not None:
-        xidx_fragment = xidx_resolver(
-            doc_id,
-            match_start,
-            match_end if match_end is not None else match_start,
-            None if scope == "tok" else scope,
-        )
+        if context_spec.get("flexicorp_fragment_kwic_cpos_span"):
+            ms = int(match_start)
+            me = int(match_end) if match_end is not None else ms
+            try:
+                w = int(context_spec.get("kwic_window") if context_spec.get("kwic_window") is not None else 5)
+            except (TypeError, ValueError):
+                w = 5
+            w = max(0, w)
+            kw_lo = max(0, ms - w)
+            kw_hi = me + w
+            xidx_fragment = xidx_resolver(doc_id, kw_lo, kw_hi, None)
+        else:
+            xidx_fragment = xidx_resolver(
+                doc_id,
+                match_start,
+                match_end if match_end is not None else match_start,
+                None if scope == "tok" else scope,
+            )
         if xidx_fragment:
             fragment = xidx_fragment
             source = "xidx"
@@ -439,3 +467,162 @@ def resolve_teitok_context(
     if resolved_scope != scope:
         context["resolved_scope"] = resolved_scope
     return context
+
+
+def effective_fragment_context_scope(project: Dict[str, Any], detected: Optional[Dict[str, Any]]) -> Optional[str]:
+    """
+    Explicit default scope for TEITOK XML fragments when the corpus has no
+    ``<s>`` / ``<u>``-style regions.
+
+    Precedence: ``project`` keys, then ``flexicorp.{yaml,json}`` in the project
+    root, then TEITOK ``<cqp fragment_context_scope="...">`` (see ``detect_teitok_cqp`` meta).
+    """
+    for key in ("fragment_context_scope", "flexicorp_fragment_context_scope"):
+        raw = project.get(key)
+        if raw and str(raw).strip():
+            return str(raw).strip().lower()
+    side = _load_project_sidecar_config(get_project_root(project))
+    for key in ("fragment_context_scope", "flexicorp_fragment_context_scope"):
+        raw = side.get(key)
+        if raw and str(raw).strip():
+            return str(raw).strip().lower()
+    meta = (detected or {}).get("meta") or {}
+    raw = meta.get("fragment_context_scope")
+    if raw and str(raw).strip():
+        return str(raw).strip().lower()
+    return None
+
+
+def corpus_has_sentence_or_utterance_scope(
+    detected: Optional[Dict[str, Any]],
+    *,
+    cqp_corpus_home: Optional[Path] = None,
+    manatee_has_s_or_u_struct: Optional[bool] = None,
+) -> bool:
+    """
+    Whether the corpus exposes sentence (``s``) or utterance (``u``) regions
+    suitable as default XML fragment scope.
+
+    When ``manatee_has_s_or_u_struct`` is provided (Manatee bindings path), it
+    is authoritative. Otherwise TEITOK ``sattributes`` and on-disk ``s.rng`` /
+    ``u.rng`` under ``cqp_corpus_home`` are consulted. If nothing is known
+    (no TEITOK detection and no CWB home), returns True so we do not strip context.
+    """
+    if manatee_has_s_or_u_struct is True:
+        return True
+    if manatee_has_s_or_u_struct is False:
+        return False
+    meta = (detected or {}).get("meta") or {}
+    by_region = meta.get("sattributes_by_region") or {}
+    if isinstance(by_region, dict):
+        for key in ("s", "u"):
+            attrs = by_region.get(key)
+            if isinstance(attrs, list) and len(attrs) > 0:
+                return True
+    if cqp_corpus_home is not None and cqp_corpus_home.is_dir():
+        try:
+            if (cqp_corpus_home / "s.rng").is_file() or (cqp_corpus_home / "u.rng").is_file():
+                return True
+        except OSError:
+            pass
+    if detected is None and cqp_corpus_home is None:
+        return True
+    return False
+
+
+def maybe_downgrade_teitok_fragment_params(
+    project: Dict[str, Any],
+    detected: Optional[Dict[str, Any]],
+    params: Dict[str, Any],
+    *,
+    manatee_has_s_or_u_struct: Optional[bool] = None,
+    cqp_corpus_home: Optional[Path] = None,
+) -> Tuple[Dict[str, Any], Optional[str]]:
+    """
+    If the client asked for default sentence-level XML fragments but the corpus
+    has no ``s``/``u`` regions, keep XML/xidx but switch to a **KWIC cpos window**
+    slice: raw bytes from the first to the last displayed token (union of
+    per-token ``xml_start``/``xml_end`` in xidx), which may not be well-formed XML.
+
+    Non-default scopes (``context_scope`` / ``context`` dict not ``s``) are kept.
+    ``fragment_context_scope`` in project / sidecar / TEITOK meta is applied first
+    as the default scope instead of downgrading.
+    """
+    p = dict(params)
+    wants_frag = bool(p.get("extract_fragments") or p.get("extract_xml"))
+    raw_ctx = p.get("context")
+    has_ctx_keys = any(
+        k in p and p.get(k) not in (None, "", [], {})
+        for k in ("context", "context_scope", "context_format", "context_level", "lvl")
+    )
+    if not wants_frag and not has_ctx_keys and not isinstance(raw_ctx, dict):
+        return p, None
+
+    configured = effective_fragment_context_scope(project, detected)
+    if configured:
+        p["context_scope"] = configured
+        return p, None
+
+    scope_from_dict = ""
+    if isinstance(raw_ctx, dict):
+        scope_from_dict = str(raw_ctx.get("scope") or "").strip().lower()
+    explicit_scope = str(
+        p.get("context_scope") or p.get("context_level") or p.get("lvl") or scope_from_dict or ""
+    ).strip().lower()
+    scope_aliases = {
+        "sentence": "s",
+        "sent": "s",
+        "tokens": "tok",
+        "token": "tok",
+        "word": "tok",
+        "words": "tok",
+    }
+    explicit_scope = scope_aliases.get(explicit_scope, explicit_scope) or explicit_scope
+    if explicit_scope and explicit_scope not in ("s", ""):
+        return p, None
+
+    if corpus_has_sentence_or_utterance_scope(
+        detected,
+        cqp_corpus_home=cqp_corpus_home,
+        manatee_has_s_or_u_struct=manatee_has_s_or_u_struct,
+    ):
+        return p, None
+
+    # Keep XML/xidx: slice raw bytes from first to last *displayed* token (KWIC window
+    # in cpos), not a region node; the string may not be well-formed XML.
+    p["flexicorp_fragment_kwic_cpos_span"] = True
+    p["extract_fragments"] = True
+    new_ctx: Dict[str, Any] = dict(raw_ctx) if isinstance(raw_ctx, dict) else {}
+    new_ctx.setdefault("format", "xml")
+    new_ctx.setdefault("prefer", "xidx")
+    new_ctx.setdefault("fallback", True)
+    new_ctx["flexicorp_fragment_kwic_cpos_span"] = True
+    w = p.get("window")
+    if w is not None:
+        try:
+            new_ctx["kwic_window"] = int(w)
+        except (TypeError, ValueError):
+            new_ctx["kwic_window"] = 5
+    p["context"] = new_ctx
+    return p, "no_sentence_or_utterance_regions_kwic_token_xml_span"
+
+
+def resolve_cqp_corpus_home_for_fragment_policy(registry: Optional[str], corpus: Optional[str]) -> Optional[Path]:
+    """Best-effort CWB data directory (holds ``*.rng`` / ``*.corpus``) for fragment policy."""
+    if not registry:
+        return None
+    reg = Path(registry).expanduser()
+    try:
+        if reg.is_file():
+            home = reg.parent
+            return home if home.is_dir() else None
+        if reg.is_dir():
+            corp = (corpus or "").strip().lower()
+            if corp:
+                sub = reg / corp
+                if sub.is_dir():
+                    return sub
+            return reg
+    except OSError:
+        return None
+    return None

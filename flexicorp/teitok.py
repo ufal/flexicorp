@@ -148,6 +148,7 @@ def detect_teitok_cqp(start: Path) -> Optional[Dict[str, Any]]:
     searchfolder: Optional[str] = None
     docs_count: Optional[int] = None
     xml_encoding: Optional[str] = None
+    fragment_context_scope: Optional[str] = None
 
     if cqp_elem is not None:
         # Positional attributes from <pattributes><item key="...">
@@ -176,6 +177,12 @@ def detect_teitok_cqp(start: Path) -> Optional[Dict[str, Any]]:
         # TEITOK-specific hints
         word_attribute = cqp_elem.get("wordfld")
         searchfolder = cqp_elem.get("searchfolder")
+        # Optional: default XML fragment scope for corpora without <s>/<u> (see teitok_context).
+        for attr in ("fragment_context_scope", "flexicorp_fragment_context_scope"):
+            v = (cqp_elem.get(attr) or "").strip()
+            if v:
+                fragment_context_scope = v
+                break
 
     # Approximate document count by counting XML files in searchfolder
     if searchfolder:
@@ -226,6 +233,8 @@ def detect_teitok_cqp(start: Path) -> Optional[Dict[str, Any]]:
         "docs_count": docs_count,
         "encoding": xml_encoding,
     }
+    if fragment_context_scope:
+        meta["fragment_context_scope"] = fragment_context_scope
 
     return {
         "root": str(root_dir),

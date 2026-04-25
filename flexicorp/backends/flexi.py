@@ -22,6 +22,7 @@ from ..querylang.cwb_cql import (
     parse_cwb_cql,
 )
 from ..teitok import detect_teitok_cqp, detect_teitok_manatee
+from ..teitok_context import maybe_downgrade_teitok_fragment_params, resolve_cqp_corpus_home_for_fragment_policy
 from ..highlight_contract import build_highlight_map, resolve_legend
 from .cqp import CqpBackend
 from .manatee_backend import ManateeBackend
@@ -962,10 +963,27 @@ class FlexiBackend(CqpBackend):
         parsed = parse_cwb_cql(query_text)
         start = max(0, int(params.get("start", 0)))
         max_hits = max(0, min(int(params.get("max", 50)), 5000))
+        cfg_for_frag: Optional[CqpConfig] = (
+            self._get_config(req) if corpus_format == "cwb" else self._get_optional_cqp_config(project)
+        )
+        detected_for_frag: Optional[Dict[str, Any]] = (
+            self._detect_teitok(cfg_for_frag, project) if cfg_for_frag is not None else None
+        )
+        cqp_home_frag: Optional[Path] = None
+        if cfg_for_frag is not None:
+            cqp_home_frag = resolve_cqp_corpus_home_for_fragment_policy(
+                str(cfg_for_frag.registry) if cfg_for_frag.registry else None,
+                str(cfg_for_frag.corpus) if cfg_for_frag.corpus else None,
+            )
+        params, _flexi_frag_note = maybe_downgrade_teitok_fragment_params(
+            project, detected_for_frag, params, cqp_corpus_home=cqp_home_frag
+        )
         context_spec = self._normalize_context_request(params)
         if corpus_format == "cwb":
-            cfg = self._get_config(req)
-            detected = self._detect_teitok(cfg, project)
+            cfg = cfg_for_frag
+            if cfg is None:
+                raise RuntimeError("flexi CWB query could not load CQP configuration.")
+            detected = detected_for_frag
             result = self._query_cwb_native(
                 cfg=cfg,
                 project=project,
@@ -977,8 +995,8 @@ class FlexiBackend(CqpBackend):
                 detected=detected,
             )
         elif corpus_format == "manatee":
-            cfg = self._get_optional_cqp_config(project)
-            detected = self._detect_teitok(cfg, project) if cfg is not None else None
+            cfg = cfg_for_frag
+            detected = detected_for_frag
             manatee_cfg = self._get_manatee_config(project)
             try:
                 result = self._query_manatee_native_files(
