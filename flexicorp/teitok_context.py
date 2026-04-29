@@ -372,17 +372,56 @@ def resolve_teitok_context(
     offset_tok_ids: List[str] = []
     offset_sentence_id: Optional[str] = None
 
+    kwic_span_enabled = bool(context_spec.get("flexicorp_fragment_kwic_cpos_span"))
+    kwic_window = 5
+    if kwic_span_enabled:
+        try:
+            kwic_window = int(
+                context_spec.get("kwic_window")
+                if context_spec.get("kwic_window") is not None
+                else 5
+            )
+        except (TypeError, ValueError):
+            kwic_window = 5
+        kwic_window = max(0, kwic_window)
+
+    # When explicit KWIC token-span mode is enabled, support it on XML-only
+    # backends (e.g. Manatee path with prefer="xml") by slicing token-window
+    # offsets directly from the TEITOK XML document.
+    if (
+        fragment is None
+        and kwic_span_enabled
+        and doc_cpos_base is not None
+        and match_start is not None
+    ):
+        ms = int(match_start)
+        me = int(match_end) if match_end is not None else ms
+        kw_lo = max(0, ms - kwic_window)
+        kw_hi = me + kwic_window
+        (
+            offset_fragment,
+            offset_scope,
+            offset_sentence_id,
+            offset_tok_ids,
+        ) = extract_teitok_fragment_xml_by_doc_offset(
+            root_dir=root_dir,
+            searchfolder=searchfolder,
+            doc_id=doc_id,
+            token_offset_start=kw_lo - doc_cpos_base,
+            token_offset_end=kw_hi - doc_cpos_base,
+            scope="tok",
+        )
+        if offset_fragment:
+            fragment = offset_fragment
+            resolved_scope = offset_scope
+            source = "xml-doc-offset-kwic-span"
+
     if prefer == "xidx" and xidx_resolver is not None and match_start is not None:
-        if context_spec.get("flexicorp_fragment_kwic_cpos_span"):
+        if kwic_span_enabled:
             ms = int(match_start)
             me = int(match_end) if match_end is not None else ms
-            try:
-                w = int(context_spec.get("kwic_window") if context_spec.get("kwic_window") is not None else 5)
-            except (TypeError, ValueError):
-                w = 5
-            w = max(0, w)
-            kw_lo = max(0, ms - w)
-            kw_hi = me + w
+            kw_lo = max(0, ms - kwic_window)
+            kw_hi = me + kwic_window
             xidx_fragment = xidx_resolver(doc_id, kw_lo, kw_hi, None)
         else:
             xidx_fragment = xidx_resolver(

@@ -91,6 +91,7 @@ BUILTIN_BACKEND_MODULES: Dict[str, str] = {
     "cqp": "flexicorp.backends.cqp",
     "flexi": "flexicorp.backends.flexi",
     "manatee": "flexicorp.backends.manatee_backend",
+    "pando": "flexicorp.backends.pando_backend",
     "pmltq": "flexicorp.backends.pmltq_backend",
     "teitokxml": "flexicorp.backends.teitokxml",
 }

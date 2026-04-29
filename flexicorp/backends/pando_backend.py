@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,7 +39,7 @@ class PandoBackend(CorpusBackend):
 
     def capabilities(self) -> Dict[str, bool]:
         return {
-            "status": False,
+            "status": True,
             "list_docs": True,
             "kwic": False,
             "freq": False,
@@ -49,7 +50,7 @@ class PandoBackend(CorpusBackend):
             "stats_dep_collocations": False,
             "stats_keyness": False,
             "stats_table_result": False,
-            "info": False,
+            "info": True,
             "daemon": False,
             "reindex": True,
             "raw_query": False,
@@ -59,6 +60,113 @@ class PandoBackend(CorpusBackend):
     def _index_dir(self, project: Dict[str, Any]) -> Path:
         root = get_project_root(project)
         return root / "pando"
+
+    def _resolve_pando_query_binary(self) -> str:
+        """
+        Prefer flexicorp-pando (TEITOK-aligned wrapper), fall back to pando.
+        """
+        for name in ("flexicorp-pando", "pando"):
+            resolved = shutil.which(name)
+            if resolved:
+                return resolved
+        return "flexicorp-pando"
+
+    def _parse_corpus_info(self, index_dir: Path) -> Dict[str, Any]:
+        """
+        Parse pando/corpus.info (key=value with comma-separated lists).
+        """
+        out: Dict[str, Any] = {}
+        info_path = index_dir / "corpus.info"
+        if not info_path.is_file():
+            return out
+        try:
+            lines = info_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            return out
+        for line in lines:
+            s = line.strip()
+            if not s or s.startswith("#") or "=" not in s:
+                continue
+            key, raw = s.split("=", 1)
+            key = key.strip()
+            val = raw.strip()
+            if not key:
+                continue
+            if key in {"positional", "region_attrs", "structural"}:
+                parts = [p.strip() for p in val.split(",") if p.strip()]
+                out[key] = parts
+            else:
+                out[key] = val
+        return out
+
+    # ------------------------------------------------------------------ status/info
+    def status(self, req: FlexiRequest) -> Dict[str, Any]:
+        project = dict(req.get("project") or {})
+        root = get_project_root(project)
+        index_dir = self._index_dir(project)
+        available = index_dir.is_dir()
+        reason = (
+            f"Pando index found at {index_dir}"
+            if available
+            else f"Pando index directory not found: {index_dir}"
+        )
+        return {
+            "backend": self.name,
+            "project_root": str(root),
+            "index_dir": str(index_dir),
+            "available": available,
+            "reason": reason,
+        }
+
+    def info(self, req: FlexiRequest) -> Dict[str, Any]:
+        project = dict(req.get("project") or {})
+        root = get_project_root(project)
+        index_dir = self._index_dir(project)
+        if not index_dir.is_dir():
+            raise RuntimeError(f"Pando index directory not found: {index_dir}")
+        info = self._parse_corpus_info(index_dir)
+
+        pattrs = info.get("positional") if isinstance(info.get("positional"), list) else []
+        structures = info.get("structural") if isinstance(info.get("structural"), list) else []
+        region_attrs = info.get("region_attrs") if isinstance(info.get("region_attrs"), list) else []
+        sattributes_by_region: Dict[str, List[str]] = {}
+        for ra in region_attrs:
+            if not isinstance(ra, str):
+                continue
+            if "_" in ra:
+                reg, attr = ra.split("_", 1)
+                if reg and attr:
+                    sattributes_by_region.setdefault(reg, []).append(attr)
+
+        docs = read_xidx_docs_lines(root)
+        docs_count = len(docs)
+        tokens_count = None
+        for key in ("tokens_count", "corpus_tokens", "size", "tokens"):
+            raw = info.get(key)
+            if raw is None:
+                continue
+            try:
+                n = int(str(raw))
+            except (TypeError, ValueError):
+                continue
+            if n >= 0:
+                tokens_count = n
+                break
+
+        result: Dict[str, Any] = {
+            "backend": self.name,
+            "descriptor": self.descriptor(),
+            "index_dir": str(index_dir),
+            "corpus": root.name.upper(),
+            "docs_count": docs_count,
+            "pattributes": pattrs,
+            "struct_attributes": structures,
+            "sattributes_by_region": sattributes_by_region,
+            "corpus_info": info,
+        }
+        if tokens_count is not None:
+            result["tokens_count"] = tokens_count
+        return result
 
     # ------------------------------------------------------------------ reindex
     def reindex(self, req: FlexiRequest) -> Dict[str, Any]:
@@ -201,17 +309,19 @@ class PandoBackend(CorpusBackend):
             raise RuntimeError(f"Pando index directory not found: {index_dir}")
 
         cmd = [
-            "pando",
+            self._resolve_pando_query_binary(),
+            "--index-dir",
             str(index_dir),
+            "-q",
             query_text,
-            "--json",
             "--limit",
             str(limit),
             "--offset",
             str(start),
-            "--total",
             "--max-total",
             "10000",
+            "--context",
+            str(int(params.get("window", 5))),
         ]
         completed = subprocess.run(
             cmd,
@@ -221,7 +331,7 @@ class PandoBackend(CorpusBackend):
         )
         if completed.returncode != 0:
             raise RuntimeError(
-                f"pando CLI failed (exit {completed.returncode}): {completed.stderr.strip()}"
+                f"Pando CLI failed (exit {completed.returncode}): {completed.stderr.strip()}"
             )
 
         try:

@@ -390,6 +390,14 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Deprecated alias for --context-scope; use a region name such as s or p.",
     )
     kwic.add_argument(
+        "--flexicorp-fragment-kwic-cpos-span",
+        action="store_true",
+        help=(
+            "Request KWIC token-window XML span extraction (first displayed token to last displayed token), "
+            "instead of region-scoped fragment extraction."
+        ),
+    )
+    kwic.add_argument(
         "--sql",
         help="Pre-translated SQL to run directly (ClickQL).",
     )
@@ -1100,6 +1108,8 @@ def main(argv: list[str] | None = None) -> int:
             params["context_format"] = args.context_format
         if getattr(args, "context_level", None):
             params["context_level"] = args.context_level
+        if getattr(args, "flexicorp_fragment_kwic_cpos_span", False):
+            params["flexicorp_fragment_kwic_cpos_span"] = True
         if getattr(args, "sql", None):
             params["sql"] = args.sql
         if getattr(args, "count_sql", None):
@@ -1134,6 +1144,8 @@ def main(argv: list[str] | None = None) -> int:
             params["context_format"] = args.context_format
         if getattr(args, "context_level", None):
             params["context_level"] = args.context_level
+        if getattr(args, "flexicorp_fragment_kwic_cpos_span", False):
+            params["flexicorp_fragment_kwic_cpos_span"] = True
         if getattr(args, "sql", None):
             params["sql"] = args.sql
         if getattr(args, "count_sql", None):
