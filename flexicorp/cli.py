@@ -331,6 +331,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Rewrite stale HOME/INFO in on-disk registry files (same rules as post-reindex swap).",
     )
 
+    subparsers.add_parser(
+        "index-freshness",
+        help=(
+            "Compare newest xmlfiles/*.xml mtime to newest files under pando/ and xidx/ "
+            "(not directory mtimes — avoids false 'stale index' warnings after in-place reindex)."
+        ),
+        parents=[shared_parent],
+    )
+
     # list-docs -----------------------------------------------------------
     list_docs = subparsers.add_parser("list-docs", help="List documents.", parents=[shared_parent])
     list_docs.add_argument("--limit", type=int, default=50, help="Maximum number of documents to return (default: 50).")
@@ -1069,6 +1078,34 @@ def main(argv: list[str] | None = None) -> int:
             print()
         return 0 if res.get("ok") else 1
 
+    if args.operation == "index-freshness":
+        from .config import get_project_root
+        from .index_freshness import teitok_pando_xidx_freshness
+
+        root = get_project_root(project)
+        res = teitok_pando_xidx_freshness(root)
+        ok = bool(res.get("indexes_current_vs_xmlfiles", True))
+        if getattr(args, "api", False):
+            envelope = {
+                "tool": "flexicorp",
+                "version": 1,
+                "success": ok,
+                "asked": {"argv": raw_argv, "request": {"operation": "index-freshness", "project": project}},
+                "done": {
+                    "backend": "pando",
+                    "operation": "index_freshness",
+                    "result": res,
+                    "warnings": [] if ok else [res.get("warning") or "xmlfiles newer than index files"],
+                    "errors": [],
+                },
+            }
+            json.dump(envelope, fp=sys.stdout, ensure_ascii=False, indent=2)
+            print()
+        else:
+            json.dump(res, fp=sys.stdout, ensure_ascii=False, indent=2)
+            print()
+        return 0 if ok else 1
+
     params: Dict[str, Any] = {}
     # Merge backend-specific -O key=value options into params (backends inspect as needed).
     params.update(_parse_options(getattr(args, "options", None)))
@@ -1277,6 +1314,10 @@ def main(argv: list[str] | None = None) -> int:
         res = handle_request(req)
     res = _maybe_brief_info_backends(res, args)
     if getattr(args, "api", False):
+        eff_op = (
+            (res.get("operation_effective") if isinstance(res, dict) else None)
+            or (((res.get("result") or {}).get("operation")) if isinstance(res, dict) and isinstance(res.get("result"), dict) else None)
+        )
         envelope = {
             "tool": "flexicorp",
             "version": 1,
@@ -1288,6 +1329,7 @@ def main(argv: list[str] | None = None) -> int:
             "done": {
                 "backend": res.get("backend"),
                 "operation": res.get("operation"),
+                "operation_effective": eff_op,
                 "result": res.get("result"),
                 "warnings": res.get("warnings", []),
                 "errors": res.get("errors", []),

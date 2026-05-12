@@ -89,3 +89,10 @@ See the wiki for a complete list of commands, backends, and JSON schemas.
 
 Long-form documentation (backends, TEITOK configuration, JSON API reference, contributing) will be maintained in the GitHub wiki for `ufal/flexicorp`.
 
+---
+
+## Roadmap (UI sharing)
+
+- **Visualization snapshot URL (MVP)**: serialize backend, query/scope, and visualization settings into a portable URL token so users can publish exact analysis setups (optionally via TinyURL or similar shorteners).
+- **Published visualization handles**: optional server-side storage with short stable handles for curated/public visualizations, including later support for metadata (title/description), lifecycle controls, and access policy.
+

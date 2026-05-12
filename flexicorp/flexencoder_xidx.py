@@ -7,6 +7,10 @@ This is independent of whether a CWB corpus exists under ``cqp/``; any backend
 that reports global corpus positions (Manatee, Pando, etc.) can map hits back
 to TEITOK XML using these files.
 
+Token keys in ``tokens.bin`` are **0-based** corpus positions (aligned with Pando).
+Older flexencoder builds keyed by **1-based** ``global_pos``; readers detect that
+when key ``0`` is absent and adjust query positions.
+
 Layout matches ``flexencoder_xidx.cpp`` and the Pando helper
 ``flexicorp_pando/flexicorp_json.h`` (little-endian records).
 """
@@ -68,6 +72,17 @@ def _load_tokens_map_cached(path_str: str) -> Dict[int, XidxTokenRec]:
 
 def load_tokens_map(tokens_bin: Path) -> Dict[int, XidxTokenRec]:
     return dict(_load_tokens_map_cached(str(tokens_bin.resolve())))
+
+
+def _xidx_legacy_one_based_keys(tmap: Dict[int, XidxTokenRec]) -> bool:
+    """True if tokens.bin uses legacy flexencoder keys (1-based global_pos, no key 0)."""
+    if not tmap:
+        return False
+    return 0 not in tmap
+
+
+def _xidx_key_from_pando_pos(p: int, legacy_one_based: bool) -> int:
+    return p + 1 if legacy_one_based else p
 
 
 @lru_cache(maxsize=32)
@@ -218,11 +233,13 @@ def text_id_stem_for_cpos(project_root: Path, cpos: int) -> Optional[str]:
     if not tokens_bin.is_file() or not docs_tbl.is_file():
         return None
     tmap = load_tokens_map(tokens_bin)
-    it = tmap.get(cpos)
-    if it is None and cpos > 0:
-        it = tmap.get(cpos - 1)
+    legacy = _xidx_legacy_one_based_keys(tmap)
+    k_primary = _xidx_key_from_pando_pos(cpos, legacy)
+    it = tmap.get(k_primary)
+    if it is None and k_primary > 0:
+        it = tmap.get(k_primary - 1)
     if it is None:
-        it = tmap.get(cpos + 1)
+        it = tmap.get(k_primary + 1)
     if it is None:
         return None
     docs = _read_lines_cached(str(docs_tbl.resolve()))
@@ -405,6 +422,7 @@ def lookup_xml_fragment(
     tmap = load_tokens_map(tokens_bin)
     if not tmap:
         return None
+    legacy = _xidx_legacy_one_based_keys(tmap)
     by_doc = _build_doc_sorted(tmap)
     docs = _read_lines_cached(str(docs_tbl.resolve()))
     region_types = _read_lines_cached(str(region_types_tbl.resolve()))
@@ -431,21 +449,25 @@ def lookup_xml_fragment(
             ):
                 n = len(rng_blob) // 16
 
-                def pick_idx(pos: int) -> int:
-                    starts = [
-                        _i64le(rng_blob, j * 16) for j in range(n)
-                    ]
-                    it2 = bisect.bisect_right(starts, pos)
-                    if it2 == 0:
-                        return -1
-                    idx = it2 - 1
-                    endv = _i64le(rng_blob, idx * 16 + 8)
-                    if pos < starts[idx] or pos > endv:
-                        return -1
-                    return idx
+                def pick_narrowest_sentence_idx(pos: int) -> int:
+                    """Match flexicorp_json.h / regions.bin: narrowest [start,end] containing pos."""
+                    best_j = -1
+                    best_w = 2**63
+                    for j in range(n):
+                        sj = _i64le(rng_blob, j * 16)
+                        ej = _i64le(rng_blob, j * 16 + 8)
+                        if pos < sj or pos > ej:
+                            continue
+                        w = ej - sj if ej >= sj else 0
+                        if w < best_w:
+                            best_w = w
+                            best_j = j
+                    return best_j
 
-                idx_s = pick_idx(corpus_pos_start)
-                idx_e = pick_idx(corpus_pos_end)
+                adj_s = _xidx_key_from_pando_pos(corpus_pos_start, legacy)
+                adj_e = _xidx_key_from_pando_pos(corpus_pos_end, legacy)
+                idx_s = pick_narrowest_sentence_idx(adj_s)
+                idx_e = pick_narrowest_sentence_idx(adj_e)
                 if (
                     idx_s >= 0
                     and idx_e >= 0
@@ -473,11 +495,12 @@ def lookup_xml_fragment(
                                     )
 
     # Fallback: token map + regions.bin (mirrors flexicorp_json.h xidx_lookup_fragment).
-    it = tmap.get(corpus_pos_start)
-    if it is None and corpus_pos_start > 0:
-        it = tmap.get(corpus_pos_start - 1)
+    k_primary = _xidx_key_from_pando_pos(corpus_pos_start, legacy)
+    it = tmap.get(k_primary)
+    if it is None and k_primary > 0:
+        it = tmap.get(k_primary - 1)
     if it is None:
-        it = tmap.get(corpus_pos_start + 1)
+        it = tmap.get(k_primary + 1)
     if it is None:
         return None
     tr = it
@@ -493,7 +516,9 @@ def lookup_xml_fragment(
     frag_xml_end = tr.xml_end
 
     if scope in {"tok", "dtok"}:
-        xr_tok = _xml_bounds_for_corpus_range(by_doc, tr.doc_idx, corpus_pos_start, corpus_pos_end)
+        xs_p = _xidx_key_from_pando_pos(corpus_pos_start, legacy)
+        xe_p = _xidx_key_from_pando_pos(corpus_pos_end, legacy)
+        xr_tok = _xml_bounds_for_corpus_range(by_doc, tr.doc_idx, xs_p, xe_p)
         if xr_tok:
             frag_xml_start, frag_xml_end = xr_tok
         try:

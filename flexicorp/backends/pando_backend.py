@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -10,6 +12,7 @@ from typing import Any, Dict, List
 from ..config import get_project_root
 from ..core import CorpusBackend, FlexiRequest, register_backend
 from ..flexencoder_xidx import read_xidx_docs_lines, xidx_rel_to_doc_id
+from ..index_freshness import teitok_pando_xidx_freshness
 
 
 @dataclass
@@ -120,6 +123,7 @@ class PandoBackend(CorpusBackend):
 
     def info(self, req: FlexiRequest) -> Dict[str, Any]:
         project = dict(req.get("project") or {})
+        params = dict(req.get("params") or {})
         root = get_project_root(project)
         index_dir = self._index_dir(project)
         if not index_dir.is_dir():
@@ -166,6 +170,13 @@ class PandoBackend(CorpusBackend):
         }
         if tokens_count is not None:
             result["tokens_count"] = tokens_count
+
+        skip_fresh = bool(params.get("skip_index_freshness")) or (
+            str(os.environ.get("FLEXICORP_SKIP_INDEX_FRESHNESS", "")).strip().lower()
+            in ("1", "true", "yes")
+        )
+        if not skip_fresh:
+            result["index_freshness"] = teitok_pando_xidx_freshness(root)
         return result
 
     # ------------------------------------------------------------------ reindex
@@ -319,7 +330,11 @@ class PandoBackend(CorpusBackend):
             "--offset",
             str(start),
             "--max-total",
-            "10000",
+            (
+                "1000000"
+                if re.search(r"\b(freq|count|dist|group|keyness|coll|dcoll)\b", query_text, re.IGNORECASE)
+                else "10000"
+            ),
             "--context",
             str(int(params.get("window", 5))),
         ]

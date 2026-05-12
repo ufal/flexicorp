@@ -780,7 +780,38 @@ def handle_request(req: FlexiRequest) -> FlexiResponse:
 
     try:
         result = op_method(req)
+        operation_effective = None
         if operation == "query" and isinstance(result, dict):
+            # Preserve effective query operation (e.g. freq/keyness/count/group/coll)
+            # when backends return wrapped payloads under `result`/`raw`.
+            if "operation" not in result or not str(result.get("operation") or "").strip():
+                raw_payload = result.get("raw")
+                raw_json = raw_payload if isinstance(raw_payload, dict) else None
+                if raw_json is None and isinstance(raw_payload, str):
+                    try:
+                        parsed = json.loads(raw_payload)
+                    except Exception:
+                        parsed = None
+                    if isinstance(parsed, dict):
+                        raw_json = parsed
+                if isinstance(raw_json, dict):
+                    eff = (
+                        # Prefer deepest effective operation over wrapper "query".
+                        ((raw_json.get("done") or {}).get("result") or {}).get("operation")
+                        or (raw_json.get("result") or {}).get("operation")
+                        or (raw_json.get("done") or {}).get("operation")
+                        or raw_json.get("operation")
+                    )
+                    if isinstance(eff, str) and eff.strip():
+                        result["operation"] = eff.strip().lower()
+            if "operation" not in result or not str(result.get("operation") or "").strip():
+                nested = result.get("result")
+                if isinstance(nested, dict):
+                    eff = nested.get("operation")
+                    if isinstance(eff, str) and eff.strip():
+                        result["operation"] = eff.strip().lower()
+            if isinstance(result.get("operation"), str) and result["operation"].strip():
+                operation_effective = result["operation"].strip().lower()
             result = {
                 **result,
                 "request_role": query_policy_meta.request_role,
@@ -790,7 +821,7 @@ def handle_request(req: FlexiRequest) -> FlexiResponse:
                 "sanitized_query": query_policy_meta.sanitized_query if query_policy_meta.query_sanitized else None,
                 "suggested_tab": query_policy_meta.suggested_tab,
             }
-        return {
+        out = {
             "ok": True,
             "backend": backend_name,
             "operation": operation,
@@ -798,6 +829,9 @@ def handle_request(req: FlexiRequest) -> FlexiResponse:
             "warnings": [],
             "errors": [],
         }
+        if operation == "query" and operation_effective:
+            out["operation_effective"] = operation_effective
+        return out
     except NotImplementedError as e:
         return _make_error_response(
             backend=backend_name,
