@@ -269,6 +269,10 @@ def _read_binary(path: Path) -> bytes:
 #     whitespace normalisation.
 #   * D-3: scope="text" returns the <text> element bytes, not the whole
 #     document (regions.bin already stores element-level bounds).
+#
+# corpid-merged regions (flexencoder/CORPID.md): indexed id is the corpid value;
+# xml_start/xml_end are the first fragment only — by-id lookup does not return
+# all XML fragments for one logical region until discontiguous Phase 2.
 # ---------------------------------------------------------------------------
 
 _BY_ID_STRIDE = 56  # only stride-56 region records carry xml_start/xml_end
