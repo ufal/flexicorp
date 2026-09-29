@@ -40,3 +40,8 @@ dev/
 examples/test/
 Old/
 flexicorp/Old
+fqs/.env.local
+fqs/teitok-fqs-secret.env
+fqs/fqs.db
+fqs/*.db
+fqs/limits.local.json
