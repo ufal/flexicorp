@@ -45,3 +45,8 @@ fqs/teitok-fqs-secret.env
 fqs/fqs.db
 fqs/*.db
 fqs/limits.local.json
+# Runtime sidecar written by `fqs serve` (local db_path + url)
+fqs/fqs-http.json
+# Machine-local FQS config overrides (use fqs/fqs.example.json as a template)
+fqs/fqs.local.json
+fqs/fqs.local.*.json
