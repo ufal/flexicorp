@@ -8,6 +8,7 @@ import json
 import os
 import sys
 import tempfile
+import time
 from pathlib import Path
 from typing import Any, Dict
 
@@ -1211,6 +1212,14 @@ def main(argv: list[str] | None = None) -> int:
         if getattr(args, "reindex_backends", None):
             raw = args.reindex_backends.strip()
             params["reindex_backends"] = [b.strip() for b in raw.split(",") if b.strip()]
+        # Foreground path: --staging must become params.reindex_staging (background
+        # enqueue already sets this in reindex_jobs.runner). Without a job id,
+        # core.py disables staging; generate one so staged pando/cqp land under
+        # tmp/flexicorp-reindex-staging/<id>/ and get swapped into the project.
+        if getattr(args, "staging", False):
+            params["reindex_staging"] = True
+            if not str(params.get("reindex_job_id") or "").strip():
+                params["reindex_job_id"] = f"fg-{os.getpid()}-{int(time.time())}"
     elif args.operation == "info":
         if getattr(args, "info_topic", None):
             params["topic"] = args.info_topic
@@ -1337,10 +1346,13 @@ def main(argv: list[str] | None = None) -> int:
         }
         json.dump(envelope, fp=sys.stdout, ensure_ascii=False, indent=2)
         print()
+        # Fail loudly for orchestrators (FQS, TEITOK) that only check exit status.
+        # JSON is still on stdout for structured error handling.
+        return 0 if envelope["success"] else 1
     else:
         json.dump(res, fp=sys.stdout, ensure_ascii=False, indent=2)
         print()
-    return 0
+        return 0 if bool(res.get("ok", True)) else 1
 
 
 if __name__ == "__main__":  # pragma: no cover
