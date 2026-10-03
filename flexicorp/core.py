@@ -655,6 +655,14 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
             swap_items.append({"label": "cqp", "staging": staging_cqp, "live": live_cqp})
         if staging_pando is not None and staging_pando.is_dir() and "pando" in flexencoder_backends:
             swap_items.append({"label": "pando", "staging": staging_pando, "live": live_pando})
+        # Never swap in an index that is not complete: pando-index writes corpus.info last.
+        # One incomplete tree cancels the whole swap, so the live trees stay consistent.
+        if any(it["label"] == "pando" for it in swap_items) and not (staging_pando / "corpus.info").is_file():
+            errors.append(
+                f"pando: staged index {staging_pando} has no corpus.info (pando-index failed?); "
+                "live indexes left unchanged"
+            )
+            swap_items = []
         if swap_items:
             try:
                 swapped = _swap_staged_trees_atomically(swap_items)
