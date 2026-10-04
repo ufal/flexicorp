@@ -109,7 +109,7 @@
 					'enabled' => true,
 					'resource_pid' => 'local:' . $id,
 					'supports_dataviews' => array( 'hits' ),
-					'languages' => !empty( $languages ) ? $languages : array( 'und' ),
+					'languages' => ! empty( $languages ) ? array_values( $languages ) : array(),
 				),
 			);
 
@@ -385,7 +385,12 @@
 					$fcs = isset( $row['capabilities']['fcs'] ) && is_array( $row['capabilities']['fcs'] ) ? $row['capabilities']['fcs'] : array();
 					$pid = isset( $fcs['resource_pid'] ) ? (string) $fcs['resource_pid'] : 'local:' . $id;
 					$views = isset( $fcs['supports_dataviews'] ) && is_array( $fcs['supports_dataviews'] ) ? implode( ', ', $fcs['supports_dataviews'] ) : 'hits';
-					$langs = isset( $fcs['languages'] ) && is_array( $fcs['languages'] ) ? implode( ', ', $fcs['languages'] ) : 'und';
+					$langList = isset( $fcs['languages'] ) && is_array( $fcs['languages'] ) ? $fcs['languages'] : array();
+					$langList = array_values( array_filter( array_map( 'strval', $langList ), function ( $lc ) {
+						$lc = strtolower( trim( $lc ) );
+						return $lc !== '' && ! in_array( $lc, array( 'und', 'unk', 'unknown', 'zxx' ), true );
+					} ) );
+					$langs = empty( $langList ) ? '—' : implode( ', ', $langList );
 					$edit = "index.php?action=" . rawurlencode( (string) $action ) . "&amp;act=edit&amp;id=" . rawurlencode( $id );
 					$maintext .= "<tr><td><a href='" . $edit . "'>" . htmlspecialchars( $id, ENT_QUOTES, 'UTF-8' ) . "</a></td>"
 						. "<td>" . htmlspecialchars( $label, ENT_QUOTES, 'UTF-8' ) . "</td>"
@@ -559,13 +564,12 @@
 								$fcsCfg['supports_dataviews'] = array_values( array_unique( $fcsViews ) );
 								$fcsLangRaw = isset( $_POST['fcs_languages'] ) ? (string) $_POST['fcs_languages'] : '';
 								$fcsLangs = tt_fqs_parse_language_codes( $fcsLangRaw );
-								if ( empty( $fcsLangs ) ) {
-									$fcsLangs = array( 'und' );
-								}
 								$fcsCfg['languages'] = $fcsLangs;
 								$caps['fcs'] = $fcsCfg;
 								$entry['capabilities'] = $caps;
-								$st['languages'] = $fcsLangs;
+								if ( ! empty( $fcsLangs ) ) {
+									$st['languages'] = $fcsLangs;
+								}
 								$kontextCfg = ( isset( $st['kontext'] ) && is_array( $st['kontext'] ) ) ? $st['kontext'] : array();
 								$kontextEnabled = !empty( $_POST['kontext_enabled'] );
 								$kontextPublic = !empty( $_POST['kontext_public'] );
@@ -660,9 +664,10 @@
 					if ( empty( $fcsLangsForm ) && isset( $stForm['languages'] ) && is_array( $stForm['languages'] ) ) {
 						$fcsLangsForm = $stForm['languages'];
 					}
-					if ( empty( $fcsLangsForm ) ) {
-						$fcsLangsForm = array( 'und' );
-					}
+					$fcsLangsForm = array_values( array_filter( array_map( 'strval', $fcsLangsForm ), function ( $lc ) {
+						$lc = strtolower( trim( $lc ) );
+						return $lc !== '' && ! in_array( $lc, array( 'und', 'unk', 'unknown', 'zxx' ), true );
+					} ) );
 					$fcsLangText = implode( ', ', $fcsLangsForm );
 					$kontextForm = isset( $stForm['kontext'] ) && is_array( $stForm['kontext'] ) ? $stForm['kontext'] : array();
 					$kontextEnabledForm = !empty( $kontextForm['enabled'] );
@@ -785,8 +790,14 @@
 					$maintext .= "<p class=warning>This row is not the catalogue entry for the current TEITOK project (folder / base URL do not match). Editing is disabled unless you use shared/global mode.</p>";
 				}
 
-				$maintext .= "<h3>Full record</h3><table cellpadding='2'>";
-				foreach ( $entry as $ckey => $cval ) {
+				// Always show what is stored in FQS (not a failed POST payload left in $entry).
+				$catalogJson = shell_exec( $cmdShow );
+				$catalogEntry = is_string( $catalogJson ) ? json_decode( $catalogJson, true ) : null;
+				if ( ! is_array( $catalogEntry ) || ! isset( $catalogEntry['id'] ) ) {
+					$catalogEntry = $entry;
+				}
+				$maintext .= "<h3>Full record <small>(catalogue)</small></h3><table cellpadding='2'>";
+				foreach ( $catalogEntry as $ckey => $cval ) {
 					if ( is_array( $cval ) ) {
 						$valtxt = json_encode( $cval, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
 					} else {
@@ -1143,6 +1154,10 @@
 			if ( empty( $langs ) && isset( $corp['settings']['languages'] ) && is_array( $corp['settings']['languages'] ) ) {
 				$langs = $corp['settings']['languages'];
 			}
+			$langs = array_values( array_filter( array_map( 'strval', is_array( $langs ) ? $langs : array() ), function ( $lc ) {
+				$lc = strtolower( trim( $lc ) );
+				return $lc !== '' && ! in_array( $lc, array( 'und', 'unk', 'unknown', 'zxx', 'mul' ), true );
+			} ) );
 			$size = isset( $corp['corpus_size'] ) ? $corp['corpus_size'] : null;
 			$sizeTxt = ( $size !== null && $size !== '' && function_exists( 'hrnum' ) )
 				? hrnum( $size )
