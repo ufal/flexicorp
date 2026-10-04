@@ -483,17 +483,31 @@ function flexicorpApp() {
 			return '';
 		},
 
+		formatIpmDisplay(value, opts = null) {
+			const fns = typeof window !== 'undefined' && window.ttFlexicorpFns && typeof window.ttFlexicorpFns === 'object'
+				? window.ttFlexicorpFns
+				: {};
+			if (typeof fns.formatIpmDisplay === 'function') {
+				return fns.formatIpmDisplay(value, opts);
+			}
+			const n = Number(value);
+			if (!Number.isFinite(n)) return '';
+			if (Math.abs(n) >= 100) return String(Math.round(n));
+			return String(Number(n.toFixed(Math.abs(n) >= 10 ? 1 : 2)));
+		},
+
 		frequencyRowIpm(row) {
 			if (!row || typeof row !== 'object') return '';
+			const c = Number(row.count ?? row.freq ?? row.n);
+			const countOpt = Number.isFinite(c) && c >= 0 ? c : null;
 			const raw = row.ipm ?? row.IPM ?? row.relfreq ?? row.relative ?? row.relative_ipm;
 			if (raw !== null && raw !== undefined && raw !== '') {
 				const n = typeof raw === 'number' ? raw : Number(String(raw).replace(/,/g, ''));
-				if (Number.isFinite(n)) return n.toFixed(2);
+				if (Number.isFinite(n)) return this.formatIpmDisplay(n, { count: countOpt });
 			}
 			const ct = this.frequencyCorpusTokensForIpm();
-			const c = Number(row.count ?? row.freq ?? row.n);
 			if (ct !== null && ct > 0 && Number.isFinite(c) && c >= 0) {
-				return ((c / ct) * 1000000).toFixed(2);
+				return this.formatIpmDisplay((c / ct) * 1000000, { count: c, base: ct });
 			}
 			return '';
 		},
@@ -540,7 +554,7 @@ function flexicorpApp() {
 			if (rest <= 0) return '';
 			const ct = this.frequencyCorpusTokensForIpm();
 			if (ct !== null && ct > 0) {
-				return ((rest / ct) * 1000000).toFixed(2);
+				return this.formatIpmDisplay((rest / ct) * 1000000, { count: rest, base: ct });
 			}
 			return '';
 		},
@@ -590,6 +604,7 @@ function flexicorpApp() {
 			this.ensureSearchShareButton();
 			this.updateSearchShareButtonVisibility();
 			this.syncFullscreenState();
+			this.initTeitokTokEditClicks();
 			if (typeof document !== 'undefined' && !this._fullscreenListenerBound) {
 				const onFs = () => this.syncFullscreenState();
 				document.addEventListener('fullscreenchange', onFs);
@@ -2566,6 +2581,82 @@ function flexicorpApp() {
 			} else {
 				setTimeout(reinit, 0);
 			}
+		},
+
+		teitokUsername() {
+			if (typeof window === 'undefined') return '';
+			return String(window.username || '').trim();
+		},
+
+		/**
+		 * TEITOK tokview.js opens action=tokedit on TOK click when username is set, using
+		 * cid=jumpid and tid=element.id. Flexicorp rewrites DOM ids (rN_…) for uniqueness and
+		 * often lacks tr[@tid], so that path never works. Capture clicks and open tokedit with
+		 * the real TEITOK xml:id (data-flexicorp-orig-id) and nearest hit cid.
+		 */
+		initTeitokTokEditClicks() {
+			if (typeof document === 'undefined' || this._tokEditClickBound) return;
+			this._tokEditClickBound = true;
+			const root = document.getElementById('flexicorp-root');
+			if (root && this.teitokUsername()) {
+				root.classList.add('flexicorp-can-tokedit');
+			}
+			document.addEventListener(
+				'click',
+				(evt) => {
+					if (!this.teitokUsername()) return;
+					let el = evt.target;
+					if (!el || el.nodeType !== 1) {
+						el = el && el.parentElement ? el.parentElement : null;
+					}
+					while (el && el !== document.body) {
+						const tag = String(el.tagName || '').toUpperCase();
+						if (tag === 'TOK' || tag === 'DTOK' || tag === String(window.mwenode || 'mtok').toUpperCase()) {
+							break;
+						}
+						el = el.parentElement;
+					}
+					if (!el || !el.closest) return;
+					if (
+						!el.closest(
+							'#mtxt .flexicorp-hit, .flexicorp-results-table, .flexicorp-kwic-table, .flexicorp-hit-xml, .flexicorp-kwic-xml, .flexicorp-kwic-match-xml, .flexicorp-hit-raw-rendered',
+						)
+					) {
+						return;
+					}
+					const tokId = this.resolveTeitokTokenIdForEdit(el);
+					const cid = this.resolveTeitokDocCidForEdit(el);
+					if (!tokId || !cid) return;
+					evt.preventDefault();
+					evt.stopPropagation();
+					const url = new URL('index.php', window.location.href);
+					url.searchParams.set('action', 'tokedit');
+					url.searchParams.set('cid', cid);
+					url.searchParams.set('tid', tokId);
+					window.open(url.toString(), 'edit');
+				},
+				true,
+			);
+		},
+
+		resolveTeitokTokenIdForEdit(tokEl) {
+			if (!tokEl || !tokEl.getAttribute) return '';
+			const orig = String(tokEl.getAttribute('data-flexicorp-orig-id') || '').trim();
+			if (orig) return orig;
+			const raw = String(tokEl.getAttribute('id') || '').trim();
+			if (!raw) return '';
+			// Strip flexicorp uniqueness prefix (r12_w-35 → w-35).
+			return raw.replace(/^r\d+_/, '');
+		},
+
+		resolveTeitokDocCidForEdit(tokEl) {
+			if (!tokEl || !tokEl.closest) return String(window.tid || '').trim();
+			const host = tokEl.closest('[tid], [data-flexicorp-cid]');
+			if (host) {
+				const fromHost = String(host.getAttribute('tid') || host.getAttribute('data-flexicorp-cid') || '').trim();
+				if (fromHost) return fromHost;
+			}
+			return String(window.tid || '').trim();
 		},
 
 		async ensureSectionLoaded(section, loadingKey) {
@@ -6861,12 +6952,24 @@ function flexicorpApp() {
 			const entries = result && Array.isArray(result.legend) && result.legend.length
 				? this.sortHighlightEntriesByGroupId(result.legend)
 				: (result && Array.isArray(result.groups) && result.groups.length ? this.sortHighlightEntriesByGroupId(result.groups) : []);
+			const ids = new Set(
+				entries
+					.map((e) => String((e && e.id) || '').trim())
+					.filter(Boolean),
+			);
 			entries.forEach((entry, idx) => {
 				const palette = this.getGroupPalette(idx);
-				const keys = [entry && entry.name, entry && entry.id, entry && entry.key, entry && entry.label]
-					.map((v) => String(v || '').trim())
-					.filter(Boolean);
-				keys.forEach((k) => {
+				const id = String((entry && entry.id) || '').trim();
+				const name = String((entry && entry.name) || '').trim();
+				const key = String((entry && entry.key) || '').trim();
+				const label = String((entry && entry.label) || '').trim();
+				// Positional id always wins (t1 → palette 0, t2 → palette 1, …).
+				if (id) out[id] = palette.className;
+				// User aliases / labels (a, noun, …). Never let a stale auto-name like "t1" on
+				// group t2 overwrite t1's palette — that turns every match token the same colour.
+				[name, key, label].forEach((k) => {
+					if (!k || k === id) return;
+					if (/^t\d+$/i.test(k) && ids.has(k) && k !== id) return;
 					out[k] = palette.className;
 				});
 			});
@@ -7749,7 +7852,10 @@ function flexicorpApp() {
 				ipm = (result.total / corpusTokens) * 1000000;
 			}
 			if (typeof ipm === 'number' && Number.isFinite(ipm) && this.searchIpmIsTrusted(result, totalLooksCapped)) {
-				parts.push(`${ipm.toFixed(2)} ipm`);
+				const ipmText = this.formatIpmDisplay(ipm, {
+					count: total !== null && Number.isFinite(Number(total)) ? Number(total) : null,
+				});
+				if (ipmText) parts.push(`${ipmText} ipm`);
 			}
 			if (typeof result.time_ms === 'number') {
 				parts.push(`${result.time_ms.toFixed(0)} ms`);
@@ -8112,6 +8218,11 @@ function flexicorpApp() {
 					node.setAttribute('data-flexicorp-orig-id', originalId);
 				}
 				node.setAttribute('id', uniqueId);
+				// Afford click-to-tokedit when logged in (handler in initTeitokTokEditClicks).
+				if (this.teitokUsername()) {
+					node.setAttribute('title', 'Edit token');
+					node.classList.add('flexicorp-tok-editable');
+				}
 			});
 			if (!idMap.size) return;
 			const refAttrs = ['head', 'ohead', 'sameAs', 'corresp', 'ana', 'target'];

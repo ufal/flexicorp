@@ -3495,25 +3495,19 @@ window.flexicorpFreqsExtend = function flexicorpFreqsExtend() {
 		},
 
 		frequencyFormatIpmDisplay(value, opts = null) {
-			const n = Number(value);
-			if (!Number.isFinite(n)) return '';
-			const o = opts && typeof opts === 'object' ? opts : {};
-			const count = Number(o.count);
-			// Poisson-style relative uncertainty proxy for rates derived from counts.
-			// relErr ~= 1/sqrt(count), then keep justifiable significant digits.
-			let sig = 2;
-			if (Number.isFinite(count) && count > 0) {
-				const relErr = 1 / Math.sqrt(count);
-				const implied = Math.floor(-Math.log10(relErr)) + 1;
-				sig = Math.max(1, Math.min(4, implied));
+			if (typeof this.formatIpmDisplay === 'function') {
+				return this.formatIpmDisplay(value, opts);
 			}
 			const fns = typeof window !== 'undefined' && window.ttFlexicorpFns && typeof window.ttFlexicorpFns === 'object'
 				? window.ttFlexicorpFns
 				: {};
-			if (typeof fns.hrnum === 'function') {
-				return fns.hrnum(n, sig, { compact: true, millionFrom: 1e5 });
+			if (typeof fns.formatIpmDisplay === 'function') {
+				return fns.formatIpmDisplay(value, opts);
 			}
-			return Number(n).toLocaleString();
+			const n = Number(value);
+			if (!Number.isFinite(n)) return '';
+			if (Math.abs(n) >= 100) return String(Math.round(n));
+			return String(Number(n.toFixed(Math.abs(n) >= 10 ? 1 : 2)));
 		},
 
 		frequencyRowNormalizedIpm(row) {

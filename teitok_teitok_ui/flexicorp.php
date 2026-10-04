@@ -5564,7 +5564,16 @@ require_once __DIR__ . '/flexicorp_functions.php';
 					if ( !is_array( $g ) || ! isset( $g['index'] ) ) {
 						continue;
 					}
+					// Stable positional id (t1, t2, …) from match index.
 					$g['id'] = 't' . (string) ( (int) $g['index'] + 1 );
+					// Pando may leave an auto-label like "t1" on a later unnamed token after the
+					// first token was user-aliased (a:[…]). That collides with t1's id and
+					// makes UIs paint every token with the last group's colour. Keep real aliases
+					// (a, noun, …); rewrite stale tN auto-names to match this group's id.
+					$name = trim( (string) ( $g['name'] ?? '' ) );
+					if ( $name === '' || preg_match( '/^t\d+$/i', $name ) ) {
+						$g['name'] = $g['id'];
+					}
 				}
 				unset( $g );
 			}

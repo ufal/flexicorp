@@ -901,7 +901,11 @@
 								<span class="flexicorp-panel-note" x-text="group.totalHits + ' hit(s) in ' + group.hits.length + ' occurrence(s)'"></span>
 							</div>
 							<template x-for="(hit, idx) in group.hits" :key="group.docId + ':' + idx">
-								<div class="flexicorp-hit">
+								<div
+									class="flexicorp-hit"
+									x-bind:tid="getHitDocCid(hit) || ''"
+									x-on:mouseenter="window.tid = getHitDocCid(hit) || ''"
+								>
 									<p class="flexicorp-panel-note flexicorp-hit-meta">
 										<span class="flexicorp-hit-meta-doc">
 											<template x-if="getHitDocUrl(hit)">
@@ -950,7 +954,11 @@
 									<template x-if="getGroupedAlignedCompanions(hit).length">
 										<div class="flexicorp-hit" style="margin-top:8px;border-top:1px dashed #d8d8d8;padding-top:6px;">
 											<template x-for="(alignedHit, aidx) in getGroupedAlignedCompanions(hit)" :key="'aligned-grouped:' + idx + ':' + aidx">
-												<div style="margin-top:6px;">
+												<div
+													style="margin-top:6px;"
+													x-bind:tid="getHitDocCid(alignedHit) || ''"
+													x-on:mouseenter="window.tid = getHitDocCid(alignedHit) || ''"
+												>
 													<p class="flexicorp-panel-note flexicorp-hit-meta">
 														<span class="flexicorp-hit-meta-doc">
 															<span>Aligned </span>
@@ -1030,7 +1038,10 @@
 					</thead>
 					<tbody>
 						<template x-for="(hit, idx) in getMergedSearchHits()" :key="'table:' + idx">
-							<tr>
+							<tr
+								x-bind:tid="getHitDocCid(hit) || ''"
+								x-on:mouseenter="window.tid = getHitDocCid(hit) || ''"
+							>
 								<td class="flexicorp-results-table-context">
 									<template x-if="getHitDocUrl(hit)">
 										<a class="flexicorp-hit-context-link" x-bind:href="getHitDocUrl(hit)" x-bind:cid="getHitDocCid(hit)" x-bind:title="getDocumentTooltip(getHitDocLabel(hit))" x-text="getHitContextLinkLabel(hit)" onmouseover="if (typeof showdocinfo === 'function') showdocinfo(this)" onmouseout="if (typeof hidetokinfo === 'function') hidetokinfo()" target="flexicorp_source" rel="noopener noreferrer"></a>
@@ -1115,7 +1126,11 @@
 								<td x-show="searchHasAlignedHits()">
 									<div class="flexicorp-aligned-table-cell" x-bind:style="'--aligned-count:' + Math.max(1, getGroupedAlignedCompanions(hit).length)">
 										<template x-for="(alignedHit, aidx) in getGroupedAlignedCompanions(hit)" :key="'table-align-res:' + idx + ':' + aidx">
-											<div class="flexicorp-aligned-table-cell-row">
+											<div
+												class="flexicorp-aligned-table-cell-row"
+												x-bind:tid="getHitDocCid(alignedHit) || ''"
+												x-on:mouseenter="window.tid = getHitDocCid(alignedHit) || ''"
+											>
 												<template x-if="isXmlContext() && hitHasTeitokXmlContext(alignedHit)">
 													<div class="flexicorp-hit-xml" x-html="getRenderedXmlContext(alignedHit, 'target')" x-on:mousemove="highlightAlignedTokenByHover($event)" x-on:mouseleave="clearAlignedHoverHighlights()"></div>
 												</template>
@@ -1144,6 +1159,7 @@
 						<template x-for="(hit, idx) in search.hits" :key="'kwic:' + idx">
 							<tr
 								x-bind:id="'r-' + idx"
+								x-bind:tid="getHitDocCid(hit) || ''"
 								x-on:mouseenter="window.tid = getHitDocCid(hit) || getHitDocLabel(hit) || ''"
 								x-bind:class="{ 'flexicorp-kwic-xml-row': kwicCellIsXml(hit) }"
 							>
@@ -1179,7 +1195,12 @@
 										<span class="flexicorp-kwic-right-inner"><span class="flexicorp-kwic-right-text" x-text="getActiveKwicParts(hit).right"></span></span>
 									</template>
 								</td>
-								<td class="flexicorp-kwic-left" x-show="searchHasAlignedHits()">
+								<td
+									class="flexicorp-kwic-left"
+									x-show="searchHasAlignedHits()"
+									x-bind:tid="getAlignedCompanionHit(hit) ? (getHitDocCid(getAlignedCompanionHit(hit)) || '') : ''"
+									x-on:mouseenter="window.tid = getAlignedCompanionHit(hit) ? (getHitDocCid(getAlignedCompanionHit(hit)) || '') : window.tid"
+								>
 									<template x-if="getAlignedCompanionHit(hit) && kwicCellIsXml(getAlignedCompanionHit(hit))">
 										<span class="flexicorp-kwic-left-inner"><span class="flexicorp-kwic-left-text flexicorp-kwic-xml" x-html="getActiveKwicParts(getAlignedCompanionHit(hit)).left"></span></span>
 									</template>
@@ -1187,7 +1208,12 @@
 										<span class="flexicorp-kwic-left-inner"><span class="flexicorp-kwic-left-text" x-text="getActiveKwicParts(getAlignedCompanionHit(hit)).left"></span></span>
 									</template>
 								</td>
-								<td class="flexicorp-kwic-match" x-show="searchHasAlignedHits()">
+								<td
+									class="flexicorp-kwic-match"
+									x-show="searchHasAlignedHits()"
+									x-bind:tid="getAlignedCompanionHit(hit) ? (getHitDocCid(getAlignedCompanionHit(hit)) || '') : ''"
+									x-on:mouseenter="window.tid = getAlignedCompanionHit(hit) ? (getHitDocCid(getAlignedCompanionHit(hit)) || '') : window.tid"
+								>
 									<template x-if="getAlignedCompanionHit(hit) && kwicCellIsXml(getAlignedCompanionHit(hit))">
 										<div class="flexicorp-kwic-match-xml" x-html="getActiveKwicParts(getAlignedCompanionHit(hit)).match"></div>
 									</template>
@@ -1195,7 +1221,12 @@
 										<span class="flexicorp-kwic-match-text" x-text="getActiveKwicParts(getAlignedCompanionHit(hit)).match"></span>
 									</template>
 								</td>
-								<td class="flexicorp-kwic-right" x-show="searchHasAlignedHits()">
+								<td
+									class="flexicorp-kwic-right"
+									x-show="searchHasAlignedHits()"
+									x-bind:tid="getAlignedCompanionHit(hit) ? (getHitDocCid(getAlignedCompanionHit(hit)) || '') : ''"
+									x-on:mouseenter="window.tid = getAlignedCompanionHit(hit) ? (getHitDocCid(getAlignedCompanionHit(hit)) || '') : window.tid"
+								>
 									<template x-if="getAlignedCompanionHit(hit) && kwicCellIsXml(getAlignedCompanionHit(hit))">
 										<span class="flexicorp-kwic-right-inner"><span class="flexicorp-kwic-right-text flexicorp-kwic-xml" x-html="getActiveKwicParts(getAlignedCompanionHit(hit)).right"></span></span>
 									</template>

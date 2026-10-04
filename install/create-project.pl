@@ -20,7 +20,9 @@
 #                      (default name "site") that opens on the corpus list (action=fqs) and
 #                      has an About page for the hosting institution, plus <teitok>/index.php
 #                      forwarding to it (only when that file does not exist yet), so
-#                      visitors land there and never in the shared project
+#                      visitors land there and never in the shared project; visitors get no
+#                      corpus functions there (settings site/@nocorpus, Sources/startup.php)
+#   --no-about         site project without the About page
 #
 # Like TEITOK's "Create new project" (shared admin): index.php from the TEITOK
 # checkout, Resources/settings.xml from the shared project's defaultsettings.xml,
@@ -38,7 +40,7 @@ my %o = (
 	sentences => 500,
 	conllu    => 'https://raw.githubusercontent.com/UniversalDependencies/UD_English-EWT/master/en_ewt-ud-test.conllu',
 );
-GetOptions( \%o, 'name=s', 'title=s', 'demo', 'conllu=s', 'sentences=i', 'shared=s', 'web-user=s', 'teitok-root=s', 'no-index', 'site', 'help|h' ) or exit 2;
+GetOptions( \%o, 'name=s', 'title=s', 'demo', 'conllu=s', 'sentences=i', 'shared=s', 'web-user=s', 'teitok-root=s', 'no-index', 'site', 'no-about', 'help|h' ) or exit 2;
 use Encode qw(decode_utf8);
 for my $k (qw(title name)) { $o{$k} = decode_utf8( $o{$k} ) if defined $o{$k}; }    # files are written as UTF-8
 if ( $o{help} ) { open my $me, '<', $0; while (<$me>) { next if /^#!/; last unless /^#/; s/^# ?//; print; } exit 0; }
@@ -260,32 +262,86 @@ exit 0;
 
 # ── the site project (public start page) ────────────────────────────────────
 sub site_project {
-	make_path( "$dir/Resources", "$dir/Pages" );
+	make_path( "$dir/Resources", "$dir/Pages", "$dir/Sources" );
 	copy( "$tt/projects/default-shared/index.php", "$dir/index.php" ) or die "cannot copy index.php from $tt/projects/default-shared: $!\n";
 	my $t = xe($title);
+	my $about = !$o{'no-about'};
+	my $aboutitem = $about ? qq(\n\t\t\t<item key="about" display="About"/>) : '';
 	write_file( "$dir/Resources/settings.xml", <<"X" );
 <?xml version="1.0"?>
 <ttsettings>
 	<!-- The public start page of this TEITOK server (written by create-project.pl, option site).
-	     Not a corpus: corpora are projects of their own, server-wide settings and admin
+	     Not a corpus: corpora are projects of their own; server-wide settings and admin
 	     tools are in the shared project, which visitors are not sent to. -->
-	<menu>
-		<itemlist>
-			<item key="fqs" display="Corpora"/>
-			<item key="about" display="About"/>
-		</itemlist>
-	</menu>
+
+	<!-- open on the list of available corpora (fqs.php) -->
 	<defaults home="fqs">
 		<title display="$t"/>
 		<base foldername="$name"/>
 	</defaults>
+
+	<!-- Definition of the items to be displayed in the navigation menu -->
+	<menu title="Corpora">
+		<itemlist>
+			<item key="fqs" display="Corpora"/>$aboutitem
+		</itemlist>
+	</menu>
+
+	<!-- no corpus functions here: visitors only get the corpus list, the pages in Pages/
+	     (About, ...), login and logout; other actions show the corpus list (Sources/startup.php).
+	     Logged-in users are not restricted. Extra actions: allow="action1,action2". -->
+	<site nocorpus="1" allow=""/>
 </ttsettings>
 X
-	write_file( "$dir/Pages/about.html", "<h1>About</h1>\n\n<p>These corpora are hosted by <i>(your institution)</i>.</p>\n<p><i>(Edit this page: $dir/Pages/about.html, or log in and use the page editor.)</i></p>\n" );
+	write_file( "$dir/Sources/startup.php", <<'PHP' );
+<?php
+	// Site project (written by create-project.pl, option site): with site/@nocorpus, visitors
+	// only get the corpus list (action=fqs), this project's own pages (Pages/<action>.html or
+	// .md), login and logout; any other action (corpus search, documents, ...) shows the corpus
+	// list instead. Logged-in users (admins editing pages or settings) are not restricted.
+	// TEITOK runs this from settings.php, before it picks the action.
+	if ( function_exists('getset') && getset('site/nocorpus') ) {
+		$tt_site_logged_in = false;
+		if ( isset($_SESSION) && is_array($_SESSION) ) {
+			foreach ( $_SESSION as $tt_k => $tt_v ) {
+				if ( strpos((string) $tt_k, 'teitok-') === 0 && is_array($tt_v) && !empty($tt_v['email']) ) { $tt_site_logged_in = true; break; }
+			}
+		}
+		if ( !$tt_site_logged_in ) {
+			$tt_a = (string) ( $_GET['action'] ?? $_GET['page'] ?? '' );
+			if ( $tt_a === '' && !empty($_SERVER['PATH_INFO']) && preg_match('/\/([^.\/]+)$/', $_SERVER['PATH_INFO'], $tt_m) ) $tt_a = $tt_m[1];
+			$tt_allowed = array_merge( array( '', 'index', 'main', 'home', 'fqs', 'login', 'logout', 'notfound' ),
+				array_filter( array_map( 'trim', explode( ',', (string) getset('site/allow') ) ) ) );
+			$tt_page = preg_match('/^[A-Za-z0-9_-]+$/', $tt_a) && ( glob("Pages/$tt_a.*") || glob("Pages/$tt_a-*.*") );
+			if ( !in_array( $tt_a, $tt_allowed, true ) && !$tt_page ) {
+				$_GET['action'] = 'fqs';
+				unset( $_GET['page'], $_GET['cid'] );
+			}
+		}
+	}
+?>
+PHP
+	if ($about) {
+		write_file( "$dir/Pages/about.html", "<h1>About</h1>\n\n<p>These corpora are hosted by <i>(your institution)</i>.</p>\n<p><i>(Edit this page: $dir/Pages/about.html, or log in and use the page editor.)</i></p>\n" );
+	}
 	system( 'chown', '-R', $webu, $dir );
-	print "Created the site project: $dir (start page: the corpus list; About: Pages/about.html)\n";
+	# the shared project's home page: tell visitors who end up there where to go
+	my $sh = "$shared/Pages/home.html";
+	my $stock = read_file("$tt/projects/default-shared/Pages/home.html");
+	my $cur = read_file($sh);
+	my $siteurl = ( $root =~ m{/teitok$} ? '/teitok/' : "/$name/" );
+	if ( $cur eq '' || $cur eq $stock || $cur =~ /^<h1>TEITOK Server<\/h1>/ ) {
+		make_path("$shared/Pages");
+		copy( $sh, "$sh.before-site" ) if $cur ne '' && !-e "$sh.before-site";
+		write_file( $sh, "<h1>TEITOK administration</h1>\n\n<p>This is the TEITOK administration environment, only intended for corpus administrators.\nIf you ended up here by accident, please visit <a href='$siteurl'>$siteurl</a>.</p>\n" );
+		system( 'chown', $webu, $sh );
+		print "Shared project home page: points visitors to $siteurl\n";
+	} else {
+		print "Left $sh as it is (it was edited); it could say: visitors, please go to $siteurl\n";
+	}
+	print "Created the site project: $dir (start page: the corpus list" . ( $about ? "; About: Pages/about.html" : '' ) . "; no corpus functions for visitors)\n";
 	my $fw = "$root/index.php";
-	my $want = "<?php\n\t// Visitors of the TEITOK root land in the site project (written by create-project.pl --site);\n\t// the shared project is for server-wide settings and administration only.\n\tchdir(__DIR__ . \"/$name\");\n\tinclude(__DIR__ . \"/$name/index.php\");\n?>\n";
+	my $want = "<?php\n\t// Visitors of the TEITOK root land in the site project (written by create-project.pl --site);\n\t// the shared project is for server-wide settings and administration only.\n\t\$foldername = \"$name\";    // same session and settings as when opened as /$name/\n\tchdir(__DIR__ . \"/$name\");\n\tinclude(__DIR__ . \"/$name/index.php\");\n?>\n";
 	if ( !-e $fw ) {
 		write_file( $fw, $want );
 		system( 'chown', $webu, $fw );

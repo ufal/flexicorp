@@ -1,6 +1,7 @@
 <?php
 
-	$maintext .= "<h1>Available Corpora</h1>";
+	// the corpus list (no act) writes its own, editable, heading
+	if ( $act == "admin" || $act == "addcorpus" || $act == "edit" ) $maintext .= "<h1>{%Available Corpora}</h1>";
 
 	if ( !function_exists("getBaseUrl") ) {
 		function getBaseUrl() {
@@ -87,6 +88,18 @@
 			$languages = tt_fqs_detect_project_languages( $projectRoot );
 			if ( !empty( $languages ) ) {
 				$settings['languages'] = $languages;
+			}
+			// the corpus description the project wrote (Pages/description.html), so that
+			// corpus lists elsewhere (FCS, KonText, other servers) can show it too
+			foreach ( array( 'description.html', 'description-en.html', 'description.md' ) as $df ) {
+				$dp = $projectRoot . DIRECTORY_SEPARATOR . 'Pages' . DIRECTORY_SEPARATOR . $df;
+				if ( ! is_file( $dp ) ) continue;
+				$dt = html_entity_decode( strip_tags( (string) file_get_contents( $dp ) ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+				$dt = trim( preg_replace( '/\s+/u', ' ', $dt ) );
+				if ( $dt !== '' ) {
+					$settings['description'] = $dt;
+					break;
+				}
 			}
 			$uiLanguages = tt_fqs_detect_interface_languages( $projectRoot );
 			if ( !empty( $uiLanguages ) ) {
@@ -987,13 +1000,18 @@
 
 		$selectedFacets = tt_fqs_selected_facets();
 		$qSearch = isset( $_GET['q'] ) ? trim( (string) $_GET['q'] ) : '';
+		$iface = isset( $_GET['iface'] ) ? strtolower( preg_replace( '/[^a-z]/i', '', (string) $_GET['iface'] ) ) : '';
 		$role = ( ! empty( $username ) ) ? 'user' : 'visitor';
 		if ( isset( $user['permissions'] ) && $user['permissions'] === 'admin' ) {
 			$role = 'admin';
 		}
-		// Admins see the full FQS catalogue here (this module); visitors only TEITOK-openable.
+		// Admins see the full FQS catalogue here (this module); visitors only TEITOK-openable,
+		// unless the installation lists the corpora of every interface (corpuslist="all").
 		// Catalog edits belong in action=fqsadmin, not this list.
 		$showAllFqs = ( $role === 'admin' );
+		$listAll = function_exists( 'getset' ) && strtolower( trim( (string) getset( 'flexicorp/corpuslist', '' ) ) ) === 'all';
+		$searchFrom = function_exists( 'getset' ) ? (int) getset( 'flexicorp/searchfrom', 8 ) : 8;
+		if ( $searchFrom < 1 ) $searchFrom = 8;
 
 		$corplist = array();
 		$facetDict = array();
@@ -1005,7 +1023,7 @@
 			'view' => 'browse',
 			'request_role' => $role,
 		);
-		if ( ! $showAllFqs ) {
+		if ( ! $showAllFqs && ! $listAll ) {
 			$qs['frontend'] = 'teitok';
 		}
 		if ( $qSearch !== '' ) $qs['q'] = $qSearch;
@@ -1014,7 +1032,7 @@
 			$listUrl .= '&facet=' . rawurlencode( $f );
 		}
 		$labelsQs = array( 'request_role' => $role );
-		if ( ! $showAllFqs ) {
+		if ( ! $showAllFqs && ! $listAll ) {
 			$labelsQs['frontend'] = 'teitok';
 		}
 		$labelsUrl = $base . '/labels?' . http_build_query( $labelsQs );
@@ -1045,7 +1063,7 @@
 			}
 			foreach ( $rows as $row ) {
 				if ( ! is_array( $row ) ) continue;
-				if ( ! $showAllFqs && empty( $GLOBALS['wewanttoseemore'] )
+				if ( ! $showAllFqs && ! $listAll && empty( $GLOBALS['wewanttoseemore'] )
 					&& ! tt_fqs_row_is_teitok_listable( $row ) ) {
 					continue;
 				}
@@ -1057,18 +1075,24 @@
 			}
 		}
 
-		// Split: main table = TEITOK-openable (same as visitors); admin sees other FQS below.
-		$teitokRows = array();
+		// The public list: TEITOK projects, or with corpuslist="all" every corpus FQS lets
+		// this user see. Admins additionally get the other catalogue rows in a table below.
+		$publicRows = array();
 		$otherRows = array();
 		foreach ( $corplist as $corp ) {
 			if ( is_object( $corp ) ) $corp = (array) json_decode( json_encode( $corp ), true );
 			if ( ! is_array( $corp ) ) continue;
-			if ( tt_fqs_row_is_teitok_listable( $corp ) ) {
-				$teitokRows[] = $corp;
+			if ( $listAll || tt_fqs_row_is_teitok_listable( $corp ) ) {
+				$publicRows[] = $corp;
 			} elseif ( $showAllFqs || ! empty( $GLOBALS['wewanttoseemore'] ) ) {
 				$otherRows[] = $corp;
 			}
 		}
+		usort( $publicRows, function ( $a, $b ) {
+			$la = isset( $a['label'] ) ? (string) $a['label'] : ( isset( $a['id'] ) ? (string) $a['id'] : '' );
+			$lb = isset( $b['label'] ) ? (string) $b['label'] : ( isset( $b['id'] ) ? (string) $b['id'] : '' );
+			return strcasecmp( $la, $lb );
+		} );
 
 		if ( ! function_exists( 'tt_fqs_render_corpus_table' ) ) {
 			/**
@@ -1164,64 +1188,626 @@
 			}
 		}
 
-		// Facet form — plain markup so the host TEITOK skin styles it.
-		$self = 'index.php?action=' . rawurlencode( (string) $action );
-		$maintext .= '<p>TEITOK corpora from FQS'
-			. ( $listSource !== '' ? ' <small>(' . htmlspecialchars( $listSource, ENT_QUOTES, 'UTF-8' ) . ')</small>' : '' )
-			. '.';
-		if ( $showAllFqs && function_exists( 'getset' ) && trim( (string) getset( 'flexicorp/fqs_admin_users', '' ) ) !== '' ) {
-			$maintext .= ' Catalogue edits: <a href="index.php?action=fqsadmin">fqsadmin</a>.';
-		}
-		$maintext .= '</p>';
+		/* ---- The public corpus list ------------------------------------------------
+		 *
+		 * Plain HTML (h1/h2, ul/li, p, a, a GET form) with class names only, so that the
+		 * TEITOK skin of the installation (templates/main.tpl and its CSS) decides how it looks.
+		 * The few default rules below use :where(), which has no specificity, so any rule in
+		 * the skin overrides them; only the list reset (no bullets, no indent) is a plain
+		 * ul.corpuslist rule, to win over a skin's general ul rules.
+		 *
+		 * Texts the installation can edit (TEITOK pages, per language like other pages:
+		 * corpuslist-cs.html, ...; looked for in the project, then in shared/Pages):
+		 *   Pages/corpuslist.html         replaces the default heading and introduction
+		 *   Pages/corpuslist-footer.html  shown below the list
+		 *
+		 * Settings (<flexicorp .../> in the settings of the project that shows the list):
+		 *   corpuslist="all"   list every corpus in FQS this user may see, also those served
+		 *                      by KonText, CQPweb, Korp or only through FCS; the default
+		 *                      ("teitok") lists only TEITOK projects
+		 *   searchfrom="8"     show the search box and filters from this many corpora on
+		 *
+		 * The description of a corpus is, in this order: Pages/description.html of the
+		 * project (per language, like other pages), the description in the FQS catalogue,
+		 * the first paragraph of the project's home page, or else a description put
+		 * together from the project itself (documents, tokens, annotation, metadata).
+		 */
 
-		$maintext .= "<form method='get' action='index.php'>";
-		$maintext .= "<input type='hidden' name='action' value='" . htmlspecialchars( (string) $action, ENT_QUOTES, 'UTF-8' ) . "' />";
-		$maintext .= '<p><label>Search <input type="search" name="q" value="'
-			. htmlspecialchars( $qSearch, ENT_QUOTES, 'UTF-8' ) . '" /></label></p>';
-
-		$groups = array(
-			'lang' => 'Language',
-			'feature' => 'Features',
-			'genre' => 'Genre',
-			'other' => 'Other',
-		);
-		foreach ( $groups as $gid => $glabel ) {
-			if ( empty( $facetDict[ $gid ] ) || ! is_array( $facetDict[ $gid ] ) ) continue;
-			$maintext .= '<fieldset><legend>' . htmlspecialchars( $glabel, ENT_QUOTES, 'UTF-8' ) . '</legend><p>';
-			foreach ( $facetDict[ $gid ] as $item ) {
-				if ( ! is_array( $item ) ) continue;
-				$val = isset( $item['value'] ) ? (string) $item['value'] : '';
-				if ( $val === '' ) continue;
-				$token = $gid . ':' . $val;
-				$cnt = isset( $item['count'] ) ? (int) $item['count'] : 0;
-				$chk = in_array( $token, $selectedFacets, true ) ? " checked='checked'" : '';
-				$maintext .= '<label><input type="checkbox" name="facet[]" value="'
-					. htmlspecialchars( $token, ENT_QUOTES, 'UTF-8' ) . '"' . $chk . ' /> '
-					. htmlspecialchars( $val, ENT_QUOTES, 'UTF-8' )
-					. ( $cnt ? ' <small>(' . $cnt . ')</small>' : '' )
-					. '</label> ';
+		if ( ! function_exists( 'tt_fqs_plain_text' ) ) {
+			function tt_fqs_plain_text( $html ) {
+				$t = preg_replace( '/<(script|style)[^>]*>.*?<\/\1>/si', ' ', (string) $html );
+				$t = html_entity_decode( strip_tags( $t ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+				return trim( preg_replace( '/\s+/u', ' ', $t ) );
 			}
-			$maintext .= '</p></fieldset>';
 		}
-		$maintext .= '<p><input type="submit" value="Filter" /> '
-			. "<a href='" . htmlspecialchars( $self, ENT_QUOTES, 'UTF-8' ) . "'>Clear</a></p>";
-		$maintext .= '</form>';
+
+		if ( ! function_exists( 'tt_fqs_shorten' ) ) {
+			/** Cut a plain text at a sentence (or else word) boundary near $max characters. */
+			function tt_fqs_shorten( $text, $max = 320 ) {
+				if ( mb_strlen( $text, 'UTF-8' ) <= $max ) return $text;
+				$cut = mb_substr( $text, 0, $max, 'UTF-8' );
+				if ( preg_match( '/^(.{120,}[.!?])\s/su', $cut, $m ) ) return $m[1];
+				$sp = mb_strrpos( $cut, ' ', 0, 'UTF-8' );
+				if ( $sp !== false && $sp > 80 ) $cut = mb_substr( $cut, 0, $sp, 'UTF-8' );
+				return rtrim( $cut, " ,;:-" ) . '…';
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_number' ) ) {
+			function tt_fqs_number( $n ) {
+				$n = (float) $n;
+				if ( $n >= 1e9 ) return rtrim( rtrim( number_format( $n / 1e9, 1 ), '0' ), '.' ) . ' {%billion}';
+				if ( $n >= 1e7 ) return rtrim( rtrim( number_format( $n / 1e6, 1 ), '0' ), '.' ) . ' {%million}';
+				return number_format( $n );
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_tr' ) ) {
+			/** A display text from a settings file as a TEITOK translation key: {%Lemma}. */
+			function tt_fqs_tr( $display ) {
+				$d = trim( preg_replace( '/\{%(.*?)\}/', '$1', (string) $display ) );
+				return $d === '' ? '' : '{%' . htmlspecialchars( $d, ENT_QUOTES, 'UTF-8' ) . '}';
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_language_name' ) ) {
+			function tt_fqs_language_name( $code ) {
+				global $lang;
+				$code = trim( (string) $code );
+				if ( $code !== '' && class_exists( 'Locale' ) ) {
+					$name = Locale::getDisplayLanguage( $code, $lang ? $lang : 'en' );
+					if ( is_string( $name ) && $name !== '' && strcasecmp( $name, $code ) !== 0 ) {
+						return mb_strtoupper( mb_substr( $name, 0, 1, 'UTF-8' ), 'UTF-8' ) . mb_substr( $name, 1, null, 'UTF-8' );
+					}
+				}
+				// without PHP's intl extension: the more common languages, in English
+				static $names = array( 'ar' => 'Arabic', 'bg' => 'Bulgarian', 'ca' => 'Catalan', 'cs' => 'Czech',
+					'cy' => 'Welsh', 'da' => 'Danish', 'de' => 'German', 'el' => 'Greek', 'en' => 'English',
+					'es' => 'Spanish', 'et' => 'Estonian', 'eu' => 'Basque', 'fa' => 'Persian', 'fi' => 'Finnish',
+					'fr' => 'French', 'ga' => 'Irish', 'gl' => 'Galician', 'grc' => 'Ancient Greek', 'he' => 'Hebrew',
+					'hi' => 'Hindi', 'hr' => 'Croatian', 'hu' => 'Hungarian', 'hy' => 'Armenian', 'is' => 'Icelandic',
+					'it' => 'Italian', 'ja' => 'Japanese', 'ka' => 'Georgian', 'ko' => 'Korean', 'la' => 'Latin',
+					'lt' => 'Lithuanian', 'lv' => 'Latvian', 'mt' => 'Maltese', 'nl' => 'Dutch', 'no' => 'Norwegian',
+					'pl' => 'Polish', 'pt' => 'Portuguese', 'ro' => 'Romanian', 'ru' => 'Russian', 'sk' => 'Slovak',
+					'sl' => 'Slovenian', 'sq' => 'Albanian', 'sr' => 'Serbian', 'sv' => 'Swedish', 'ta' => 'Tamil',
+					'tr' => 'Turkish', 'uk' => 'Ukrainian', 'ur' => 'Urdu', 'vi' => 'Vietnamese', 'zh' => 'Chinese' );
+				$lc = strtolower( $code );
+				return isset( $names[ $lc ] ) ? '{%' . $names[ $lc ] . '}' : $code;
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_row_languages' ) ) {
+			function tt_fqs_row_languages( array $corp ) {
+				$langs = array();
+				if ( ! empty( $corp['facets']['lang'] ) && is_array( $corp['facets']['lang'] ) ) $langs = $corp['facets']['lang'];
+				if ( empty( $langs ) && isset( $corp['capabilities']['fcs']['languages'] ) && is_array( $corp['capabilities']['fcs']['languages'] ) ) $langs = $corp['capabilities']['fcs']['languages'];
+				if ( empty( $langs ) && isset( $corp['settings']['languages'] ) && is_array( $corp['settings']['languages'] ) ) $langs = $corp['settings']['languages'];
+				$out = array();
+				foreach ( $langs as $lc ) {
+					$lc = strtolower( trim( (string) $lc ) );
+					if ( $lc === '' || in_array( $lc, array( 'und', 'unk', 'unknown', 'zxx', 'mul' ), true ) ) continue;
+					$out[ $lc ] = $lc;
+				}
+				return array_values( $out );
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_local_project_dir' ) ) {
+			/**
+			 * The folder of a TEITOK project on this server, from its project_url
+			 * (/teitok/name/index.php or http://host/teitok/name/), or false.
+			 */
+			function tt_fqs_local_project_dir( $url ) {
+				$url = trim( (string) $url );
+				if ( $url === '' ) return false;
+				$path = (string) parse_url( $url, PHP_URL_PATH );
+				$host = (string) parse_url( $url, PHP_URL_HOST );
+				if ( $host !== '' && isset( $_SERVER['HTTP_HOST'] )
+					&& strcasecmp( preg_replace( '/:\d+$/', '', $host ), preg_replace( '/:\d+$/', '', (string) $_SERVER['HTTP_HOST'] ) ) !== 0 ) {
+					return false;
+				}
+				$path = preg_replace( '#/(index\.php)?$#', '', $path );
+				if ( $path === '' || strpos( $path, '..' ) !== false ) return false;
+				$cands = array();
+				if ( ! empty( $_SERVER['DOCUMENT_ROOT'] ) ) $cands[] = rtrim( $_SERVER['DOCUMENT_ROOT'], '/' ) . $path;
+				// projects are usually siblings of the project showing the list (behind a
+				// proxy the URL path need not match the document root)
+				$cwd = getcwd();
+				if ( $cwd !== false ) $cands[] = dirname( $cwd ) . '/' . basename( $path );
+				foreach ( $cands as $d ) {
+					if ( is_file( "$d/index.php" ) && is_dir( "$d/Resources" ) ) return realpath( $d );
+				}
+				return false;
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_project_page' ) ) {
+			/** A page of another project, in the current language if there is one. */
+			function tt_fqs_project_page( $dir, $id ) {
+				global $lang;
+				$deflang = function_exists( 'getset' ) ? getset( 'languages/default', 'en' ) : 'en';
+				foreach ( array_unique( array( "$id-$lang", $id, "$id-$deflang" ) ) as $p ) {
+					if ( is_file( "$dir/Pages/$p.html" ) ) return array( (string) file_get_contents( "$dir/Pages/$p.html" ), "$dir/Pages/$p.html" );
+					if ( is_file( "$dir/Pages/$p.md" ) ) {
+						$md = (string) file_get_contents( "$dir/Pages/$p.md" );
+						return array( function_exists( 'md2html' ) ? md2html( $md ) : nl2br( htmlspecialchars( $md ) ), "$dir/Pages/$p.md" );
+					}
+				}
+				return array( '', '' );
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_count_documents' ) ) {
+			/** XML files under xmlfiles/, cached in tmp/ of the project showing the list. */
+			function tt_fqs_count_documents( $dir ) {
+				static $cache = null;
+				$cfile = 'tmp/fqs-corpuslist-cache.json';
+				if ( $cache === null ) {
+					$cache = is_readable( $cfile ) ? json_decode( (string) file_get_contents( $cfile ), true ) : array();
+					if ( ! is_array( $cache ) ) $cache = array();
+				}
+				if ( ! is_dir( "$dir/xmlfiles" ) ) return null;
+				$sig = @filemtime( "$dir/xmlfiles" ) . '/' . @filemtime( "$dir/pando/corpus.info" ) . '/' . @filemtime( "$dir/cqp" );
+				if ( isset( $cache[ $dir ] ) && $cache[ $dir ]['sig'] === $sig ) return $cache[ $dir ]['documents'];
+				$n = 0;
+				try {
+					$it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( "$dir/xmlfiles", FilesystemIterator::SKIP_DOTS ) );
+					foreach ( $it as $f ) {
+						if ( substr( $f->getFilename(), -4 ) === '.xml' ) $n++;
+					}
+				} catch ( Exception $e ) {
+					return null;
+				}
+				$cache[ $dir ] = array( 'sig' => $sig, 'documents' => $n );
+				if ( is_dir( 'tmp' ) || @mkdir( 'tmp' ) ) {
+					@file_put_contents( $cfile, json_encode( $cache ) );
+				}
+				return $n;
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_project_summary' ) ) {
+			/**
+			 * What a local TEITOK project says about itself: its description (and where it
+			 * came from), number of documents, annotation layers, metadata fields, extra
+			 * material, and the menu actions for searching and for the documents.
+			 */
+			function tt_fqs_project_summary( $dir ) {
+				$sum = array( 'description' => '', 'source' => '', 'documents' => null,
+					'annotation' => array(), 'metadata' => array(), 'material' => array(),
+					'search' => '', 'docs' => '' );
+
+				list( $html, $file ) = tt_fqs_project_page( $dir, 'description' );
+				if ( trim( tt_fqs_plain_text( $html ) ) !== '' ) {
+					$sum['description'] = trim( strip_tags( $html, '<a><em><i><b><strong><br>' ) );
+					$sum['source'] = 'page';
+				} else {
+					list( $home, $file ) = tt_fqs_project_page( $dir, 'home' );
+					$home = preg_replace( '/<h1[^>]*>.*?<\/h1>/si', '', $home );
+					$para = preg_match( '/<p[^>]*>(.*?)(<\/p>|<p[\s>]|$)/si', $home, $m ) ? $m[1] : $home;
+					$text = tt_fqs_plain_text( $para );
+					// the texts TEITOK and the installer put on a new project's home page
+					$stock = '/^(New TEITOK project|This is a new TEITOK project|Welcome to (your|the) new)|please check (in )?back later|created by the installer/i';
+					// a bare URL reads badly in a short description: keep only its host
+					$text = preg_replace( '#\bhttps?://([^/\s]+)[^\s;,)]*#i', '$1', $text );
+					if ( $text !== '' && ! preg_match( $stock, $text ) ) {
+						$sum['description'] = htmlspecialchars( tt_fqs_shorten( $text ), ENT_QUOTES, 'UTF-8' );
+						$sum['source'] = 'home';
+					}
+				}
+
+				$sum['documents'] = tt_fqs_count_documents( $dir );
+
+				$xml = is_readable( "$dir/Resources/settings.xml" ) ? @simplexml_load_file( "$dir/Resources/settings.xml" ) : false;
+				if ( $xml ) {
+					$seen = array();
+					$add = function ( &$list, $node, $skip = array() ) use ( &$seen ) {
+						$key = (string) $node['key'];
+						if ( $key === '' || in_array( $key, $skip, true ) || isset( $seen[ $key ] ) ) return;
+						if ( (string) $node['admin'] === '1' || (string) $node['noshow'] === '1' ) return;
+						$seen[ $key ] = 1;
+						$d = (string) $node['display'];
+						$list[] = $d !== '' ? $d : $key;
+					};
+					// annotation: the token attributes of the XML files, else those of the index
+					foreach ( $xml->xpath( '/ttsettings/xmlfile/pattributes/forms/item' ) as $it ) $add( $sum['annotation'], $it, array( 'form', 'pform' ) );
+					foreach ( $xml->xpath( '/ttsettings/xmlfile/pattributes/tags/item' ) as $it ) $add( $sum['annotation'], $it, array( 'head', 'ohead', 'id', 'ord' ) );
+					if ( empty( $sum['annotation'] ) ) {
+						foreach ( $xml->xpath( '/ttsettings/cqp/pattributes/item' ) as $it ) $add( $sum['annotation'], $it, array( 'word', 'form', 'pform', 'id', 'head', 'ohead', 'ord' ) );
+					}
+					// metadata: the document-level fields of the corpus index
+					foreach ( $xml->xpath( '/ttsettings/cqp/sattributes/item[@level="text" or @key="text"]/item' ) as $it ) {
+						$add( $sum['metadata'], $it, array( 'id' ) );
+					}
+					// search and documents: what the project's own menu offers
+					$menu = array();
+					foreach ( $xml->xpath( '/ttsettings/menu//item' ) as $it ) $menu[] = (string) $it['key'];
+					foreach ( array( 'flexicorp', 'cqp', 'multisearch', 'search', 'fwsearch' ) as $k ) {
+						if ( in_array( $k, $menu, true ) ) { $sum['search'] = $k; break; }
+					}
+					foreach ( array( 'browser', 'docsearch', 'files' ) as $k ) {
+						if ( in_array( $k, $menu, true ) ) { $sum['docs'] = $k; break; }
+					}
+				}
+				if ( is_dir( "$dir/Facsimile" ) && count( (array) @scandir( "$dir/Facsimile" ) ) > 2 ) $sum['material'][] = 'Facsimile images';
+				if ( is_dir( "$dir/Audio" ) && count( (array) @scandir( "$dir/Audio" ) ) > 2 ) $sum['material'][] = 'Audio';
+				if ( is_dir( "$dir/Video" ) && count( (array) @scandir( "$dir/Video" ) ) > 2 ) $sum['material'][] = 'Video';
+				return $sum;
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_join' ) ) {
+			function tt_fqs_join( array $items ) {
+				$items = array_values( array_filter( array_map( 'tt_fqs_tr', $items ) ) );
+				if ( count( $items ) < 2 ) return implode( '', $items );
+				$last = array_pop( $items );
+				return implode( ', ', $items ) . ' {%and} ' . $last;
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_row_interface' ) ) {
+			/**
+			 * Where a catalogue row opens: array( kind, label, url ). TEITOK projects first,
+			 * then KonText, CQPweb, Korp, NoSketch Engine; else FCS only.
+			 */
+			function tt_fqs_row_interface( array $corp ) {
+				if ( tt_fqs_row_is_teitok_listable( $corp ) ) {
+					return array( 'teitok', 'TEITOK', tt_fqs_select_url( $corp ) );
+				}
+				$fe = isset( $corp['frontends'] ) && is_array( $corp['frontends'] ) ? $corp['frontends'] : array();
+				foreach ( array( 'kontext', 'cqpweb', 'korp', 'noske' ) as $want ) {
+					foreach ( $fe as $f ) {
+						if ( ! is_array( $f ) || ( isset( $f['kind'] ) ? $f['kind'] : '' ) !== $want || empty( $f['url'] ) ) continue;
+						$url = (string) $f['url'];
+						$c = isset( $f['corpus'] ) ? (string) $f['corpus'] : '';
+						if ( $want === 'kontext' && $c !== '' ) $url .= '/query?corpname=' . rawurlencode( $c );
+						return array( $want, isset( $f['label'] ) ? (string) $f['label'] : $want, $url );
+					}
+				}
+				$pref = isset( $corp['interface_preference'] ) ? strtolower( trim( (string) $corp['interface_preference'] ) ) : '';
+				$purl = isset( $corp['project_url'] ) ? trim( (string) $corp['project_url'] ) : '';
+				if ( $pref !== '' && $purl !== '' && $pref !== 'teitok' ) {
+					$labels = array( 'kontext' => 'KonText', 'cqpweb' => 'CQPweb', 'korp' => 'Korp', 'noske' => 'NoSketch Engine' );
+					return array( $pref, isset( $labels[ $pref ] ) ? $labels[ $pref ] : $pref, $purl );
+				}
+				return array( 'fcs', 'CLARIN FCS', '' );
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_render_corpus_item' ) ) {
+			function tt_fqs_render_corpus_item( array $corp, $showInterface ) {
+				global $username;
+				$id = isset( $corp['id'] ) ? (string) $corp['id'] : '';
+				$label = isset( $corp['label'] ) && trim( (string) $corp['label'] ) !== '' ? (string) $corp['label'] : $id;
+				list( $kind, $ifLabel, $url ) = tt_fqs_row_interface( $corp );
+				$h = function ( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); };
+
+				$dir = $kind === 'teitok' ? tt_fqs_local_project_dir( $url ) : false;
+				$sum = $dir ? tt_fqs_project_summary( $dir ) : null;
+				$base = $url;
+				if ( $base !== '' && substr( $base, -1 ) === '/' ) $base .= 'index.php';
+
+				$current = tt_fqs_corpus_is_current_project( $corp );
+				$out = '<li class="corpus corpus-' . $h( $kind ) . ( $current ? ' current' : '' ) . '"'
+					. ( $id !== '' ? ' id="corpus-' . $h( preg_replace( '/[^A-Za-z0-9_.-]/', '_', $id ) ) . '"' : '' ) . '>';
+
+				// name and languages
+				$out .= '<div class="corpus-head"><h2>' . ( $url !== '' ? '<a href="' . $h( $url ) . '">' . $h( $label ) . '</a>' : $h( $label ) ) . '</h2>';
+				$langs = array_map( 'tt_fqs_language_name', tt_fqs_row_languages( $corp ) );
+				if ( $langs ) {
+					$out .= '<p class="corpus-langs">';
+					foreach ( $langs as $i => $ln ) $out .= ( $i ? '<span class="corpus-sep">, </span>' : '' ) . '<span class="corpus-lang">' . $h( $ln ) . '</span>';
+					$out .= '</p>';
+				}
+				$out .= '</div>';
+
+				// description: project page > catalogue > home page > made from the project
+				$desc = '';
+				$auto = false;
+				if ( $sum && $sum['source'] === 'page' ) {
+					$desc = $sum['description'];
+				} elseif ( ! empty( $corp['description'] ) ) {
+					$desc = $h( tt_fqs_shorten( tt_fqs_plain_text( $corp['description'] ), 600 ) );
+				} elseif ( $sum && $sum['source'] === 'home' ) {
+					$desc = $sum['description'];
+					$auto = true;
+				}
+				$size = isset( $corp['corpus_size'] ) && is_numeric( $corp['corpus_size'] ) ? (float) $corp['corpus_size'] : null;
+				$docs = $sum ? $sum['documents'] : null;
+				if ( $desc === '' && $sum ) {
+					// nothing written about the corpus: say what is in it (the annotation and
+					// the size are shown below as tags and figures)
+					$auto = true;
+					if ( ! $docs && ! $size ) {
+						$desc = '{%There are no documents in this corpus yet.}';
+					} else {
+						$parts = array();
+						if ( $sum['metadata'] ) $parts[] = '{%Documents with metadata on} ' . tt_fqs_join( $sum['metadata'] );
+						if ( $sum['material'] ) $parts[] = ( $parts ? '{%with}' : '{%With}' ) . ' ' . tt_fqs_join( $sum['material'] );
+						if ( $parts ) $desc = implode( ', ', $parts ) . '.';
+					}
+				}
+				if ( $desc !== '' ) {
+					$out .= '<p class="corpus-description' . ( $auto ? ' corpus-description-auto' : '' ) . '">' . $desc;
+					if ( $auto && $username && $sum ) {
+						// the people who can write it see how to replace the automatic text
+						$out .= ' <span class="adminpart"><a href="' . $h( $base . '?action=pageedit&id=description' ) . '">{%write a description}</a></span>';
+					}
+					$out .= '</p>';
+				}
+
+				// tags: the annotation of a local project, else the catalogue's feature labels
+				$tags = array();
+				$empty = $sum && ! $docs && ! $size;   // annotation of an empty project is only its template
+				if ( $empty ) {
+				} elseif ( $sum && $sum['annotation'] ) {
+					foreach ( array_slice( $sum['annotation'], 0, 6 ) as $a ) $tags[] = tt_fqs_tr( $a );
+				} elseif ( ! empty( $corp['facets']['feature'] ) && is_array( $corp['facets']['feature'] ) ) {
+					foreach ( $corp['facets']['feature'] as $f ) $tags[] = tt_fqs_feature_name( $f );
+				}
+				if ( $sum && $sum['material'] ) foreach ( $sum['material'] as $m ) $tags[] = tt_fqs_tr( $m );
+				if ( ! empty( $corp['facets']['other'] ) && is_array( $corp['facets']['other'] ) && in_array( 'demo', $corp['facets']['other'], true ) ) {
+					$tags[] = '<span class="corpus-tag corpus-tag-demo">{%Demo}</span>';
+				}
+				if ( $tags ) {
+					$out .= '<p class="corpus-tags">';
+					foreach ( $tags as $i => $t ) {
+						$out .= ( $i ? '<span class="corpus-sep">, </span>' : '' ) . ( strpos( $t, '<span' ) === 0 ? $t : '<span class="corpus-tag">' . $t . '</span>' );
+					}
+					$out .= '</p>';
+				}
+
+				// figures and links, at the bottom of the card
+				$facts = array();
+				if ( $size ) $facts[] = '<span><b>' . tt_fqs_number( $size ) . '</b> {%tokens}</span>';
+				if ( $docs ) $facts[] = '<span><b>' . tt_fqs_number( $docs ) . '</b> ' . ( $docs == 1 ? '{%document}' : '{%documents}' ) . '</span>';
+				if ( $showInterface ) $facts[] = '<span class="corpus-interface">' . $h( $ifLabel ) . '</span>';
+
+				$links = array();
+				$icon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
+				if ( $kind === 'teitok' ) {
+					// the first link is the main one (a filled button in the default style)
+					if ( $sum && $sum['search'] !== '' ) $links[] = '<a class="corpus-main" href="' . $h( $base . '?action=' . $sum['search'] ) . '">' . $icon . '<span>{%Search}</span></a>';
+					if ( $sum && $sum['docs'] !== '' ) $links[] = '<a class="corpus-second" href="' . $h( $base . '?action=' . $sum['docs'] ) . '">{%Browse documents}</a>';
+					if ( $url !== '' ) $links[] = '<a class="' . ( $links ? 'corpus-more' : 'corpus-main' ) . '" href="' . $h( $url ) . '">' . ( $links ? '{%About}' : '<span>{%Open}</span>' ) . '</a>';
+				} elseif ( $url !== '' ) {
+					$links[] = '<a class="corpus-main" href="' . $h( $url ) . '"><span>{%Open in} ' . $h( $ifLabel ) . '</span></a>';
+				}
+				if ( $facts || $links ) {
+					$out .= '<div class="corpus-foot">';
+					if ( $facts ) $out .= '<p class="corpus-facts">' . implode( '<span class="corpus-sep"> · </span>', $facts ) . '</p>';
+					if ( $links ) $out .= '<p class="corpus-links">' . implode( ' ', $links ) . '</p>';
+					$out .= '</div>';
+				}
+				return $out . "</li>\n";
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_feature_name' ) ) {
+			/** The feature labels FQS's enrich sets, in words. */
+			function tt_fqs_feature_name( $val ) {
+				$names = array( 'deps' => 'Dependency syntax', 'audio' => 'Audio', 'video' => 'Video',
+					'facs' => 'Facsimile images', 'ner' => 'Named entities', 'aligned' => 'Parallel', 'parallel' => 'Parallel',
+					'lemma' => 'Lemmas', 'pos' => 'Parts of speech', 'morph' => 'Morphology', 'demo' => 'Demo' );
+				$k = strtolower( trim( (string) $val ) );
+				return isset( $names[ $k ] ) ? '{%' . $names[ $k ] . '}' : htmlspecialchars( (string) $val, ENT_QUOTES, 'UTF-8' );
+			}
+		}
+
+		// Heading and introduction: Pages/corpuslist.html of this project (or of shared),
+		// editable like any other TEITOK page; else a plain default.
+		global $getlangfile_lastfolder;
+		$intro = function_exists( 'getlangfile' ) ? getlangfile( 'corpuslist' ) : '';
+		if ( empty( $getlangfile_lastfolder ) ) {
+			$intro = '<h1>{%Available Corpora}</h1>' . $intro;
+		}
+
+		// Default look: cards, close to a designed landing page, but tied to the
+		// installation's own style:
+		// - fonts and the page heading are the installation's (htmlstyles.css); the accent
+		//   colour (buttons, language chips, selected filters) is its link colour, read by
+		//   the small script below;
+		// - all rules are scoped to .corpuslist-page, so the general rules of htmlstyles.css
+		//   (p, ul, li, h2, a) do not leak into the cards, while any rule in htmlstyles.css
+		//   that names these classes with a little more weight (body .corpuslist-page ...,
+		//   #main .corpus ...) wins;
+		// - and variables, for htmlstyles.css: --corpus-accent (else the link colour),
+		//   --corpus-bg, --corpus-border, --corpus-radius, --corpus-shadow, --corpus-title,
+		//   --corpus-text, --corpus-muted, --corpus-title-font, --corpus-font-size,
+		//   --corpuslist-min (card width), --corpuslist-gap.
+		// <flexicorp corpuslist_css="none"/> leaves all of it out: plain HTML for a style of its own.
+		$corpusCss = ! function_exists( 'getset' ) || getset( 'flexicorp/corpuslist_css', '' ) !== 'none';
+		if ( $corpusCss ) {
+			$P = '.corpuslist-page';
+			$maintext .= '<style>'
+				. "$P{--ca:var(--corpus-accent,var(--corpus-link,#0b5e63));--cb:var(--corpus-border,#dce2e8);"
+				. '--ct:var(--corpus-text,#3a4654);--cm:var(--corpus-muted,#5a6675);--cs:var(--corpus-title,#121a24);'
+				. 'font-size:var(--corpus-font-size,1rem);line-height:1.5;max-width:75em}'
+				. "$P .corpuslist-intro p{font-size:1.125em;line-height:1.55;color:var(--ct);max-width:46em;margin:.5em 0}"
+				. "$P p.corpus-summary{display:flex;flex-wrap:wrap;gap:.3em 1.5em;margin:1em 0 1.75em;font-size:.95em;color:var(--ct)}"
+				. "$P .corpus-summary b,$P .corpus-facts b{color:var(--cs);font-weight:600}"
+				. "$P .corpus-sep{display:none}"
+				// cards
+				. "$P ul.corpuslist{list-style:none;list-style-image:none;margin:0 0 2em;padding:0;display:grid;"
+				. 'grid-template-columns:repeat(auto-fill,minmax(min(100%,var(--corpuslist-min,20em)),1fr));gap:var(--corpuslist-gap,1.5em)}'
+				. "$P li.corpus{margin:0;padding:1.5em;display:flex;flex-direction:column;gap:1em;min-width:0;overflow-wrap:anywhere;"
+				. 'background:var(--corpus-bg,#fff);border:1px solid var(--cb);border-radius:var(--corpus-radius,12px);'
+				. 'box-shadow:var(--corpus-shadow,0 1px 2px rgba(16,24,40,.05),0 4px 14px rgba(16,24,40,.06))}'
+				. "$P li.corpus.current{border-color:var(--ca)}"
+				. "$P li.corpus p{margin:0;font-size:1em;font-family:inherit}"
+				. "$P .corpus-head{display:flex;justify-content:space-between;align-items:flex-start;gap:.75em}"
+				. "$P .corpus h2{margin:0;padding:0;border:0;width:auto;font-size:1.45em;line-height:1.25;font-weight:600;color:var(--cs);font-family:var(--corpus-title-font,inherit)}"
+				. "$P .corpus h2 a{color:var(--cs);text-decoration:none}"
+				. "$P .corpus h2 a:hover{color:var(--ca)}"
+				. "$P p.corpus-langs{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.3em;flex-shrink:0;max-width:50%}"
+				. "$P .corpus-lang{font-size:.8125em;font-weight:600;padding:.25em .75em;border-radius:999px;white-space:nowrap;"
+				. 'color:var(--ca);background:#eef2f4;background:color-mix(in srgb,var(--ca) 10%,#fff)}'
+				. "$P p.corpus-description{color:var(--ct);line-height:1.55}"
+				. "$P p.corpus-tags{display:flex;flex-wrap:wrap;gap:.5em}"
+				. "$P .corpus-tag{font-size:.8125em;padding:.2em .65em;border:1px solid var(--cb);border-radius:6px;color:var(--ct)}"
+				. "$P .corpus-tag-demo{background:#fff4e5;border-color:#f1d6ae;color:#7a4a0b}"
+				. "$P .corpus-foot{margin-top:auto;display:flex;flex-direction:column;gap:1em}"
+				. "$P p.corpus-facts{display:flex;flex-wrap:wrap;gap:.3em 1.5em;font-size:.875em;color:var(--cm);border-top:1px solid #edf0f3;padding-top:.9em}"
+				. "$P .corpus-interface{margin-left:auto}"
+				. "$P p.corpus-links{display:flex;flex-wrap:wrap;gap:.75em;align-items:center}"
+				. "$P .corpus-links a{display:inline-flex;align-items:center;gap:.5em;min-height:2.75em;padding:0 1.1em;box-sizing:border-box;"
+				. 'border:1px solid #c9d2db;border-radius:8px;font-size:.95em;font-weight:500;text-decoration:none;color:var(--cs);background:transparent}'
+				. "$P .corpus-links a:hover{border-color:var(--ca);color:var(--ca)}"
+				. "$P .corpus-links a.corpus-main{background:var(--ca);border-color:var(--ca);color:var(--corpus-button-text,#fff);font-weight:600}"
+				. "$P .corpus-links a.corpus-main:hover{filter:brightness(.9);color:var(--corpus-button-text,#fff)}"
+				. "$P .corpus-links a.corpus-more{border-color:transparent;padding:0 .4em;color:var(--ca)}"
+				. "$P .corpus-links a.corpus-more:hover{text-decoration:underline}"
+				// search and filters
+				. "$P form.corpusfilter{margin:0 0 1.75em;display:flex;flex-direction:column;gap:.75em}"
+				. "$P form.corpusfilter p{margin:0;display:flex;flex-wrap:wrap;gap:.6em;align-items:center}"
+				. "$P .corpusfilter label.corpusfilter-q{flex:1 1 22em;display:flex}"
+				. "$P .corpusfilter input[type=search]{flex:1;min-height:2.9em;padding:0 1em;box-sizing:border-box;border:1px solid #c9d2db;border-radius:8px;font:inherit;background:#fff}"
+				. "$P .corpusfilter input[type=submit]{min-height:2.9em;padding:0 1.3em;border:1px solid var(--ca);border-radius:8px;background:var(--ca);color:var(--corpus-button-text,#fff);font:inherit;font-weight:600;cursor:pointer}"
+				. "$P .corpusfilter fieldset{border:0;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:.5em;align-items:center}"
+				. "$P .corpusfilter legend{float:left;padding:0;margin-right:.5em;font-size:.875em;color:var(--cm)}"
+				. "$P .corpusfilter fieldset label{display:inline-flex;align-items:center;gap:.35em;padding:.3em .85em;border:1px solid #c9d2db;border-radius:999px;background:#fff;font-size:.875em;cursor:pointer}"
+				. "$P .corpusfilter fieldset label:has(input:checked){border-color:var(--ca);color:var(--ca);font-weight:600;background:color-mix(in srgb,var(--ca) 10%,#fff)}"
+				. "$P .corpusfilter fieldset input{margin:0}"
+				. "$P .corpus-vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}"
+				. "$P .corpuslist-footer{border-top:1px solid var(--cb);padding-top:1em;color:var(--cm);font-size:.9em}"
+				. '</style>';
+		}
+		$maintext .= "<div class='corpuslist-page'><div class='corpuslist-intro'>" . $intro . '</div>';
+
+
+		// Interfaces among the corpora (only with corpuslist="all"); the choice is only
+		// offered when there is more than one.
+		$ifaceKinds = array();
+		if ( $listAll ) {
+			foreach ( $publicRows as $corp ) {
+				list( $k, $l ) = tt_fqs_row_interface( $corp );
+				$ifaceKinds[ $k ] = $l;
+			}
+		}
+		$showInterface = count( $ifaceKinds ) > 1;
+		$listRows = $publicRows;
+		if ( $showInterface && $iface !== '' && isset( $ifaceKinds[ $iface ] ) ) {
+			$listRows = array_values( array_filter( $publicRows, function ( $c ) use ( $iface ) {
+				list( $k ) = tt_fqs_row_interface( $c );
+				return $k === $iface;
+			} ) );
+		} else {
+			$iface = '';
+		}
+
+		$filtering = ( $qSearch !== '' || $selectedFacets || $iface !== '' );
+		$total = count( $publicRows );
+
+		// Summary line, for more than one corpus
+		if ( ! $filtering && $total > 1 ) {
+			$tokens = 0;
+			$langset = array();
+			foreach ( $publicRows as $corp ) {
+				if ( isset( $corp['corpus_size'] ) && is_numeric( $corp['corpus_size'] ) ) $tokens += (float) $corp['corpus_size'];
+				foreach ( tt_fqs_row_languages( $corp ) as $lc ) $langset[ $lc ] = 1;
+			}
+			$bits = array( '<span><b>' . $total . '</b> {%corpora}</span>' );
+			if ( $tokens > 0 ) $bits[] = '<span><b>' . tt_fqs_number( $tokens ) . '</b> {%tokens}</span>';
+			if ( count( $langset ) > 1 ) $bits[] = '<span><b>' . count( $langset ) . '</b> {%languages}</span>';
+			$maintext .= '<p class="corpus-summary">' . implode( '<span class="corpus-sep"> · </span>', $bits ) . '</p>';
+		}
+
+		// Search and filters: only from $searchFrom corpora on (or while filtering), and a
+		// filter group only when it tells corpora apart.
+		if ( $filtering || $total >= $searchFrom ) {
+			$self = 'index.php?action=' . rawurlencode( (string) $action );
+			$maintext .= "<form method='get' action='index.php' class='corpusfilter'>";
+			$maintext .= "<input type='hidden' name='action' value='" . htmlspecialchars( (string) $action, ENT_QUOTES, 'UTF-8' ) . "' />";
+			$maintext .= '<p><label class="corpusfilter-q"><span class="corpus-vh">{%Find a corpus}</span>'
+				. '<input type="search" name="q" placeholder="{%Find a corpus by name}" value="'
+				. htmlspecialchars( $qSearch, ENT_QUOTES, 'UTF-8' ) . '" /></label> '
+				. '<input type="submit" value="{%Search}" />'
+				. ( $filtering ? " <a href='" . htmlspecialchars( $self, ENT_QUOTES, 'UTF-8' ) . "'>{%Show all}</a>" : '' )
+				. '</p>';
+			$groups = array(
+				'lang' => 'Language',
+				'feature' => 'Features',
+				'genre' => 'Genre',
+				'other' => 'Other',
+			);
+			foreach ( $groups as $gid => $glabel ) {
+				if ( empty( $facetDict[ $gid ] ) || ! is_array( $facetDict[ $gid ] ) ) continue;
+				$items = array();
+				foreach ( $facetDict[ $gid ] as $item ) {
+					if ( ! is_array( $item ) || ! isset( $item['value'] ) || (string) $item['value'] === '' ) continue;
+					$items[] = $item;
+				}
+				$selectedHere = false;
+				foreach ( $items as $item ) {
+					if ( in_array( $gid . ':' . $item['value'], $selectedFacets, true ) ) $selectedHere = true;
+				}
+				// a single value that every corpus has does not filter anything
+				if ( ! $selectedHere && ( count( $items ) === 0
+					|| ( count( $items ) === 1 && ( empty( $items[0]['count'] ) || (int) $items[0]['count'] >= $total ) ) ) ) {
+					continue;
+				}
+				$maintext .= '<fieldset><legend>{%' . $glabel . '}</legend>';
+				foreach ( $items as $item ) {
+					$val = (string) $item['value'];
+					$token = $gid . ':' . $val;
+					$cnt = isset( $item['count'] ) ? (int) $item['count'] : 0;
+					$chk = in_array( $token, $selectedFacets, true ) ? " checked='checked'" : '';
+					$shown = $gid === 'lang' ? htmlspecialchars( tt_fqs_language_name( $val ), ENT_QUOTES, 'UTF-8' ) : tt_fqs_feature_name( $val );
+					$maintext .= '<label><input type="checkbox" name="facet[]" value="'
+						. htmlspecialchars( $token, ENT_QUOTES, 'UTF-8' ) . '"' . $chk . ' /> '
+						. $shown
+						. ( $cnt ? ' <small>(' . $cnt . ')</small>' : '' )
+						. '</label> ';
+				}
+				$maintext .= '</fieldset>';
+			}
+			if ( $showInterface ) {
+				$maintext .= '<fieldset><legend>{%Interface}</legend>'
+					. '<label><input type="radio" name="iface" value=""' . ( $iface === '' ? " checked='checked'" : '' ) . ' /> {%All}</label> ';
+				foreach ( $ifaceKinds as $k => $l ) {
+					$maintext .= '<label><input type="radio" name="iface" value="' . htmlspecialchars( $k, ENT_QUOTES, 'UTF-8' ) . '"'
+						. ( $iface === $k ? " checked='checked'" : '' ) . ' /> ' . htmlspecialchars( $l, ENT_QUOTES, 'UTF-8' ) . '</label> ';
+				}
+				$maintext .= '</fieldset>';
+			}
+			$maintext .= '</form>';
+		}
 
 		if ( $listError !== '' ) {
 			$maintext .= "<p class=warning>FQS browse unavailable (" . htmlspecialchars( $listError, ENT_QUOTES, 'UTF-8' )
 				. '); showing CLI fallback if any.</p>';
 		}
 
-		if ( empty( $teitokRows ) && ( $selectedFacets || $qSearch !== '' ) ) {
-			$maintext .= '<p><em>No TEITOK corpora match these filters.</em></p>';
+		$havethiscorpus = false;
+		if ( empty( $listRows ) ) {
+			$maintext .= $filtering
+				? '<p><em>{%No corpora match your search.}</em></p>'
+				: '<p><em>{%There are no corpora to show yet.}</em></p>';
+		} else {
+			$maintext .= "<ul class='corpuslist'>\n";
+			foreach ( $listRows as $corp ) {
+				$maintext .= tt_fqs_render_corpus_item( $corp, $showInterface );
+				if ( tt_fqs_corpus_is_current_project( $corp ) ) $havethiscorpus = true;
+			}
+			$maintext .= "</ul>\n";
 		}
-		list( $teitokHtml, $haveTeitokCurrent ) = tt_fqs_render_corpus_table( $teitokRows, true, false );
-		$maintext .= $teitokHtml;
-		$havethiscorpus = $haveTeitokCurrent;
+
+		if ( function_exists( 'getlangfile' ) ) {
+			$footer = getlangfile( 'corpuslist-footer' );
+			if ( trim( $footer ) !== '' ) $maintext .= "<div class='corpuslist-footer'>" . $footer . '</div>';
+		}
+		$maintext .= '</div>';
+		if ( $corpusCss ) {
+			// the accent colour: the installation's link colour, unless --corpus-accent is set
+			$maintext .= "<script>(function(){var w=document.querySelector('.corpuslist-page');if(!w||!window.getComputedStyle)return;"
+				. "var a=document.createElement('a');a.href='#';w.parentNode.insertBefore(a,w);var c=getComputedStyle(a).color;"
+				. "a.parentNode.removeChild(a);if(c)w.style.setProperty('--corpus-link',c);})();</script>";
+		}
 
 		if ( $showAllFqs && ! empty( $otherRows ) ) {
 			$maintext .= '<h3>Other corpora in FQS</h3>';
-			$maintext .= '<p><small>Registered for query/FCS/KonText etc., but not openable as a TEITOK project from this list.</small></p>';
+			$maintext .= '<p><small>Registered for query/FCS/KonText etc., but not openable as a TEITOK project from this list'
+				. ' (<code>&lt;flexicorp corpuslist="all"/&gt;</code> lists them for everyone).</small></p>';
 			list( $otherHtml, $haveOtherCurrent ) = tt_fqs_render_corpus_table( $otherRows, false, true );
 			$maintext .= $otherHtml;
 			if ( $haveOtherCurrent ) {

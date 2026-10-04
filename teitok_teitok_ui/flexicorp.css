@@ -1125,6 +1125,15 @@ button.flexicorp-search-change-link {
 	overflow: auto;
 }
 
+/* Logged-in TEITOK users: click a result token to open action=tokedit. */
+#flexicorp-root.flexicorp-can-tokedit .flexicorp-hit-xml tok,
+#flexicorp-root.flexicorp-can-tokedit .flexicorp-kwic-xml tok,
+#flexicorp-root.flexicorp-can-tokedit .flexicorp-kwic-match-xml tok,
+#flexicorp-root.flexicorp-can-tokedit .flexicorp-hit-raw-rendered tok,
+#flexicorp-root.flexicorp-can-tokedit tok.flexicorp-tok-editable {
+	cursor: pointer;
+}
+
 .flexicorp-hit-xml .flexicorp-hit-token--match {
 	background: #fff3a8;
 	border-radius: 2px;

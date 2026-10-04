@@ -274,6 +274,35 @@ window.ttFlexicorpFns.hrnum = function hrnum(value, precision, opts) {
 };
 
 /**
+ * Format an IPM / rate for display without fake precision (e.g. 10143.00 → 10,143).
+ * When `opts.count` is the underlying hit/token count, significant digits follow ~1/√n.
+ */
+window.ttFlexicorpFns.formatIpmDisplay = function formatIpmDisplay(value, opts) {
+	const n = Number(value);
+	if (!Number.isFinite(n)) return '';
+	const o = opts && typeof opts === 'object' ? opts : {};
+	const count = Number(o.count);
+	let sig = 2;
+	if (Number.isFinite(count) && count > 0) {
+		const relErr = 1 / Math.sqrt(count);
+		const implied = Math.floor(-Math.log10(relErr)) + 1;
+		sig = Math.max(1, Math.min(4, implied));
+	} else {
+		// No count: still drop trailing .00 for large rates; keep light decimals for rare events.
+		const abs = Math.abs(n);
+		if (abs >= 100) sig = 3;
+		else if (abs >= 10) sig = 3;
+		else if (abs >= 1) sig = 3;
+		else sig = 2;
+	}
+	if (typeof window.ttFlexicorpFns.hrnum === 'function') {
+		return window.ttFlexicorpFns.hrnum(n, sig, { compact: true, millionFrom: 1e5 });
+	}
+	if (Math.abs(n) >= 100) return String(Math.round(n));
+	return String(Number(n.toFixed(Math.abs(n) >= 10 ? 1 : 2)));
+};
+
+/**
  * Parse capabilities JSON from a root element data attribute.
  */
 window.ttFlexicorpFns.readCapabilitiesFromDataAttr = function readCapabilitiesFromDataAttr(root, attrName) {
