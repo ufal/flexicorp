@@ -906,6 +906,10 @@
 		if ( ! function_exists( 'tt_fqs_row_is_teitok_listable' ) ) {
 			/** Same idea as FQS frontend=teitok (CLI fallback when browse API unavailable). */
 			function tt_fqs_row_is_teitok_listable( array $row ) {
+				// Browse DTO already computed this server-side (no project_root in public JSON).
+				if ( array_key_exists( 'teitok_listable', $row ) ) {
+					return ! empty( $row['teitok_listable'] );
+				}
 				if ( isset( $row['capabilities']['teitok_listing'] ) && $row['capabilities']['teitok_listing'] === false ) {
 					return false;
 				}
@@ -931,6 +935,21 @@
 				// Disk TEITOK tree (incl. dummy index.php+pando) is enough without
 				// catalogue teitok_* flags — those are filled by one-shot enrich.
 				return $root_ok;
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_select_url' ) ) {
+			/** URL to open this TEITOK project, or '' if none. */
+			function tt_fqs_select_url( array $row ) {
+				$purl = isset( $row['project_url'] ) ? trim( (string) $row['project_url'] ) : '';
+				if ( $purl === '' ) {
+					return '';
+				}
+				// Any http(s) project URL is fine — many vhosts omit "teitok" in the path.
+				if ( preg_match( '#^https?://#i', $purl ) || $purl[0] === '/' ) {
+					return $purl;
+				}
+				return '';
 			}
 		}
 
@@ -1129,14 +1148,17 @@
 				? hrnum( $size )
 				: ( $size !== null ? htmlspecialchars( (string) $size, ENT_QUOTES, 'UTF-8' ) : '—' );
 
+			$selectUrl = $teitokOk ? tt_fqs_select_url( $corp ) : '';
 			$selectCell = '—';
-			if ( $teitokOk && $purl !== '' && tt_fqs_looks_like_teitok_url( $purl ) ) {
+			if ( $teitokOk && $selectUrl !== '' ) {
 				$selectCell = $thisc
 					? '<em>current</em>'
-					: "<a href='" . htmlspecialchars( $purl, ENT_QUOTES, 'UTF-8' ) . "'>Select</a>";
+					: "<a href='" . htmlspecialchars( $selectUrl, ENT_QUOTES, 'UTF-8' ) . "'>Select</a>";
 				if ( ! $thisc ) {
-					$cname = "<a href='" . htmlspecialchars( $purl, ENT_QUOTES, 'UTF-8' ) . "'>" . $cname . '</a>';
+					$cname = "<a href='" . htmlspecialchars( $selectUrl, ENT_QUOTES, 'UTF-8' ) . "'>" . $cname . '</a>';
 				}
+			} elseif ( $teitokOk && $selectUrl === '' ) {
+				$selectCell = '<small title="Set project_url in FQS admin / corpus edit">no URL</small>';
 			}
 
 			$teitokCell = '';
