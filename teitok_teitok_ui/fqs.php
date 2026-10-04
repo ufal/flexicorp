@@ -1057,21 +1057,122 @@
 			}
 		}
 
+		// Split: main table = TEITOK-openable (same as visitors); admin sees other FQS below.
+		$teitokRows = array();
+		$otherRows = array();
+		foreach ( $corplist as $corp ) {
+			if ( is_object( $corp ) ) $corp = (array) json_decode( json_encode( $corp ), true );
+			if ( ! is_array( $corp ) ) continue;
+			if ( tt_fqs_row_is_teitok_listable( $corp ) ) {
+				$teitokRows[] = $corp;
+			} elseif ( $showAllFqs || ! empty( $GLOBALS['wewanttoseemore'] ) ) {
+				$otherRows[] = $corp;
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_render_corpus_table' ) ) {
+			/**
+			 * @param array $rows
+			 * @param bool  $withSelect  TEITOK Select / current / no URL column
+			 * @param bool  $adminOther  FQS-only rows: show backend/id hint, link to fqsadmin when possible
+			 */
+			function tt_fqs_render_corpus_table( $rows, $withSelect, $adminOther = false ) {
+				global $baseurl;
+				$html = '<table><tr><th>Name</th><th>Language(s)</th><th>Features</th><th>Size</th>';
+				if ( $adminOther ) {
+					$html .= '<th>Backend</th>';
+				}
+				$html .= '<th></th></tr>';
+				$havethis = false;
+				foreach ( $rows as $corp ) {
+					if ( ! is_array( $corp ) ) continue;
+					$id = isset( $corp['id'] ) ? (string) $corp['id'] : '';
+					$cname = isset( $corp['label'] ) ? (string) $corp['label'] : $id;
+					$thisc = false;
+					$proot = isset( $corp['project_root'] ) ? (string) $corp['project_root'] : '';
+					$purl = isset( $corp['project_url'] ) ? trim( (string) $corp['project_url'] ) : '';
+					$cwd = getcwd();
+					if ( ( $proot !== '' && $cwd !== false && @realpath( $proot ) === @realpath( $cwd ) )
+						|| ( $purl !== '' && isset( $baseurl ) && rtrim( $purl, '/' ) === rtrim( (string) $baseurl, '/' ) ) ) {
+						$havethis = true;
+						$thisc = true;
+						$cname = '<b>' . htmlspecialchars( $cname, ENT_QUOTES, 'UTF-8' ) . '</b>';
+					} else {
+						$cname = htmlspecialchars( $cname, ENT_QUOTES, 'UTF-8' );
+					}
+
+					$langs = array();
+					$feats = array();
+					if ( isset( $corp['facets'] ) && is_array( $corp['facets'] ) ) {
+						if ( ! empty( $corp['facets']['lang'] ) && is_array( $corp['facets']['lang'] ) ) {
+							$langs = $corp['facets']['lang'];
+						}
+						if ( ! empty( $corp['facets']['feature'] ) && is_array( $corp['facets']['feature'] ) ) {
+							$feats = $corp['facets']['feature'];
+						}
+					}
+					if ( empty( $langs ) && isset( $corp['capabilities']['fcs']['languages'] ) && is_array( $corp['capabilities']['fcs']['languages'] ) ) {
+						$langs = $corp['capabilities']['fcs']['languages'];
+					}
+					if ( empty( $langs ) && isset( $corp['settings']['languages'] ) && is_array( $corp['settings']['languages'] ) ) {
+						$langs = $corp['settings']['languages'];
+					}
+					$langs = array_values( array_filter( array_map( 'strval', is_array( $langs ) ? $langs : array() ), function ( $lc ) {
+						$lc = strtolower( trim( $lc ) );
+						return $lc !== '' && ! in_array( $lc, array( 'und', 'unk', 'unknown', 'zxx', 'mul' ), true );
+					} ) );
+					$size = isset( $corp['corpus_size'] ) ? $corp['corpus_size'] : null;
+					$sizeTxt = ( $size !== null && $size !== '' && function_exists( 'hrnum' ) )
+						? hrnum( $size )
+						: ( $size !== null ? htmlspecialchars( (string) $size, ENT_QUOTES, 'UTF-8' ) : '—' );
+
+					$actionCell = '—';
+					if ( $withSelect ) {
+						$selectUrl = tt_fqs_select_url( $corp );
+						if ( $selectUrl !== '' ) {
+							$actionCell = $thisc
+								? '<em>current</em>'
+								: "<a href='" . htmlspecialchars( $selectUrl, ENT_QUOTES, 'UTF-8' ) . "'>Select</a>";
+							if ( ! $thisc ) {
+								$cname = "<a href='" . htmlspecialchars( $selectUrl, ENT_QUOTES, 'UTF-8' ) . "'>" . $cname . '</a>';
+							}
+						} else {
+							$actionCell = '<small title="Set project_url in FQS admin / corpus edit">no URL</small>';
+						}
+					} elseif ( $adminOther && $id !== '' ) {
+						$actionCell = "<a href='index.php?action=fqsadmin'>fqsadmin</a>"
+							. " <small>(<code>" . htmlspecialchars( $id, ENT_QUOTES, 'UTF-8' ) . "</code>)</small>";
+					}
+
+					$html .= '<tr><td>' . $cname . '</td><td>'
+						. htmlspecialchars( empty( $langs ) ? '—' : implode( ', ', $langs ), ENT_QUOTES, 'UTF-8' )
+						. '</td><td>'
+						. htmlspecialchars( empty( $feats ) ? '—' : implode( ', ', $feats ), ENT_QUOTES, 'UTF-8' )
+						. '</td><td>' . $sizeTxt . '</td>';
+					if ( $adminOther ) {
+						$be = isset( $corp['preferred_backend'] ) ? (string) $corp['preferred_backend'] : '—';
+						$html .= '<td>' . htmlspecialchars( $be, ENT_QUOTES, 'UTF-8' ) . '</td>';
+					}
+					$html .= '<td>' . $actionCell . '</td></tr>';
+				}
+				if ( empty( $rows ) ) {
+					$cols = $adminOther ? '6' : '5';
+					$html .= '<tr><td colspan="' . $cols . '"><em>No corpora in this list.</em></td></tr>';
+				}
+				$html .= '</table>';
+				return array( $html, $havethis );
+			}
+		}
+
 		// Facet form — plain markup so the host TEITOK skin styles it.
 		$self = 'index.php?action=' . rawurlencode( (string) $action );
-		if ( $showAllFqs ) {
-			$maintext .= '<p>All corpora registered in FQS'
-				. ( $listSource !== '' ? ' <small>(' . htmlspecialchars( $listSource, ENT_QUOTES, 'UTF-8' ) . ')</small>' : '' )
-				. '. Only rows with TEITOK=yes can be opened here; others are FQS/FCS-only.';
-			if ( function_exists( 'getset' ) && trim( (string) getset( 'flexicorp/fqs_admin_users', '' ) ) !== '' ) {
-				$maintext .= ' Catalogue edits: <a href="index.php?action=fqsadmin">fqsadmin</a>.';
-			}
-			$maintext .= '</p>';
-		} else {
-			$maintext .= '<p>TEITOK corpora from FQS'
-				. ( $listSource !== '' ? ' <small>(' . htmlspecialchars( $listSource, ENT_QUOTES, 'UTF-8' ) . ')</small>' : '' )
-				. '.</p>';
+		$maintext .= '<p>TEITOK corpora from FQS'
+			. ( $listSource !== '' ? ' <small>(' . htmlspecialchars( $listSource, ENT_QUOTES, 'UTF-8' ) . ')</small>' : '' )
+			. '.';
+		if ( $showAllFqs && function_exists( 'getset' ) && trim( (string) getset( 'flexicorp/fqs_admin_users', '' ) ) !== '' ) {
+			$maintext .= ' Catalogue edits: <a href="index.php?action=fqsadmin">fqsadmin</a>.';
 		}
+		$maintext .= '</p>';
 
 		$maintext .= "<form method='get' action='index.php'>";
 		$maintext .= "<input type='hidden' name='action' value='" . htmlspecialchars( (string) $action, ENT_QUOTES, 'UTF-8' ) . "' />";
@@ -1111,93 +1212,22 @@
 				. '); showing CLI fallback if any.</p>';
 		}
 
-		$maintext .= '<table><tr>'
-			. '<th>Name</th><th>Language(s)</th><th>Features</th><th>Size</th>'
-			. ( $showAllFqs ? '<th>TEITOK</th>' : '' )
-			. '<th></th></tr>';
-		$havethiscorpus = false;
-		foreach ( $corplist as $corp ) {
-			if ( is_object( $corp ) ) $corp = (array) json_decode( json_encode( $corp ), true );
-			if ( ! is_array( $corp ) ) continue;
-			$teitokOk = tt_fqs_row_is_teitok_listable( $corp );
-			if ( ! $showAllFqs && empty( $GLOBALS['wewanttoseemore'] ) && ! $teitokOk ) {
-				continue;
-			}
-			$id = isset( $corp['id'] ) ? (string) $corp['id'] : '';
-			$cname = isset( $corp['label'] ) ? (string) $corp['label'] : $id;
-			$thisc = false;
-			$proot = isset( $corp['project_root'] ) ? (string) $corp['project_root'] : '';
-			$purl = isset( $corp['project_url'] ) ? trim( (string) $corp['project_url'] ) : '';
-			$cwd = getcwd();
-			if ( ( $proot !== '' && $cwd !== false && @realpath( $proot ) === @realpath( $cwd ) )
-				|| ( $purl !== '' && isset( $baseurl ) && rtrim( $purl, '/' ) === rtrim( (string) $baseurl, '/' ) ) ) {
+		if ( empty( $teitokRows ) && ( $selectedFacets || $qSearch !== '' ) ) {
+			$maintext .= '<p><em>No TEITOK corpora match these filters.</em></p>';
+		}
+		list( $teitokHtml, $haveTeitokCurrent ) = tt_fqs_render_corpus_table( $teitokRows, true, false );
+		$maintext .= $teitokHtml;
+		$havethiscorpus = $haveTeitokCurrent;
+
+		if ( $showAllFqs && ! empty( $otherRows ) ) {
+			$maintext .= '<h3>Other corpora in FQS</h3>';
+			$maintext .= '<p><small>Registered for query/FCS/KonText etc., but not openable as a TEITOK project from this list.</small></p>';
+			list( $otherHtml, $haveOtherCurrent ) = tt_fqs_render_corpus_table( $otherRows, false, true );
+			$maintext .= $otherHtml;
+			if ( $haveOtherCurrent ) {
 				$havethiscorpus = true;
-				$thisc = true;
-				$cname = '<b>' . htmlspecialchars( $cname, ENT_QUOTES, 'UTF-8' ) . '</b>';
-			} else {
-				$cname = htmlspecialchars( $cname, ENT_QUOTES, 'UTF-8' );
 			}
-
-			$langs = array();
-			$feats = array();
-			if ( isset( $corp['facets'] ) && is_array( $corp['facets'] ) ) {
-				if ( ! empty( $corp['facets']['lang'] ) && is_array( $corp['facets']['lang'] ) ) {
-					$langs = $corp['facets']['lang'];
-				}
-				if ( ! empty( $corp['facets']['feature'] ) && is_array( $corp['facets']['feature'] ) ) {
-					$feats = $corp['facets']['feature'];
-				}
-			}
-			if ( empty( $langs ) && isset( $corp['capabilities']['fcs']['languages'] ) && is_array( $corp['capabilities']['fcs']['languages'] ) ) {
-				$langs = $corp['capabilities']['fcs']['languages'];
-			}
-			if ( empty( $langs ) && isset( $corp['settings']['languages'] ) && is_array( $corp['settings']['languages'] ) ) {
-				$langs = $corp['settings']['languages'];
-			}
-			$langs = array_values( array_filter( array_map( 'strval', is_array( $langs ) ? $langs : array() ), function ( $lc ) {
-				$lc = strtolower( trim( $lc ) );
-				return $lc !== '' && ! in_array( $lc, array( 'und', 'unk', 'unknown', 'zxx', 'mul' ), true );
-			} ) );
-			$size = isset( $corp['corpus_size'] ) ? $corp['corpus_size'] : null;
-			$sizeTxt = ( $size !== null && $size !== '' && function_exists( 'hrnum' ) )
-				? hrnum( $size )
-				: ( $size !== null ? htmlspecialchars( (string) $size, ENT_QUOTES, 'UTF-8' ) : '—' );
-
-			$selectUrl = $teitokOk ? tt_fqs_select_url( $corp ) : '';
-			$selectCell = '—';
-			if ( $teitokOk && $selectUrl !== '' ) {
-				$selectCell = $thisc
-					? '<em>current</em>'
-					: "<a href='" . htmlspecialchars( $selectUrl, ENT_QUOTES, 'UTF-8' ) . "'>Select</a>";
-				if ( ! $thisc ) {
-					$cname = "<a href='" . htmlspecialchars( $selectUrl, ENT_QUOTES, 'UTF-8' ) . "'>" . $cname . '</a>';
-				}
-			} elseif ( $teitokOk && $selectUrl === '' ) {
-				$selectCell = '<small title="Set project_url in FQS admin / corpus edit">no URL</small>';
-			}
-
-			$teitokCell = '';
-			if ( $showAllFqs ) {
-				$teitokCell = $teitokOk
-					? '<td>yes</td>'
-					: '<td><small>no — FQS/FCS only</small></td>';
-			}
-
-			$maintext .= '<tr><td>' . $cname . '</td><td>'
-				. htmlspecialchars( empty( $langs ) ? '—' : implode( ', ', $langs ), ENT_QUOTES, 'UTF-8' )
-				. '</td><td>'
-				. htmlspecialchars( empty( $feats ) ? '—' : implode( ', ', $feats ), ENT_QUOTES, 'UTF-8' )
-				. '</td><td>' . $sizeTxt . '</td>'
-				. $teitokCell
-				. '<td>' . $selectCell . '</td></tr>';
 		}
-		if ( empty( $corplist ) ) {
-			$cols = $showAllFqs ? '6' : '5';
-			$maintext .= '<tr><td colspan="' . $cols . '"><em>No corpora match'
-				. ( $selectedFacets || $qSearch !== '' ? ' these filters' : '' )
-				. '.</em></td></tr>';
-		}
-		$maintext .= '</table>';
 		if ( $username && ! empty( $isshared ) ) {
 			$maintext .= '<hr><p>';
 			if ( function_exists( 'getset' ) && trim( (string) getset( 'flexicorp/fqs_admin_users', '' ) ) !== '' ) {
