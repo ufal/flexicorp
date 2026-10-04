@@ -104,6 +104,7 @@
 			);
 
 			$capabilities = array(
+				'teitok_integration' => true,
 				'fcs' => array(
 					'enabled' => true,
 					'resource_pid' => 'local:' . $id,
@@ -111,6 +112,29 @@
 					'languages' => !empty( $languages ) ? $languages : array( 'und' ),
 				),
 			);
+
+			$labels = array();
+			foreach ( $languages as $lc ) {
+				$lc = strtolower( trim( (string) $lc ) );
+				if ( $lc === '' || $lc === 'und' ) continue;
+				$labels[] = 'lang:' . $lc;
+			}
+			// Cheap folder heuristics only; full langs/features come from
+			// post-registration `fqs corpora validate … --enrich` (see enrich.rs).
+			// Never treat Pages/ as facsimile — that is TEITOK site PHP/HTML.
+			if ( is_dir( $projectRoot . DIRECTORY_SEPARATOR . 'Audio' )
+				|| is_dir( $projectRoot . DIRECTORY_SEPARATOR . 'audio' )
+				|| is_dir( $projectRoot . DIRECTORY_SEPARATOR . 'Media' ) ) {
+				$labels[] = 'feature:spoken';
+			}
+			if ( is_dir( $projectRoot . DIRECTORY_SEPARATOR . 'Facsimile' )
+				|| is_dir( $projectRoot . DIRECTORY_SEPARATOR . 'facsimile' ) ) {
+				$labels[] = 'feature:facsimile';
+			}
+			if ( is_dir( $projectRoot . DIRECTORY_SEPARATOR . 'Video' )
+				|| is_dir( $projectRoot . DIRECTORY_SEPARATOR . 'video' ) ) {
+				$labels[] = 'feature:video';
+			}
 
 			return array(
 				'id' => $id,
@@ -123,10 +147,11 @@
 				'listing_visibility' => 'public',
 				'source_kind' => 'teitok',
 				'supports_xml' => (bool) ( $hasCqp || $hasXidx ),
+				'interface_preference' => 'teitok',
 				'http_policy_mode' => 'public_query',
 				'http_allowed_operations' => array( 'query', 'catalog' ),
 				'interfaces' => array( 'query' ),
-				'labels' => array(),
+				'labels' => array_values( array_unique( $labels ) ),
 				'capabilities' => $capabilities,
 				'settings' => $settings,
 				'is_current' => true,
@@ -421,11 +446,11 @@
 									. " · Updated: " . htmlspecialchars( json_encode( $upd ) ) . "</small></p>";
 							}
 						}
-						$valCmd = escapeshellarg( $fqsapp ) . ' corpora validate --full --strict-full --id '
+						$valCmd = escapeshellarg( $fqsapp ) . ' corpora validate --full --strict-full --enrich --id '
 							. escapeshellarg( $payload['id'] ) . ' 2>&1';
 						$valOut = shell_exec( $valCmd );
 						if ( is_string( $valOut ) && $valOut !== '' ) {
-							$maintext .= "<h3>Post-registration validation</h3><p><small><code>fqs corpora validate --full --strict-full</code></small></p>"
+							$maintext .= "<h3>Post-registration validation + enrich</h3><p><small><code>fqs corpora validate --full --strict-full --enrich</code></small></p>"
 								. "<pre style='white-space:pre-wrap;max-height:24em;overflow:auto;background:#f8f8f8;padding:8px;border:1px solid #ccc'>"
 								. htmlspecialchars( $valOut ) . "</pre>";
 						}
@@ -775,64 +800,384 @@
 		}
 
 	} else {
-	
-		# Run FQS to get the registered corpora
-		$fqsapp = findapp("fqs");
-		$cmd = "$fqsapp corpora list"; # $maintext .= "$cmd";
-		$tmp = shell_exec($cmd);
-		$listDecoded = json_decode($tmp);
+
+		if ( ! function_exists( 'tt_fqs_browse_url' ) ) {
+			/** Public FQS base URL (same discovery as fqs_query / flexicorp). */
+			function tt_fqs_browse_url() {
+				$url = '';
+				if ( function_exists( 'getset' ) ) {
+					$url = trim( (string) getset( 'flexicorp/fqs_url', '' ) );
+				}
+				if ( $url === '' ) {
+					$e = getenv( 'FQS_URL' );
+					if ( is_string( $e ) ) $url = trim( $e );
+				}
+				if ( $url === '' && function_exists( 'tt_flexicorp_fqs_url_from_runtime_file' ) ) {
+					$url = (string) tt_flexicorp_fqs_url_from_runtime_file();
+				}
+				if ( $url === '' ) {
+					$cands = array();
+					$e = getenv( 'FQS_HTTP_JSON' );
+					if ( is_string( $e ) && trim( $e ) !== '' ) $cands[] = trim( $e );
+					$db = getenv( 'FQS_DB_PATH' );
+					if ( is_string( $db ) && $db !== '' ) $cands[] = rtrim( dirname( $db ), '/' ) . '/fqs-http.json';
+					$cands[] = '/usr/local/var/fqs/fqs-http.json';
+					$cands[] = '/var/lib/fqs/fqs-http.json';
+					foreach ( $cands as $c ) {
+						if ( ! is_readable( $c ) ) continue;
+						$j = json_decode( (string) @file_get_contents( $c ), true );
+						if ( is_array( $j ) && ! empty( $j['url'] ) ) {
+							$url = trim( (string) $j['url'] );
+							break;
+						}
+					}
+				}
+				if ( $url === '' ) $url = 'http://127.0.0.1:8787';
+				return rtrim( $url, '/' );
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_http_get_json' ) ) {
+			function tt_fqs_http_get_json( $url, $timeout = 8 ) {
+				$body = false;
+				$ctype = '';
+				$status = 0;
+				if ( function_exists( 'curl_init' ) ) {
+					$ch = curl_init( $url );
+					curl_setopt_array( $ch, array(
+						CURLOPT_RETURNTRANSFER => true,
+						CURLOPT_FOLLOWLOCATION => true,
+						CURLOPT_CONNECTTIMEOUT => 3,
+						CURLOPT_TIMEOUT => (int) $timeout,
+						CURLOPT_HTTPHEADER => array( 'Accept: application/json' ),
+					) );
+					$body = curl_exec( $ch );
+					$status = (int) curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+					$ctype = (string) curl_getinfo( $ch, CURLINFO_CONTENT_TYPE );
+					curl_close( $ch );
+				} else {
+					$ctx = stream_context_create( array(
+						'http' => array(
+							'method' => 'GET',
+							'timeout' => (int) $timeout,
+							'header' => "Accept: application/json\r\n",
+						),
+					) );
+					$body = @file_get_contents( $url, false, $ctx );
+					if ( isset( $http_response_header[0] ) && preg_match( '/\s(\d{3})\s/', $http_response_header[0], $m ) ) {
+						$status = (int) $m[1];
+					}
+				}
+				if ( ! is_string( $body ) || $body === '' ) {
+					return array( 'ok' => false, 'error' => 'empty response', 'status' => $status );
+				}
+				$j = json_decode( $body, true );
+				if ( ! is_array( $j ) ) {
+					return array( 'ok' => false, 'error' => 'invalid json', 'status' => $status, 'raw' => $body );
+				}
+				$j['_http_status'] = $status;
+				$j['_content_type'] = $ctype;
+				return $j;
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_looks_like_teitok_url' ) ) {
+			function tt_fqs_looks_like_teitok_url( $url ) {
+				$u = strtolower( trim( (string) $url ) );
+				return $u !== '' && ( strpos( $u, '/teitok/' ) !== false || strpos( $u, 'teitok.' ) !== false || strpos( $u, 'teitok-' ) !== false );
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_teitok_project_dir' ) ) {
+			function tt_fqs_teitok_project_dir( $dir ) {
+				$dir = rtrim( str_replace( '\\', '/', (string) $dir ), '/' );
+				if ( $dir === '' || ! is_dir( $dir ) || ! is_file( $dir . '/index.php' ) ) {
+					return false;
+				}
+				foreach ( array( 'Scripts', 'Pages', 'xmlfiles', 'cqpsettings.xml', 'Resources/settings.xml', 'pando', 'cqp', 'manatee', 'xidx' ) as $m ) {
+					if ( file_exists( $dir . '/' . $m ) ) {
+						return true;
+					}
+				}
+				return false;
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_row_is_teitok_listable' ) ) {
+			/** Same idea as FQS frontend=teitok (CLI fallback when browse API unavailable). */
+			function tt_fqs_row_is_teitok_listable( array $row ) {
+				if ( isset( $row['capabilities']['teitok_listing'] ) && $row['capabilities']['teitok_listing'] === false ) {
+					return false;
+				}
+				$purl = isset( $row['project_url'] ) ? trim( (string) $row['project_url'] ) : '';
+				$sk = isset( $row['source_kind'] ) ? strtolower( (string) $row['source_kind'] ) : '';
+				$pref = isset( $row['interface_preference'] ) ? strtolower( trim( (string) $row['interface_preference'] ) ) : '';
+				$teitok_signal = ( strpos( $sk, 'teitok' ) !== false )
+					|| ( $pref === 'teitok' )
+					|| ! empty( $row['capabilities']['teitok_integration'] )
+					|| ( isset( $row['settings']['teitok'] ) );
+				$proot = isset( $row['project_root'] ) ? (string) $row['project_root'] : '';
+				$root_ok = tt_fqs_teitok_project_dir( $proot );
+				if ( ! $root_ok && $proot !== '' ) {
+					$parent = dirname( rtrim( str_replace( '\\', '/', $proot ), '/' ) );
+					$root_ok = tt_fqs_teitok_project_dir( $parent );
+				}
+				if ( isset( $row['capabilities']['teitok_listing'] ) && $row['capabilities']['teitok_listing'] === true ) {
+					return ( $purl !== '' ) || $root_ok;
+				}
+				if ( $purl !== '' && ( tt_fqs_looks_like_teitok_url( $purl ) || $teitok_signal ) ) {
+					return true;
+				}
+				// Disk TEITOK tree (incl. dummy index.php+pando) is enough without
+				// catalogue teitok_* flags — those are filled by one-shot enrich.
+				return $root_ok;
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_selected_facets' ) ) {
+			function tt_fqs_selected_facets() {
+				$out = array();
+				if ( isset( $_GET['facet'] ) ) {
+					$raw = $_GET['facet'];
+					if ( ! is_array( $raw ) ) $raw = array( $raw );
+					foreach ( $raw as $f ) {
+						$f = strtolower( trim( (string) $f ) );
+						if ( $f !== '' ) $out[] = $f;
+					}
+				}
+				if ( isset( $_GET['facets'] ) && trim( (string) $_GET['facets'] ) !== '' ) {
+					foreach ( preg_split( '/\s*,\s*/', (string) $_GET['facets'] ) as $f ) {
+						$f = strtolower( trim( $f ) );
+						if ( $f !== '' ) $out[] = $f;
+					}
+				}
+				return array_values( array_unique( $out ) );
+			}
+		}
+
+		$selectedFacets = tt_fqs_selected_facets();
+		$qSearch = isset( $_GET['q'] ) ? trim( (string) $_GET['q'] ) : '';
+		$role = ( ! empty( $username ) ) ? 'user' : 'visitor';
+		if ( isset( $user['permissions'] ) && $user['permissions'] === 'admin' ) {
+			$role = 'admin';
+		}
+		// Admins see the full FQS catalogue here (this module); visitors only TEITOK-openable.
+		// Catalog edits belong in action=fqsadmin, not this list.
+		$showAllFqs = ( $role === 'admin' );
+
 		$corplist = array();
-		if ( is_array($listDecoded) ) {
-			// Legacy shape: raw JSON array of corpus rows.
-			$corplist = $listDecoded;
-		} elseif ( is_object($listDecoded) && isset($listDecoded->corpora) && is_array($listDecoded->corpora) ) {
-			// Current shape: {"ok":true,"corpora":[...],...}
-			$corplist = $listDecoded->corpora;
+		$facetDict = array();
+		$listSource = '';
+		$listError = '';
+
+		$base = tt_fqs_browse_url();
+		$qs = array(
+			'view' => 'browse',
+			'request_role' => $role,
+		);
+		if ( ! $showAllFqs ) {
+			$qs['frontend'] = 'teitok';
 		}
-		if ( !is_array($corplist) ) {
-			$corplist = array();
+		if ( $qSearch !== '' ) $qs['q'] = $qSearch;
+		$listUrl = $base . '/corpora?' . http_build_query( $qs );
+		foreach ( $selectedFacets as $f ) {
+			$listUrl .= '&facet=' . rawurlencode( $f );
 		}
-		
-		if ( $username ) $tt = "<td>";
-		$maintext .= "<table>
-			<tr>$tt<th>Name<th>Language(s)<th>Size";
+		$labelsQs = array( 'request_role' => $role );
+		if ( ! $showAllFqs ) {
+			$labelsQs['frontend'] = 'teitok';
+		}
+		$labelsUrl = $base . '/labels?' . http_build_query( $labelsQs );
+		foreach ( $selectedFacets as $f ) {
+			$labelsUrl .= '&facet=' . rawurlencode( $f );
+		}
+
+		$listJson = tt_fqs_http_get_json( $listUrl );
+		$labelsJson = tt_fqs_http_get_json( $labelsUrl );
+		if ( ! empty( $listJson['ok'] ) && isset( $listJson['corpora'] ) && is_array( $listJson['corpora'] ) ) {
+			$corplist = $listJson['corpora'];
+			$listSource = 'http';
+			if ( ! empty( $labelsJson['ok'] ) && isset( $labelsJson['facets'] ) && is_array( $labelsJson['facets'] ) ) {
+				$facetDict = $labelsJson['facets'];
+			}
+		} else {
+			// Fallback: CLI list (older FQS without browse params).
+			$fqsapp = findapp( 'fqs' );
+			$tmp = is_string( $fqsapp ) && $fqsapp !== ''
+				? shell_exec( escapeshellarg( $fqsapp ) . ' corpora list 2>&1' )
+				: '';
+			$listDecoded = is_string( $tmp ) ? json_decode( $tmp, true ) : null;
+			$rows = array();
+			if ( is_array( $listDecoded ) ) {
+				$rows = isset( $listDecoded['corpora'] ) && is_array( $listDecoded['corpora'] )
+					? $listDecoded['corpora']
+					: $listDecoded;
+			}
+			foreach ( $rows as $row ) {
+				if ( ! is_array( $row ) ) continue;
+				if ( ! $showAllFqs && empty( $GLOBALS['wewanttoseemore'] )
+					&& ! tt_fqs_row_is_teitok_listable( $row ) ) {
+					continue;
+				}
+				$corplist[] = $row;
+			}
+			$listSource = 'cli';
+			if ( empty( $corplist ) && ! empty( $listJson['error'] ) ) {
+				$listError = (string) $listJson['error'];
+			}
+		}
+
+		// Facet form — plain markup so the host TEITOK skin styles it.
+		$self = 'index.php?action=' . rawurlencode( (string) $action );
+		if ( $showAllFqs ) {
+			$maintext .= '<p>All corpora registered in FQS'
+				. ( $listSource !== '' ? ' <small>(' . htmlspecialchars( $listSource, ENT_QUOTES, 'UTF-8' ) . ')</small>' : '' )
+				. '. Only rows with TEITOK=yes can be opened here; others are FQS/FCS-only.';
+			if ( function_exists( 'getset' ) && trim( (string) getset( 'flexicorp/fqs_admin_users', '' ) ) !== '' ) {
+				$maintext .= ' Catalogue edits: <a href="index.php?action=fqsadmin">fqsadmin</a>.';
+			}
+			$maintext .= '</p>';
+		} else {
+			$maintext .= '<p>TEITOK corpora from FQS'
+				. ( $listSource !== '' ? ' <small>(' . htmlspecialchars( $listSource, ENT_QUOTES, 'UTF-8' ) . ')</small>' : '' )
+				. '.</p>';
+		}
+
+		$maintext .= "<form method='get' action='index.php'>";
+		$maintext .= "<input type='hidden' name='action' value='" . htmlspecialchars( (string) $action, ENT_QUOTES, 'UTF-8' ) . "' />";
+		$maintext .= '<p><label>Search <input type="search" name="q" value="'
+			. htmlspecialchars( $qSearch, ENT_QUOTES, 'UTF-8' ) . '" /></label></p>';
+
+		$groups = array(
+			'lang' => 'Language',
+			'feature' => 'Features',
+			'genre' => 'Genre',
+			'other' => 'Other',
+		);
+		foreach ( $groups as $gid => $glabel ) {
+			if ( empty( $facetDict[ $gid ] ) || ! is_array( $facetDict[ $gid ] ) ) continue;
+			$maintext .= '<fieldset><legend>' . htmlspecialchars( $glabel, ENT_QUOTES, 'UTF-8' ) . '</legend><p>';
+			foreach ( $facetDict[ $gid ] as $item ) {
+				if ( ! is_array( $item ) ) continue;
+				$val = isset( $item['value'] ) ? (string) $item['value'] : '';
+				if ( $val === '' ) continue;
+				$token = $gid . ':' . $val;
+				$cnt = isset( $item['count'] ) ? (int) $item['count'] : 0;
+				$chk = in_array( $token, $selectedFacets, true ) ? " checked='checked'" : '';
+				$maintext .= '<label><input type="checkbox" name="facet[]" value="'
+					. htmlspecialchars( $token, ENT_QUOTES, 'UTF-8' ) . '"' . $chk . ' /> '
+					. htmlspecialchars( $val, ENT_QUOTES, 'UTF-8' )
+					. ( $cnt ? ' <small>(' . $cnt . ')</small>' : '' )
+					. '</label> ';
+			}
+			$maintext .= '</p></fieldset>';
+		}
+		$maintext .= '<p><input type="submit" value="Filter" /> '
+			. "<a href='" . htmlspecialchars( $self, ENT_QUOTES, 'UTF-8' ) . "'>Clear</a></p>";
+		$maintext .= '</form>';
+
+		if ( $listError !== '' ) {
+			$maintext .= "<p class=warning>FQS browse unavailable (" . htmlspecialchars( $listError, ENT_QUOTES, 'UTF-8' )
+				. '); showing CLI fallback if any.</p>';
+		}
+
+		$maintext .= '<table><tr>'
+			. '<th>Name</th><th>Language(s)</th><th>Features</th><th>Size</th>'
+			. ( $showAllFqs ? '<th>TEITOK</th>' : '' )
+			. '<th></th></tr>';
 		$havethiscorpus = false;
 		foreach ( $corplist as $corp ) {
-			$cname = $corp->label; $thisc = false;
-			if ( 
-				$corp->project_root == getcwd() # Folder matches
-				|| $corp->project_url == $baseurl
-			 ) {
+			if ( is_object( $corp ) ) $corp = (array) json_decode( json_encode( $corp ), true );
+			if ( ! is_array( $corp ) ) continue;
+			$teitokOk = tt_fqs_row_is_teitok_listable( $corp );
+			if ( ! $showAllFqs && empty( $GLOBALS['wewanttoseemore'] ) && ! $teitokOk ) {
+				continue;
+			}
+			$id = isset( $corp['id'] ) ? (string) $corp['id'] : '';
+			$cname = isset( $corp['label'] ) ? (string) $corp['label'] : $id;
+			$thisc = false;
+			$proot = isset( $corp['project_root'] ) ? (string) $corp['project_root'] : '';
+			$purl = isset( $corp['project_url'] ) ? trim( (string) $corp['project_url'] ) : '';
+			$cwd = getcwd();
+			if ( ( $proot !== '' && $cwd !== false && @realpath( $proot ) === @realpath( $cwd ) )
+				|| ( $purl !== '' && isset( $baseurl ) && rtrim( $purl, '/' ) === rtrim( (string) $baseurl, '/' ) ) ) {
 				$havethiscorpus = true;
 				$thisc = true;
-				$cname = "<b>$cname</b>";
-			};
-			if ( $corp->project_url ) $cname = "<a href='{$corp->project_url}'>$cname</a>";
-			if ( $username && ( $thisc || $isshared ) ) $tt = "<td><a href='index.php?action=$action&act=edit&id=$corp->id'>edit</a>";
-			$langs = 'und';
-			if ( isset( $corp->capabilities ) && is_object( $corp->capabilities ) && isset( $corp->capabilities->fcs ) && is_object( $corp->capabilities->fcs ) ) {
-				if ( isset( $corp->capabilities->fcs->languages ) && is_array( $corp->capabilities->fcs->languages ) && count( $corp->capabilities->fcs->languages ) > 0 ) {
-					$langs = implode( ', ', $corp->capabilities->fcs->languages );
-				} elseif ( isset( $corp->capabilities->fcs->language ) && trim( (string) $corp->capabilities->fcs->language ) !== '' ) {
-					$langs = trim( (string) $corp->capabilities->fcs->language );
+				$cname = '<b>' . htmlspecialchars( $cname, ENT_QUOTES, 'UTF-8' ) . '</b>';
+			} else {
+				$cname = htmlspecialchars( $cname, ENT_QUOTES, 'UTF-8' );
+			}
+
+			$langs = array();
+			$feats = array();
+			if ( isset( $corp['facets'] ) && is_array( $corp['facets'] ) ) {
+				if ( ! empty( $corp['facets']['lang'] ) && is_array( $corp['facets']['lang'] ) ) {
+					$langs = $corp['facets']['lang'];
+				}
+				if ( ! empty( $corp['facets']['feature'] ) && is_array( $corp['facets']['feature'] ) ) {
+					$feats = $corp['facets']['feature'];
 				}
 			}
-			if ( $langs === 'und' && isset( $corp->settings ) && is_object( $corp->settings ) && isset( $corp->settings->languages ) && is_array( $corp->settings->languages ) && count( $corp->settings->languages ) > 0 ) {
-				$langs = implode( ', ', $corp->settings->languages );
+			if ( empty( $langs ) && isset( $corp['capabilities']['fcs']['languages'] ) && is_array( $corp['capabilities']['fcs']['languages'] ) ) {
+				$langs = $corp['capabilities']['fcs']['languages'];
 			}
-			if ( $corp->source_kind == "teitok" || $corp->source_kind == "teitok_pando" || $wewanttoseemore || $thisc  ) {
-				$maintext .= "<tr>$tt<td>$cname</td><td>" . htmlspecialchars( (string) $langs, ENT_QUOTES, 'UTF-8' ) . "</td><td style='text-align: right;'>".hrnum($corp->corpus_size);
-			};
-		};
-		$maintext .= "</table>";
-		if ( $username && $isshared ) $maintext .= "<hr><p><a href='index.php?action=$action&act=admin'>admin mode</a>";
-		
-		if ( !$isshared && !$havethiscorpus ) {
+			if ( empty( $langs ) && isset( $corp['settings']['languages'] ) && is_array( $corp['settings']['languages'] ) ) {
+				$langs = $corp['settings']['languages'];
+			}
+			$size = isset( $corp['corpus_size'] ) ? $corp['corpus_size'] : null;
+			$sizeTxt = ( $size !== null && $size !== '' && function_exists( 'hrnum' ) )
+				? hrnum( $size )
+				: ( $size !== null ? htmlspecialchars( (string) $size, ENT_QUOTES, 'UTF-8' ) : '—' );
+
+			$selectCell = '—';
+			if ( $teitokOk && $purl !== '' && tt_fqs_looks_like_teitok_url( $purl ) ) {
+				$selectCell = $thisc
+					? '<em>current</em>'
+					: "<a href='" . htmlspecialchars( $purl, ENT_QUOTES, 'UTF-8' ) . "'>Select</a>";
+				if ( ! $thisc ) {
+					$cname = "<a href='" . htmlspecialchars( $purl, ENT_QUOTES, 'UTF-8' ) . "'>" . $cname . '</a>';
+				}
+			}
+
+			$teitokCell = '';
+			if ( $showAllFqs ) {
+				$teitokCell = $teitokOk
+					? '<td>yes</td>'
+					: '<td><small>no — FQS/FCS only</small></td>';
+			}
+
+			$maintext .= '<tr><td>' . $cname . '</td><td>'
+				. htmlspecialchars( empty( $langs ) ? '—' : implode( ', ', $langs ), ENT_QUOTES, 'UTF-8' )
+				. '</td><td>'
+				. htmlspecialchars( empty( $feats ) ? '—' : implode( ', ', $feats ), ENT_QUOTES, 'UTF-8' )
+				. '</td><td>' . $sizeTxt . '</td>'
+				. $teitokCell
+				. '<td>' . $selectCell . '</td></tr>';
+		}
+		if ( empty( $corplist ) ) {
+			$cols = $showAllFqs ? '6' : '5';
+			$maintext .= '<tr><td colspan="' . $cols . '"><em>No corpora match'
+				. ( $selectedFacets || $qSearch !== '' ? ' these filters' : '' )
+				. '.</em></td></tr>';
+		}
+		$maintext .= '</table>';
+		if ( $username && ! empty( $isshared ) ) {
+			$maintext .= '<hr><p>';
+			if ( function_exists( 'getset' ) && trim( (string) getset( 'flexicorp/fqs_admin_users', '' ) ) !== '' ) {
+				$maintext .= "<a href='index.php?action=fqsadmin'>FQS admin</a>";
+			} else {
+				$maintext .= "<a href='index.php?action=$action&amp;act=admin'>admin mode</a>"
+					. ' <small>(legacy; prefer configuring <code>fqsadmin</code>)</small>';
+			}
+			$maintext .= '</p>';
+		}
+
+		if ( empty( $isshared ) && ! $havethiscorpus ) {
 			$maintext .= "<p class=warning>The current corpus is not included in the corpus list.";
 			if ( $username ) {
 				$maintext .= " <a href='index.php?action=$action&amp;act=addcorpus'>Register this corpus in FQS</a></p>";
 			} else {
-				$maintext .= "</p>";
+				$maintext .= '</p>';
 			}
 		}
 	};
