@@ -515,6 +515,26 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
     tmp_settings = root_dir / "tmp" / "cqpsettings.xml"
     resources_settings = root_dir / "Resources" / "settings.xml"
     settings_path = tmp_settings if tmp_settings.is_file() else resources_settings
+    # tmp/cqpsettings.xml is TEITOK's merged snapshot (shared + local), rewritten only
+    # when TEITOK regenerates CQP (or flexicorp.php before a reindex). Older than
+    # Resources/settings.xml means stale: e.g. a sentence sattribute added since is
+    # missing there, and pando gets no sentences (no dependency trees). Prefer the
+    # canonical file then.
+    stale_settings_note = ""
+    try:
+        if (
+            settings_path == tmp_settings
+            and resources_settings.is_file()
+            and tmp_settings.stat().st_mtime < resources_settings.stat().st_mtime
+        ):
+            settings_path = resources_settings
+            stale_settings_note = (
+                f"{tmp_settings} is older than {resources_settings}; using the latter "
+                "(regenerate the CQP settings in TEITOK to refresh the merged snapshot)"
+            )
+            print(f"[flexicorp] warning: {stale_settings_note}", file=sys.stderr)
+    except OSError:
+        pass
     if not settings_path.is_file():
         return _make_error_response(
             backend="flexencoder",
