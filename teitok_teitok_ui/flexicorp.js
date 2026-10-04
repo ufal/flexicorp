@@ -332,7 +332,7 @@ function flexicorpApp() {
 		visualizationShareUrl: '',
 		visualizationShareOpen: false,
 		visualizationShareStatus: '',
-		_searchShareBtnMounted: false,
+		isFullscreen: false,
 
 		// Fallback stats helpers so Alpine expressions stay valid
 		// even if the optional freqs extension script is missing.
@@ -589,6 +589,13 @@ function flexicorpApp() {
 			if (loadingEl) loadingEl.remove();
 			this.ensureSearchShareButton();
 			this.updateSearchShareButtonVisibility();
+			this.syncFullscreenState();
+			if (typeof document !== 'undefined' && !this._fullscreenListenerBound) {
+				const onFs = () => this.syncFullscreenState();
+				document.addEventListener('fullscreenchange', onFs);
+				document.addEventListener('webkitfullscreenchange', onFs);
+				this._fullscreenListenerBound = true;
+			}
 			setTimeout(() => {
 				// Only fetch overview when on that tab; avoid request when on Debug so logs stay visible
 				if (this.activeTab === 'overview') {
@@ -1176,58 +1183,9 @@ function flexicorpApp() {
 			return this.searchViewModeShareEligible();
 		},
 
-		_createSearchShareButtonElement() {
-			const btn = document.createElement('button');
-			btn.type = 'button';
-			btn.className = 'btn btn-sm btn-outline-secondary';
-			btn.setAttribute('title', 'Share this search view');
-			btn.setAttribute('aria-label', 'Share search');
-			btn.style.display = 'inline-flex';
-			btn.style.alignItems = 'center';
-			btn.style.justifyContent = 'center';
-			btn.style.marginRight = '0.35rem';
-			btn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false" style="display:block;"><path d="M14 3h7v7h-2V6.41l-7.29 7.3-1.42-1.42 7.3-7.29H14V3z" fill="currentColor"></path><path d="M5 5h7v2H7v10h10v-5h2v7H5V5z" fill="currentColor"></path></svg>';
-			btn.addEventListener('click', () => this.shareVisualizationSnapshot());
-			return btn;
-		},
-
-		_findSearchPanelTitleRow() {
-			const panels = Array.from(document.querySelectorAll('.flexicorp-panel'));
-			for (let i = 0; i < panels.length; i += 1) {
-				const p = panels[i];
-				const xshow = String(p.getAttribute('x-show') || '');
-				if (xshow.includes("activeTab === 'search'")) {
-					const row = p.querySelector('.flexicorp-panel-title-row');
-					if (row) return row;
-				}
-			}
-			return null;
-		},
-
-		ensureSearchShareButton() {
-			if (typeof document === 'undefined') return;
-			const row = this._findSearchPanelTitleRow();
-			if (!row) return;
-			let btn = row.querySelector('[data-flexicorp-search-share-btn="1"]');
-			if (!btn) {
-				btn = this._createSearchShareButtonElement();
-				btn.setAttribute('data-flexicorp-search-share-btn', '1');
-				const firstButton = row.querySelector('button');
-				if (firstButton && firstButton.parentElement === row) row.insertBefore(btn, firstButton);
-				else row.appendChild(btn);
-			}
-			this._searchShareBtnMounted = true;
-		},
-
-		updateSearchShareButtonVisibility() {
-			if (typeof document === 'undefined') return;
-			if (!this._searchShareBtnMounted) this.ensureSearchShareButton();
-			const row = this._findSearchPanelTitleRow();
-			if (!row) return;
-			const btn = row.querySelector('[data-flexicorp-search-share-btn="1"]');
-			if (!btn) return;
-			btn.style.display = this.canShareSearchSnapshot() ? 'inline-flex' : 'none';
-		},
+		/** @deprecated Share lives in the Search result title row (template); kept as no-ops for init callers. */
+		ensureSearchShareButton() {},
+		updateSearchShareButtonVisibility() {},
 
 		loadVisualizationSnapshotFromPrompt() {
 			const raw = window.prompt('Paste visualization URL (or viz token)');
@@ -2122,11 +2080,16 @@ function flexicorpApp() {
 			window.location.reload();
 		},
 
+		syncFullscreenState() {
+			if (typeof document === 'undefined') {
+				this.isFullscreen = false;
+				return;
+			}
+			this.isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
+		},
+
 		fullscreenButtonLabel() {
-			const doc = typeof document !== 'undefined' ? document : null;
-			if (!doc) return 'Fullscreen';
-			const active = !!(doc.fullscreenElement || doc.webkitFullscreenElement);
-			return active ? 'Exit fullscreen' : 'Fullscreen';
+			return this.isFullscreen ? 'Exit fullscreen' : 'Fullscreen';
 		},
 
 		async toggleFullscreen() {
@@ -2138,13 +2101,15 @@ function flexicorpApp() {
 				if (active) {
 					if (doc.exitFullscreen) await doc.exitFullscreen();
 					else if (doc.webkitExitFullscreen) doc.webkitExitFullscreen();
-					return;
+				} else if (root && root.requestFullscreen) {
+					await root.requestFullscreen();
+				} else if (root && root.webkitRequestFullscreen) {
+					root.webkitRequestFullscreen();
 				}
-				if (root && root.requestFullscreen) await root.requestFullscreen();
-				else if (root && root.webkitRequestFullscreen) root.webkitRequestFullscreen();
 			} catch (_err) {
 				/* ignore fullscreen errors (permissions/user gesture/browser policy). */
 			}
+			this.syncFullscreenState();
 		},
 
 		debugViewModeLog(stage, extra) {

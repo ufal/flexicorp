@@ -236,13 +236,13 @@
 		</section>
 
 		<section class="flexicorp-panel" x-show="activeTab === 'search'">
-			<div class="flexicorp-panel-title-row">
+			<div class="flexicorp-panel-title-row" x-show="!search.ran || search.showQueryForm">
 				<h2 class="flexicorp-panel-title">{%Search}</h2>
 				<button type="button" class="btn btn-sm btn-outline-secondary" x-show="hasRaw('search')" x-on:click="openResponse('search', 'Search response')">Raw</button>
 			</div>
 			<p class="wrong" x-show="!isAdmin && noQueryBackendAvailable()" x-text="searchUnavailableMessage()"></p>
 			<!-- Outside the query form so it stays visible after a search (collapsed result view hides the form). -->
-			<div class="flexicorp-search-query-toolbar">
+			<div class="flexicorp-search-query-toolbar" x-show="!search.ran || search.showQueryForm">
 				<div class="flexicorp-search-query-toolbar__right">
 					<a
 						class="flexicorp-stored-queries-link"
@@ -747,11 +747,22 @@
 					</div>
 				</div>
 			</div>
-			<div x-show="search.ran">
-				<div class="flexicorp-search-result-title-row" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0.5rem 1rem;margin-bottom:0.35rem;">
-					<h3 class="flexicorp-subtitle" style="margin:0">{%Search result}</h3>
-					<div class="flexicorp-search-result-display" style="margin:0;display:inline-flex;align-items:center;gap:0.35rem;flex:0 0 auto;">
-						<label for="fc-view-mode-results" class="flexicorp-inline-label" style="margin:0">{%Display}</label>
+			<div x-show="search.ran" class="flexicorp-search-results-block">
+				<div class="flexicorp-search-result-title-row">
+					<h3 class="flexicorp-subtitle flexicorp-search-result-heading">{%Search result}</h3>
+					<div class="flexicorp-search-result-actions">
+						<button
+							type="button"
+							class="btn btn-sm btn-outline-secondary flexicorp-share-btn"
+							x-show="canShareSearchSnapshot()"
+							x-on:click="shareVisualizationSnapshot()"
+							title="Share this search view"
+							aria-label="Share search"
+						>
+							<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" focusable="false"><path d="M14 3h7v7h-2V6.41l-7.29 7.3-1.42-1.42 7.3-7.29H14V3z" fill="currentColor"></path><path d="M5 5h7v2H7v10h10v-5h2v7H5V5z" fill="currentColor"></path></svg>
+						</button>
+						<button type="button" class="btn btn-sm btn-outline-secondary" x-show="hasRaw('search')" x-on:click="openResponse('search', 'Search response')">Raw</button>
+						<label for="fc-view-mode-results" class="flexicorp-inline-label">{%Display}</label>
 						<select
 							id="fc-view-mode-results"
 							class="form-control form-control-sm flexicorp-inline-select"

@@ -588,6 +588,49 @@
 	text-align: right;
 }
 
+/* After a run: one tight result header — share sits with Display, not above everything. */
+.flexicorp-search-results-block {
+	margin-top: 0.15rem;
+}
+
+.flexicorp-search-result-title-row {
+	display: flex;
+	flex-wrap: nowrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.4rem 0.75rem;
+	margin: 0 0 0.25rem 0;
+	min-height: 1.75rem;
+}
+
+.flexicorp-search-result-heading {
+	margin: 0;
+	font-size: 0.95rem;
+	line-height: 1.25;
+	flex: 0 1 auto;
+	min-width: 0;
+}
+
+.flexicorp-search-result-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	flex: 0 0 auto;
+	margin: 0;
+}
+
+.flexicorp-share-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0.15rem 0.35rem;
+	line-height: 1;
+}
+
+.flexicorp-search-results-block > .flexicorp-search-result-stats {
+	margin: 0 0 0.35rem 0;
+}
+
 .flexicorp-search-query-toolbar__right {
 	display: inline-flex;
 	align-items: center;
