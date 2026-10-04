@@ -1,0 +1,144 @@
+<h1>ClickCQL Search Guide</h1>
+<p>ClickCQL is a corpus query language designed for ClickHouse-backed corpora. It is inspired by CQL-style token querying, but it also aims to work well with richer corpus structures such as sentence tables, region tables, dependency information, and tree-sensitive search. In practice, it sits somewhere between familiar token-sequence querying and more explicitly relational or structural searching.</p>
+
+<h2>Purpose Of ClickCQL</h2>
+<p>ClickCQL is used to describe corpus matches in a syntax that remains fairly readable for users who know CQL, while still being suitable for translation into SQL over a ClickHouse corpus schema.</p>
+<p>Typical uses include:</p>
+<ul>
+<li>finding one token or one lemma</li>
+<li>searching for token sequences</li>
+<li>searching named query groups whose highlights can be shown separately</li>
+<li>performing structural or relation-aware searches over sentence-level data</li>
+<li>using result-oriented commands such as grouping, counts, or tabulation when the environment supports them</li>
+</ul>
+
+<h2>Basic Token Queries</h2>
+<p>ClickCQL often begins with token-style bracket expressions, much like other CQL-family languages.</p>
+<pre><code>[lemma="go"]
+[upos="NOUN"]
+[word="interesting"]</code></pre>
+<p>The actual fields depend on the corpus schema and annotation mapping. Common examples include <code>word</code>, <code>lemma</code>, <code>upos</code>, <code>xpos</code>, and dependency-related fields.</p>
+
+<h2>Combining Conditions On One Token</h2>
+<p>Multiple conditions can be combined inside one token expression.</p>
+<pre><code>[lemma="go" &amp; upos="VERB"]
+[upos="NOUN" | upos="PROPN"]
+[lemma!="be"]</code></pre>
+<ul>
+<li><code>&amp;</code> means both conditions must be true</li>
+<li><code>|</code> means either condition may be true</li>
+<li><code>!=</code> excludes a value</li>
+</ul>
+
+<h2>Regular Expressions</h2>
+<p>Regular expressions can be used inside token constraints, just as in other CQL-like languages.</p>
+<pre><code>[lemma="struggl.*"]
+[word="colou?r"]
+[xpos="N.*"]</code></pre>
+<p>Examples:</p>
+<ul>
+<li><code>[word="walk.*"]</code> matches words beginning with <code>walk</code></li>
+<li><code>[upos="NOUN|PROPN"]</code> matches one of two possible categories</li>
+<li><code>[xpos="V.*"]</code> matches a family of verbal tags when the corpus tagset uses that convention</li>
+</ul>
+
+<h2>Sequences, Gaps, And Repetition</h2>
+<p>Like CQL, ClickCQL can describe linear token sequences.</p>
+<pre><code>[upos="ADJ"] [upos="NOUN"]
+[lemma="take"] []{0,3} [lemma="place"]
+[upos="ADV"]? [upos="ADJ"] [upos="NOUN"]</code></pre>
+<p>The empty token <code>[]</code> means “any one token”. Quantifiers are used in the familiar way:</p>
+<ul>
+<li><code>?</code>: optional</li>
+<li><code>*</code>: zero or more repetitions</li>
+<li><code>+</code>: one or more repetitions</li>
+<li><code>{m,n}</code>: between <code>m</code> and <code>n</code> repetitions</li>
+</ul>
+
+<h2>Named Query Groups</h2>
+<p>One of the important practical features of ClickCQL is the use of named groups. These groups allow the interface to show separate colors and legend entries for different parts of the query.</p>
+<p>For example, a query may effectively identify a first token, a second token, or more meaningful named roles, and those groups can then be highlighted separately in the result context.</p>
+<p>In the flexiCorp interface, this is what allows the <strong>Query groups</strong> legend to map onto colored XML result highlights.</p>
+
+<h2>Structural And Relation-Oriented Searching</h2>
+<p>ClickCQL is meant to support more than flat token sequences. In a ClickHouse-backed corpus model, searches can take advantage of sentence-level storage, structural regions, dependency links, and other derived relations. This makes ClickCQL suitable for more tree-sensitive querying than a purely linear token language.</p>
+<p>The exact syntax available depends on the current translator and corpus configuration, but the basic idea is that a user-friendly query is translated into SQL over a structured corpus schema.</p>
+
+<h2>Why ClickCQL Is Different From Plain SQL</h2>
+<p>Although ClickCQL ultimately runs through SQL, the user does not normally need to write SQL directly. ClickCQL acts as a higher-level query language that is easier to read and more corpus-oriented. It can then be translated into the appropriate SQL over the underlying ClickHouse tables such as tokens, sentences, docs, or regions.</p>
+<p>This separation is useful because:</p>
+<ul>
+<li>query authors can stay in a corpus-search mindset rather than a database-programming mindset</li>
+<li>the same corpus concepts can be expressed consistently across different interfaces</li>
+<li>the system can optimize or reshape the SQL while preserving the intended search semantics</li>
+</ul>
+
+<h2>Result-Oriented Commands</h2>
+<p>Some ClickCQL environments support commands or query types that are not ordinary concordance queries, such as grouping, counts, frequency-style summaries, tabulation, or metadata inspection. In a broader ClickHouse-backed setup, these may map to separate SQL shapes rather than to a simple list of hits.</p>
+<p>Depending on the backend and translator support, a query may therefore return:</p>
+<ul>
+<li>a concordance-style hit list</li>
+<li>a grouped or counted summary</li>
+<li>a plain table result</li>
+<li>metadata such as available regions or attributes</li>
+</ul>
+
+<h2>Common Search Examples</h2>
+<p>An adjective followed by a noun:</p>
+<pre><code>[upos="ADJ"] [upos="NOUN"]</code></pre>
+<p>A lemma regardless of inflection:</p>
+<pre><code>[lemma="go"]</code></pre>
+<p>A verb followed within three tokens by a noun:</p>
+<pre><code>[upos="VERB"] []{0,3} [upos="NOUN"]</code></pre>
+<p>A phrase with optional adverbial material:</p>
+<pre><code>[upos="ADV"]? [upos="ADJ"] [upos="NOUN"]</code></pre>
+<p>A token constrained by more than one field:</p>
+<pre><code>[lemma="bank" &amp; (upos="NOUN" | upos="PROPN")]</code></pre>
+
+<h2>ClickCQL And Tree-Sensitive Search</h2>
+<p>One of the longer-term motivations for ClickCQL is that many corpora now support richer syntactic or dependency-oriented querying. In such cases, the result may no longer be a simple contiguous token sequence. A query may identify several important tokens that belong together structurally but are not adjacent in surface order.</p>
+<p>This has consequences for result presentation:</p>
+<ul>
+<li>plain KWIC works well for contiguous sequence matches</li>
+<li>table or grouped XML views are often better for structural matches</li>
+<li>anchor-KWIC can be useful when one matched group should be treated as the central focus</li>
+</ul>
+
+<h2>Things To Keep In Mind</h2>
+<ul>
+<li>ClickCQL is corpus-oriented syntax that is translated to SQL; it is not just “SQL with brackets”.</li>
+<li>Attribute names still depend on the corpus and its mapping into the ClickHouse schema.</li>
+<li>Some query forms return ordinary hits, while others return table-like summaries.</li>
+<li>Named query groups are especially important because they drive colored legends and result highlighting.</li>
+<li>Tree-sensitive or discontinuous matches may be better shown in grouped or table displays than in plain KWIC.</li>
+</ul>
+
+<h2>When To Use ClickCQL Instead Of SQL</h2>
+<p>Use ClickCQL when you want to express a search in corpus terms rather than in raw database terms:</p>
+<ul>
+<li>token sequences</li>
+<li>annotation constraints</li>
+<li>query groups that should be highlighted separately</li>
+<li>corpus-specific structural patterns</li>
+</ul>
+<p>Use SQL only when you specifically want direct database inspection or a custom analytic query that falls outside the supported ClickCQL translator.</p>
+
+<h2>Quick Reference</h2>
+<table>
+<thead>
+<tr><th>Form</th><th>Meaning</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><code>[attr="value"]</code></td><td>search an attribute value</td><td><code>[lemma="go"]</code></td></tr>
+<tr><td><code>[a="x" &amp; b="y"]</code></td><td>combine conditions on one token</td><td><code>[lemma="go" &amp; upos="VERB"]</code></td></tr>
+<tr><td><code>[a="x" | a="y"]</code></td><td>alternative values</td><td><code>[upos="NOUN" | upos="PROPN"]</code></td></tr>
+<tr><td><code>[a!="x"]</code></td><td>exclude a value</td><td><code>[lemma!="be"]</code></td></tr>
+<tr><td><code>[]</code></td><td>any token</td><td><code>[lemma="take"] [] [lemma="place"]</code></td></tr>
+<tr><td><code>A B</code></td><td>sequence of tokens</td><td><code>[upos="ADJ"] [upos="NOUN"]</code></td></tr>
+<tr><td><code>A?</code></td><td>optional token or pattern</td><td><code>[upos="ADV"]?</code></td></tr>
+<tr><td><code>A*</code></td><td>zero or more repetitions</td><td><code>[upos="ADJ"]*</code></td></tr>
+<tr><td><code>A+</code></td><td>one or more repetitions</td><td><code>[upos="PROPN"]+</code></td></tr>
+<tr><td><code>A{m,n}</code></td><td>repeat between <code>m</code> and <code>n</code> times</td><td><code>[]{0,3}</code></td></tr>
+<tr><td><code>named groups</code></td><td>separate meaningful parts of the query for highlighting</td><td><code>query groups shown in result legend</code></td></tr>
+</tbody>
+</table>

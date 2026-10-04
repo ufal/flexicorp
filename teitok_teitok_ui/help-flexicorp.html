@@ -1,0 +1,156 @@
+<h1>flexiCorp Interface Guide</h1>
+<p>This page explains the user-facing options exposed by <code>flexicorp.php</code>, the TEITOK / EasyCorp interface for comparing corpus backends, query languages, and result presentations through the shared <code>flexicorp</code> CLI.</p>
+
+<h2>What This Interface Is For</h2>
+<p>The flexiCorp page is meant as a corpus search test bench. It lets you compare different combinations of:</p>
+<ul>
+<li>backend, such as <code>cqp</code>, <code>flexi</code>, <code>clickql</code>, or <code>clickhouse</code></li>
+<li>query language, such as <code>cwb-cql</code>, <code>clickcql</code>, <code>pmltq</code>, or <code>sql</code></li>
+<li>storage / execution engine, such as <code>cwb</code>, <code>clickhouse</code>, or <code>manatee</code></li>
+</ul>
+<p>Depending on the corpus, not every combination is available or exposed. The page only offers combinations that the current configuration makes visible.</p>
+
+<h2>Top-Level Layout</h2>
+<p>The interface is divided into tabs:</p>
+<ul>
+<li><strong>Overview</strong>: shows which backend / query-language / storage combinations are available</li>
+<li><strong>Documents</strong>: lists the corpus documents that the current backend can return</li>
+<li><strong>Search</strong>: runs queries and displays concordance-style results</li>
+<li><strong>Frequency</strong>: exposes backend frequency-list support</li>
+<li><strong>Debug</strong>: admin-only diagnostics for the actual calls made by the page</li>
+</ul>
+
+<h2>Overview Tab</h2>
+<p>The Overview tab presents the combinations returned by <code>flexicorp info backends</code>. Each row contains:</p>
+<ul>
+<li><strong>Backend</strong>: the implementation used to execute the request</li>
+<li><strong>Query language</strong>: the query syntax expected for search operations</li>
+<li><strong>Storage / engine</strong>: the underlying corpus format or execution engine</li>
+<li><strong>Status</strong>: whether the combination is currently usable</li>
+<li><strong>Reason</strong>: a short explanation of why it is available or unavailable</li>
+<li><strong>Use</strong>: switch the page to that combination</li>
+<li><strong>Status</strong>: show the structured status payload for that combination</li>
+</ul>
+<p>If external engines are configured for the corpus, they are shown below as links to interfaces such as Kontext, NoSketchEngine, Grew, or PML-TQ.</p>
+
+<h2>Search Header</h2>
+<p>The Search tab is the main interactive part of the interface.</p>
+
+<h3>Search Query</h3>
+<p>This is the query text that will be sent to the currently selected backend. Next to the label, the page shows the current query language. If there are multiple visible query-language options for the current backend, a selector is shown there so you can switch between them without going back to the Overview tab.</p>
+<p>If a help page exists for the current language, its name becomes a link. For example:</p>
+<ul>
+<li><code>cwb-cql</code> links to <code>help-cwb-cql</code></li>
+<li><code>pmltq</code> links to <code>help-pmltq</code></li>
+</ul>
+<p>Changing the query-language selector may also change the associated corpus format, because some languages are only valid for one backend / storage combination.</p>
+
+<h3>Hit Limit</h3>
+<p>This controls how many results are requested and rendered on the page initially. The <strong>Show more</strong> button requests a larger slice later.</p>
+
+<h3>Syntax Highlight Query</h3>
+<p>This enables live syntax highlighting of the query text when the current backend supports it. At the moment this is mainly useful for <code>flexi</code>, <code>cqp</code>, and <code>clickql</code>. Highlighting may slow typing somewhat because it triggers background parsing / highlighting requests.</p>
+
+<h2>Context Options</h2>
+
+<h3>Context Format</h3>
+<ul>
+<li><strong>xml</strong>: request TEITOK / structured XML-style context where available</li>
+<li><strong>raw</strong>: request non-XML context, typically closer to the native engine output</li>
+</ul>
+<p>In XML mode, the page tries to render structural context and highlight matched tokens inside it. In raw mode, the display stays closer to the underlying search engine output.</p>
+
+<h3>Context Scope</h3>
+<p>This defines which region should be extracted around a hit. The options are offered as a dropdown rather than a free-text field, and they are derived from the corpus metadata that the current backend exposes.</p>
+<p>Typical region choices are:</p>
+<ul>
+<li><code>sentence</code> / <code>s</code></li>
+<li><code>paragraph</code> / <code>p</code></li>
+<li><code>document</code> / <code>text</code></li>
+</ul>
+<p>For backends that support classic engine-side token windows, the dropdown may also contain <strong>token window</strong>. That option means “show a fixed number of tokens to the left and right of the hit” rather than extracting a named structural region such as a sentence.</p>
+<p>Sentence context is often the most useful default for tree-sensitive searches, because syntactic matches are usually sentence-bound. Token windows remain useful for users who prefer a traditional KWIC experience or for corpora that do not provide sentence boundaries.</p>
+
+<h3>Display</h3>
+<p>This controls how the results are rendered on the page.</p>
+<ul>
+<li><strong>Grouped context</strong>: groups hits by document and merges repeated contexts when possible</li>
+<li><strong>Table</strong>: one compact row per occurrence</li>
+<li><strong>KWIC</strong>: classic left / match / right display, centered on the matched token span</li>
+<li><strong>Anchor KWIC</strong>: shown only when supported by the current result set; centers the KWIC around an anchor group for discontinuous matches</li>
+</ul>
+<p>Not all result shapes are equally suitable for KWIC. If a query finds discontinuous matches, plain KWIC can become misleading because it may place unmatched material between the first and last matched tokens. In those cases the interface may expose <strong>Anchor KWIC</strong> as an alternative centered on a more meaningful token or group.</p>
+
+<h2>Result Presentation</h2>
+
+<h3>Grouped Context</h3>
+<p>This view groups results by document and shows each context block once. If several hits fall in the same rendered context, their highlights are merged.</p>
+
+<h3>Table View</h3>
+<p>This view gives a compact one-row-per-occurrence summary. It is useful when you want to inspect many hits quickly without the broader grouped layout.</p>
+
+<h3>KWIC And Anchor KWIC</h3>
+<p>These views split the result into:</p>
+<ul>
+<li>left context</li>
+<li>match or anchor</li>
+<li>right context</li>
+</ul>
+<p>The left and right context columns are deliberately clipped to keep rows compact. In XML-based KWIC rendering, the clipping is done so that the text nearest the match remains visible.</p>
+
+<h3>Query Groups Legend</h3>
+<p>If the backend returns named highlight groups, the page shows a legend above the results. In XML rendering, matched tokens are colored to follow that legend. This is especially useful for multi-part queries and tree- or relation-oriented searches.</p>
+
+<h2>Documents Tab</h2>
+<p>The Documents tab shows document-level metadata returned by the current backend. The exact fields depend on what the backend can provide. For smaller corpora, the page can let client-side tooling handle sorting and filtering; for larger corpora, it keeps the interaction simpler.</p>
+
+<h2>Frequency Tab</h2>
+<p>This tab exposes backend support for frequency-style operations. It is primarily intended for development, comparison, and inspection rather than for a polished end-user interface. The field and limit options are passed through to the backend.</p>
+
+<h2>Raw Buttons</h2>
+<p>Several tabs have a <strong>Raw</strong> button. This opens a dialog showing the underlying command, raw payload, warnings, and other diagnostic information. It is mainly meant for development and debugging.</p>
+
+<h2>Help Button</h2>
+<p>The top-level <strong>Help</strong> button opens an in-page overview of the interface. This document provides the more detailed, field-by-field explanation.</p>
+
+<h2>Settings Dialog</h2>
+<p>The Settings dialog currently controls interface defaults such as:</p>
+<ul>
+<li>backend</li>
+<li>document limit</li>
+<li>default hit limit</li>
+<li>default KWIC / token-window size</li>
+<li>default frequency limit</li>
+</ul>
+<p>At present, this dialog is mainly about UI defaults for the current page. It is not yet a full persistent corpus-configuration editor.</p>
+
+<h2>Debug Tab</h2>
+<p>For admin users in debug mode, the Debug tab lists the actual flexiCorp calls made during the page session, together with their commands, warnings, errors, and result payloads.</p>
+
+<h2>How Combination Selection Works</h2>
+<p>The interface always runs with a logical triple:</p>
+<ul>
+<li>backend</li>
+<li>query language</li>
+<li>corpus format / execution engine</li>
+</ul>
+<p>In some cases there is more than one valid query-language option for the same backend. The search header selector lets you switch between those currently visible combinations. In future configurations, it should be possible to keep some combinations available in the system but hidden from non-admin users; the selector is designed to respect that model by using only the combinations exposed to the page.</p>
+
+<h2>Things To Keep In Mind</h2>
+<ul>
+<li>Not every backend supports every operation equally well. Some combinations are excellent for concordances, others for frequency lists, tree search, or SQL-style inspection.</li>
+<li>Different context formats and context scopes can change the shape of the rendered result quite a lot.</li>
+<li>KWIC is not always the best display for discontinuous or strongly structural matches.</li>
+<li>If a query returns a non-concordance structure such as a table, the page will switch to table-style rendering.</li>
+<li>The precise set of options depends on the current corpus configuration and which backend combinations are exposed.</li>
+</ul>
+
+<h2>Suggested Workflow</h2>
+<ol>
+<li>Pick a combination on the Overview tab.</li>
+<li>Write a query in the Search tab and, if helpful, enable syntax highlighting.</li>
+<li>Choose XML or raw context depending on whether you want structure-aware rendering or engine-native output.</li>
+<li>Choose a context scope suited to the corpus and the query type.</li>
+<li>Use Table, Grouped, KWIC, or Anchor KWIC depending on the result shape.</li>
+<li>Use Raw or Debug views when you need to inspect the actual backend behavior.</li>
+</ol>

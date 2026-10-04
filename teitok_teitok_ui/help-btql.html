@@ -1,0 +1,73 @@
+<h1>BTQL Search Guide</h1>
+<p>BTQL is intended for tree- and dependency-oriented searching rather than flat token-sequence searching. It is especially relevant for corpora with Universal Dependencies or similar parsed annotation, where you want to describe relations such as head, dependent, child, parent, or subtree structure.</p>
+
+<h2>Purpose Of BTQL</h2>
+<p>Where a token query language such as CQL asks “which tokens or token sequences match this pattern?”, BTQL asks “which nodes in the dependency structure match this pattern, and how are they related?”. This makes it suitable for searches such as:</p>
+<ul>
+<li>a noun with an adjectival dependent</li>
+<li>a verb with a subject child</li>
+<li>a node whose parent has a certain feature</li>
+<li>a dependency relation such as <code>nsubj</code>, <code>obj</code>, or <code>amod</code></li>
+</ul>
+
+<h2>Typical Data Needed</h2>
+<p>BTQL-style searching generally assumes that a corpus contains parsed structure, not just token attributes. In a UD-style corpus, useful fields often include:</p>
+<ul>
+<li><code>form</code> or <code>word</code></li>
+<li><code>lemma</code></li>
+<li><code>upos</code> and sometimes <code>xpos</code></li>
+<li><code>deprel</code></li>
+<li><code>head</code> or another way to identify the governing node</li>
+<li>sentence boundaries, because dependency trees are sentence-based</li>
+</ul>
+
+<h2>Basic Node Constraints</h2>
+<p>Like other tree-query languages, BTQL normally starts by selecting one node with certain attribute values.</p>
+<pre><code>[upos="NOUN"]
+[lemma="go"]
+[deprel="nsubj"]</code></pre>
+<p>These examples describe one node that must satisfy the given condition.</p>
+
+<h2>Dependency Relations</h2>
+<p>The main reason to use BTQL is not just to test one node’s attributes, but to express relations between nodes. In a dependency tree, this often means conditions such as:</p>
+<ul>
+<li>a node has a child with some property</li>
+<li>a node has a parent with some property</li>
+<li>a node has a dependent with a particular dependency label</li>
+<li>two nodes are linked by a head-dependent relation</li>
+</ul>
+<p>For example, the linguistic ideas behind BTQL-style searches would include patterns such as:</p>
+<pre><code>a NOUN with an ADJ dependent
+a VERB with an nsubj child
+a token whose parent is a VERB
+a node with deprel="obj" governed by a certain lemma</code></pre>
+
+<h2>Why Sentence Structure Matters</h2>
+<p>Dependency relations are sentence-internal. A BTQL-capable index therefore normally needs sentence spans and a way to resolve which node governs which other node. Without that structural layer, a backend may still let you search token attributes such as <code>deprel</code>, but not true dependency paths.</p>
+
+<h2>Examples Of Linguistic Questions</h2>
+<ul>
+<li>Which adjectives modify a noun?</li>
+<li>Which verbs take a nominal subject and an object?</li>
+<li>Which nouns occur as subjects of a given lemma?</li>
+<li>Which adverbs modify adjectives rather than verbs?</li>
+</ul>
+
+<h2>Relation To Other Query Languages</h2>
+<p>BTQL belongs with structural query languages such as PML-TQ rather than with token-sequence languages such as CQL. In practice:</p>
+<ul>
+<li>use CQL when you care about surface order and adjacency</li>
+<li>use BTQL when you care about dependency structure</li>
+<li>use PML-TQ or similar languages when you need richer tree or graph conditions</li>
+</ul>
+
+<h2>What To Keep In Mind</h2>
+<ul>
+<li>BTQL-style search depends on parsed corpus structure, not just plain tokenization.</li>
+<li>Fields such as <code>head</code> and <code>deprel</code> are necessary, but by themselves they are not always enough; the backend may also need explicit structural indexing.</li>
+<li>Sentence boundaries matter, because dependency trees are sentence-based.</li>
+<li>Support depends on both the corpus backend and how the corpus was indexed.</li>
+</ul>
+
+<h2>Current flexiCorp Note</h2>
+<p>BTQL is best understood as a dependency-search language for parsed corpora. Whether a given corpus can actually execute BTQL-style structural searches depends on the backend and on the index. Some current backends may only expose dependency-related annotations such as <code>deprel</code> as token attributes, without yet supporting full structural traversal.</p>

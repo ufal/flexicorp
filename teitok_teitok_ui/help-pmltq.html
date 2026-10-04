@@ -1,0 +1,150 @@
+<h1>PML-TQ Search Guide</h1>
+<p>PML-TQ is a query language for searching annotated trees rather than flat token sequences. It is especially useful for corpora with syntactic, dependency, constituency, or other hierarchical annotation. Where CQL usually asks “which tokens match this sequence?”, PML-TQ asks “which nodes in the tree satisfy this structural pattern?”.</p>
+
+<h2>Purpose Of PML-TQ</h2>
+<p>PML-TQ is used to describe graph- or tree-based relationships between annotated nodes. A query can search for a single node with certain features, but it can also describe parent-child relations, descendants, siblings, nested conditions, and named variables that are reused later.</p>
+<p>Typical uses include:</p>
+<ul>
+<li>finding nodes with a certain annotation, such as <code>upos="NOUN"</code></li>
+<li>finding a node that has a child, parent, or descendant of a certain type</li>
+<li>binding nodes to variables and later referring to those variables</li>
+<li>searching for syntactic patterns rather than surface token sequences</li>
+<li>returning specific bound nodes or grouping results over them</li>
+</ul>
+
+<h2>Basic Node Queries</h2>
+<p>The basic unit in PML-TQ is usually a node. Many corpora distinguish node types, such as <code>a-node</code>, <code>m-node</code>, or <code>w-node</code>. A simple query often starts by binding one variable to one node description.</p>
+<pre><code>$a := [upos="NOUN"];</code></pre>
+<p>This means: bind a node to the variable <code>$a</code> if it has <code>upos="NOUN"</code>.</p>
+<p>Depending on the treebank, the available fields may include attributes such as <code>upos</code>, <code>xpos</code>, <code>deprel</code>, <code>lemma</code>, <code>form</code>, or corpus-specific structural or semantic annotations.</p>
+
+<h2>Node Types</h2>
+<p>Some corpora require or allow you to specify the node type explicitly.</p>
+<pre><code>a-node $a := [upos="NOUN"];
+w-node $w := [form="interesting"];</code></pre>
+<p>Use the node types that exist in your corpus. Some corpora expose only one major node layer; others distinguish surface tokens, analytical nodes, tectogrammatical nodes, and so on.</p>
+
+<h2>Field Constraints</h2>
+<p>Inside square brackets, you can constrain the values of node attributes.</p>
+<pre><code>[upos="NOUN"]
+[lemma="go"]
+[deprel="amod"]</code></pre>
+<p>Negative and alternative conditions are also common.</p>
+<pre><code>[upos!="NOUN"]
+[upos="NOUN" | upos="PROPN"]</code></pre>
+<p>As in many query languages, the exact operators and the exact field inventory depend on the treebank and the PML-TQ environment.</p>
+
+<h2>Variable Binding</h2>
+<p>A central feature of PML-TQ is assigning nodes to variables with <code>:=</code>.</p>
+<pre><code>$a := [upos="NOUN"];
+$b := [upos="ADJ"];</code></pre>
+<p>Once a variable has been bound, later parts of the query can refer to that same node.</p>
+<p>This is one of the main differences from simple token-sequence querying: the query often describes several related nodes, each with its own role in the pattern.</p>
+
+<h2>Structural Relations</h2>
+<p>PML-TQ can express relations such as child, parent, descendant, ancestor, or sibling. A common pattern is to constrain one node by requiring that a related node satisfy another condition.</p>
+<pre><code>$a := [upos="NOUN", child [upos="ADJ"]];
+$a := [upos="VERB", parent [upos="NOUN"]];
+$a := [upos="NOUN", descendant [deprel="amod"]];</code></pre>
+<p>These examples mean, roughly:</p>
+<ul>
+<li>a noun with an adjectival child</li>
+<li>a verb whose parent is a noun</li>
+<li>a noun that has some adjectival modifier somewhere below it</li>
+</ul>
+
+<h2>Nesting Conditions</h2>
+<p>One structural condition can itself contain another. This makes it possible to express multi-step tree patterns directly.</p>
+<pre><code>$a := [upos="NOUN", child [upos="ADJ", child [upos="ADV"]]];</code></pre>
+<p>This looks for a noun with an adjectival child, where that adjective itself has an adverbial child.</p>
+<p>In practice, nested tree patterns are one of the main reasons to choose PML-TQ rather than a token-sequence language.</p>
+
+<h2>Named Variables In Larger Queries</h2>
+<p>You can bind multiple variables in the same query so that different matched nodes can later be returned, highlighted, grouped, or used as anchors.</p>
+<pre><code>$a := [upos="NOUN", child [upos="ADJ", child $b := [upos="ADV"] ] ];</code></pre>
+<p>Here <code>$a</code> is the noun and <code>$b</code> is the adverb nested under the adjective. A result may therefore contain multiple important matched nodes that are not adjacent in the surface token order.</p>
+
+<h2>Why PML-TQ Results May Be Discontinuous</h2>
+<p>Unlike a flat token query, a tree query often matches several nodes that are structurally related but not next to each other in the sentence. For example, a parent node and a distant descendant may belong to the same match even if many unrelated surface tokens occur between them.</p>
+<p>This is why a simple KWIC display is not always ideal for PML-TQ results. Depending on the interface, it may be better to show:</p>
+<ul>
+<li>the whole sentence or structural region</li>
+<li>a span from first matched token to last matched token</li>
+<li>an anchor-KWIC centered on one especially important bound node</li>
+</ul>
+
+<h2>Common Search Examples</h2>
+<p>A noun node:</p>
+<pre><code>$a := [upos="NOUN"];</code></pre>
+<p>A noun with an adjectival child:</p>
+<pre><code>$a := [upos="NOUN", child [upos="ADJ"] ];</code></pre>
+<p>A verb whose parent is a noun:</p>
+<pre><code>$a := [upos="VERB", parent [upos="NOUN"] ];</code></pre>
+<p>A noun with an adjective that itself has an adverb child:</p>
+<pre><code>$a := [upos="NOUN", child [upos="ADJ", child $b := [upos="ADV"] ] ];</code></pre>
+<p>A node constrained by a dependency relation:</p>
+<pre><code>$a := [deprel="nsubj"];</code></pre>
+
+<h2>Fields And Paths</h2>
+<p>In many PML-TQ environments, fields can be addressed directly, and sometimes path-like references are allowed. You may see expressions such as:</p>
+<pre><code>[lemma="go"]
+[m/tag="N.*"]
+$a.functor = "ACT"</code></pre>
+<p>The exact syntax varies by corpus model, node layer, and implementation. When in doubt, check which fields actually exist for the nodes in your corpus.</p>
+
+<h2>Output-Oriented Clauses</h2>
+<p>Some PML-TQ environments support additional clauses for returning and organizing results, for example <code>for</code>, <code>give</code>, <code>sort</code>, <code>by</code>, <code>count</code>, <code>group</code>, <code>freq</code>, or <code>tabulate</code>. For example:</p>
+<pre><code>$a := [upos="NOUN"];
+for $a.lemma give $1, count()</code></pre>
+<p>Whether these are available depends on the backend and on how much of the wider PML-TQ ecosystem the current interface exposes. Some interfaces support only the core structural search, while others also support more reporting-oriented commands.</p>
+
+<h2>Things To Keep In Mind</h2>
+<ul>
+<li>PML-TQ is tree-oriented, not sequence-oriented. The matched nodes may be structurally related without being adjacent in surface order.</li>
+<li>Attribute names and node types are corpus-specific. A query written for one treebank may need adaptation for another.</li>
+<li>Bound variables matter. They often represent the semantically important parts of the query.</li>
+<li>Discontinuous matches are normal, especially for ancestor / descendant patterns.</li>
+<li>When a query feels too broad, start with one node and one relation, then add more conditions gradually.</li>
+</ul>
+
+<h2>How To Build Queries Safely</h2>
+<p>A practical way to write PML-TQ queries is to proceed in small steps:</p>
+<ol>
+<li>Start with one simple node constraint, such as <code>[upos="NOUN"]</code>.</li>
+<li>Bind it to a variable, such as <code>$a := [upos="NOUN"];</code>.</li>
+<li>Add one structural condition, such as <code>child [...]</code> or <code>parent [...]</code>.</li>
+<li>Add nested or additional bound variables only after the simpler query works.</li>
+</ol>
+
+<h2>When To Use PML-TQ Instead Of CQL</h2>
+<p>Use PML-TQ when the pattern you care about is primarily structural:</p>
+<ul>
+<li>a noun with a certain kind of modifier</li>
+<li>a verb whose subject has certain features</li>
+<li>a node with a descendant of a certain type</li>
+<li>a relation between two named nodes in a syntax tree</li>
+</ul>
+<p>Use a token-sequence language such as CQL when the pattern is mainly linear:</p>
+<ul>
+<li>an adjective followed by a noun</li>
+<li>a verb within three tokens of a noun</li>
+<li>a phrase with optional intervening tokens</li>
+</ul>
+
+<h2>Quick Reference</h2>
+<table>
+<thead>
+<tr><th>Form</th><th>Meaning</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><code>[field="value"]</code></td><td>match one node with an attribute value</td><td><code>[upos="NOUN"]</code></td></tr>
+<tr><td><code>$a := [...]</code></td><td>bind a matched node to a variable</td><td><code>$a := [lemma="go"];</code></td></tr>
+<tr><td><code>child [...]</code></td><td>require a matching child node</td><td><code>[upos="NOUN", child [upos="ADJ"]]</code></td></tr>
+<tr><td><code>parent [...]</code></td><td>require a matching parent node</td><td><code>[upos="VERB", parent [upos="NOUN"]]</code></td></tr>
+<tr><td><code>descendant [...]</code></td><td>require a matching descendant</td><td><code>[upos="NOUN", descendant [deprel="amod"]]</code></td></tr>
+<tr><td><code>ancestor [...]</code></td><td>require a matching ancestor</td><td><code>[upos="ADJ", ancestor [upos="NOUN"]]</code></td></tr>
+<tr><td><code>nested relation</code></td><td>express a multi-step tree pattern</td><td><code>[upos="NOUN", child [upos="ADJ", child [upos="ADV"]]]</code></td></tr>
+<tr><td><code>multiple variables</code></td><td>bind more than one important node</td><td><code>$a := [child $b := [upos="ADV"]]</code></td></tr>
+<tr><td><code>for ... give ...</code></td><td>return / summarize values in some environments</td><td><code>for $a.lemma give $1, count()</code></td></tr>
+</tbody>
+</table>

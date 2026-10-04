@@ -1,0 +1,138 @@
+<h1>Manatee CQL Search Guide</h1>
+<p>Manatee CQL is the query language used by the Manatee corpus manager and interfaces built on top of it, such as Kontext or NoSketchEngine-style environments. It is closely related to CQL / CQP-style token querying, but it has its own syntax details, operators, and conventions.</p>
+
+<h2>Purpose Of Manatee CQL</h2>
+<p>Manatee CQL is used to describe token-based corpus matches over word forms and annotations. It is designed for corpus search rather than for general programming. A query can match one token, a sequence of tokens, repeated patterns, or structurally constrained contexts.</p>
+<p>Typical uses include:</p>
+<ul>
+<li>finding one word form or lemma</li>
+<li>finding tokens with a certain annotation such as <code>tag</code>, <code>lemma</code>, or <code>word</code></li>
+<li>searching for multi-token patterns</li>
+<li>restricting results with structural conditions such as <code>within</code></li>
+<li>using quantifiers, alternatives, and regular expressions</li>
+</ul>
+
+<h2>Basic Token Queries</h2>
+<p>The most common building block is a token expression in square brackets.</p>
+<pre><code>[word="interesting"]
+[lemma="go"]
+[tag="N.*"]</code></pre>
+<p>As in other corpus query languages, the available attribute names depend on the corpus. Common ones include <code>word</code>, <code>lemma</code>, <code>tag</code>, and corpus-specific annotation fields.</p>
+
+<h2>Literal Words And Attribute Searches</h2>
+<p>Depending on the exact environment, many searches are written through attribute constraints rather than quoted bare words. In practice, this means that the most portable form is often:</p>
+<pre><code>[word="house"]
+[lemma="house"]</code></pre>
+<p>Use <code>word</code> when you want the written form as it appears in the corpus, and use <code>lemma</code> when you want all inflectional forms of the same lexical item.</p>
+
+<h2>Regular Expressions</h2>
+<p>Manatee CQL commonly uses regular expressions inside attribute values.</p>
+<pre><code>[word="walk.*"]
+[lemma="struggl.*"]
+[tag="N.*"]</code></pre>
+<p>Some common regular-expression symbols are:</p>
+<ul>
+<li><code>.</code>: any single character</li>
+<li><code>*</code>: zero or more of the previous element</li>
+<li><code>+</code>: one or more of the previous element</li>
+<li><code>?</code>: optional, zero or one</li>
+<li><code>|</code>: alternative</li>
+<li><code>(...)</code>: group part of an expression together</li>
+</ul>
+<p>Examples:</p>
+<ul>
+<li><code>[word="colou?r"]</code> matches both <code>color</code> and <code>colour</code></li>
+<li><code>[tag="V.*"]</code> matches verbal tags when the corpus uses a tagset with that convention</li>
+<li><code>[lemma="go|come"]</code> matches either lemma</li>
+</ul>
+
+<h2>Combining Conditions On One Token</h2>
+<p>You can combine multiple constraints inside one token expression.</p>
+<pre><code>[lemma="go" &amp; tag="V.*"]
+[word="lead" &amp; tag="N.*|V.*"]
+[lemma!="be"]</code></pre>
+<ul>
+<li><code>&amp;</code> means both conditions must hold</li>
+<li><code>|</code> means either condition may hold</li>
+<li><code>!=</code> means not equal</li>
+</ul>
+
+<h2>Sequences</h2>
+<p>Place token expressions next to each other to search for sequences.</p>
+<pre><code>[tag="A.*"] [tag="N.*"]
+[lemma="take"] [lemma="place"]</code></pre>
+<p>This is one of the most common uses of Manatee CQL: expressing multi-token patterns directly in surface order.</p>
+
+<h2>Wildcards, Gaps, And Repetition</h2>
+<p>The empty token <code>[]</code> means “any one token”. Quantifiers can be used after token expressions.</p>
+<pre><code>[lemma="take"] [] [lemma="place"]
+[tag="ADV"]? [tag="A.*"] [tag="N.*"]
+[tag="A.*"]* [tag="N.*"]
+[lemma="go"] []{0,3} [tag="N.*"]</code></pre>
+<ul>
+<li><code>?</code>: optional, zero or one</li>
+<li><code>*</code>: zero or more</li>
+<li><code>+</code>: one or more</li>
+<li><code>{m,n}</code>: between <code>m</code> and <code>n</code> repetitions</li>
+</ul>
+
+<h2>Alternatives</h2>
+<p>You can use alternatives for values or for larger grouped pieces of the query.</p>
+<pre><code>[lemma="go|come"]
+( [tag="A.*"] | [tag="ADV"] ) [tag="N.*"]</code></pre>
+<p>Grouped alternatives are useful when several different local patterns should count as the same broader search.</p>
+
+<h2>Structural Restrictions</h2>
+<p>One of the most characteristic Manatee CQL operators is <code>within</code>, which restricts the match to occur inside a named structural region.</p>
+<pre><code>[lemma="go"] within s
+[tag="A.*"] [tag="N.*"] within p</code></pre>
+<p>Typical region names are things like <code>s</code> for sentence, <code>p</code> for paragraph, or corpus-specific region names defined by the corpus structure.</p>
+
+<h2>Other Structural Operators</h2>
+<p>Depending on the environment and grammar support, you may also encounter operators such as <code>containing</code> or similar structure-related constructions. These are more advanced and not all interfaces expose them equally.</p>
+
+<h2>Useful Search Examples</h2>
+<p>An adjective followed by a noun:</p>
+<pre><code>[tag="A.*"] [tag="N.*"]</code></pre>
+<p>A lemma regardless of inflection:</p>
+<pre><code>[lemma="go"]</code></pre>
+<p>A phrase with up to three intervening tokens:</p>
+<pre><code>[lemma="take"] []{0,3} [lemma="place"]</code></pre>
+<p>A pattern restricted to one sentence:</p>
+<pre><code>[lemma="go"] [tag="N.*"] within s</code></pre>
+<p>Any number of adjectives before a noun:</p>
+<pre><code>[tag="A.*"]* [tag="N.*"]</code></pre>
+
+<h2>How Manatee CQL Differs From CQP/CWB CQL</h2>
+<p>Manatee CQL belongs to the same general family as CQP / CWB CQL, but it is not identical. The overall style is similar, especially for token expressions and sequences, but details of the grammar, operator support, structural commands, and interface-level extensions can differ.</p>
+<p>If you already know CQP, you will usually recognize the core ideas quickly, but it is still worth checking the exact behavior of the specific Manatee environment you are using.</p>
+
+<h2>Things To Keep In Mind</h2>
+<ul>
+<li>Attribute names are corpus-specific. One corpus may use <code>tag</code>, another <code>pos</code>, another <code>xpos</code>.</li>
+<li>Regular expressions are powerful, but broad patterns can be expensive on large corpora.</li>
+<li><code>within</code> and other structural restrictions depend on the regions actually defined in the corpus.</li>
+<li>Even when the syntax resembles CQP, the exact advanced operators may differ.</li>
+<li>When in doubt, begin with a simple one-token query and expand step by step.</li>
+</ul>
+
+<h2>Quick Reference</h2>
+<table>
+<thead>
+<tr><th>Form</th><th>Meaning</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><code>[word="value"]</code></td><td>search a word form</td><td><code>[word="house"]</code></td></tr>
+<tr><td><code>[lemma="value"]</code></td><td>search a lemma</td><td><code>[lemma="go"]</code></td></tr>
+<tr><td><code>[tag="regex"]</code></td><td>search a tag or part-of-speech pattern</td><td><code>[tag="N.*"]</code></td></tr>
+<tr><td><code>[a="x" &amp; b="y"]</code></td><td>combine conditions on one token</td><td><code>[lemma="go" &amp; tag="V.*"]</code></td></tr>
+<tr><td><code>[a!="x"]</code></td><td>exclude a value</td><td><code>[lemma!="be"]</code></td></tr>
+<tr><td><code>[]</code></td><td>any token</td><td><code>[lemma="take"] [] [lemma="place"]</code></td></tr>
+<tr><td><code>A B</code></td><td>sequence of tokens</td><td><code>[tag="A.*"] [tag="N.*"]</code></td></tr>
+<tr><td><code>A?</code></td><td>optional token or pattern</td><td><code>[tag="ADV"]?</code></td></tr>
+<tr><td><code>A*</code></td><td>zero or more repetitions</td><td><code>[tag="A.*"]*</code></td></tr>
+<tr><td><code>A+</code></td><td>one or more repetitions</td><td><code>[tag="N.*"]+</code></td></tr>
+<tr><td><code>A{m,n}</code></td><td>repeat between <code>m</code> and <code>n</code> times</td><td><code>[]{0,3}</code></td></tr>
+<tr><td><code>query within s</code></td><td>restrict the match to a structural region</td><td><code>[lemma="go"] within s</code></td></tr>
+</tbody>
+</table>

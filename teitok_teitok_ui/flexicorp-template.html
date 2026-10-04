@@ -1,0 +1,1481 @@
+
+<div id="flexicorp-loading" class="flexicorp-loading-shell">
+	<h1>Corpus Search</h1>
+	<p class="flexicorp-loading-note">Loading interface...</p>
+</div>
+<div
+	id="flexicorp-root"
+	x-data="flexicorpRoot"
+	class="flexicorp-shell"
+	x-cloak
+>
+	<h1>Corpus Search</h1>
+	<div class="flexicorp-content">
+		<div class="flexicorp-toolbar">
+			<div class="flexicorp-toolbar-left">
+				<div class="flexicorp-project-title" x-text="currentToolTitle()"></div>
+			</div>
+			<div class="flexicorp-toolbar-right">
+				<button
+					type="button"
+					class="flexicorp-tab"
+					x-show="isAdmin"
+					:class="activeTab === 'overview' ? 'flexicorp-tab--active' : ''"
+					x-on:click.prevent="setTab('overview')"
+				>Engines</button>
+				<button type="button" class="flexicorp-tab" :class="activeTab === 'documents' ? 'flexicorp-tab--active' : ''" x-on:click.prevent="setTab('documents')">{%Documents}</button>
+				<button type="button" class="flexicorp-tab" :class="activeTab === 'search' ? 'flexicorp-tab--active' : ''" x-on:click.prevent="setTab('search')">{%Search}</button>
+				<button type="button" class="flexicorp-tab" :class="activeTab === 'frequency' ? 'flexicorp-tab--active' : ''" x-on:click.prevent="setTab('frequency')">{%Statistics}</button>
+				<button type="button" class="flexicorp-tab" x-show="showDebugTab()" :class="activeTab === 'debug' ? 'flexicorp-tab--active' : ''" x-on:click.prevent="setTab('debug')">Debug</button>
+				<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="openHelp()">{%Help}</button>
+				<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="openSettings()">{%Settings}</button>
+				<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="toggleFullscreen()" x-text="fullscreenButtonLabel()"></button>
+			</div>
+		</div>
+
+		<div
+			class="flexicorp-admin-index-hint"
+			x-show="isAdmin && adminPandoIndexHint && adminPandoIndexHint.level === 'warn' && !adminPandoIndexHintDismissed"
+			role="status"
+		>
+			<button type="button" class="flexicorp-admin-index-hint__dismiss" aria-label="Dismiss" x-on:click="adminPandoIndexHintDismissed = true">&times;</button>
+			<strong>Index notice</strong>
+			<span x-text="(adminPandoIndexHint && adminPandoIndexHint.message) ? adminPandoIndexHint.message : ''"></span>
+		</div>
+
+		<section class="flexicorp-panel" x-show="activeTab === 'overview'">
+				<div class="flexicorp-panel-title-row">
+					<h2 class="flexicorp-panel-title">Backends, query languages &amp; storage</h2>
+				</div>
+				<p class="flexicorp-panel-note" x-show="isAdmin">
+					CQP corpus: <code>{{CQP_CORPUS_NAME}}</code>
+				</p>
+				<p class="flexicorp-panel-note">Usable query combinations for this corpus based on <code>flexicorp info backends</code>. Choose a combination to switch the entire module to that triple. The XML/doclist helper is intentionally kept out of this table.</p>
+				<p class="flexicorp-panel-note" x-show="selectedReindexBackends().length > 0">
+					<button type="button" class="btn btn-sm btn-primary" x-on:click="runReindexSelected()" :disabled="isLoading('reindex') || hasLockedReindexBackend()">Reindex selected</button>
+					<span x-text="' (' + selectedReindexBackends().length + ' backend(s) selected)'"></span>
+				</p>
+				<table class="flexicorp-table flexicorp-table--compact">
+					<thead>
+						<tr>
+							<th>Reindex</th>
+							<th>Backend</th>
+							<th>Query language</th>
+							<th>Storage / engine</th>
+							<th>Status</th>
+							<th>Reason</th>
+							<th>Actions</th>
+						</tr>
+					</thead>
+					<tbody>
+						<template x-for="combo in backendCombinationList()" :key="combo.id">
+							<tr>
+								<td>
+									<template x-if="canReindexBackend(combo)">
+										<input type="checkbox" :checked="reindexSelection[combo.id]" x-on:change="toggleReindexSelection(combo)" :disabled="isReindexingCombo(combo)" />
+									</template>
+								</td>
+								<td>
+									<strong x-text="getBackendLabel(combo.backend)"></strong>
+									<span class="flexicorp-badge" x-show="combo.isCurrent">current</span>
+								</td>
+								<td>
+									<template x-if="getQueryLanguageHelpUrl(combo.queryLanguage)">
+										<a x-bind:href="getQueryLanguageHelpUrl(combo.queryLanguage)" x-bind:title="getQueryLanguageHelpTitle(combo.queryLanguage, combo.corpusFormat)" x-text="combo.queryLanguage"></a>
+									</template>
+									<template x-if="!getQueryLanguageHelpUrl(combo.queryLanguage)">
+										<span x-text="combo.queryLanguage"></span>
+									</template>
+								</td>
+								<td x-text="combo.corpusFormat"></td>
+								<td>
+									<span x-text="comboStatusLabel(combo)"></span>
+								</td>
+								<td>
+									<span x-text="comboReasonText(combo)"></span>
+								</td>
+								<td>
+									<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="useBackendCombination(combo)" :disabled="!canUseBackendCombination(combo)">Use</button>
+									<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="useBackendStatus(combo)" :disabled="!combo.available || isReindexingCombo(combo)">Status</button>
+									<button type="button" class="btn btn-sm btn-outline-secondary" x-show="canChooseCorpora(combo)" x-on:click="openBackendCorpora(combo)" :disabled="isReindexingCombo(combo)">Corpora</button>
+									<button type="button" class="btn btn-sm btn-outline-secondary" x-show="canReindexBackend(combo)" x-on:click="runBackendReindex(combo)" :disabled="isReindexingCombo(combo)"><span x-text="isReindexingCombo(combo) ? 'Reindexing...' : 'Reindex'"></span></button>
+								</td>
+							</tr>
+						</template>
+					</tbody>
+				</table>
+				<div class="flexicorp-call-errors" x-show="callHasIssues(reindex)">
+					<template x-for="msg in callMessages(reindex)" :key="msg">
+						<p class="wrong" x-text="msg"></p>
+					</template>
+				</div>
+				<p class="flexicorp-panel-note" x-show="reindex && reindex.ok && reindex.result && reindex.result.message && !callHasIssues(reindex) && !isFqsReindexResultMessage()" x-text="(reindex && reindex.result && reindex.result.message) ? reindex.result.message : ''"></p>
+				<div class="flexicorp-reindex-progress" x-show="isLoading('reindex') || (reindexProgress() && reindexProgressPct() !== null)">
+					<div class="flexicorp-reindex-progress__track">
+						<div class="flexicorp-reindex-progress__fill" :style="`width:${reindexProgressPct() !== null ? reindexProgressPct() : 0}%`"></div>
+					</div>
+					<div class="flexicorp-reindex-progress__meta">
+						<span x-show="reindexProgressPct() !== null" x-text="`${reindexProgressPct()}%`"></span>
+						<span x-show="reindexProgressLabel()" x-text="reindexProgressLabel()"></span>
+					</div>
+				</div>
+				<div
+					class="flexicorp-panel-note"
+					x-show="isFqsAvailable()"
+					role="status"
+					x-text="fqsStatusBarText()"
+					style="margin-top:0.75rem;padding:0.5rem 0.75rem;border:1px solid #d6d8db;border-radius:4px;background:#f8f9fa;"
+				></div>
+				<template x-if="externalEngines && externalEngines.length">
+					<div class="flexicorp-external-engines">
+						<h3 class="flexicorp-subtitle">External corpus access</h3>
+						<p class="flexicorp-panel-note">Additional search interfaces configured for this corpus (for example Kontext, NoSketch, Grew, PML-TQ). These may run on other servers.</p>
+						<table class="flexicorp-table flexicorp-table--compact">
+							<thead>
+								<tr>
+									<th>Service</th>
+									<th>URL</th>
+								</tr>
+							</thead>
+							<tbody>
+								<template x-for="ext in externalEngines" :key="ext.id">
+									<tr>
+										<td x-text="ext.label"></td>
+										<td>
+											<a :href="ext.url" target="_blank" rel="noopener noreferrer" x-text="ext.url"></a>
+										</td>
+									</tr>
+								</template>
+							</tbody>
+						</table>
+					</div>
+				</template>
+				<div class="flexicorp-call-errors" x-show="callHasIssues(info) && debugMode">
+					<template x-for="msg in callMessages(info)" :key="msg">
+						<p class="wrong" x-text="msg"></p>
+					</template>
+				</div>
+		</section>
+
+		<section class="flexicorp-panel" x-show="activeTab === 'documents'">
+			<div class="flexicorp-panel-title-row">
+				<h2 class="flexicorp-panel-title">Documents</h2>
+				<div class="flexicorp-panel-actions">
+					<span class="flexicorp-panel-note" x-text="documentSummaryText()"></span>
+					<button type="button" class="btn btn-sm btn-outline-secondary" x-show="hasRaw('documents')" x-on:click="openResponse('documents', 'List-docs response')">Raw</button>
+				</div>
+			</div>
+			<form id="flexicorp-documents-form" action="" method="get" class="flexicorp-form" x-on:submit.prevent="submitDocuments($event)">
+				<input type="hidden" name="action" value="{{ACTION_NAME}}">
+				<input type="hidden" name="active_tab" value="documents">
+				<input type="hidden" name="backend" :value="settings.backend">
+				<input type="hidden" name="blacklab_url" :value="backendOverrides.blacklab_url || ''">
+				<input type="hidden" name="blacklab_corpus" :value="backendOverrides.blacklab_corpus || ''">
+				<input type="hidden" name="blacklab_user" :value="backendOverrides.blacklab_user || ''">
+				<input type="hidden" name="blacklab_password" :value="backendOverrides.blacklab_password || ''">
+				<input type="hidden" name="blacklab_field" :value="backendOverrides.blacklab_field || ''">
+				<input type="hidden" name="docs_limit" value="{{DOCS_LIMIT}}">
+				<input type="hidden" name="docs_per_page" :value="documentsUi.perPage">
+				<input type="hidden" name="docs_filter" :value="documentsUi.filter">
+				<input type="hidden" name="query" :value="search.query">
+				<input type="hidden" name="field" :value="search.field">
+				<input type="hidden" name="value" :value="search.value">
+				<input type="hidden" name="context_format" :value="search.contextFormat">
+				<input type="hidden" name="context_scope" :value="search.contextScope">
+				<input type="hidden" name="view_mode" :value="search.viewMode">
+				<input type="hidden" name="window" :value="(search.window != null && search.window > 0) ? search.window : settings.kwicWindow">
+				<input type="hidden" name="kwic_limit" :value="search.limit">
+				<input type="hidden" name="start" :value="search.start">
+				<input type="hidden" name="freq_field" :value="frequency.field">
+				<input type="hidden" name="freq_limit" :value="frequency.limit">
+			</form>
+			<div class="flexicorp-call-errors" x-show="callHasIssues(listDocs)">
+				<template x-for="msg in callMessages(listDocs)" :key="msg">
+					<p class="wrong" x-text="msg"></p>
+				</template>
+			</div>
+			<template x-if="!(loadedSections && loadedSections.documents)">
+				<p class="flexicorp-panel-note" x-text="isLoading('documents') ? 'Loading documents...' : 'Loading documents...'">Loading documents...</p>
+			</template>
+			<template x-if="loadedSections && loadedSections.documents && !getFilteredDocuments().length && !(documentsUi.filter || '').trim()">
+				<p class="flexicorp-panel-note">No documents returned.</p>
+			</template>
+			<template x-if="loadedSections && loadedSections.documents && !getFilteredDocuments().length && (documentsUi.filter || '').trim()">
+				<p class="flexicorp-panel-note">No loaded documents match the current filter.</p>
+			</template>
+			<table id="flexicorp-docs-table" class="flexicorp-table" x-show="loadedSections && loadedSections.documents && getFilteredDocuments().length">
+				<thead>
+					<tr>
+						<th>Document</th>
+						<template x-for="key in documentMetaKeys()" :key="key">
+							<th x-text="getMetaLabel(key)"></th>
+						</template>
+					</tr>
+				</thead>
+				<tbody>
+					<template x-for="doc in getVisibleDocuments()" :key="doc.__rowKey">
+						<tr>
+							<td>
+								<template x-if="getDocumentUrl(doc)">
+									<a class="flexicorp-doc-title" :href="getDocumentUrl(doc)" target="flexicorp_source" rel="noopener noreferrer" x-text="getDocumentLabel(doc)"></a>
+								</template>
+								<template x-if="!getDocumentUrl(doc)">
+									<span class="flexicorp-doc-title" x-text="getDocumentLabel(doc)"></span>
+								</template>
+							</td>
+							<template x-for="key in documentMetaKeys()" :key="key">
+								<td x-text="getDocMetaValue(doc, key)"></td>
+							</template>
+						</tr>
+					</template>
+				</tbody>
+			</table>
+			<div class="flexicorp-form-actions" x-show="loadedSections && loadedSections.documents && canLoadMoreDocuments()">
+				<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="loadMoreDocuments()">{%Show more}</button>
+			</div>
+		</section>
+
+		<section class="flexicorp-panel" x-show="activeTab === 'search'">
+			<div class="flexicorp-panel-title-row">
+				<h2 class="flexicorp-panel-title">{%Search}</h2>
+				<button type="button" class="btn btn-sm btn-outline-secondary" x-show="hasRaw('search')" x-on:click="openResponse('search', 'Search response')">Raw</button>
+			</div>
+			<p class="wrong" x-show="!isAdmin && noQueryBackendAvailable()" x-text="searchUnavailableMessage()"></p>
+			<!-- Outside the query form so it stays visible after a search (collapsed result view hides the form). -->
+			<div class="flexicorp-search-query-toolbar">
+				<div class="flexicorp-search-query-toolbar__right">
+					<a
+						class="flexicorp-stored-queries-link"
+						x-bind:href="storedQueriesManagerUrl()"
+						target="_blank"
+						rel="noopener noreferrer"
+						title="Open TEITOK query manager (saved queries)"
+					>Stored queries</a>
+					<span class="flexicorp-toolbar-sep" aria-hidden="true">·</span>
+					<a
+						href="#"
+						class="flexicorp-store-query-link"
+						x-on:click.prevent="storeCurrentQueryToTeitok()"
+						title="Save the current query to TEITOK query manager"
+					>Store this query</a>
+					<span class="flexicorp-toolbar-sep" aria-hidden="true" x-show="queryBuilderState && queryBuilderState.enabled">·</span>
+					<button
+						type="button"
+						class="btn btn-sm btn-outline-secondary"
+						x-show="queryBuilderState && queryBuilderState.enabled"
+						:disabled="!queryBuilderSupportsCurrentLanguage()"
+						x-on:click="queryBuilderToggle()"
+						:title="queryBuilderSupportsCurrentLanguage() ? 'Open Query Builder' : 'Query Builder is unavailable for this query language'"
+						x-text="(queryBuilderState && queryBuilderState.open) ? 'Close Query Builder' : 'Query Builder'"
+					></button>
+					<div class="flexicorp-recent-queries-inline">
+						<label for="fc-recent-query-pick" class="flexicorp-inline-label">{%Recent queries}</label>
+						<select
+							id="fc-recent-query-pick"
+							class="form-control form-control-sm flexicorp-inline-select flexicorp-recent-select"
+							title="Recent searches from this browser session (current CQL dialect)"
+							x-on:change="if ($event.target.value) { search.query = $event.target.value; $event.target.value = ''; search.showQueryForm = true; scheduleQueryHighlight(); }"
+						>
+							<option value="" x-text="recentQueriesListDeduped().length ? 'Load…' : 'No recent queries'"></option>
+							<template x-for="rq in recentQueriesListDeduped()" :key="'rqtoolbar:' + settings.queryLanguage + ':' + rq">
+								<option :value="rq" x-text="shortQueryOptionLabel(rq)"></option>
+							</template>
+						</select>
+					</div>
+					<span class="flexicorp-toolbar-sep" aria-hidden="true" x-show="activeTab === 'search' && !search.ran">·</span>
+					<div
+						class="flexicorp-toolbar-display"
+						x-show="activeTab === 'search' && !search.ran"
+						style="display:inline-flex;align-items:center;gap:0.35rem;"
+						title="Default view for the next run. After a search, use Display on the Search result line to switch without rerunning."
+					>
+						<label for="fc-view-mode-toolbar" class="flexicorp-inline-label">{%Display}</label>
+						<select
+							id="fc-view-mode-toolbar"
+							class="form-control form-control-sm flexicorp-inline-select"
+							x-model="search.viewMode"
+							x-on:change="onSearchViewModeChanged($event)"
+							x-init="$nextTick(() => { if ($el.value !== search.viewMode) $el.value = search.viewMode; })"
+							x-effect="(() => { const v = search.viewMode; $nextTick(() => { if ($el.value !== v) $el.value = v; }); })()"
+						>
+							<template x-for="opt in searchViewModeOptions()" :key="'view-mode-tb:' + opt.value">
+								<option :value="opt.value" :selected="opt.value === search.viewMode" x-text="opt.label"></option>
+							</template>
+						</select>
+					</div>
+				</div>
+			</div>
+			<form id="flexicorp-teitok-store-query" action="index.php?action=querymng&amp;type=cqp&amp;act=save" method="post" class="flexicorp-store-query-form" style="display:none;">
+				<textarea name="query"></textarea>
+			</form>
+			<form action="" method="post" class="flexicorp-form" x-on:submit.prevent="submitSearch($event)">
+				<input type="hidden" name="action" value="{{ACTION_NAME}}">
+				<input type="hidden" name="backend" :value="settings.backend">
+				<input type="hidden" name="blacklab_url" :value="backendOverrides.blacklab_url || ''">
+				<input type="hidden" name="blacklab_corpus" :value="backendOverrides.blacklab_corpus || ''">
+				<input type="hidden" name="blacklab_user" :value="backendOverrides.blacklab_user || ''">
+				<input type="hidden" name="blacklab_password" :value="backendOverrides.blacklab_password || ''">
+				<input type="hidden" name="blacklab_field" :value="backendOverrides.blacklab_field || ''">
+				<input type="hidden" name="query_engine" :value="settings.queryEngine || ''">
+				<input type="hidden" name="query_language" :value="settings.queryLanguage || ''">
+				<input type="hidden" name="corpus_format" :value="settings.corpusFormat || ''">
+				<input type="hidden" name="docs_limit" :value="settings.docsLimit">
+				<input type="hidden" name="freq_limit" :value="settings.freqLimit">
+				<input type="hidden" name="active_tab" value="search">
+				<input type="hidden" name="run" value="query">
+				<input type="hidden" name="field" :value="search.field || 'lemma'">
+				<input type="hidden" name="value" :value="search.value || ''">
+				<input type="hidden" name="start" :value="search.start || 0">
+				<div class="flexicorp-search-query-panel" x-show="!search.ran || search.showQueryForm">
+				<div class="flexicorp-form-row">
+					<div class="flexicorp-form-row-head">
+						<label for="fc-query">
+							{%Search Query}
+							<span class="flexicorp-query-language-hint" x-show="settings.queryLanguage">
+								- in
+								<template x-if="getQueryLanguageHelpUrl(settings.queryLanguage)">
+									<a x-bind:href="getQueryLanguageHelpUrl(settings.queryLanguage)" x-bind:title="getQueryLanguageHelpTitle(settings.queryLanguage)" x-text="settings.queryLanguage"></a>
+								</template>
+								<template x-if="!getQueryLanguageHelpUrl(settings.queryLanguage)">
+									<span x-bind:title="getQueryLanguageHelpTitle(settings.queryLanguage)" x-text="settings.queryLanguage"></span>
+								</template>
+							</span>
+						</label>
+					</div>
+					<div class="flexicorp-form-row flexicorp-form-row--checkbox">
+						<input type="checkbox" id="fc-query-highlight-toggle" x-model="search.queryHighlightEnabled" :disabled="!queryHighlightSupported()" x-on:change="search.queryHighlightEnabled && scheduleQueryHighlight()">
+						<label for="fc-query-highlight-toggle">Syntax highlighting <span x-show="!queryHighlightSupported()" x-transition class="flexicorp-query-highlight-hint">(supported query languages only)</span><span x-show="queryHighlightSupported()"></span></label>
+					</div>
+					<div class="flexicorp-query-wrap" :class="search.queryHighlightEnabled && queryHighlightSupported() ? '' : 'flexicorp-query-wrap--no-highlight'">
+						<pre class="flexicorp-query-highlight" aria-hidden="true" x-show="search.queryHighlightEnabled && queryHighlightSupported()"><code id="fc-query-highlight" class="flexicorp-query-highlight-code" x-html="queryHighlightDisplayHtml()"></code></pre>
+						<textarea id="fc-query" name="query" class="flexicorp-query-input" x-model="search.query" x-on:input="scheduleQueryHighlight()" x-on:scroll="syncQueryHighlightScroll($event)"></textarea>
+					</div>
+					<p class="wrong flexicorp-query-parse-error" :class="(search.queryHighlightEnabled && !!search.queryHighlightError) ? 'flexicorp-query-parse-error--visible' : ''" x-text="(search.queryHighlightEnabled && !!search.queryHighlightError) ? search.queryHighlightError : ' '"></p>
+				</div>
+				</div>
+				<div class="flexicorp-search-options-panel" x-show="!search.ran || search.showQueryForm">
+				<div class="flexicorp-form-grid">
+					<div class="flexicorp-form-row">
+						<label for="fc-context-format">Context format</label>
+						<select id="fc-context-format" name="context_format" x-model="search.contextFormat" x-on:change="ensureValidContextScope()">
+							<option value="text">raw</option>
+							<option value="xml">xml</option>
+						</select>
+					</div>
+					<div class="flexicorp-form-row">
+						<label for="fc-context-scope">Context scope</label>
+						<!--
+							x-init/x-effect nudge: x-model evaluates before the inner x-for renders <option>s,
+							so the browser falls back to the first option, and Alpine's two-way x-model writes
+							that DOM value back into search.contextScope. Re-setting $el.value on $nextTick
+							(after x-for completes) syncs the select to the actual data, both on initial render
+							(x-init) and on every subsequent change to the bound value (x-effect).
+						-->
+						<select id="fc-context-scope" name="context_scope"
+							x-model="search.contextScope"
+							x-on:change="onContextScopeChanged()"
+							x-init="$nextTick(() => { if ($el.value !== search.contextScope) $el.value = search.contextScope; })"
+							x-effect="(() => { const v = search.contextScope; $nextTick(() => { if ($el.value !== v) $el.value = v; }); })()">
+							<template x-for="opt in contextScopeOptions()" :key="'ctx-scope:' + opt.value">
+								<option :value="opt.value" :selected="opt.value === search.contextScope" x-text="opt.label"></option>
+							</template>
+						</select>
+					</div>
+					<div class="flexicorp-form-row">
+						<label for="fc-kwic-window">Context window (tokens per side)</label>
+						<input
+							id="fc-kwic-window"
+							type="number"
+							name="window"
+							min="1"
+							max="50"
+							x-model.number="search.window"
+							x-on:change="onSearchWindowChanged($event)"
+						>
+					</div>
+					<div class="flexicorp-form-row">
+						<label for="fc-kwic-limit">Hit limit</label>
+						<select id="fc-kwic-limit" name="kwic_limit" x-model="search.limit" x-on:change="onSearchLimitChanged($event)" class="flexicorp-inline-select">
+							<template x-for="opt in searchLimitOptions()" :key="'kwic-limit-' + opt">
+								<option :value="String(opt)" x-text="opt"></option>
+							</template>
+						</select>
+					</div>
+				</div>
+				<div class="flexicorp-form-actions">
+					<button type="button" class="btn btn-sm btn-primary" x-on:click="submitSearchFromButton($el)" :disabled="isLoading('search') || isBusy() || (!isAdmin && noQueryBackendAvailable())" x-text="isLoading('search') ? 'Executing...' : 'Run search'"></button>
+				</div>
+				</div>
+			</form>
+			<div
+				x-show="queryBuilderState && queryBuilderState.enabled && queryBuilderState.open"
+				x-transition.opacity
+				style="position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:2000;display:flex;align-items:center;justify-content:center;padding:18px;"
+				x-on:keydown.escape.window="queryBuilderClose()"
+			>
+				<div
+					style="background:#fff;border-radius:8px;border:1px solid #d3d3d3;max-width:960px;width:100%;max-height:85vh;overflow:auto;padding:14px;"
+					x-on:click.stop
+				>
+					<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+						<h3 style="margin:0;">{%Query Builder}</h3>
+						<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderClose()">{%Close}</button>
+					</div>
+					<p class="flexicorp-panel-note" style="margin-top:0;">
+						Token-first builder (MVP). Text query remains canonical and will be updated on Apply.
+					</p>
+					<div class="flexicorp-form-row" style="margin-bottom:8px;">
+						<label for="fc-qb-query-name">Query name (optional)</label>
+						<input
+							id="fc-qb-query-name"
+							type="text"
+							x-model="queryBuilderState.queryName"
+							placeholder="My query"
+						>
+					</div>
+					<p class="wrong" x-show="queryBuilderState.warning" x-text="queryBuilderState.warning"></p>
+					<p class="flexicorp-panel-note" x-show="!queryBuilderSupportsCurrentLanguage()">
+						Current query language is not yet supported by the builder. Use text query mode.
+					</p>
+					<div style="display:grid;grid-template-columns:220px 1fr;gap:12px;">
+						<div style="border-right:1px solid #e1e1e1;padding-right:10px;">
+							<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+								<strong>{%Tokens}</strong>
+							</div>
+							<div style="display:flex;flex-direction:column;gap:6px;">
+								<template x-for="tok in (queryBuilderState.tokens || [])" :key="'qb-token-' + tok.id">
+									<div
+										style="display:flex;gap:6px;align-items:center;"
+									>
+										<button
+											type="button"
+											class="btn btn-sm"
+											:class="String(queryBuilderState.selectedTokenId || '') === String(tok.id) ? 'btn-primary' : 'btn-outline-secondary'"
+											:style="String(queryBuilderState.selectedTokenId || '') === String(tok.id) ? 'font-weight:700; background:#fff; border-color:#5f6b7a; color:#1f2d3d;' : ''"
+											x-on:click="queryBuilderSelectToken(tok.id)"
+											x-text="(tok.name && String(tok.name).trim()) ? tok.name : (tok.label || tok.id)"
+										></button>
+										<span class="flexicorp-panel-note" x-show="queryBuilderSupportsDependencies() && queryBuilderTokenDependencyLabel(tok)" x-text="queryBuilderTokenDependencyLabel(tok)"></span>
+										<button type="button" class="btn btn-sm btn-outline-secondary" x-show="!String(tok.dependsOn || '').trim()" x-on:click="queryBuilderMoveToken(tok.id, 'up')" :disabled="!queryBuilderCanMoveToken(tok.id, 'up')" title="Move up">&#8593;</button>
+										<button type="button" class="btn btn-sm btn-outline-secondary" x-show="!String(tok.dependsOn || '').trim()" x-on:click="queryBuilderMoveToken(tok.id, 'down')" :disabled="!queryBuilderCanMoveToken(tok.id, 'down')" title="Move down">&#8595;</button>
+										<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderRemoveToken(tok.id)" title="Remove token">&times;</button>
+									</div>
+								</template>
+								<div style="margin-top:4px;">
+									<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderAddToken()">Add token</button>
+								</div>
+							</div>
+						</div>
+						<div>
+							<template x-if="queryBuilderSelectedToken()">
+								<div>
+									<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+										<strong x-text="'Restrictions for ' + ((queryBuilderSelectedToken().name && String(queryBuilderSelectedToken().name).trim()) ? queryBuilderSelectedToken().name : (queryBuilderSelectedToken().label || queryBuilderSelectedToken().id))"></strong>
+										<div style="display:flex;gap:6px;">
+											<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderAddRestriction()">Add restriction</button>
+										</div>
+									</div>
+									<div style="display:flex;flex-direction:column;gap:8px;">
+										<template x-for="res in (queryBuilderSelectedToken().restrictions || [])" :key="'qb-res-' + res.id">
+											<div
+												:style="queryBuilderRestrictionInputType(res) === 'select'
+													? 'display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;'
+													: 'display:grid;grid-template-columns:1fr 150px 1fr auto;gap:8px;align-items:end;'"
+											>
+												<div>
+													<label style="display:block;font-size:12px;">Field</label>
+													<select
+														x-model="res.field"
+														:disabled="!queryBuilderSupportsCurrentLanguage()"
+														:style="queryBuilderRestrictionFieldMissing(res) ? 'border-color:#c63b3b;background:#fff3f3;' : ''"
+														x-on:change="queryBuilderOnRestrictionFieldChange(res)"
+													>
+														<option value="">field</option>
+														<template x-for="grp in queryBuilderFieldGroups()" :key="'qb-group-' + grp.id">
+															<optgroup :label="grp.label">
+																<template x-for="opt in grp.options" :key="'qb-field-' + grp.id + ':' + opt.value">
+																<option :value="opt.value" :class="opt.admin ? 'adminpart' : ''" x-text="opt.label"></option>
+																</template>
+															</optgroup>
+														</template>
+													</select>
+												</div>
+												<div x-show="queryBuilderRestrictionInputType(res) !== 'select'">
+													<label style="display:block;font-size:12px;">Match</label>
+													<select x-model="res.operator" :disabled="!queryBuilderSupportsCurrentLanguage()">
+														<template x-for="op in queryBuilderOperators()" :key="'qb-op-' + op">
+															<option :value="op" x-text="op"></option>
+														</template>
+													</select>
+												</div>
+												<div>
+													<label style="display:block;font-size:12px;">Value</label>
+													<template x-if="queryBuilderRestrictionInputType(res) === 'select'">
+														<select x-model="res.value" :disabled="!queryBuilderSupportsCurrentLanguage() || queryBuilderRestrictionFieldLoading(res)">
+															<option value="">select value</option>
+															<template x-for="vopt in queryBuilderRestrictionOptions(res)" :key="'qb-vopt-' + (res.id || '') + ':' + vopt.value">
+																<option :value="vopt.value" x-text="vopt.label || vopt.value"></option>
+															</template>
+														</select>
+													</template>
+													<template x-if="queryBuilderRestrictionInputType(res) !== 'select'">
+														<div style="position:relative;">
+															<input
+																type="text"
+																x-model="res.value"
+																:disabled="!queryBuilderSupportsCurrentLanguage()"
+																x-on:input="queryBuilderOnRestrictionValueInput(res)"
+																x-on:focus="queryBuilderOnRestrictionValueInput(res)"
+																x-on:keydown.escape="queryBuilderCloseSuggestions(res)"
+															>
+															<div
+																x-show="queryBuilderSuggestOpen(res)"
+																style="position:absolute;left:0;right:0;top:100%;z-index:30;background:#fff;border:1px solid #d0d7de;border-radius:4px;max-height:220px;overflow:auto;margin-top:2px;"
+															>
+																<template x-for="item in queryBuilderSuggestItems(res)" :key="'qb-sugg-' + (res.id || '') + ':' + item.value">
+																	<button
+																		type="button"
+																		class="btn btn-sm btn-link"
+																		style="display:block;width:100%;text-align:left;padding:4px 8px;border-radius:0;"
+																		x-on:click="queryBuilderSelectSuggestion(res, item)"
+																	>
+																		<span x-text="item.label || item.value"></span>
+																	</button>
+																</template>
+															</div>
+														</div>
+													</template>
+													<span class="flexicorp-panel-note" x-show="queryBuilderRestrictionFieldLoading(res)">loading values...</span>
+													<span class="flexicorp-panel-note" x-show="queryBuilderSuggestLoading(res)">loading suggestions...</span>
+												</div>
+												<div>
+													<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderRemoveRestriction(res.id)" title="Remove restriction">&times;</button>
+												</div>
+											</div>
+										</template>
+										<div class="flexicorp-form-row" style="margin-top:4px;">
+											<label>Token name (optional)</label>
+											<input
+												type="text"
+												x-model="queryBuilderSelectedToken().name"
+												:disabled="!queryBuilderSupportsCurrentLanguage()"
+												placeholder="e.g. t1"
+											>
+										</div>
+									</div>
+									<div class="flexicorp-form-row" style="margin-top:8px;" x-show="queryBuilderSupportsDependencies()">
+										<label>Dependency (optional)</label>
+										<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+											<select
+												x-model="queryBuilderSelectedToken().dependsOn"
+												:disabled="!queryBuilderSupportsCurrentLanguage()"
+												x-on:change="queryBuilderOnTokenDependencyChange(queryBuilderSelectedToken())"
+											>
+												<option value="">independent (top-level token)</option>
+												<template x-for="opt in queryBuilderDependencyParentOptions(queryBuilderSelectedToken().id)" :key="'qb-dep-parent-' + opt.value">
+													<option :value="opt.value" x-text="opt.label"></option>
+												</template>
+											</select>
+											<select
+												x-model="queryBuilderSelectedToken().dependencyRelation"
+												:disabled="!queryBuilderSupportsCurrentLanguage() || !String(queryBuilderSelectedToken().dependsOn || '').trim()"
+											>
+												<template x-for="rel in queryBuilderDependencyRelationOptions()" :key="'qb-dep-rel-' + rel">
+													<option :value="rel" x-text="rel"></option>
+												</template>
+											</select>
+										</div>
+									</div>
+								</div>
+							</template>
+						</div>
+					</div>
+					<div
+						style="border:1px solid #e3e3e3;border-radius:6px;padding:8px;margin-top:10px;"
+						x-show="queryBuilderSupportsCurrentLanguage()"
+					>
+						<label style="display:flex;align-items:center;gap:8px;">
+							<input
+								type="checkbox"
+								:checked="queryBuilderState.alignment && queryBuilderState.alignment.enabled"
+								:disabled="!queryBuilderSupportsAlignment()"
+								x-on:change="queryBuilderSetAlignmentEnabled($event.target.checked)"
+							>
+							<span>Aligned query</span>
+						</label>
+						<div
+							style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end;"
+							x-show="queryBuilderState.alignment && queryBuilderState.alignment.enabled"
+						>
+							<div>
+								<label style="display:block;font-size:12px;">Alignment type</label>
+								<select
+									x-model="queryBuilderState.alignment.joinField"
+									:disabled="!queryBuilderSupportsCurrentLanguage()"
+								>
+									<template x-for="opt in queryBuilderAlignmentJoinFieldOptions()" :key="'qb-align-join-' + opt.value">
+										<option :value="opt.value" x-text="opt.label"></option>
+									</template>
+								</select>
+							</div>
+							<div>
+								<label style="display:block;font-size:12px;">Target alias</label>
+								<input
+									type="text"
+									x-model="queryBuilderState.alignment.targetAlias"
+									:disabled="!queryBuilderSupportsCurrentLanguage()"
+									placeholder="b"
+								>
+							</div>
+						</div>
+						<div
+							style="margin-top:10px;border-top:1px solid #ececec;padding-top:10px;"
+							x-show="queryBuilderState.alignment && queryBuilderState.alignment.enabled"
+						>
+							<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+								<strong x-text="queryBuilderAlignmentUsesSentenceTarget() ? 'Target sentence restrictions' : 'Target token restrictions'"></strong>
+								<div style="display:flex;gap:6px;">
+									<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderAddTargetRestriction()">Add target restriction</button>
+								</div>
+							</div>
+							<div style="display:flex;flex-direction:column;gap:8px;">
+								<template x-for="res in ((queryBuilderState.alignment && queryBuilderState.alignment.targetRestrictions) || [])" :key="'qb-target-res-' + res.id">
+									<div
+										:style="queryBuilderRestrictionInputType(res) === 'select'
+											? 'display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;'
+											: 'display:grid;grid-template-columns:1fr 150px 1fr auto;gap:8px;align-items:end;'"
+									>
+										<div>
+											<label style="display:block;font-size:12px;">Field</label>
+											<select
+												x-model="res.field"
+												:disabled="!queryBuilderSupportsCurrentLanguage()"
+												:style="queryBuilderRestrictionFieldMissing(res) ? 'border-color:#c63b3b;background:#fff3f3;' : ''"
+												x-on:change="queryBuilderOnRestrictionFieldChange(res)"
+											>
+												<option value="">field</option>
+												<template x-for="grp in queryBuilderTargetFieldGroups()" :key="'qb-target-group-' + grp.id">
+													<optgroup :label="grp.label">
+														<template x-for="opt in grp.options" :key="'qb-target-field-' + grp.id + ':' + opt.value">
+															<option :value="opt.value" :class="opt.admin ? 'adminpart' : ''" x-text="opt.label"></option>
+														</template>
+													</optgroup>
+												</template>
+											</select>
+										</div>
+										<div x-show="queryBuilderRestrictionInputType(res) !== 'select'">
+											<label style="display:block;font-size:12px;">Match</label>
+											<select x-model="res.operator" :disabled="!queryBuilderSupportsCurrentLanguage()">
+												<template x-for="op in queryBuilderOperators()" :key="'qb-target-op-' + op">
+													<option :value="op" x-text="op"></option>
+												</template>
+											</select>
+										</div>
+										<div>
+											<label style="display:block;font-size:12px;">Value</label>
+											<template x-if="queryBuilderRestrictionInputType(res) === 'select'">
+												<select x-model="res.value" :disabled="!queryBuilderSupportsCurrentLanguage() || queryBuilderRestrictionFieldLoading(res)">
+													<option value="">select value</option>
+													<template x-for="vopt in queryBuilderRestrictionOptions(res)" :key="'qb-target-vopt-' + (res.id || '') + ':' + vopt.value">
+														<option :value="vopt.value" x-text="vopt.label || vopt.value"></option>
+													</template>
+												</select>
+											</template>
+											<template x-if="queryBuilderRestrictionInputType(res) !== 'select'">
+												<input
+													type="text"
+													x-model="res.value"
+													:disabled="!queryBuilderSupportsCurrentLanguage()"
+												>
+											</template>
+											<span class="flexicorp-panel-note" x-show="queryBuilderRestrictionFieldLoading(res)">loading values...</span>
+										</div>
+										<div>
+											<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderRemoveTargetRestriction(res.id)" title="Remove restriction">&times;</button>
+										</div>
+									</div>
+								</template>
+							</div>
+						</div>
+						<p class="flexicorp-panel-note" style="margin:6px 0 0 0;" x-show="queryBuilderState.alignment && queryBuilderState.alignment.enabled">
+							Source alias is taken from the source token name (or defaults to `a`).
+						</p>
+					</div>
+					<div class="flexicorp-form-actions" style="margin-top:12px;">
+						<div style="margin-right:auto;min-width:320px;max-width:70%;">
+							<label style="display:block;font-size:12px;color:#555;">Preview</label>
+							<code style="display:block;padding:6px;border:1px solid #ddd;border-radius:4px;white-space:pre-wrap;word-break:break-word;background:#fafafa;" x-text="queryBuilderPreviewQuery() || '(query preview will appear here)'"></code>
+						</div>
+						<button type="button" class="btn btn-sm btn-primary" x-on:click="queryBuilderApplyToQuery()" :disabled="!queryBuilderSupportsCurrentLanguage()">Apply to query</button>
+						<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderClose()">Cancel</button>
+					</div>
+				</div>
+			</div>
+			<p class="flexicorp-panel-note" x-show="isLoading('search')">executing</p>
+			<div class="flexicorp-call-errors" x-show="search.ran && callHasIssues(search.response)">
+				<template x-for="msg in callMessages(search.response)" :key="msg">
+					<p class="wrong" x-text="msg"></p>
+				</template>
+			</div>
+			<div class="flexicorp-search-intro-slot" x-show="!search.ran && !isLoading('search')">
+				<div
+					class="flexicorp-search-intro-lead"
+					x-show="showSearchIntroLeadFoot()"
+					x-html="searchIntroLeadHtml"
+				>{{SEARCH_INTRO_LEAD_HTML}}</div>
+				<div class="flexicorp-form-row flexicorp-search-intro" x-show="showSearchIntroPanel()">
+					<div class="flexicorp-search-intro__box">
+						<div
+							class="flexicorp-search-intro__body"
+							x-html="searchIntroHtml"
+						>{{SEARCH_INTRO_HTML}}</div>
+						<div class="flexicorp-search-intro__examples" x-show="searchExampleQueries && searchExampleQueries.length">
+							<p class="flexicorp-search-intro__examples-title">Example queries</p>
+							<ul class="flexicorp-example-query-list">
+								<template x-for="(ex, idx) in searchExampleQueries" :key="'flexicorp-exq:' + idx">
+									<li>
+										<button
+											type="button"
+											class="btn btn-link btn-sm flexicorp-example-query-btn"
+											x-text="ex && ex.label && String(ex.label).trim() ? String(ex.label).trim() : shortQueryOptionLabel(ex && ex.query ? ex.query : '')"
+											x-on:click="search.query = ex.query; search.showQueryForm = true; scheduleQueryHighlight();"
+										></button>
+									</li>
+								</template>
+							</ul>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div x-show="search.ran">
+				<div class="flexicorp-search-result-title-row" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0.5rem 1rem;margin-bottom:0.35rem;">
+					<h3 class="flexicorp-subtitle" style="margin:0">{%Search result}</h3>
+					<div class="flexicorp-search-result-display" style="margin:0;display:inline-flex;align-items:center;gap:0.35rem;flex:0 0 auto;">
+						<label for="fc-view-mode-results" class="flexicorp-inline-label" style="margin:0">{%Display}</label>
+						<select
+							id="fc-view-mode-results"
+							class="form-control form-control-sm flexicorp-inline-select"
+							x-model="search.viewMode"
+							x-on:change="onSearchViewModeChanged($event)"
+							x-init="$nextTick(() => { if ($el.value !== search.viewMode) $el.value = search.viewMode; })"
+							x-effect="(() => { const v = search.viewMode; $nextTick(() => { if ($el.value !== v) $el.value = v; }); })()"
+							title="{%Switch view without rerunning the query}"
+						>
+							<template x-for="opt in searchViewModeOptions()" :key="'view-mode-rs:' + opt.value">
+								<option :value="opt.value" :selected="opt.value === search.viewMode" x-text="opt.label"></option>
+							</template>
+						</select>
+					</div>
+				</div>
+				<p
+					class="flexicorp-panel-note flexicorp-search-result-stats"
+					x-show="searchResultHeadlineVisible()"
+					style="margin:0"
+				>
+					<template x-if="search.query && !search.showQueryForm">
+						<span>
+							<span>Query: </span>
+							<code class="flexicorp-query-inline" x-html="searchSummaryQueryPlainHtml()"></code>
+							<a
+								href="#"
+								class="btn btn-link btn-sm flexicorp-search-change-link"
+								x-on:click.prevent="search.showQueryForm = true"
+							>Change</a>
+						</span>
+					</template>
+					<template x-if="search.query && !search.showQueryForm && searchResultPrimaryLine()">
+						<span> · </span>
+					</template>
+					<template x-if="searchResultPrimaryLine()">
+						<span x-text="searchResultPrimaryLine()"></span>
+					</template>
+					<template x-if="!search.query && !search.showQueryForm && searchResultPrimaryLine()">
+						<span> · </span>
+						<a
+							href="#"
+							class="btn btn-link btn-sm flexicorp-search-change-link"
+							x-on:click.prevent="search.showQueryForm = true"
+						>Change</a>
+					</template>
+				</p>
+				<p class="flexicorp-panel-note" x-show="isSearchViewMode('grouped')">Grouped by document, with repeated contexts merged so multiple hits in the same occurrence are highlighted together.</p>
+				<p class="flexicorp-panel-note" x-show="isSearchViewMode('anchor_kwic')">Anchor KWIC centers discontinuous matches on the preferred anchor group instead of forcing the whole match span into the middle column.</p>
+				<p class="flexicorp-panel-note" x-show="searchHasTableResults()">This query returned a non-concordance result.</p>
+				<div class="flexicorp-highlight-legend" x-show="searchShouldShowHighlightLegend()">
+					<span class="flexicorp-highlight-legend-title">Query groups:</span>
+					<template x-for="entry in searchHighlightLegend()" :key="entry.name">
+						<span class="flexicorp-highlight-legend-item">
+							<span
+								class="flexicorp-highlight-legend-chip"
+								:class="entry.paletteClass ? 'flexicorp-highlight-chip--' + entry.paletteClass : ''"
+								:style="(entry.color ? 'background:' + entry.color + ';' : '') + (entry.textColor ? 'color:' + entry.textColor + ';' : '')"
+								x-on:mouseenter="_showLegendTooltip(entry, $event)"
+								x-on:mousemove="_moveLegendTooltip($event)"
+								x-on:mouseleave="_hideLegendTooltip()"
+								x-text="entry.label || entry.name"></span>
+						</span>
+					</template>
+					<div
+						class="flexicorp-highlight-legend-tooltip"
+						x-show="legendTooltipVisible()"
+						x-bind:style="legendTooltipStyle()"
+						x-text="legendTooltipText()"></div>
+				</div>
+				<div class="flexicorp-result-view-options" x-show="searchTextOptionsVisible()">
+					<div class="flexicorp-result-view-options__row" x-show="searchTextOptionsVisible()">
+						<span class="flexicorp-result-view-options__label">Text:</span>
+						<template x-for="opt in searchTextFormOptions()" :key="'form-opt:' + opt.key">
+							<button
+								type="button"
+								class="flexicorp-seg-btn"
+								:id="'but-' + opt.key"
+								:class="isSearchTextFormActive(opt.key) ? 'flexicorp-seg-btn--active' : ''"
+								:style="(opt.color ? 'color:' + opt.color + ';' : '') + (opt.admin ? 'border:2px dotted #992000;' : '')"
+								x-on:click="applySearchTextForm(opt.key)"
+								x-text="opt.label"
+							></button>
+						</template>
+					</div>
+					<!--
+					Tags row (tagdef / window.toggletag) disabled: clashes with flexicorp KWIC/XML layout and TEITOK CSS.
+					Re-enable when we can isolate tag styling without breaking concordance display.
+					<div class="flexicorp-result-view-options__row" x-show="searchTagOptionsVisible()">
+						<span class="flexicorp-result-view-options__label">Tags:</span>
+						<template x-for="opt in searchTagOptions()" :key="'tag-opt:' + opt.key">
+							<button
+								type="button"
+								class="flexicorp-seg-btn"
+								:id="'tbt-' + opt.key"
+								:class="isSearchTagActive(opt.key) ? 'flexicorp-seg-btn--active' : ''"
+								:style="(opt.color ? 'color:' + opt.color + ';' : '') + (opt.admin ? 'border:2px dotted #992000;' : '')"
+								x-on:click="toggleSearchTag(opt.key)"
+								x-text="opt.label"
+							></button>
+						</template>
+					</div>
+					-->
+				</div>
+				<template x-if="!search.hits.length && !searchHasTableResults() && !callHasIssues(search.response)">
+					<p class="flexicorp-panel-note">No hits returned.</p>
+				</template>
+				<table class="flexicorp-table flexicorp-search-table-results" x-show="false">
+					<thead>
+						<tr>
+							<template x-for="column in getSearchTableColumns()" :key="'search-table-head:' + column">
+								<th x-text="column"></th>
+							</template>
+						</tr>
+					</thead>
+					<tbody>
+						<template x-for="(row, idx) in getSearchTableRows()" :key="'search-table-row:' + idx">
+							<tr>
+								<template x-for="column in getSearchTableColumns()" :key="'search-table-cell:' + idx + ':' + column">
+									<td x-text="formatSearchTableCell(row[column])"></td>
+								</template>
+							</tr>
+						</template>
+					</tbody>
+				</table>
+				<div id="mtxt">
+				<div x-show="!searchHasTableResults() && isSearchViewMode('grouped')">
+					<template x-for="group in groupHitsByDoc()" :key="group.docId">
+						<div class="flexicorp-hit-group">
+							<div class="flexicorp-hit-group-head">
+									<template x-if="group.docUrl">
+										<a class="flexicorp-hit-context-link" x-bind:href="group.docUrl" x-bind:cid="group.docCid" x-bind:title="group.docTooltip" onmouseover="if (typeof showdocinfo === 'function') showdocinfo(this)" onmouseout="if (typeof hidetokinfo === 'function') hidetokinfo()" target="flexicorp_source" rel="noopener noreferrer" x-text="group.docId"></a>
+									</template>
+									<template x-if="!group.docUrl">
+										<span class="flexicorp-hit-context-link" x-text="group.docId"></span>
+									</template>
+								<span class="flexicorp-panel-note" x-text="group.totalHits + ' hit(s) in ' + group.hits.length + ' occurrence(s)'"></span>
+							</div>
+							<template x-for="(hit, idx) in group.hits" :key="group.docId + ':' + idx">
+								<div class="flexicorp-hit">
+									<p class="flexicorp-panel-note flexicorp-hit-meta">
+										<span class="flexicorp-hit-meta-doc">
+											<template x-if="getHitDocUrl(hit)">
+												<a class="flexicorp-hit-context-link" x-bind:href="getHitDocUrl(hit)" x-bind:cid="getHitDocCid(hit)" x-bind:title="getDocumentTooltip(getHitDocLabel(hit))" x-text="getHitContextLinkLabel(hit)" onmouseover="if (typeof showdocinfo === 'function') showdocinfo(this)" onmouseout="if (typeof hidetokinfo === 'function') hidetokinfo()" target="flexicorp_source" rel="noopener noreferrer"></a>
+											</template>
+											<template x-if="!getHitDocUrl(hit)">
+												<span class="flexicorp-hit-context-link" x-text="getHitContextLinkLabel(hit)" x-bind:title="getDocumentTooltip(getHitDocLabel(hit))"></span>
+											</template>
+											<span x-show="getMergedHitCount(hit) > 1" style="margin-left:0.35em;" x-text="getMergedHitCount(hit) + ' hits'"></span>
+										</span>
+										<span
+											class="flexicorp-hit-token-align flexicorp-hit-token-align--with-context"
+											x-show="getHitTokenIds(hit) || String(getHitAlignmentTuidForDepalign(hit) || '').trim() || teitokTuviewGroupUrl(hit)"
+										>
+											<span>token : </span><span x-text="getHitTokenIds(hit) || '—'"></span>
+											<template x-if="String(getHitAlignmentTuidForDepalign(hit) || '').trim()">
+												<span> - alignment : </span><span x-text="String(getHitAlignmentTuidForDepalign(hit) || '').trim()"></span>
+											</template>
+											<template x-if="teitokTuviewGroupUrl(hit)">
+												<span> (</span><a
+													class="flexicorp-hit-context-link"
+													x-bind:href="teitokTuviewGroupUrl(hit)"
+													target="_blank"
+													rel="noopener noreferrer"
+													title="Open parallel texts in TEITOK (tuview)"
+													>open</a><span>)</span>
+											</template>
+										</span>
+									</p>
+									<template x-if="shouldShowRawHit(hit)">
+										<pre x-text="hit.raw"></pre>
+									</template>
+									<template x-if="!shouldShowRawHit(hit)">
+										<div>
+											<template x-if="isXmlContext()">
+												<div class="flexicorp-hit-xml" x-html="getRenderedXmlContext(hit, getAlignedCompanionHit(hit) ? 'source' : '')" x-on:mousemove="highlightAlignedTokenByHover($event)" x-on:mouseleave="clearAlignedHoverHighlights()"></div>
+											</template>
+											<template x-if="!isXmlContext() && hitHasStructuredContext(hit)">
+												<pre x-text="getDisplayableTextContext(hit)"></pre>
+											</template>
+											<template x-if="!isXmlContext() && !hitHasStructuredContext(hit) && hit.raw">
+												<div class="flexicorp-hit-raw-rendered" x-html="getRenderedRawHit(hit)"></div>
+											</template>
+										</div>
+									</template>
+									<template x-if="getGroupedAlignedCompanions(hit).length">
+										<div class="flexicorp-hit" style="margin-top:8px;border-top:1px dashed #d8d8d8;padding-top:6px;">
+											<template x-for="(alignedHit, aidx) in getGroupedAlignedCompanions(hit)" :key="'aligned-grouped:' + idx + ':' + aidx">
+												<div style="margin-top:6px;">
+													<p class="flexicorp-panel-note flexicorp-hit-meta">
+														<span class="flexicorp-hit-meta-doc">
+															<span>Aligned </span>
+															<template x-if="getHitDocUrl(alignedHit)">
+																<a class="flexicorp-hit-context-link" x-bind:href="getHitDocUrl(alignedHit)" x-bind:cid="getHitDocCid(alignedHit)" x-bind:title="getDocumentTooltip(getHitDocLabel(alignedHit))" x-text="getHitContextLinkLabel(alignedHit)" onmouseover="if (typeof showdocinfo === 'function') showdocinfo(this)" onmouseout="if (typeof hidetokinfo === 'function') hidetokinfo()" target="flexicorp_source" rel="noopener noreferrer"></a>
+															</template>
+															<template x-if="!getHitDocUrl(alignedHit)">
+																<span x-text="getHitContextLinkLabel(alignedHit)"></span>
+															</template>
+														</span>
+														<span
+															class="flexicorp-hit-token-align flexicorp-hit-token-align--with-context"
+															x-show="getHitTokenIds(alignedHit) || String(getHitAlignmentTuidForDepalign(alignedHit) || '').trim() || teitokTuviewPairUrl(alignedHit)"
+														>
+															<span>token : </span><span x-text="getHitTokenIds(alignedHit) || '—'"></span>
+															<template x-if="String(getHitAlignmentTuidForDepalign(alignedHit) || '').trim()">
+																<span> - alignment : </span><span x-text="String(getHitAlignmentTuidForDepalign(alignedHit) || '').trim()"></span>
+															</template>
+															<template x-if="teitokTuviewPairUrl(alignedHit)">
+																<span> (</span><a
+																	class="flexicorp-hit-context-link"
+																	x-bind:href="teitokTuviewPairUrl(alignedHit)"
+																	target="_blank"
+																	rel="noopener noreferrer"
+																	title="Open this alignment in TEITOK (tuview)"
+																	>open</a><span>)</span>
+															</template>
+															<template x-if="alignedContextLanguageLabel(alignedHit)">
+																<span> · </span><span x-text="alignedContextLanguageLabel(alignedHit)"></span>
+															</template>
+														</span>
+													</p>
+													<template x-if="shouldShowRawHit(alignedHit)">
+														<pre x-text="formatAlignedRawFallback(alignedHit)"></pre>
+													</template>
+													<template x-if="!shouldShowRawHit(alignedHit)">
+														<div>
+															<template x-if="isXmlContext() && hitHasTeitokXmlContext(alignedHit)">
+																<div class="flexicorp-hit-xml" x-html="getRenderedXmlContext(alignedHit, 'target')" x-on:mousemove="highlightAlignedTokenByHover($event)" x-on:mouseleave="clearAlignedHoverHighlights()"></div>
+															</template>
+															<template x-if="(!isXmlContext() || !hitHasTeitokXmlContext(alignedHit)) && hitHasStructuredContext(alignedHit)">
+																<pre x-text="getDisplayableTextContext(alignedHit)"></pre>
+															</template>
+															<template x-if="(!isXmlContext() || !hitHasTeitokXmlContext(alignedHit)) && !hitHasStructuredContext(alignedHit)">
+																<pre x-text="formatAlignedRawFallback(alignedHit)"></pre>
+															</template>
+														</div>
+													</template>
+												</div>
+											</template>
+										</div>
+									</template>
+								</div>
+							</template>
+						</div>
+					</template>
+				</div>
+				<table class="flexicorp-table flexicorp-results-table" x-show="!searchHasTableResults() && isSearchViewMode('table') && getMergedSearchHits().length">
+					<thead>
+						<tr x-show="!searchHasAlignedHits()">
+							<th>Context</th>
+							<th class="flexicorp-eye-candy-col" x-show="searchHasAnyEyeCandy()">Extras</th>
+							<th>Result</th>
+						</tr>
+						<tr x-show="searchHasAlignedHits()">
+							<th x-bind:colspan="searchHasAnyEyeCandyAlignedSide('source') ? 3 : 2" x-text="alignedSideHeaderTitle('source')"></th>
+							<th x-bind:colspan="searchHasAnyEyeCandyAlignedSide('target') ? 3 : 2" x-text="alignedSideHeaderTitle('target')"></th>
+						</tr>
+						<tr x-show="searchHasAlignedHits()">
+							<th>Context</th>
+							<th x-show="searchHasAnyEyeCandyAlignedSide('source')">Extras</th>
+							<th>Result</th>
+							<th>Context</th>
+							<th x-show="searchHasAnyEyeCandyAlignedSide('target')">Extras</th>
+							<th>Result</th>
+						</tr>
+					</thead>
+					<tbody>
+						<template x-for="(hit, idx) in getMergedSearchHits()" :key="'table:' + idx">
+							<tr>
+								<td class="flexicorp-results-table-context">
+									<template x-if="getHitDocUrl(hit)">
+										<a class="flexicorp-hit-context-link" x-bind:href="getHitDocUrl(hit)" x-bind:cid="getHitDocCid(hit)" x-bind:title="getDocumentTooltip(getHitDocLabel(hit))" x-text="getHitContextLinkLabel(hit)" onmouseover="if (typeof showdocinfo === 'function') showdocinfo(this)" onmouseout="if (typeof hidetokinfo === 'function') hidetokinfo()" target="flexicorp_source" rel="noopener noreferrer"></a>
+									</template>
+									<template x-if="!getHitDocUrl(hit)">
+										<span class="flexicorp-hit-context-link" x-text="getHitContextLinkLabel(hit)" x-bind:title="getDocumentTooltip(getHitDocLabel(hit))"></span>
+									</template>
+									<div class="flexicorp-panel-note" x-show="getMergedHitCount(hit) > 1" x-text="getMergedHitCount(hit) + ' hits'"></div>
+								</td>
+								<td class="flexicorp-eye-candy-col" x-show="!searchHasAlignedHits() && searchHasAnyEyeCandy()">
+									<div class="flexicorp-eye-candy" x-show="hasEyeCandy(hit)" x-html="getEyeCandyHtml(hit)"></div>
+								</td>
+								<td x-show="!searchHasAlignedHits()">
+									<template x-if="shouldShowRawHit(hit)">
+										<pre x-text="hit.raw"></pre>
+									</template>
+									<template x-if="!shouldShowRawHit(hit)">
+										<div>
+											<template x-if="isXmlContext()">
+												<div class="flexicorp-hit-xml" x-html="getRenderedXmlContext(hit)"></div>
+											</template>
+											<template x-if="!isXmlContext() && hitHasStructuredContext(hit)">
+												<pre x-text="getDisplayableTextContext(hit)"></pre>
+											</template>
+											<template x-if="!isXmlContext() && !hitHasStructuredContext(hit) && hit.raw">
+												<div class="flexicorp-hit-raw-rendered" x-html="getRenderedRawHit(hit)"></div>
+											</template>
+										</div>
+									</template>
+								</td>
+								<td class="flexicorp-eye-candy-col" x-show="searchHasAlignedHits() && searchHasAnyEyeCandyAlignedSide('source')">
+									<template x-if="getGroupedAlignedCompanions(hit).length > 1">
+										<div class="flexicorp-aligned-table-cell" x-bind:style="'--aligned-count:' + Math.max(1, getGroupedAlignedCompanions(hit).length)">
+											<template x-for="(alignedHit, aidx) in getGroupedAlignedCompanions(hit)" :key="'table-src-eye:' + idx + ':' + aidx">
+												<div class="flexicorp-eye-candy flexicorp-aligned-table-cell-row" x-html="getEyeCandyHtmlForAlignedPair(hit, alignedHit)"></div>
+											</template>
+										</div>
+									</template>
+									<template x-if="getGroupedAlignedCompanions(hit).length <= 1">
+										<div class="flexicorp-eye-candy" x-show="hasEyeCandy(hit)" x-html="getEyeCandyHtml(hit)"></div>
+									</template>
+								</td>
+								<td x-show="searchHasAlignedHits()">
+									<template x-if="shouldShowRawHit(hit)">
+										<pre x-text="hit.raw"></pre>
+									</template>
+									<template x-if="!shouldShowRawHit(hit)">
+										<div>
+											<template x-if="isXmlContext()">
+												<div class="flexicorp-hit-xml" x-html="getRenderedXmlContext(hit, 'source')" x-on:mousemove="highlightAlignedTokenByHover($event)" x-on:mouseleave="clearAlignedHoverHighlights()"></div>
+											</template>
+											<template x-if="!isXmlContext() && hitHasStructuredContext(hit)">
+												<pre x-text="getDisplayableTextContext(hit)"></pre>
+											</template>
+											<template x-if="!isXmlContext() && !hitHasStructuredContext(hit) && hit.raw">
+												<div class="flexicorp-hit-raw-rendered" x-html="getRenderedRawHit(hit)"></div>
+											</template>
+										</div>
+									</template>
+								</td>
+								<td class="flexicorp-results-table-context" x-show="searchHasAlignedHits()">
+									<div class="flexicorp-aligned-table-cell" x-bind:style="'--aligned-count:' + Math.max(1, getGroupedAlignedCompanions(hit).length)">
+										<template x-for="(alignedHit, aidx) in getGroupedAlignedCompanions(hit)" :key="'table-align-ctx:' + idx + ':' + aidx">
+											<div class="flexicorp-aligned-table-cell-row">
+												<template x-if="getHitDocUrl(alignedHit)">
+													<a class="flexicorp-hit-context-link" x-bind:href="getHitDocUrl(alignedHit)" x-bind:cid="getHitDocCid(alignedHit)" x-bind:title="getDocumentTooltip(getHitDocLabel(alignedHit))" x-text="getHitContextLinkLabel(alignedHit)" onmouseover="if (typeof showdocinfo === 'function') showdocinfo(this)" onmouseout="if (typeof hidetokinfo === 'function') hidetokinfo()" target="flexicorp_source" rel="noopener noreferrer"></a>
+												</template>
+												<template x-if="!getHitDocUrl(alignedHit)">
+													<span class="flexicorp-hit-context-link" x-text="getHitContextLinkLabel(alignedHit)" x-bind:title="getDocumentTooltip(getHitDocLabel(alignedHit))"></span>
+												</template>
+											</div>
+										</template>
+									</div>
+								</td>
+								<td class="flexicorp-eye-candy-col" x-show="searchHasAlignedHits() && searchHasAnyEyeCandyAlignedSide('target')">
+									<div class="flexicorp-aligned-table-cell" x-bind:style="'--aligned-count:' + Math.max(1, getGroupedAlignedCompanions(hit).length)">
+										<template x-for="(alignedHit, aidx) in getGroupedAlignedCompanions(hit)" :key="'table-align-eye:' + idx + ':' + aidx">
+											<div class="flexicorp-eye-candy flexicorp-aligned-table-cell-row" x-show="hasEyeCandy(alignedHit)" x-html="getEyeCandyHtml(alignedHit)"></div>
+										</template>
+									</div>
+								</td>
+								<td x-show="searchHasAlignedHits()">
+									<div class="flexicorp-aligned-table-cell" x-bind:style="'--aligned-count:' + Math.max(1, getGroupedAlignedCompanions(hit).length)">
+										<template x-for="(alignedHit, aidx) in getGroupedAlignedCompanions(hit)" :key="'table-align-res:' + idx + ':' + aidx">
+											<div class="flexicorp-aligned-table-cell-row">
+												<template x-if="isXmlContext() && hitHasTeitokXmlContext(alignedHit)">
+													<div class="flexicorp-hit-xml" x-html="getRenderedXmlContext(alignedHit, 'target')" x-on:mousemove="highlightAlignedTokenByHover($event)" x-on:mouseleave="clearAlignedHoverHighlights()"></div>
+												</template>
+												<template x-if="(!isXmlContext() || !hitHasTeitokXmlContext(alignedHit)) && hitHasStructuredContext(alignedHit)">
+													<pre x-text="getDisplayableTextContext(alignedHit)"></pre>
+												</template>
+												<template x-if="(!isXmlContext() || !hitHasTeitokXmlContext(alignedHit)) && !hitHasStructuredContext(alignedHit)">
+													<pre x-text="formatAlignedRawFallback(alignedHit)"></pre>
+												</template>
+											</div>
+										</template>
+									</div>
+								</td>
+							</tr>
+						</template>
+					</tbody>
+				</table>
+				<table class="flexicorp-table flexicorp-kwic-table" x-show="!searchHasTableResults() && (isSearchViewMode('kwic') || isSearchViewMode('anchor_kwic')) && search.hits.length">
+					<colgroup>
+						<template x-for="(pct, idx) in kwicColumnPercentages()" :key="'kwic-colpct-' + idx">
+							<col :style="'width:' + pct + '%'" />
+						</template>
+					</colgroup>
+					<thead><tr><th>Context</th><th>Left</th><th x-text="kwicMatchColumnLabel()"></th><th>Right</th><th x-show="searchHasAlignedHits()">Aligned left</th><th x-show="searchHasAlignedHits()">Aligned match</th><th x-show="searchHasAlignedHits()">Aligned right</th></tr></thead>
+					<tbody>
+						<template x-for="(hit, idx) in search.hits" :key="'kwic:' + idx">
+							<tr
+								x-bind:id="'r-' + idx"
+								x-on:mouseenter="window.tid = getHitDocCid(hit) || getHitDocLabel(hit) || ''"
+								x-bind:class="{ 'flexicorp-kwic-xml-row': kwicCellIsXml(hit) }"
+							>
+								<td class="flexicorp-results-table-context">
+									<template x-if="getHitDocUrl(hit)">
+										<a class="flexicorp-hit-context-link" x-bind:href="getHitDocUrl(hit)" x-bind:cid="getHitDocCid(hit)" x-bind:title="getDocumentTooltip(getHitDocLabel(hit))" x-text="getHitContextLinkLabel(hit)" onmouseover="if (typeof showdocinfo === 'function') showdocinfo(this)" onmouseout="if (typeof hidetokinfo === 'function') hidetokinfo()" target="flexicorp_source" rel="noopener noreferrer"></a>
+									</template>
+									<template x-if="!getHitDocUrl(hit)">
+										<span class="flexicorp-hit-context-link" x-text="getHitContextLinkLabel(hit)" x-bind:title="getDocumentTooltip(getHitDocLabel(hit))"></span>
+									</template>
+								</td>
+								<td class="flexicorp-kwic-left">
+									<template x-if="kwicCellIsXml(hit)">
+										<span class="flexicorp-kwic-left-inner"><span class="flexicorp-kwic-left-text flexicorp-kwic-xml" x-html="getActiveKwicParts(hit).left"></span></span>
+									</template>
+									<template x-if="!kwicCellIsXml(hit)">
+										<span class="flexicorp-kwic-left-inner"><span class="flexicorp-kwic-left-text" x-text="getActiveKwicParts(hit).left"></span></span>
+									</template>
+								</td>
+								<td class="flexicorp-kwic-match">
+									<template x-if="kwicCellIsXml(hit)">
+										<div class="flexicorp-kwic-match-xml" x-html="getActiveKwicParts(hit).match"></div>
+									</template>
+									<template x-if="!kwicCellIsXml(hit)">
+										<span class="flexicorp-kwic-match-text" x-text="getActiveKwicParts(hit).match"></span>
+									</template>
+								</td>
+								<td class="flexicorp-kwic-right">
+									<template x-if="kwicCellIsXml(hit)">
+										<span class="flexicorp-kwic-right-inner"><span class="flexicorp-kwic-right-text flexicorp-kwic-xml" x-html="getActiveKwicParts(hit).right"></span></span>
+									</template>
+									<template x-if="!kwicCellIsXml(hit)">
+										<span class="flexicorp-kwic-right-inner"><span class="flexicorp-kwic-right-text" x-text="getActiveKwicParts(hit).right"></span></span>
+									</template>
+								</td>
+								<td class="flexicorp-kwic-left" x-show="searchHasAlignedHits()">
+									<template x-if="getAlignedCompanionHit(hit) && kwicCellIsXml(getAlignedCompanionHit(hit))">
+										<span class="flexicorp-kwic-left-inner"><span class="flexicorp-kwic-left-text flexicorp-kwic-xml" x-html="getActiveKwicParts(getAlignedCompanionHit(hit)).left"></span></span>
+									</template>
+									<template x-if="getAlignedCompanionHit(hit) && !kwicCellIsXml(getAlignedCompanionHit(hit))">
+										<span class="flexicorp-kwic-left-inner"><span class="flexicorp-kwic-left-text" x-text="getActiveKwicParts(getAlignedCompanionHit(hit)).left"></span></span>
+									</template>
+								</td>
+								<td class="flexicorp-kwic-match" x-show="searchHasAlignedHits()">
+									<template x-if="getAlignedCompanionHit(hit) && kwicCellIsXml(getAlignedCompanionHit(hit))">
+										<div class="flexicorp-kwic-match-xml" x-html="getActiveKwicParts(getAlignedCompanionHit(hit)).match"></div>
+									</template>
+									<template x-if="getAlignedCompanionHit(hit) && !kwicCellIsXml(getAlignedCompanionHit(hit))">
+										<span class="flexicorp-kwic-match-text" x-text="getActiveKwicParts(getAlignedCompanionHit(hit)).match"></span>
+									</template>
+								</td>
+								<td class="flexicorp-kwic-right" x-show="searchHasAlignedHits()">
+									<template x-if="getAlignedCompanionHit(hit) && kwicCellIsXml(getAlignedCompanionHit(hit))">
+										<span class="flexicorp-kwic-right-inner"><span class="flexicorp-kwic-right-text flexicorp-kwic-xml" x-html="getActiveKwicParts(getAlignedCompanionHit(hit)).right"></span></span>
+									</template>
+									<template x-if="getAlignedCompanionHit(hit) && !kwicCellIsXml(getAlignedCompanionHit(hit))">
+										<span class="flexicorp-kwic-right-inner"><span class="flexicorp-kwic-right-text" x-text="getActiveKwicParts(getAlignedCompanionHit(hit)).right"></span></span>
+									</template>
+								</td>
+							</tr>
+						</template>
+					</tbody>
+				</table>
+				</div>
+				<div class="flexicorp-form-actions" x-show="canShowMoreSearch()">
+					<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="showMoreSearch()" :disabled="isLoading('search') || isBusy()">Show more</button>
+				</div>
+			</div>
+		</section>
+
+{{STATS_PANEL_HTML}}
+
+		<section class="flexicorp-panel" x-show="activeTab === 'debug' && showDebugTab()">
+			<div class="flexicorp-panel-title-row">
+				<h2 class="flexicorp-panel-title">Debug</h2>
+				<span class="flexicorp-panel-note">Logged flexiCorp calls for this page render</span>
+			</div>
+			<template x-if="!debugEntries.length">
+				<p class="flexicorp-panel-note">No debug entries recorded.</p>
+			</template>
+			<template x-for="(entry, idx) in debugEntries.slice().reverse()" :key="idx">
+				<div class="flexicorp-debug-entry">
+					<div class="flexicorp-debug-entry-head">
+						<span class="flexicorp-debug-time" x-text="entry.time || ''"></span>
+						<span class="flexicorp-debug-op" x-text="(entry.backend || '') + ' ' + (entry.operation || '')"></span>
+						<span class="flexicorp-debug-status" :class="entry.ok ? 'flexicorp-debug-status--ok' : 'flexicorp-debug-status--err'" x-text="entry.ok ? 'OK' : 'error'"></span>
+					</div>
+					<template x-if="(entry.errors && entry.errors.length) || (entry.warnings && entry.warnings.length)">
+						<div class="flexicorp-call-errors">
+							<template x-for="msg in (entry.errors || []).concat(entry.warnings || [])" :key="msg">
+								<p :class="(entry.errors || []).includes(msg) ? 'wrong' : ''" x-text="msg"></p>
+							</template>
+						</div>
+					</template>
+					<details class="flexicorp-debug-details">
+						<summary x-on:click.prevent="$el.parentElement.toggleAttribute('open')">Details</summary>
+						<p><strong>Command:</strong> <code x-text="entry.command || ''"></code></p>
+						<template x-if="entry.http_status !== undefined && entry.http_status !== null && entry.http_status !== ''">
+							<p><strong>HTTP status:</strong> <code x-text="String(entry.http_status)"></code></p>
+						</template>
+						<template x-if="entry.request_payload !== undefined && entry.request_payload !== null">
+							<div>
+								<strong>Request payload</strong>
+								<pre x-text="formatMaybeObject(entry.request_payload)"></pre>
+							</div>
+						</template>
+						<template x-if="entry.result !== undefined && entry.result !== null">
+							<div>
+								<strong>Result</strong>
+								<pre x-text="formatMaybeObject(entry.result)"></pre>
+							</div>
+						</template>
+						<template x-if="entry.raw">
+							<div>
+								<strong>Raw</strong>
+								<pre x-text="entry.raw"></pre>
+							</div>
+						</template>
+					</details>
+				</div>
+			</template>
+		</section>
+
+	</div>
+
+	<template x-if="settingsOpen">
+		<div class="flexicorp-overlay" x-on:click.self="closeSettings()">
+			<div class="flexicorp-dialog">
+				<h2>flexiCorp settings</h2>
+				<form action="" method="get" class="flexicorp-form">
+					<input type="hidden" name="action" value="{{ACTION_NAME}}">
+					<input type="hidden" name="active_tab" :value="activeTab">
+					<input type="hidden" name="query" :value="search.query">
+					<input type="hidden" name="field" :value="search.field">
+					<input type="hidden" name="value" :value="search.value">
+					<input type="hidden" name="context_format" :value="search.contextFormat">
+					<input type="hidden" name="context_scope" :value="search.contextScope">
+					<input type="hidden" name="view_mode" :value="search.viewMode">
+					<input type="hidden" name="kwic_limit" :value="search.limit">
+					<input type="hidden" name="start" :value="search.start">
+					<input type="hidden" name="freq_field" :value="frequency.field">
+					<input type="hidden" name="freq_limit" :value="frequency.limit">
+					<input type="hidden" name="group_hits_by_sentence" :value="settingsDraft.groupHitsBySentence ? 1 : 0">
+					<div class="flexicorp-form-row">
+						<label for="fc-settings-backend">Search engine</label>
+						<select
+							id="fc-settings-backend"
+							name="backend_combo"
+							x-model="settingsSelectedComboId"
+							x-on:change="useSettingsBackendCombination($event.target.value)"
+						>
+							<template x-for="combo in backendCombinationList()" :key="'settings-backend:' + combo.id">
+								<template x-if="combo.backend !== 'flexi' && combo.available">
+									<option
+										:value="combo.id"
+										x-text="getBackendLabel(combo.backend) + ' \u2013 ' + queryLanguageShort(combo.queryLanguage)"
+									></option>
+								</template>
+							</template>
+						</select>
+					</div>
+					<p class="flexicorp-panel-note" x-text="getBackendDescription(settings.backend)"></p>
+					<div class="flexicorp-form-row">
+						<label for="fc-settings-docs">Document limit</label>
+						<input id="fc-settings-docs" type="number" min="1" max="100" name="docs_limit" x-model="settingsDraft.docsLimit">
+					</div>
+					<div class="flexicorp-form-row">
+						<label for="fc-settings-kwic">Default KWIC limit</label>
+						<input id="fc-settings-kwic" type="number" min="1" max="200" name="kwic_limit" x-model="settingsDraft.kwicLimit">
+					</div>
+					<div class="flexicorp-form-row">
+						<label for="fc-settings-window">Default KWIC window (tokens per side, 1–50)</label>
+						<input id="fc-settings-window" type="number" min="1" max="50" name="window" x-model="settingsDraft.kwicWindow">
+					</div>
+					<p class="flexicorp-panel-note">Corpus default can be set in TEITOK for all visitors: <code>getset( flexicorp/kwic_window )</code> (empty = 10).</p>
+					<div class="flexicorp-form-row">
+						<label for="fc-settings-group-hits">Merge hits in same sentence/context</label>
+						<input
+							id="fc-settings-group-hits"
+							type="checkbox"
+							x-model="settingsDraft.groupHitsBySentence"
+						>
+					</div>
+{{STATS_SETTINGS_FREQ_ROW_HTML}}
+					<p class="flexicorp-panel-note">This popup currently controls the module UI/request defaults. It does not yet save corpus-wide backend configuration.</p>
+					<div class="flexicorp-dialog-actions">
+						<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="closeSettings()">Cancel</button>
+						<button type="submit" class="btn btn-sm btn-primary">Apply</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</template>
+
+	<template x-if="helpOpen">
+		<div class="flexicorp-overlay" x-on:click.self="closeHelp()">
+			<div class="flexicorp-dialog flexicorp-dialog--wide">
+				<h2>flexiCorp help</h2>
+				<p class="flexicorp-panel-note">
+					This interface lets you compare different corpus backends, query languages and storage formats for the same TEITOK corpus using the shared flexiCorp CLI.
+				</p>
+				<p class="flexicorp-panel-note">
+					For a more detailed field-by-field guide to this interface, see
+					<a href="index.php?action=help-flexicorp">help-flexicorp</a>.
+					Query language references:
+					<a href="index.php?action=help-cwb-cql">help-cwb-cql</a> and
+					<a href="index.php?action=help-pando-cql">help-pando-cql</a>.
+				</p>
+				<h3 class="flexicorp-subtitle">Choosing a backend</h3>
+				<p class="flexicorp-panel-note">
+					Use the <strong>Overview</strong> tab to see all implemented backend / query-language / storage combinations that are available for this corpus.
+					Each row shows whether the combination is usable and why. Click <strong>Details</strong> to switch the module to that triple and re-run status, info and document listing.
+				</p>
+				<h3 class="flexicorp-subtitle">Running searches</h3>
+				<p class="flexicorp-panel-note">
+					Once you have chosen a combination on the Overview tab, go to <strong>Search</strong> to run queries and inspect results.
+					The same backend, query language and storage selection is used for search and highlighting.
+				</p>
+{{STATS_HELP_HTML}}
+				<h3 class="flexicorp-subtitle">External search interfaces</h3>
+				<p class="flexicorp-panel-note">
+					If the corpus is also available in other engines (for example Kontext, NoSketch, Grew or PML-TQ),
+					links to those interfaces appear under <strong>External corpus access</strong> on the Overview tab.
+					These open in a new window and are not controlled by flexiCorp.
+				</p>
+				<h3 class="flexicorp-subtitle">Admin-only configuration</h3>
+				<p class="flexicorp-panel-note">
+					Admin users can configure which backend combinations are visible to visitors and which external engines are listed,
+					using the TEITOK corpus settings for flexiCorp. Non-admin users only see the combinations that have been enabled for them.
+				</p>
+				<div class="flexicorp-dialog-actions">
+					<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="closeHelp()">Close</button>
+				</div>
+			</div>
+		</div>
+	</template>
+
+	<template x-if="statusDetailsOpen">
+		<div class="flexicorp-overlay" x-on:click.self="statusDetailsOpen = false">
+			<div class="flexicorp-dialog flexicorp-dialog--wide">
+				<h2>Status for current backend</h2>
+				<p class="flexicorp-panel-note">
+					This table shows the structured result returned by <code>flexicorp status</code> for the currently selected backend / query-language / storage combination.
+				</p>
+				<div class="flexicorp-call-errors" x-show="callHasIssues(status) && debugMode">
+					<template x-for="msg in callMessages(status)" :key="msg">
+						<p class="wrong" x-text="msg"></p>
+					</template>
+				</div>
+				<dl class="flexicorp-kv" x-show="status.result && typeof status.result === 'object'">
+					<template x-for="entry in entries(status.result)" :key="entry.key">
+						<div>
+							<dt x-text="entry.key"></dt>
+							<dd><pre x-text="formatMaybeObject(entry.value)"></pre></dd>
+						</div>
+					</template>
+				</dl>
+				<div class="flexicorp-dialog-actions">
+					<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="statusDetailsOpen = false">Close</button>
+				</div>
+			</div>
+		</div>
+	</template>
+
+	<template x-if="corporaOpen">
+		<div class="flexicorp-overlay" x-on:click.self="closeCorpora()">
+			<div class="flexicorp-dialog flexicorp-dialog--wide">
+				<h2 x-text="corporaTitle || 'Available corpora'"></h2>
+				<p class="flexicorp-panel-note">Choose a BlackLab corpus exposed by the configured server. This only changes the active flexiCorp test target for the current admin session.</p>
+				<p class="flexicorp-panel-note" x-show="selectedBlacklabCorpusId()">Current BlackLab corpus: <code x-text="selectedBlacklabCorpusId()"></code></p>
+				<p class="flexicorp-panel-note" x-show="corporaLoading">Loading corpora...</p>
+				<div class="flexicorp-call-errors" x-show="!!corporaError">
+					<p class="wrong" x-text="corporaError"></p>
+				</div>
+				<table class="flexicorp-table flexicorp-table--compact" x-show="!corporaLoading && corporaList.length">
+					<thead>
+						<tr>
+							<th>Corpus</th>
+							<th>Status</th>
+							<th>Format</th>
+							<th>Documents</th>
+							<th>Tokens</th>
+							<th>Modified</th>
+							<th>Actions</th>
+						</tr>
+					</thead>
+					<tbody>
+						<template x-for="corpus in corporaList" :key="'corpus:' + corpus.id">
+							<tr>
+								<td>
+									<code x-text="corpus.id"></code>
+									<span class="flexicorp-badge" x-show="selectedBlacklabCorpusId() === corpus.id">current</span>
+								</td>
+								<td x-text="corpus.status || ''"></td>
+								<td x-text="corpus.documentFormat || ''"></td>
+								<td x-text="corpus.count && corpus.count.documents != null ? corpus.count.documents : ''"></td>
+								<td x-text="corpus.count && corpus.count.tokens != null ? corpus.count.tokens : ''"></td>
+								<td x-text="corpus.timeModified || ''"></td>
+								<td>
+									<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="chooseBlacklabCorpus(corpus.id)">Use</button>
+								</td>
+							</tr>
+						</template>
+					</tbody>
+				</table>
+				<p class="flexicorp-panel-note" x-show="!corporaLoading && !corporaList.length && !corporaError">No corpora returned by the BlackLab server.</p>
+				<div class="flexicorp-dialog-actions">
+					<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="closeCorpora()">{%Close}</button>
+				</div>
+			</div>
+		</div>
+	</template>
+
+	<template x-if="rawOpen">
+		<div class="flexicorp-overlay" x-on:click.self="closeRaw()">
+			<div class="flexicorp-dialog flexicorp-dialog--wide">
+				<h2 x-text="rawTitle"></h2>
+				<pre class="flexicorp-raw-pre" x-text="rawBody"></pre>
+				<div class="flexicorp-dialog-actions">
+					<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="closeRaw()">Close</button>
+				</div>
+			</div>
+		</div>
+	</template>
+</div>
+<div id="tokinfo" style="display:none;"></div>
+<script id="flexicorp-initial-state" type="application/json">{{STATE_JSON}}</script>
+<script>
+var username = {{USERNAME_JSON}};
+var teitokScripts = {{TEITOK_SCRIPTS_JSON}};
+var formdef = {{JSON_FORMS}};
+var tagdef = {{JSON_TAGS}};
+var transl = {{JSON_TRANSLIT}};
+var orgtoks = new Object();
+var satts = {{JSON_SATTS}};
+window.debug = {{DEBUG_JSON}};
+</script>
+<script src="{{TEITOK_SCRIPTS}}/tokview.js" defer></script>
+<script src="{{TEITOK_SCRIPTS}}/tokedit.js" defer></script>
+<link rel="stylesheet" href="{{FLEXICORP_CSS_URL}}?v={{FLEXICORP_CSS_VERSION}}" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer crossorigin="anonymous"></script>
+<script src="{{FLEXICORP_SEARCH_JS_URL}}?v={{FLEXICORP_SEARCH_JS_VERSION}}" defer></script>
+<script src="{{FLEXICORP_FREQS_JS_URL}}?v={{FLEXICORP_FREQS_JS_VERSION}}" defer></script>
+<script src="{{FLEXICORP_FQS_JS_URL}}?v={{FLEXICORP_FQS_JS_VERSION}}" defer></script>
+<script src="{{FLEXICORP_JS_URL}}?v={{FLEXICORP_JS_VERSION}}" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.11/dist/cdn.min.js" defer></script>

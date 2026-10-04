@@ -1,0 +1,140 @@
+<h1>BCQL Search Guide</h1>
+<p>BCQL is the BlackLab Corpus Query Language, also referred to in some BlackLab documentation as CorpusQL. It is a corpus-search language for tokenized corpora with annotations, spans, inline tags, and optionally indexed relations. It is similar in spirit to CQL-family languages, but it also includes BlackLab-specific features such as XML-style span queries, captures, and relation-oriented patterns.</p>
+
+<h2>Purpose Of BCQL</h2>
+<p>BCQL is used to describe matches over annotated text. A query can search for one token, a sequence of tokens, a match restricted to a span such as a sentence, a span containing another match, or, when the corpus supports it, structural relation patterns.</p>
+<p>Typical uses include:</p>
+<ul>
+<li>finding one word form or lemma</li>
+<li>searching token annotations such as <code>word</code>, <code>lemma</code>, or <code>pos</code></li>
+<li>searching token sequences with gaps and repetition</li>
+<li>restricting matches with spans such as <code>&lt;s/&gt;</code></li>
+<li>capturing named parts of the match</li>
+<li>searching indexed relations such as dependencies, if the corpus was indexed with them</li>
+</ul>
+
+<h2>Basic Token Queries</h2>
+<p>A BCQL query often starts with either a quoted token or a token expression in square brackets.</p>
+<pre><code>"interesting"
+[word="interesting"]
+[lemma="go"]
+[pos="N.*"]</code></pre>
+<p>Quoted strings search a token form directly. Bracket expressions search an annotation value explicitly. The actual annotation names depend on the corpus, but common ones include <code>word</code>, <code>lemma</code>, <code>pos</code>, and corpus-specific fields.</p>
+
+<h2>Regular Expressions</h2>
+<p>Regular expressions can be used inside token constraints.</p>
+<pre><code>[word="walk.*"]
+[lemma="struggl.*"]
+[pos="N.*"]</code></pre>
+<p>Examples:</p>
+<ul>
+<li><code>[word="colou?r"]</code> matches both <code>color</code> and <code>colour</code></li>
+<li><code>[word="[A-Z].*"]</code> matches a token beginning with a capital letter</li>
+<li><code>[lemma="go|come"]</code> matches either lemma</li>
+</ul>
+
+<h2>Combining Conditions On One Token</h2>
+<p>You can combine conditions with Boolean operators inside one token expression.</p>
+<pre><code>[lemma="go" &amp; pos="V.*"]
+[pos="N.*" | pos="PROPN"]
+[lemma!="be"]</code></pre>
+<ul>
+<li><code>&amp;</code> means both conditions must hold</li>
+<li><code>|</code> means either condition may hold</li>
+<li><code>!=</code> excludes a value</li>
+</ul>
+
+<h2>Sequences, Gaps, And Repetition</h2>
+<p>Place token expressions next to each other to search for sequences.</p>
+<pre><code>[pos="ADJ"] [pos="N.*"]
+[lemma="take"] [lemma="place"]</code></pre>
+<p>The empty token <code>[]</code> means “any one token”. Quantifiers can be used after token expressions.</p>
+<pre><code>[lemma="take"] []{0,3} [lemma="place"]
+[pos="ADV"]? [pos="ADJ"] [pos="N.*"]
+[pos="ADJ"]* [pos="N.*"]</code></pre>
+<ul>
+<li><code>?</code>: optional</li>
+<li><code>*</code>: zero or more</li>
+<li><code>+</code>: one or more</li>
+<li><code>{m,n}</code>: between <code>m</code> and <code>n</code> repetitions</li>
+</ul>
+
+<h2>Spans And XML-Style Tags</h2>
+<p>One of the more characteristic BCQL features is span querying with XML-style syntax. If your corpus indexed spans such as sentences, paragraphs, named entities, or speech segments, you can query those directly.</p>
+<pre><code>"de" within &lt;s/&gt;
+"test" within &lt;speech/&gt;
+&lt;ne type="PERS"/&gt;</code></pre>
+<p>Examples like these mean:</p>
+<ul>
+<li>a token or pattern inside a sentence span</li>
+<li>a token or pattern inside another indexed span</li>
+<li>a whole span with a given name, optionally constrained by attributes</li>
+</ul>
+
+<h2>Within, Containing, And Overlap</h2>
+<p>BCQL supports positional operators between matches.</p>
+<pre><code>"you" "are" within &lt;s/&gt;
+&lt;s/&gt; containing "grass"
+"cow" within (&lt;pasture/&gt; containing "grass")</code></pre>
+<p>These let you filter one pattern by another span or enclosing match. This is especially useful when sentence, paragraph, chapter, or named-entity spans have been indexed.</p>
+
+<h2>Captures</h2>
+<p>BCQL can capture parts of the match under a name so they can be reused or inspected later.</p>
+<pre><code>A:[]
+"big" A:[]
+PERSON:[lemma="john|mary"]</code></pre>
+<p>BlackLab also supports capture constraints after <code>::</code>, for example to compare captured values.</p>
+<pre><code>"big" A:[] "or" "small" B:[] :: A.word = B.word</code></pre>
+<p>This means: capture two tokens and require that the captured annotation values satisfy the constraint.</p>
+
+<h2>Relation Queries</h2>
+<p>If the corpus was indexed with relations, BCQL can search relation targets directly. This is the part of BCQL that matters for dependency-style searching.</p>
+<pre><code>_ -nsubj-&gt; _
+_ -obj-&gt; [lemma="book"]</code></pre>
+<p>These patterns describe relations rather than only surface token sequences. In practice, they are only available when the corpus actually indexed relations. If the corpus contains only token annotations such as <code>deprel</code> as plain fields, but no indexed relations, then relation-style BCQL is not available even though ordinary token search still is.</p>
+
+<h2>Useful Search Examples</h2>
+<p>A word form:</p>
+<pre><code>"interesting"</code></pre>
+<p>A lemma regardless of inflection:</p>
+<pre><code>[lemma="go"]</code></pre>
+<p>An adjective followed by a noun:</p>
+<pre><code>[pos="ADJ"] [pos="N.*"]</code></pre>
+<p>A phrase with up to three intervening tokens:</p>
+<pre><code>[lemma="take"] []{0,3} [lemma="place"]</code></pre>
+<p>A match inside a sentence span:</p>
+<pre><code>"de" within &lt;s/&gt;</code></pre>
+<p>A relation query over an indexed dependency relation:</p>
+<pre><code>_ -nsubj-&gt; _</code></pre>
+
+<h2>Things To Keep In Mind</h2>
+<ul>
+<li>Annotation names are corpus-specific. One corpus may use <code>pos</code>, another <code>upos</code>, another something else.</li>
+<li>Span queries such as <code>within &lt;s/&gt;</code> only work if the corpus indexed those spans.</li>
+<li>Relation queries only work if relations were indexed structurally, not merely stored as token attributes.</li>
+<li>Captures and capture constraints are powerful, but more advanced than plain token-sequence querying.</li>
+<li>When in doubt, start with a simple token query and then add spans, captures, or relations step by step.</li>
+</ul>
+
+<h2>Quick Reference</h2>
+<table>
+<thead>
+<tr><th>Form</th><th>Meaning</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><code>"word"</code></td><td>search a token form</td><td><code>"interesting"</code></td></tr>
+<tr><td><code>[attr="value"]</code></td><td>search an annotation value</td><td><code>[lemma="go"]</code></td></tr>
+<tr><td><code>[a="x" &amp; b="y"]</code></td><td>combine conditions on one token</td><td><code>[lemma="go" &amp; pos="V.*"]</code></td></tr>
+<tr><td><code>[a="x" | a="y"]</code></td><td>alternative values</td><td><code>[pos="N.*" | pos="PROPN"]</code></td></tr>
+<tr><td><code>[]</code></td><td>any token</td><td><code>[lemma="take"] [] [lemma="place"]</code></td></tr>
+<tr><td><code>A B</code></td><td>sequence of tokens</td><td><code>[pos="ADJ"] [pos="N.*"]</code></td></tr>
+<tr><td><code>A?</code></td><td>optional token or pattern</td><td><code>[pos="ADV"]?</code></td></tr>
+<tr><td><code>A*</code></td><td>zero or more repetitions</td><td><code>[pos="ADJ"]*</code></td></tr>
+<tr><td><code>A{m,n}</code></td><td>repeat between <code>m</code> and <code>n</code> times</td><td><code>[]{0,3}</code></td></tr>
+<tr><td><code>query within &lt;s/&gt;</code></td><td>restrict a match to a span</td><td><code>"de" within &lt;s/&gt;</code></td></tr>
+<tr><td><code>span containing query</code></td><td>find a span that contains a match</td><td><code>&lt;s/&gt; containing "grass"</code></td></tr>
+<tr><td><code>A:query</code></td><td>capture a named part of the match</td><td><code>A:[]</code></td></tr>
+<tr><td><code>::</code></td><td>apply a capture constraint</td><td><code>A:[] B:[] :: A.word = B.word</code></td></tr>
+<tr><td><code>_ -rel-&gt; _</code></td><td>search an indexed relation</td><td><code>_ -nsubj-&gt; _</code></td></tr>
+</tbody>
+</table>

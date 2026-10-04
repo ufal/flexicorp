@@ -1,0 +1,179 @@
+<h1>CWB/CQL Search Guide</h1>
+<p>CWB is the IMS Open Corpus Workbench, and CQL is its Corpus Query Language. It is a language for searching tokenized and annotated corpora: not only the written word forms, but also annotations such as lemma, part of speech, morphology, structural attributes, and named query results. For the full language, see the <a href="https://cwb.sourceforge.io/files/CQP_Manual/" target="_blank" rel="noopener noreferrer">CQP manual</a>.</p>
+
+<h2>Purpose Of CQL</h2>
+<p>CQL is used to describe corpus matches as patterns over tokens and annotations. A query can be as simple as a single word, but it can also describe sequences, alternatives, optional material, repeated patterns, structural restrictions, or named result sets that are reused later.</p>
+<p>Typical uses include:</p>
+<ul>
+<li>finding one word form or lemma</li>
+<li>finding tokens with a certain annotation, such as <code>upos="NOUN"</code></li>
+<li>searching for multi-word sequences</li>
+<li>grouping and counting results</li>
+<li>storing a result set under a name and reusing it later</li>
+</ul>
+
+<h2>Basic Token Queries</h2>
+<p>The simplest query is a quoted word form.</p>
+<pre><code>"interesting"</code></pre>
+<p>This finds all occurrences of the word form <code>interesting</code>.</p>
+<p>To search a token attribute explicitly, use square brackets.</p>
+<pre><code>[word="interesting"]
+[lemma="struggle"]
+[upos="NOUN"]</code></pre>
+<p>The available attribute names depend on the corpus. Common examples are <code>word</code>, <code>lemma</code>, <code>upos</code>, <code>xpos</code>, <code>deprel</code>, and corpus-specific morphological or structural attributes.</p>
+
+<h2>Regular Expressions</h2>
+<p>A regular expression is a compact way of describing a set of strings instead of writing every possibility separately. For example, instead of searching separately for <code>interest</code>, <code>interests</code>, <code>interested</code>, and <code>interesting</code>, you can describe them with one pattern.</p>
+<pre><code>"interest(s|(ed|ing)(ly)?)?"
+[lemma="struggl.*"]
+[word="colou?r"]</code></pre>
+<p>Some common regular-expression symbols are:</p>
+<ul>
+<li><code>.</code>: any single character</li>
+<li><code>*</code>: zero or more of the previous element</li>
+<li><code>+</code>: one or more of the previous element</li>
+<li><code>?</code>: optional, zero or one</li>
+<li><code>|</code>: alternative, “or”</li>
+<li><code>(...)</code>: group part of an expression together</li>
+<li><code>[A-Z]</code>: any character in a set or range</li>
+</ul>
+<p>Examples:</p>
+<ul>
+<li><code>[word="walk.*"]</code> matches words beginning with <code>walk</code></li>
+<li><code>[word="colou?r"]</code> matches both <code>color</code> and <code>colour</code></li>
+<li><code>[word="[A-Z].*"]</code> matches a word beginning with a capital letter</li>
+</ul>
+<p>If you want a character such as <code>?</code>, <code>+</code>, or <code>.</code> literally rather than as a regular-expression symbol, escape it with a backslash.</p>
+<pre><code>"\?"
+[word="C\+\+"]</code></pre>
+<p>CQP also supports flags after a regular expression. The most common are <code>%c</code> for case-insensitive matching, <code>%d</code> for ignoring diacritics, and <code>%cd</code> for both together.</p>
+<pre><code>"interesting" %c
+[word="wahrung"] %cd</code></pre>
+
+<h2>Combining Conditions On One Token</h2>
+<p>You can combine constraints on the same token with Boolean operators.</p>
+<pre><code>[lemma="struggle" &amp; upos="VERB"]
+[upos="NOUN" | upos="PROPN"]
+[lemma!="be"]</code></pre>
+<ul>
+<li><code>&amp;</code> means both conditions must be true</li>
+<li><code>|</code> means either condition may be true</li>
+<li><code>!=</code> means not equal</li>
+</ul>
+<p>Boolean combinations can also be grouped with parentheses inside a token expression.</p>
+<pre><code>[lemma="bank" &amp; (upos="NOUN" | upos="PROPN")]
+[word="lead" &amp; (xpos="NN" | xpos="VB")]</code></pre>
+<p>Negation can be written as a negative comparison.</p>
+<pre><code>[upos!="NOUN"]
+[upos != "NOUN"]
+[lemma="go" &amp; upos!="VERB"]</code></pre>
+
+<h2>Sequences, Gaps, And Repetition</h2>
+<p>Place token expressions next to each other to search for sequences.</p>
+<pre><code>[upos="ADJ"] [upos="NOUN"]
+[lemma="take"] [lemma="place"]</code></pre>
+<p>For example, <code>[upos="ADJ"] [upos="NOUN"]</code> means “an adjective followed directly by a noun”, so it finds combinations such as <code>green apples</code>.</p>
+<p>The empty token <code>[]</code> means “any one token”.</p>
+<pre><code>[lemma="struggle"] []
+[upos="VERB"] []{0,3} [upos="NOUN"]</code></pre>
+<p>Parentheses can also group sequences outside token brackets, so that alternatives can range over more than one token.</p>
+<pre><code>( [upos="ADJ"] | [upos="ADV"] )
+( [] | [] [] ) [lemma="go"]
+( [lemma="take"] [lemma="place"] | [lemma="occur"] )</code></pre>
+<p>You can also add repetition operators after a token expression.</p>
+<pre><code>[upos="ADV"]? [upos="ADJ"] [upos="NOUN"]
+[upos="ADJ"]* [upos="NOUN"]
+[upos="ADJ"]+ [upos="NOUN"]
+[lemma="take"] []{0,3} [lemma="place"]</code></pre>
+<ul>
+<li><code>?</code>: optional, zero or one time</li>
+<li><code>*</code>: zero or more times</li>
+<li><code>+</code>: one or more times</li>
+<li><code>{0,3}</code>: from zero to three times</li>
+</ul>
+
+<h2>Useful Search Examples</h2>
+<p>Adjective + noun:</p>
+<pre><code>[upos="ADJ"] [upos="NOUN"]</code></pre>
+<p>A lemma regardless of inflection:</p>
+<pre><code>[lemma="go"]</code></pre>
+<p>Proper names of one or more tokens:</p>
+<pre><code>[upos="PROPN"]+</code></pre>
+<p>A noun phrase with optional determiner and adjective:</p>
+<pre><code>[upos="DET"]? [upos="ADJ"]? [upos="NOUN"]</code></pre>
+<p>A verb followed within three tokens by a noun:</p>
+<pre><code>[upos="VERB"] []{0,3} [upos="NOUN"]</code></pre>
+<p>A token that must be a noun or proper noun, but only if the lemma is <code>bank</code>:</p>
+<pre><code>[lemma="bank" &amp; (upos="NOUN" | upos="PROPN")]</code></pre>
+<p>Either a one-token or two-token lead-in before <code>go</code>:</p>
+<pre><code>( [] | [] [] ) [lemma="go"]</code></pre>
+
+<h2>Named Queries</h2>
+<p>CQP can store a result set under a name and refer to it later. This is useful when you want to build a result once and then sort, count, group, tabulate, or filter it further.</p>
+<pre><code>NPs = [upos="ADJ"]* [upos="NOUN"];
+ProperNames = [upos="PROPN"]+;</code></pre>
+<p>Once a named query exists, later commands can refer to that name instead of repeating the pattern.</p>
+<p>Support for named queries depends on the backend and on corpus settings. Some environments allow only base search expressions and do not allow creating or reusing named results.</p>
+
+<h2>Grouping, Frequency Lists, And Tabulation</h2>
+<p>CQP also includes commands that operate on a result set rather than describing the initial match itself.</p>
+
+<h3>group</h3>
+<p><code>group</code> groups a result set by one or more values and counts how often each group occurs.</p>
+<pre><code>group NPs match lemma;
+group NPs match word by match lemma;</code></pre>
+
+<h3>freq</h3>
+<p><code>freq</code> produces frequency distributions over annotations. In many interfaces this overlaps with a dedicated frequency tab.</p>
+<pre><code>freq NPs lemma;
+freq NPs upos;</code></pre>
+
+<h3>tabulate</h3>
+<p><code>tabulate</code> prints selected annotation values from a result set in table form.</p>
+<pre><code>tabulate NPs match word;
+tabulate NPs match lemma, match upos;</code></pre>
+
+<p>These commands are often extremely useful, but they are not always permitted in every corpus interface. Depending on the backend, the corpus configuration, and the interface settings, sometimes only base queries are allowed, while commands such as <code>group</code>, <code>freq</code>, <code>tabulate</code>, and named-query reuse may be restricted or exposed through separate operations.</p>
+
+<h2>Structural And Advanced Commands</h2>
+<p>CQP can do more than token searching. It also supports structural attributes, aligned corpora, match labels, sorting, set operations, and additional scripting features. Not every interface exposes all of these directly, but they are part of the wider language family.</p>
+
+<h2>Things To Keep In Mind</h2>
+<ul>
+<li>Attribute names are corpus-specific. If <code>upos</code> or <code>lemma</code> does not work, check which annotations your corpus actually provides.</li>
+<li><code>"go"</code> searches the surface form, while <code>[lemma="go"]</code> searches the lemma.</li>
+<li>Broad regular expressions can be expensive on large corpora.</li>
+<li>Some interfaces accept only the core search expression, while others also allow named queries and result-set commands.</li>
+<li>When in doubt, start with a small exact query and then generalize it.</li>
+</ul>
+
+<h2>Quick Reference</h2>
+<table>
+<thead>
+<tr><th>Form</th><th>Meaning</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><code>"word"</code></td><td>search a surface form</td><td><code>"interesting"</code></td></tr>
+<tr><td><code>[attr="value"]</code></td><td>search an attribute value</td><td><code>[lemma="go"]</code></td></tr>
+<tr><td><code>[a="x" &amp; b="y"]</code></td><td>combine conditions on one token</td><td><code>[lemma="go" &amp; upos="VERB"]</code></td></tr>
+<tr><td><code>(...)</code> inside a token</td><td>group Boolean logic inside one token expression</td><td><code>[lemma="bank" &amp; (upos="NOUN" | upos="PROPN")]</code></td></tr>
+<tr><td><code>[a="x" | a="y"]</code></td><td>alternative values</td><td><code>[upos="NOUN" | upos="PROPN"]</code></td></tr>
+<tr><td><code>[a!="x"]</code></td><td>exclude a value</td><td><code>[lemma!="be"]</code></td></tr>
+<tr><td><code>[a != "x"]</code></td><td>same negative comparison with spaces</td><td><code>[upos != "NOUN"]</code></td></tr>
+<tr><td><code>[]</code></td><td>any token</td><td><code>[lemma="struggle"] []</code></td></tr>
+<tr><td><code>A B</code></td><td>sequence of tokens</td><td><code>[upos="ADJ"] [upos="NOUN"]</code></td></tr>
+<tr><td><code>( A | B )</code></td><td>alternative between token expressions or sequences</td><td><code>( [] | [] [] ) [lemma="go"]</code></td></tr>
+<tr><td><code>A?</code></td><td>optional token or pattern</td><td><code>[upos="ADV"]?</code></td></tr>
+<tr><td><code>A*</code></td><td>zero or more repetitions</td><td><code>[upos="ADJ"]*</code></td></tr>
+<tr><td><code>A+</code></td><td>one or more repetitions</td><td><code>[upos="PROPN"]+</code></td></tr>
+<tr><td><code>A{m,n}</code></td><td>repeat between <code>m</code> and <code>n</code> times</td><td><code>[]{0,3}</code></td></tr>
+<tr><td><code>[word="regex"]</code></td><td>regular expression search</td><td><code>[word="walk.*"]</code></td></tr>
+<tr><td><code>regex %c</code></td><td>ignore case</td><td><code>"interesting" %c</code></td></tr>
+<tr><td><code>regex %d</code></td><td>ignore diacritics</td><td><code>"wahrung" %d</code></td></tr>
+<tr><td><code>regex %cd</code></td><td>ignore case and diacritics</td><td><code>"wahrung" %cd</code></td></tr>
+<tr><td><code>Name = query;</code></td><td>store a named query result</td><td><code>NPs = [upos="ADJ"]* [upos="NOUN"];</code></td></tr>
+<tr><td><code>group Name ...;</code></td><td>group a named result</td><td><code>group NPs match lemma;</code></td></tr>
+<tr><td><code>freq Name ...;</code></td><td>make a frequency list</td><td><code>freq NPs lemma;</code></td></tr>
+<tr><td><code>tabulate Name ...;</code></td><td>output selected values as a table</td><td><code>tabulate NPs match lemma, match upos;</code></td></tr>
+</tbody>
+</table>

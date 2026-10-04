@@ -1,0 +1,72 @@
+#flexicorp-advanced-freqs-root {
+	margin-top: 0.5rem;
+}
+
+.advanced-freqs-scope__chips {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.35rem 0.5rem;
+}
+
+.advanced-freqs-scope__chip {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.advanced-freqs-maps-scope-ta {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+	font-size: 0.85rem;
+	width: 100%;
+	max-width: 52rem;
+}
+
+.advanced-freqs-maps-chart-wrap {
+	position: relative;
+	width: 100%;
+	max-width: 52rem;
+	height: 280px;
+	margin-bottom: 1rem;
+}
+
+.advanced-freqs-maps-bars {
+	max-width: 52rem;
+}
+
+.advanced-freqs-maps-bar-row {
+	display: grid;
+	grid-template-columns: minmax(6rem, 11rem) 1fr minmax(4rem, 6rem);
+	align-items: center;
+	gap: 0.5rem;
+	margin-bottom: 0.35rem;
+	font-size: 0.85rem;
+}
+
+.advanced-freqs-maps-bar-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.advanced-freqs-maps-bar-track {
+	height: 0.65rem;
+	background: rgba(0, 0, 0, 0.06);
+	border-radius: 2px;
+	overflow: hidden;
+}
+
+.advanced-freqs-maps-bar-fill {
+	height: 100%;
+	background: rgba(54, 162, 235, 0.65);
+	border-radius: 2px;
+	transition: width 0.2s ease;
+}
+
+.advanced-freqs-maps-bar-count {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+	color: #444;
+}
+

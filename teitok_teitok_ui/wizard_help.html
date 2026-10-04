@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>TEITOK Setup Wizard — Help</title>
+	<style>
+		body { font-family: system-ui, sans-serif; max-width: 42rem; margin: 1.5rem auto; padding: 0 1rem; color: #222; line-height: 1.45; font-size: 0.95rem; }
+		h1 { font-size: 1.35rem; margin-bottom: 0.35rem; }
+		h2 { font-size: 1.05rem; margin: 1.25rem 0 0.4rem; border-bottom: 1px solid #ddd; padding-bottom: 0.2rem; }
+		p { margin: 0.35rem 0; }
+		ul { margin: 0.35rem 0 0.35rem 1.2rem; padding: 0; }
+		code { font-size: 0.88em; background: #f4f4f4; padding: 0.05rem 0.25rem; border-radius: 3px; }
+		.note { color: #555; font-size: 0.88rem; margin-top: 0.75rem; }
+		a { color: #1565c0; }
+	</style>
+</head>
+<body>
+	<h1>TEITOK Corpus Setup Wizard — Help</h1>
+	<p class="note">Companion to <code>index.php?action=wizard</code>. The wizard samples XML and surfaces TEITOK settings; it is meant to <strong>improve</strong> setup over time, not to certify a corpus as “perfect.”</p>
+
+	<h2 id="philosophy">Intent</h2>
+	<ul>
+		<li>Executive summaries and remedy links live in the wizard UI.</li>
+		<li>This page holds longer explanations, merge/write semantics, and optional URL overrides (Help page only).</li>
+	</ul>
+
+	<h2 id="overview-tab">Overview tab</h2>
+	<h3 id="overview-workflow">Workflow order</h3>
+	<p>This applies to <strong>any</strong> TEITOK corpus, not only spoken projects: ideally configure regions, flexicorp allowlists, and NLP pipelines (e.g. flexiPipe for parses you plan to query) <strong>before</strong> exporting or transcribing bulk TEI. No XML files in the sample yet is not an error — it can mean you are still in that preparation phase. The same guidance appears in the Overview panel of the wizard (not on the Spoken checklist).</p>
+
+	<h2 id="alignment-merge">Alignment tab — merge into settings</h2>
+	<p>Only the <strong>Alignment</strong> tab performs a <strong>confirmed write</strong>: it merges missing alignment-related CQP entries into the corpus <code>Resources/settings.xml</code> (before each write, a daily backup is stored as <code>backups/settings-YYYYMMDD.xml</code> under the corpus root, one file per calendar day). Other tabs are read-only summaries.</p>
+	<p>Merge adds gaps detected from the sample: sentence <code>s_tuid</code>, token <code>tuid</code>/<code>p_tuid</code> when token ids appear in XML but no p-attribute is configured, and optionally text-level <code>text_tuid</code>. TEITOK then merges layers into <code>tmp/cqpsettings.xml</code>; reindex CWB/Pando after substantive changes.</p>
+
+	<h2 id="indexes">Index(es) tab</h2>
+	<p>This tab has <strong>no</strong> traffic-light dot in the wizard menu — it is diagnostic, not a “health score”. It runs <code>python -m flexicorp info backends</code> (via TEITOK helpers) to list which backend routes flexicorp considers reachable for this corpus, compares <code>defaults/flexicorp/backend</code> to that overview (plus <code>tt_flexicorp_pando_status</code> when the default is <code>pando</code>), calls <code>flexicorp info corpus</code> on the primary backend, compares merged CQP settings to the sampled XML, and for CWB-style backends runs capped <code>flexicorp freq</code> calls to estimate distinct types per token attribute and selected registry structural fields.</p>
+	<p>Vocabulary numbers are <strong>approximate</strong>: freq returns a capped group table; values ending in <code>≥12000</code> hit the wizard cap. Non-CWB primaries (e.g. ClickHouse) skip freq here.</p>
+
+	<h3 id="indexes-backend">Default flexicorp backend</h3>
+	<p><code>defaults/flexicorp/backend</code> (getset) selects which flexicorp backend handles queries. Empty means flexicorp’s default. Changing backend may require matching index/tooling on the server.</p>
+
+	<h3 id="indexes-cwb">Indexed corpus (CWB)</h3>
+	<p>The wizard looks for <code>word.corpus</code> under <code>cqp/</code> using <code>cqp/defaults/registry</code>. If TEI exists but no index is present yet, encode/reindex after CQP settings match your TEI (regions, p-/s-attributes).</p>
+
+	<h2 id="spoken-intro">Spoken data (TEITOK ↔ flexicorp)</h2>
+	<p>Spoken data in TEITOK allow the audio of the text to be used, typically with alignment between the transcription and the audio at the level of the utterance or even the token. With the proper set-up, aligned spoken data do not only present playable audio above the text, but also an aligned view in WaveSurfer, which displays the transcription synchronized with the audio, and in search results the audio of each resulting utterance can directly be listened to. Audio can also come from a video file, in which case the video is displayed as well.</p>
+	<p class="note">The wizard shows one checklist: XML expectations (what TEI should contain — fixes are per file), project/index lines (where TEITOK can be adjusted), short notes in the UI, and longer explanations here via row <strong>Help</strong> links. Corpus-wide <strong>workflow order</strong> (configure CQP/flexicorp/pipelines before bulk TEI) is on the <a href="#overview-workflow">Overview</a> tab, not repeated here.</p>
+
+	<p class="note"><span id="spoken-engine"></span><span id="spoken-index"></span> Default backend and CWB <code>word.corpus</code> status live on the <a href="#indexes">Index(es)</a> tab (<a href="#indexes-backend">backend</a>, <a href="#indexes-cwb">indexed corpus</a>). The Spoken checklist focuses on oral TEI and playback/search behaviour — not index prerequisites.</p>
+
+	<h3 id="spoken-media">Media pointers</h3>
+	<p>TEI should reference audio or video via <code>media/@url</code> and/or header <code>&lt;media&gt;</code>. Relative paths usually resolve against an <code>Audio/</code> folder beside <code>index.php</code>.</p>
+	<p><strong>Indexed corpus (TEITOK <code>cqp.php</code> / settings.xml):</strong> spoken corpora usually expose media URLs as <strong>utterance-level</strong> structural fields — nested under region <code>u</code> in <code>&lt;sattributes&gt;</code> — so multiple segments or files per TEI document stay aligned with ⟨u⟩ (e.g. ParCzech uses <code>chunk_url</code>). Other setups use nested fields named <code>media</code> or <code>u_media</code>. Older corpora may use nested <code>text_media</code> under region <code>text</code>, or a top-level region <code>audio</code> with <code>xpath</code>/<code>href</code>. The wizard treats these patterns as wired when the corresponding items appear in merged <code>tmp/cqpsettings.xml</code> or canonical <code>Resources/settings.xml</code>.</p>
+	<p>Unreleased flexicorp search UI (<code>flexicorp.js</code>, <code>getHitAudioInfo</code>) aligns with TEITOK by preferring <strong>XML in the hit context</strong> for the “sound” control: URLs and timing on <code>&lt;media&gt;</code>, <code>&lt;recording&gt;</code>, <code>&lt;u&gt;</code>, <code>@chunk_url</code>, and ancestors. Flexicorp should follow established corpus conventions — not replace them — except where flexiTools deliberately changes behaviour.</p>
+	<p class="note">Illustrative pattern (region <code>u</code> with a URL field — names follow your project):</p>
+	<pre style="white-space:pre-wrap;font-size:.88em;margin:.35rem 0 .6rem 0;">&lt;cqp corpus="..." searchfolder="xmlfiles"&gt;
+	&lt;sattributes&gt;
+		&lt;item key="u" ...&gt;
+			&lt;item key="chunk_url" xpath="..." href="..."/&gt;
+			...
+		&lt;/item&gt;
+	&lt;/sattributes&gt;
+&lt;/cqp&gt;</pre>
+	<p>The wizard checks merged <code>tmp/cqpsettings.xml</code> when present, otherwise corpus <code>Resources/settings.xml</code>. After edits, reindex so CWB/Pando materializes the fields you declared.</p>
+
+	<p class="note" id="spoken-timing">Two timeline rows: <a href="#spoken-timing-u">utterance</a> (TEI sample hint vs index-backed bounds) and <a href="#spoken-timing-tok">token</a> (TEI-only refinement).</p>
+	<h3 id="spoken-timing-u">Utterance timeline (⟨u⟩)</h3>
+	<p>This wizard’s <strong>primary</strong> role is to help you get <code>Resources/settings.xml</code> right so the corpus <strong>search index</strong> exposes utterance time bounds as CQP structural <code>u</code> / <code>u_start</code> / <code>u_stop</code> after encoding and reindex. That index wiring is what deployed TEITOK and flexicorp rely on for utterance-scoped snippets, playback scope, and search—not raw TEI alone. The hard check and <strong>Wizard fix</strong> for a missing utterance region live under <a href="#spoken-cqp-u">Utterance region (CQP)</a>; fix settings, complete xpath mapping under TEITOK CQP / Index(es), then reindex.</p>
+	<p>The <strong>Utterance timeline (⟨u⟩)</strong> checklist row is a small extra: it samples TEI for <code>&lt;u&gt;</code> with <code>@start</code> and <code>@stop</code> or <code>@end</code> as a quick signal that transcripts may carry inline times. That XML signal is optional sugar while you transcribe; it does not replace the obligation to declare and materialize utterance regions in CQP settings so <code>u_start</code> / <code>u_stop</code> (or region <code>u</code>) exist in the index. When times are missing in the sample, the row may show <strong>Review</strong> even though index configuration remains the decisive step.</p>
+	<h3 id="spoken-timing-tok">Token timeline (⟨tok⟩)</h3>
+	<p>Token-level times (<code>&lt;tok&gt;</code> with <code>@start</code> and <code>@stop</code> or <code>@end</code>) are <strong>only checked in XML</strong> here. They are refinements for the client JS (e.g. WaveSurfer word-level sync): they do <strong>not</strong> have the same index obligation as utterance bounds. You can have utterance times in the index without token times in TEI, or the reverse for experiments — but word-level UI polish expects token times in the files when you need them.</p>
+
+	<h3 id="spoken-wavesurfer">WaveSurfer (<code>wavesurfer.php</code> / <code>wavesurfer.js</code>)</h3>
+	<p>The WaveSurfer page reads XML from disk for one document (not the flexicorp search pipeline). Settings used there include:</p>
+	<ul style="margin:.25rem 0 .5rem 1.2rem;line-height:1.45;">
+		<li><code>xmlfile/defaults/speechturn</code> — utterance element name (default <code>U</code> → <code>&lt;u&gt;</code>); URL/query override <code>utt</code>.</li>
+		<li><code>xmlfile/speech/highlight</code> — region/tier WaveSurfer aligns the waveform to (URL/query <code>alt</code>); if unset and <code>//tok[@start]</code> exists in the file, TEITOK defaults to token highlighting (<code>TOK</code>), otherwise the utterance tag.</li>
+		<li><code>xmlfile/speech/showsubtitles</code>, <code>xmlfile/speech/showspeaker</code> — optional UI (also URL <code>subtitles</code>, <code>speaker</code>).</li>
+		<li><code>defaults/media/type</code> — when <code>inline</code>, TEITOK can fold inline <code>&lt;media&gt;</code> into paging; interacts with <code>xmlfile/speech/paged</code>.</li>
+		<li><code>defaults/media/baseurl</code> / <code>defaults/base/media</code> — base path for resolving relative media URLs.</li>
+		<li><code>defaults/media/skipempty</code> — seconds threshold to offer “play from start of transcription” when leading silence is long.</li>
+		<li><code>defaults/media/spectogram</code> — enables spectrogram plugin (loaded when non-empty).</li>
+		<li><code>xmlfile/paged/element</code> — when set to <code>media</code>, enables page nav tied to media fragments.</li>
+	</ul>
+	<p>WaveSurfer expects utterances used as editing regions to carry a unique <code>@id</code>; missing ids trigger a warning in edit mode. Corpus/view <code>allttag</code> still applies elsewhere (flexicorp); WaveSurfer primarily follows <code>xmlfile/speech/highlight</code> / auto-detect as above. Token <code>@start</code>/<code>@stop</code> in TEI refine word-level sync in the browser; utterance-level timing for scope still comes from the index in search.</p>
+
+	<h3 id="spoken-teitok-cqp-native">TEITOK native CQP (<code>cqp.php</code>) — playback column</h3>
+	<p>Beyond nested URL fields, TEITOK may mark a structural region so results include an indexed audio path and timing for the native play button: for each entry in <code>cqp/sattributes</code>, if <code>$satt['audio']</code> is set, <code>cqp.php</code> adds <code>, match &lt;region&gt;_audio</code> to tabulate and wires play buttons using <code>xidx</code> snippets plus <code>defaults/playbutton</code> (or shared/local play GIF fallbacks). Context hits use <code>cqp/defaults/searchtype</code>, <code>cqp/defaults/subtype</code>, <code>cqp/defaults/context</code>/<code>kwic</code>, and optional <code>cqp/sattributes/&lt;subtype&gt;/contextatts</code> for markup colouring — overlapping checks already appear under default snippet scope / subtype rows.</p>
+
+	<h3 id="spoken-cqp-u">Utterance region (CQP)</h3>
+	<p>Utterance time bounds used for search and snippet scope are <strong>read from the index</strong> via structural regions: most corpora use a single region <code>u</code> aligned with TEI <code>&lt;u&gt;</code>, or paired bounds <code>u_start</code> and <code>u_stop</code>. The wizard treats <strong><code>u</code></strong> <em>or</em> <strong>both <code>u_start</code> and <code>u_stop</code></strong> as a wired utterance layer (merged <code>tmp/cqpsettings.xml</code> when present, plus TEITOK getset at runtime). Configure under corpus CQP settings, then reindex. This is separate from token-level <code>@start</code>/<code>@stop</code> on <code>&lt;tok&gt;</code>, which stay in TEI for JS refinements.</p>
+
+	<h3 id="spoken-allowlist">Search context regions</h3>
+	<p>Corpus setting <code>flexicorp/context_scope_regions</code> (TEITOK getset, mirrored in <code>Resources/settings.xml</code> as flexicorp <code>item</code> <code>key="context_scope_regions"</code>) controls which structural regions search may use for context/KWIC scope: comma- or space-separated region ids, or empty / <code>-</code> / <code>default</code> for the built-in default list — the same list <code>flexicorp.php</code> resolves for implicit values. An explicit list that omits <code>u</code> conflicts with spoken XML — search cannot expand hits to utterances. The Spoken-tab wizard can append <code>u</code> to an explicit list, or write the built-in default list as an explicit value when the setting is still implicit.</p>
+
+	<h3 id="spoken-audio-dir">Audio folder &amp; uploads</h3>
+	<p>For relative media paths, expect an <code>Audio/</code> directory beside <code>index.php</code> <strong>and</strong> a TEITOK file-upload definition in <code>Resources/settings.xml</code> under <code>&lt;files&gt;</code>, e.g. <code>&lt;item key="audio" folder="Audio" … /&gt;</code>. The <code>extension</code> attribute is <strong>optional</strong>; when present it should list allowed suffixes (comma-separated, often <code>*.mp3</code>, <code>*.wav</code>, <code>*.ogg</code>, or <code>*.mp4</code> for video) so TEITOK only accepts those uploads—matching how browsers expose audio/video MIME types. Absolute media URLs may not need a local folder.</p>
+
+	<h3 id="spoken-cqp-listen">TEITOK default snippet scope</h3>
+	<p><code>cqp/defaults/searchtype</code> and <code>cqp/defaults/subtype</code> set the default hit snippet shape in TEITOK and flexicorp. <code>searchtype=context</code> with <code>subtype=u</code> opens utterance-wide, listenable snippets by default; KWIC/sentence defaults suit dependency trees and require users to widen scope for long audio snippets.</p>
+
+	<h3 id="spoken-cqp-defaults-subtype">CQP defaults vs indexed subtype</h3>
+	<p>If the default subtype names a region that is not in the indexed s-attributes list, fix TEITOK CQP configuration before expecting flexicorp to mirror that scope.</p>
+
+	<h3 id="spoken-cqp-defaults-oral">Oral context vs sentence default</h3>
+	<p>If the sample has <code>&lt;u&gt;</code> but defaults fix context on <code>&lt;s&gt;</code>, hits open sentence-sized context — often wrong for listening-sized playback. Prefer context + <code>subtype=u</code> for spoken material.</p>
+
+	<h3 id="spoken-cqp-defaults-su">Sentence vs utterance ambiguity</h3>
+	<p>When both <code>&lt;s&gt;</code> and <code>&lt;u&gt;</code> appear and defaults leave subtype unset (or token-wide), flexicorp may fall back to token-window scope. Set explicit TEITOK defaults so native CQP and flexicorp agree.</p>
+
+	<h3 id="spoken-cqp-defaults">Other CQP default checks</h3>
+	<p>See <code>cqp/defaults/*</code> in the CQP editor; merged <code>tmp/cqpsettings.xml</code> reflects TEITOK merges.</p>
+
+	<h2 id="dependencies">Dependencies tab</h2>
+	<p>The tab is organized like <strong>Spoken data</strong>: sectioned rows, <strong>XML (sample)</strong> vs <strong>Project / index</strong>, and short <strong>Notes</strong> with links. It covers dependency <strong>arcs</strong> (<code>deprel</code>/<code>head</code> in TEI, in CQP <code>pattributes</code>, and optionally in <code>xmlfile/pattributes</code> for the XML editor), <strong>sentence</strong> regions (<code>&lt;s&gt;</code> in TEI, region <code>s</code> in CQP, <code>&lt;s @tuid&gt;</code> and CQP <code>s_tuid</code>), <strong>default hit shape</strong> (TEITOK <code>cqp/defaults</code> — sentence-sized context vs KWIC is what native tree views and <code>deptree.php</code>-style UIs expect), optional <strong>UD morphology</strong> (<code>upos</code>, <code>xpos</code>, <code>lemma</code>, <code>feats</code>), plus corpus <strong>TEI folder</strong> and <strong>flexicorp</strong> index reachability. It does <strong>not</strong> list PHP module dependencies. Full backend / <code>freq</code> tables: <a href="#indexes">Index(es)</a>.</p>
+
+	<h3 id="dependencies-deprel">UD token arcs (deprel / head)</h3>
+	<p>TEI should carry <code>deprel</code> and <code>head</code> on <code>&lt;tok&gt;</code> (or <code>&lt;w&gt;</code>) for Universal Dependencies–style trees. CQP <code>&lt;pattributes&gt;</code> must list the same keys with xpath so the encoded corpus indexes them. <code>xmlfile/pattributes</code> in <code>Resources/settings.xml</code> controls which token attributes the TEITOK XML editor exposes—align it with your TEI for hand-editing.</p>
+
+	<h3 id="dependencies-s">Sentence ⟨s⟩ &amp; sentence ids</h3>
+	<p>Dependency tools usually need a <strong>sentence</strong> region in TEI and a matching <strong>structural region</strong> in CQP s-attributes. Stable <code>&lt;s @tuid&gt;</code> (or your project’s sentence id) plus a nested <code>s_tuid</code> (or <code>tuid</code>) field under the sentence region in CQP keeps XML, index, and parallel-alignment flows aligned.</p>
+
+	<h3 id="dependencies-search">Search hits &amp; dependency trees</h3>
+	<p><code>cqp/defaults/searchtype</code> and <code>subtype</code> set the default snippet shape. <strong>KWIC</strong> or explicit <strong>context + subtype=s</strong> suit sentence- or token-window trees; <strong>context + subtype=u</strong> is for long spoken snippets. TEITOK’s dependency tree view (<code>deptree.php</code> in a typical install) reads the same indexed attributes—if defaults leave subtype unset while both <code>&lt;s&gt;</code> and <code>&lt;u&gt;</code> exist, fix defaults so hit scope is predictable (see <a href="#spoken-cqp-defaults-su">sentence vs utterance</a>).</p>
+
+	<h3 id="dependencies-morph">Optional UD morphology</h3>
+	<p>For standard UD corpora, also index <code>upos</code>, <code>xpos</code>, <code>lemma</code>, and <code>feats</code> in CQP and expose them in <code>xmlfile/pattributes</code> when editors should touch them.</p>
+
+	<h3 id="dependencies-index">Corpus folder &amp; flexicorp index</h3>
+	<p>The wizard checks that the TEI directory resolves, the flexicorp CLI bridge loads when available, and the default backend maps to an encoded corpus—see <a href="#indexes">Index(es)</a> for detail.</p>
+
+	<h2 id="alignment-runtime">Alignment runtime (flexicorp)</h2>
+	<p>Parallel hits expose <code>aligned_counterpart</code> when backends pair rows. Sentence <code>s_tuid</code> is the usual baseline; token <code>tuid</code>/<code>p_tuid</code> enable finer highlighting when ids exist in XML. Depalign uses sentence-level ids; flexicorp may derive sentence ids from token ids when they share a prefix pattern. <code>text_tuid</code> on region <code>text</code> is optional for whole-parallel-text queries.</p>
+
+	<h2 id="urls">Environment overrides (URLs)</h2>
+	<p>The wizard assumes the <strong>standard TEITOK corpus UI</strong>: corpus admin is <code>index.php?action=adminsettings</code> (core TEITOK module), with in-page anchors such as <code>#cqp</code> and <code>#flexicorp</code>. It does not support alternate admin routes via environment variables — non-standard layouts should be edited manually.</p>
+	<ul>
+		<li><code>TEITOK_WIZZARD_HELP_URL</code> — this page or another help URL (wizard Help button).</li>
+		<li><code>TEITOK_CQP_SETTINGS_URL</code> — optional override for links to the CQP / indexed-attributes area. If unset, the wizard uses <code>index.php?action=adminsettings#cqp</code> (not the nonstandard <code>action=cqpmng</code> route).</li>
+		<li><code>TEITOK_METADATA_URL</code> — metadata / encoding profile route (default <code>index.php?action=metadata</code>).</li>
+	</ul>
+
+	<p class="note"><a href="javascript:history.back()">← Back</a></p>
+</body>
+</html>
