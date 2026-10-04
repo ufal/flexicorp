@@ -1,0 +1,24 @@
+# TEITOK + flexicorp + Pando + FQS in Docker (Windows: Docker Desktop).
+#
+#   docker compose -f docker-compose.teitok.yml up -d --build
+#   http://localhost:8080/teitok/shared/
+#
+# Corpora and the FQS catalog live in named volumes, so they survive rebuilding
+# the image (which is how you upgrade: --build pulls and builds the latest code).
+# When the image is published on Docker Hub, replace "build:" by "image: <name>".
+services:
+  teitok:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.teitok
+      args:
+        ADMIN_EMAIL: ${TEITOK_ADMIN_EMAIL:-admin@localhost}
+        ADMIN_PASSWORD: ${TEITOK_ADMIN_PASSWORD:-changethis}
+    ports: ["${TEITOK_PORT:-8080}:80"]
+    volumes:
+      - teitok-projects:/var/www/html/teitok
+      - fqs-catalog:/var/lib/fqs
+    restart: unless-stopped
+volumes:
+  teitok-projects:
+  fqs-catalog:

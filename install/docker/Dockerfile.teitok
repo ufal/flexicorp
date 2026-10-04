@@ -1,0 +1,25 @@
+# TEITOK with its query stack (flexicorp, Pando, FQS) in one container - for Windows,
+# or anyone who prefers Docker. See docker-compose.teitok.yml.
+#
+#   docker compose -f docker-compose.teitok.yml up -d --build
+#   open http://localhost:8080/teitok/shared/   (admin: see ADMIN_EMAIL / ADMIN_PASSWORD)
+ARG BASE=debian:12
+FROM ${BASE}
+ARG ADMIN_EMAIL=admin@localhost
+ARG ADMIN_PASSWORD=changethis
+ARG FLEXICORP_REF=""
+ARG PANDO_REF=""
+RUN apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -y -q perl git curl ca-certificates sudo procps \
+ && rm -rf /var/lib/apt/lists/*
+COPY install-teitok.pl /tmp/install-teitok.pl
+RUN R=""; [ -n "$FLEXICORP_REF" ] && R="$R --flexicorp-ref $FLEXICORP_REF"; [ -n "$PANDO_REF" ] && R="$R --pando-ref $PANDO_REF"; \
+    perl /tmp/install-teitok.pl -q --fresh --admin-email "$ADMIN_EMAIL" --admin-password "$ADMIN_PASSWORD" $R --no-check \
+ && rm -rf /var/tmp/teitok-stack-build /var/cache/teitok-stack /var/lib/apt/lists/*
+COPY docker/entrypoint.sh /usr/local/sbin/teitok-entrypoint
+RUN chmod 755 /usr/local/sbin/teitok-entrypoint
+# the projects (and the venv, pages in shared/) live in a volume: refresh flexicorp and its
+# pages from this image's checkout on every start, so rebuilding the image upgrades them
+ENV TEITOK_REFRESH_ON_START=1
+VOLUME ["/var/www/html/teitok", "/var/lib/fqs"]
+EXPOSE 80
+CMD ["/usr/local/sbin/teitok-entrypoint"]

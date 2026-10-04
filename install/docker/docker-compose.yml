@@ -1,0 +1,51 @@
+# Installer test matrix. Use run-tests.sh (it makes the source bundles first):
+#
+#   install/docker/run-tests.sh                    all services below
+#   install/docker/run-tests.sh fresh-debian12     one of them
+#
+# Each service builds an image in which the installer ran, then starts it: the
+# entrypoint starts the services and runs check-stack.pl; the container stays up
+# so you can open TEITOK at http://localhost:<port>/teitok/shared/ (admin@example.org / teitok).
+x-test: &test
+  build: &build
+    context: .
+    dockerfile: Dockerfile
+  restart: "no"
+
+services:
+  fresh-debian12:
+    <<: *test
+    build: { <<: *build, args: { BASE: "debian:12", SCENARIO: fresh } }
+    ports: ["8081:80"]
+  fresh-ubuntu2204:
+    <<: *test
+    build: { <<: *build, args: { BASE: "ubuntu:22.04", SCENARIO: fresh } }
+    ports: ["8082:80"]
+  fresh-ubuntu2404:
+    <<: *test
+    build: { <<: *build, args: { BASE: "ubuntu:24.04", SCENARIO: fresh } }
+    ports: ["8083:80"]
+  fresh-rocky9:
+    <<: *test
+    build: { <<: *build, args: { BASE: "rockylinux:9", SCENARIO: fresh } }
+    ports: ["8084:80"]
+  fresh-fedora41:
+    <<: *test
+    build: { <<: *build, args: { BASE: "fedora:41", SCENARIO: fresh } }
+    ports: ["8085:80"]
+  nginx-debian12:
+    <<: *test
+    build: { <<: *build, args: { BASE: "debian:12", SCENARIO: nginx } }
+    ports: ["8086:80"]
+  nginx-ubuntu2404:
+    <<: *test
+    build: { <<: *build, args: { BASE: "ubuntu:24.04", SCENARIO: nginx } }
+    ports: ["8087:80"]
+  upgrade-debian12:
+    <<: *test
+    build: { <<: *build, args: { BASE: "debian:12", SCENARIO: upgrade } }
+    ports: ["8088:80"]
+  upgrade-ubuntu2204:
+    <<: *test
+    build: { <<: *build, args: { BASE: "ubuntu:22.04", SCENARIO: upgrade } }
+    ports: ["8089:80"]
