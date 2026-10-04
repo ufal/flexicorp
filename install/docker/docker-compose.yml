@@ -5,7 +5,7 @@
 #
 # Each service builds an image in which the installer ran, then starts it: the
 # entrypoint starts the services and runs check-stack.pl; the container stays up
-# so you can open TEITOK at http://localhost:<port>/teitok/shared/ (admin@example.org / teitok).
+# so you can open TEITOK at http://localhost:<port>/teitok/ (admin: /teitok/shared/, admin@example.org / teitok).
 x-test: &test
   build: &build
     context: .

@@ -68,7 +68,7 @@ function flexicorpApp() {
 			collocation: false,
 			reindex: false,
 		},
-		availableBackends: ['flexi'],
+		availableBackends: ['pando', 'cqp'],
 		availableQueryEngines: [],
 		backendStatus: {},
 		backendCombos: [],
@@ -1421,27 +1421,32 @@ function flexicorpApp() {
 				if (!eng && (snapBackend === 'pando' || snapBackend === 'flexicorp-pando')) eng = 'pando';
 				const be = this.settings && this.settings.backend ? String(this.settings.backend) : '';
 				const srvEng = this.settings && this.settings.queryEngine ? String(this.settings.queryEngine) : '';
-				// Legacy default backend is cqp; Pando uses the flexicorp-pando adapter backend (not Python flexi).
-				if (eng === 'pando' && be === 'cqp') {
+				// Stored Pando selection wins over a server-side CQP default.
+				if (eng === 'pando' && (be === 'cqp' || be === 'flexi' || be === '')) {
 					this.settings.backend = 'pando';
 					this.settings.queryEngine = 'pando';
 					this.settings.queryLanguage = s.queryLanguage ? String(s.queryLanguage) : 'pando-cql';
 					this.settings.corpusFormat = s.corpusFormat ? String(s.corpusFormat) : 'pando';
 					return;
 				}
-				if (eng === 'manatee' && be === 'cqp') {
-					this.settings.backend = 'flexi';
+				// Prefer native manatee backend — do not route through deprecated flexi.
+				if (eng === 'manatee' && (be === 'cqp' || be === 'flexi' || be === '')) {
+					this.settings.backend = 'manatee';
 					this.settings.queryEngine = 'manatee';
 					this.settings.queryLanguage = s.queryLanguage ? String(s.queryLanguage) : 'manatee-cql';
 					this.settings.corpusFormat = s.corpusFormat ? String(s.corpusFormat) : 'manatee';
 					return;
 				}
-				// Embed fell back to cqp engine but user had Pando selected (flexi multi-engine or stale state).
+				// Stale flexi+pando snapshot → real pando backend.
 				if ((be === 'flexi' || be === 'pando') && srvEng === 'cqp' && eng === 'pando') {
 					this.settings.backend = 'pando';
 					this.settings.queryEngine = 'pando';
 					this.settings.queryLanguage = s.queryLanguage ? String(s.queryLanguage) : 'pando-cql';
 					this.settings.corpusFormat = s.corpusFormat ? String(s.corpusFormat) : 'pando';
+				}
+				// Drop deprecated flexi sticky when the server already chose a primary engine.
+				if (snapBackend === 'flexi' && (be === 'pando' || be === 'cqp' || be === 'manatee')) {
+					return;
 				}
 			} catch (_) {}
 		},
@@ -1978,7 +1983,12 @@ function flexicorpApp() {
 
 		currentBackendQueryLanguageOptions() {
 			const combos = this.backendCombinationList().filter(
-				(c) => c && c.backend !== 'flexi' && c.available
+				(c) =>
+					c &&
+					c.available &&
+					c.backend !== 'flexi' &&
+					c.backend !== 'clickql' &&
+					c.backend !== 'clickhouse'
 			);
 			const seen = new Set();
 			const unique = [];
@@ -2018,7 +2028,12 @@ function flexicorpApp() {
 			const currentQueryLanguage = this.settings && this.settings.queryLanguage ? String(this.settings.queryLanguage) : '';
 			const currentCorpusFormat = this.settings && this.settings.corpusFormat ? String(this.settings.corpusFormat) : '';
 			const combos = this.backendCombinationList().filter(
-				(c) => c && c.backend !== 'flexi' && c.available
+				(c) =>
+					c &&
+					c.available &&
+					c.backend !== 'flexi' &&
+					c.backend !== 'clickql' &&
+					c.backend !== 'clickhouse'
 			);
 			const exactCombo = combos.find(
 				(c) =>
@@ -3129,7 +3144,7 @@ function flexicorpApp() {
 			url.searchParams.set('action', this.action || 'flexicorp');
 			url.searchParams.set('ajax', '1');
 			url.searchParams.set('highlight_snippet', typeof snippet === 'string' ? snippet : (this.search && this.search.query) || '');
-			url.searchParams.set('backend', this.settings && this.settings.backend ? this.settings.backend : 'flexi');
+			url.searchParams.set('backend', this.settings && this.settings.backend ? this.settings.backend : 'cqp');
 			if (this.settings && this.settings.queryLanguage) {
 				url.searchParams.set('query_language', this.settings.queryLanguage);
 			}
@@ -3970,7 +3985,7 @@ function flexicorpApp() {
 					this.syncFlexicorpSelectionToUrl();
 					this.persistFlexicorpSelectionToSessionStorage();
 				} else if (value === 'manatee') {
-					this.settings.backend = 'flexi';
+					this.settings.backend = 'manatee';
 					this.settings.queryEngine = 'manatee';
 					this.settings.queryLanguage = 'manatee-cql';
 					this.settings.corpusFormat = 'manatee';
@@ -3986,7 +4001,7 @@ function flexicorpApp() {
 
 		/** When backend selector changes in the toolbar, pick a sensible (available) combination for it. */
 		onBackendChanged() {
-			const backend = this.settings && this.settings.backend ? this.settings.backend : 'flexi';
+			const backend = this.settings && this.settings.backend ? this.settings.backend : 'cqp';
 			const combos = (Array.isArray(this.backendCombos) ? this.backendCombos : []).filter(
 				(c) => c.backend === backend && c.available
 			);

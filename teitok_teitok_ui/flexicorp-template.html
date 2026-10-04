@@ -1285,7 +1285,7 @@
 							x-on:change="useSettingsBackendCombination($event.target.value)"
 						>
 							<template x-for="combo in backendCombinationList()" :key="'settings-backend:' + combo.id">
-								<template x-if="combo.backend !== 'flexi' && combo.available">
+								<template x-if="combo.available && combo.backend !== 'flexi' && combo.backend !== 'clickql' && combo.backend !== 'clickhouse'">
 									<option
 										:value="combo.id"
 										x-text="getBackendLabel(combo.backend) + ' \u2013 ' + queryLanguageShort(combo.queryLanguage)"

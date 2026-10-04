@@ -2,7 +2,7 @@
 # or anyone who prefers Docker. See docker-compose.teitok.yml.
 #
 #   docker compose -f docker-compose.teitok.yml up -d --build
-#   open http://localhost:8080/teitok/shared/   (admin: see ADMIN_EMAIL / ADMIN_PASSWORD)
+#   open http://localhost:8080/teitok/   (administration: /teitok/shared/, admin: ADMIN_EMAIL / ADMIN_PASSWORD)
 ARG BASE=debian:12
 FROM ${BASE}
 ARG ADMIN_EMAIL=admin@localhost

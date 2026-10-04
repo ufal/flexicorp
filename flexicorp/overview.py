@@ -673,24 +673,16 @@ def build_backend_overview(project: Dict[str, Any]) -> Dict[str, Any]:
         },
     }
 
+    # Primary engines first. flexi / ClickHouse are legacy escape hatches (UI hides them by default).
     backend_combos: List[Dict[str, Any]] = [
         {
-            "id": "flexi:cwb-cql:cwb",
-            "backend": "flexi",
+            "id": "cqp:cwb-cql:cwb",
+            "backend": "cqp",
             "queryLanguage": "cwb-cql",
             "corpusFormat": "cwb",
-            "comboLabel": "flexi (CWB/CQP)",
+            "comboLabel": "Corpus WorkBench (CQP)",
             "available": bool(cqp_status.get("available")),
-            "reason": "CWB/CQP index available (CQP backend usable)." if cqp_status.get("available") else "CWB/CQP index not available for this corpus.",
-        },
-        {
-            "id": "flexi:manatee-cql:manatee",
-            "backend": "flexi",
-            "queryLanguage": "manatee-cql",
-            "corpusFormat": "manatee",
-            "comboLabel": "flexi (Manatee)",
-            "available": bool(manatee_status.get("corpus_available", manatee_status.get("available"))),
-            "reason": "Manatee index available for this corpus." if manatee_status.get("corpus_available", manatee_status.get("available")) else "Manatee index not available for this corpus.",
+            "reason": cqp_status.get("reason", ""),
         },
         {
             "id": "manatee:manatee-cql:manatee",
@@ -702,58 +694,13 @@ def build_backend_overview(project: Dict[str, Any]) -> Dict[str, Any]:
             "reason": manatee_status.get("reason", ""),
         },
         {
-            "id": "cqp:cwb-cql:cwb",
-            "backend": "cqp",
-            "queryLanguage": "cwb-cql",
-            "corpusFormat": "cwb",
-            "comboLabel": "Corpus WorkBench (CQP)",
-            "available": bool(cqp_status.get("available")),
-            "reason": cqp_status.get("reason", ""),
-        },
-        {
-            "id": "teitokxml:teitok:xml",
-            "backend": "teitokxml",
-            "queryLanguage": "teitok",
-            "corpusFormat": "xml",
-            "comboLabel": "TEITOK XML",
-            "available": bool(teitokxml_status.get("available")),
-            "reason": teitokxml_status.get("reason", ""),
-        },
-        {
-            "id": "clickql:clickcql:clickhouse",
-            "backend": "clickql",
-            "queryLanguage": "clickcql",
-            "corpusFormat": "clickhouse",
-            "comboLabel": "ClickQL (ClickHouse)",
-            "available": bool(clickql_status.get("available")),
-            "reason": clickql_status.get("reason", ""),
-        },
-        {
-            "id": "clickql:pmltq:clickhouse",
-            "backend": "clickql",
-            "queryLanguage": "pmltq",
-            "corpusFormat": "clickhouse",
-            "comboLabel": "PML-TQ (ClickHouse / ClickQL)",
-            "available": bool(clickql_status.get("available")),
-            "reason": "PML-TQ query language translated to SQL on the ClickHouse index (not the PMLTQ HTTP server)." if clickql_status.get("available") else clickql_status.get("reason", ""),
-        },
-        {
-            "id": "clickql:sql:clickhouse",
-            "backend": "clickql",
-            "queryLanguage": "sql",
-            "corpusFormat": "clickhouse",
-            "comboLabel": "ClickQL (raw SQL)",
-            "available": bool(clickhouse_status.get("available")),
-            "reason": "SQL against the ClickHouse index via the ClickQL backend." if clickhouse_status.get("available") else clickhouse_status.get("reason", ""),
-        },
-        {
-            "id": "clickhouse:sql:clickhouse",
-            "backend": "clickhouse",
-            "queryLanguage": "sql",
-            "corpusFormat": "clickhouse",
-            "comboLabel": "ClickHouse (SQL)",
-            "available": bool(clickhouse_status.get("available")),
-            "reason": "Direct ClickHouse SQL (native clickhouse backend)." if clickhouse_status.get("available") else clickhouse_status.get("reason", ""),
+            "id": "blacklab:bcql:blacklab",
+            "backend": "blacklab",
+            "queryLanguage": "bcql",
+            "corpusFormat": "blacklab",
+            "comboLabel": "BlackLab (BCQL)",
+            "available": bool(blacklab_status.get("available")),
+            "reason": blacklab_status.get("reason", ""),
         },
         {
             "id": "pmltq:pmltq:pmltq",
@@ -768,13 +715,74 @@ def build_backend_overview(project: Dict[str, Any]) -> Dict[str, Any]:
             "reason": pmltq_http_status.get("reason", ""),
         },
         {
-            "id": "blacklab:bcql:blacklab",
-            "backend": "blacklab",
-            "queryLanguage": "bcql",
-            "corpusFormat": "blacklab",
-            "comboLabel": "BlackLab (BCQL)",
-            "available": bool(blacklab_status.get("available")),
-            "reason": blacklab_status.get("reason", ""),
+            "id": "teitokxml:teitok:xml",
+            "backend": "teitokxml",
+            "queryLanguage": "teitok",
+            "corpusFormat": "xml",
+            "comboLabel": "TEITOK XML",
+            "available": bool(teitokxml_status.get("available")),
+            "reason": teitokxml_status.get("reason", ""),
+            "legacy": True,
+        },
+        {
+            "id": "flexi:cwb-cql:cwb",
+            "backend": "flexi",
+            "queryLanguage": "cwb-cql",
+            "corpusFormat": "cwb",
+            "comboLabel": "flexi (CWB/CQP)",
+            "available": bool(cqp_status.get("available")),
+            "reason": "CWB/CQP index available (CQP backend usable)." if cqp_status.get("available") else "CWB/CQP index not available for this corpus.",
+            "legacy": True,
+        },
+        {
+            "id": "flexi:manatee-cql:manatee",
+            "backend": "flexi",
+            "queryLanguage": "manatee-cql",
+            "corpusFormat": "manatee",
+            "comboLabel": "flexi (Manatee)",
+            "available": bool(manatee_status.get("corpus_available", manatee_status.get("available"))),
+            "reason": "Manatee index available for this corpus." if manatee_status.get("corpus_available", manatee_status.get("available")) else "Manatee index not available for this corpus.",
+            "legacy": True,
+        },
+        {
+            "id": "clickql:clickcql:clickhouse",
+            "backend": "clickql",
+            "queryLanguage": "clickcql",
+            "corpusFormat": "clickhouse",
+            "comboLabel": "ClickQL (ClickHouse)",
+            "available": bool(clickql_status.get("available")),
+            "reason": clickql_status.get("reason", ""),
+            "legacy": True,
+        },
+        {
+            "id": "clickql:pmltq:clickhouse",
+            "backend": "clickql",
+            "queryLanguage": "pmltq",
+            "corpusFormat": "clickhouse",
+            "comboLabel": "PML-TQ (ClickHouse / ClickQL)",
+            "available": bool(clickql_status.get("available")),
+            "reason": "PML-TQ query language translated to SQL on the ClickHouse index (not the PMLTQ HTTP server)." if clickql_status.get("available") else clickql_status.get("reason", ""),
+            "legacy": True,
+        },
+        {
+            "id": "clickql:sql:clickhouse",
+            "backend": "clickql",
+            "queryLanguage": "sql",
+            "corpusFormat": "clickhouse",
+            "comboLabel": "ClickQL (raw SQL)",
+            "available": bool(clickhouse_status.get("available")),
+            "reason": "SQL against the ClickHouse index via the ClickQL backend." if clickhouse_status.get("available") else clickhouse_status.get("reason", ""),
+            "legacy": True,
+        },
+        {
+            "id": "clickhouse:sql:clickhouse",
+            "backend": "clickhouse",
+            "queryLanguage": "sql",
+            "corpusFormat": "clickhouse",
+            "comboLabel": "ClickHouse (SQL)",
+            "available": bool(clickhouse_status.get("available")),
+            "reason": "Direct ClickHouse SQL (native clickhouse backend)." if clickhouse_status.get("available") else clickhouse_status.get("reason", ""),
+            "legacy": True,
         },
     ]
 
@@ -797,8 +805,12 @@ def build_backend_overview(project: Dict[str, Any]) -> Dict[str, Any]:
         else:
             combo["reindexAvailable"] = bool(combo.get("capabilities", {}).get("reindex"))
 
+    _LEGACY_BACKENDS = frozenset({"flexi", "clickql", "clickhouse", "teitokxml"})
+
     def _backend_listable(name: str, st: Dict[str, Any]) -> bool:
         if not st.get("available"):
+            return False
+        if name in _LEGACY_BACKENDS:
             return False
         if name == "pmltq" and not st.get("native_http_reachable", False):
             return False
@@ -807,19 +819,32 @@ def build_backend_overview(project: Dict[str, Any]) -> Dict[str, Any]:
     def _query_engine_listable(name: str, st: Dict[str, Any]) -> bool:
         if not st.get("available"):
             return False
+        if name in {"clickql", "clickhouse"}:
+            return False
         if name == "pmltq_native" and not st.get("native_http_reachable", False):
             return False
         return True
 
+    primary_backends = [
+        name for name, st in backend_status.items() if _backend_listable(name, st)
+    ]
+    # Prefer a stable primary order for UI defaults.
+    _primary_order = ("pando", "cqp", "manatee", "blacklab", "pmltq")
+    primary_backends.sort(
+        key=lambda n: (
+            _primary_order.index(n) if n in _primary_order else 99,
+            n,
+        )
+    )
+
     return {
         "implementedBackends": implemented_backends,
-        "availableBackends": [
-            name for name, st in backend_status.items() if _backend_listable(name, st)
-        ],
+        "availableBackends": primary_backends,
         "availableQueryEngines": [
             name for name, st in query_engines.items() if _query_engine_listable(name, st)
         ],
         "backendStatus": backend_status,
         "queryEngines": query_engines,
         "backendCombos": backend_combos,
+        "legacyBackends": sorted(_LEGACY_BACKENDS),
     }

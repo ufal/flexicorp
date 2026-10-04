@@ -18,6 +18,10 @@
 #                         an empty project (asked; -q: demo). Real data does not belong in
 #                         the shared project.
 #   --project NAME        name of the first project (default ud-demo, or mycorpus when empty)
+#   --no-site             no public start page: by default the TEITOK root (/teitok/) opens a
+#                         non-corpus "site" project with the corpus list and an About page, so
+#                         visitors never land in the shared project (admin only)
+#   --site-title TITLE    title of that start page (asked; default "TEITOK corpora")
 #   --git-folder DIR      where the git checkouts go (default /home/git, macOS /Users/Shared/git)
 #   --shared-name NAME    name of the shared TEITOK project (default shared)
 #   --admin-email EMAIL   --admin-password PW     the shared project's admin (asked otherwise)
@@ -46,7 +50,7 @@ my %o = (
 	'pando-ref'      => '',
 	'shared-name'    => 'shared',
 );
-GetOptions( \%o, 'q', 'v', 'upgrade', 'fresh', 'webserver=s', 'no-stack', 'no-flexicorp', 'no-cwb', 'git-folder=s', 'demo!', 'project=s',
+GetOptions( \%o, 'q', 'v', 'upgrade', 'fresh', 'webserver=s', 'no-stack', 'no-flexicorp', 'no-cwb', 'git-folder=s', 'demo!', 'project=s', 'site!', 'site-title=s',
 	'shared-name=s', 'admin-email=s', 'admin-password=s', 'teitok-repo=s', 'flexicorp-repo=s', 'flexicorp-ref=s',
 	'pando-repo=s', 'pando-ref=s', 'check', 'help|h' ) or exit 2;
 if ( $o{help} ) { open my $me, '<', $0; while (<$me>) { next if /^#!/; last unless /^#/; s/^# ?//; print; } exit 0; }
@@ -376,8 +380,18 @@ if ( -f $cp ) {
 	}
 } else { print "(no flexicorp installer scripts: create your first project in TEITOK's shared admin, not in the shared project itself)\n"; }
 
+# The public start page: /teitok/ opens a non-corpus "site" project (corpus list, About page);
+# the shared project stays for server-wide settings and administration
+my $site = 0;
+if ( -f $cp && ( $o{site} // confirm( "Do you want a public start page at /teitok/ (a 'site' project with the list of corpora and an About page), so that visitors do not land in the shared project?", 1 ) ) ) {
+	my $stitle = $o{'site-title'} // askuser( 'Title of the start page (e.g. Corpora at <your institution>)?', 'TEITOK corpora' );
+	if ( -d "$tt/site" ) { print "The site project exists already: left as it is\n"; $site = 1; }
+	else { $site = system( 'perl', $cp, '--site', '--title', $stitle, '--shared', "$tt/$sharedfldr", '--web-user', $webuser, '--teitok-root', "$git/TEITOK" ) == 0; }
+}
+
 # Finish and send user to online install environment
 my $url = $project ? "http://127.0.0.1/teitok/$project/index.php?action=login" : "http://127.0.0.1/teitok/$sharedfldr/index.php?action=login";
+if ($site) { print "Visitors: http://127.0.0.1/teitok/   -   administration (shared project): http://127.0.0.1/teitok/$sharedfldr/\n"; }
 if ($writable) {
 	if ( $curuser && $ENV{DISPLAY} && have('firefox') ) {
 		print "Opening the login page as $curuser - please finish the installation in the interface\n";

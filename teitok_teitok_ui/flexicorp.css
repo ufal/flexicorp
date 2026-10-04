@@ -1055,7 +1055,18 @@ button.flexicorp-search-change-link {
 }
 
 .flexicorp-hit-context-link {
-	font-weight: 600;
+	/* Secondary doc link — readable as a control, not a bold callout next to hit text. */
+	font-weight: 400;
+	color: #49627a;
+	text-decoration: none;
+	border-bottom: 1px dotted #8aa0b4;
+}
+
+.flexicorp-hit-context-link:hover,
+.flexicorp-hit-context-link:focus {
+	color: #2f4a63;
+	border-bottom-color: #2f4a63;
+	text-decoration: none;
 }
 
 .flexicorp-hit-match {
@@ -1479,7 +1490,6 @@ button.flexicorp-search-change-link {
 }
 
 .flexicorp-kwic-table .flexicorp-hit-context-link {
-	font-weight: 400;
 	letter-spacing: 0;
 }
 

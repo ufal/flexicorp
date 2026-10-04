@@ -4,6 +4,7 @@
 #
 #   sudo perl create-project.pl --name mycorpus [--title "My corpus"]
 #   sudo perl create-project.pl --demo [--name ud-demo] [--sentences 500] [--conllu URL|FILE]
+#   sudo perl create-project.pl --site [--title "Corpora at ..."]
 #
 #   --name NAME        folder name of the project (default: mycorpus, or ud-demo with --demo)
 #   --title TITLE      title shown in TEITOK
@@ -15,6 +16,11 @@
 #   --sentences N      about how many sentences (default 500; documents are kept whole)
 #   --shared DIR  --web-user USER  --teitok-root DIR      [detected, as install-stack.pl does]
 #   --no-index         do not index the demo corpus
+#   --site             the public start page instead of a corpus: a non-corpus project
+#                      (default name "site") that opens on the corpus list (action=fqs) and
+#                      has an About page for the hosting institution, plus <teitok>/index.php
+#                      forwarding to it (only when that file does not exist yet), so
+#                      visitors land there and never in the shared project
 #
 # Like TEITOK's "Create new project" (shared admin): index.php from the TEITOK
 # checkout, Resources/settings.xml from the shared project's defaultsettings.xml,
@@ -32,7 +38,9 @@ my %o = (
 	sentences => 500,
 	conllu    => 'https://raw.githubusercontent.com/UniversalDependencies/UD_English-EWT/master/en_ewt-ud-test.conllu',
 );
-GetOptions( \%o, 'name=s', 'title=s', 'demo', 'conllu=s', 'sentences=i', 'shared=s', 'web-user=s', 'teitok-root=s', 'no-index', 'help|h' ) or exit 2;
+GetOptions( \%o, 'name=s', 'title=s', 'demo', 'conllu=s', 'sentences=i', 'shared=s', 'web-user=s', 'teitok-root=s', 'no-index', 'site', 'help|h' ) or exit 2;
+use Encode qw(decode_utf8);
+for my $k (qw(title name)) { $o{$k} = decode_utf8( $o{$k} ) if defined $o{$k}; }    # files are written as UTF-8
 if ( $o{help} ) { open my $me, '<', $0; while (<$me>) { next if /^#!/; last unless /^#/; s/^# ?//; print; } exit 0; }
 my $HERE = dirname( Cwd::abs_path($0) );
 use Cwd ();
@@ -56,14 +64,16 @@ my $shared = $o{shared}; $shared =~ s{/+$}{};
 my $root   = dirname($shared);
 my $webu   = $o{'web-user'};
 my $tt     = $o{'teitok-root'};
-my $name   = $o{name} || ( $o{demo} ? 'ud-demo' : 'mycorpus' );
+my $name   = $o{name} || ( $o{site} ? 'site' : $o{demo} ? 'ud-demo' : 'mycorpus' );
 die "create-project.pl: project name '$name': use letters, digits, - and _\n" unless $name =~ /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 my $dir = "$root/$name";
 die "create-project.pl: $dir exists - refusing to overwrite it\n" if -e $dir;
-my $title = $o{title} || ( $o{demo} ? 'UD demo corpus' : $name eq 'mycorpus' ? 'My corpus' : $name );
+my $title = $o{title} || ( $o{site} ? 'TEITOK corpora' : $o{demo} ? 'UD demo corpus' : $name eq 'mycorpus' ? 'My corpus' : $name );
+site_project() if $o{site};
 
 # the treebank first: nothing is created when it cannot be had
 my $DEMO_FILE = $o{conllu};
+my $LANG = ( $o{demo} && basename( $o{conllu} ) =~ /^([a-z]{2,3})_[a-z0-9]+-ud-/ ) ? $1 : '';
 my $DEMO_TMP = tempdir( 'teitok-demo-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
 if ( $o{demo} ) {
 	if ( $DEMO_FILE =~ m{^https?://} ) {
@@ -235,6 +245,7 @@ if ( $o{demo} && !$o{'no-index'} ) {
 			my $n = cap( "pando " . q_("$dir/pando") . " '[upos=\"VERB\"] > [deprel=\"nsubj\"]' --json --total --limit 1" );
 			my ($tot) = $n =~ /"total"\s*:\s*(\d+)/;
 			print "Indexed: Pando index in $dir/pando" . ( defined $tot ? " ($tot verbs with a subject)" : '' ) . "\n";
+			fqs_register();
 		} else {
 			my @l = grep { /error|fail/i } split /\n/, $out;
 			print "!!!! indexing failed" . ( @l ? ": $l[-1]" : '' ) . " - index it later from TEITOK (flexicorp page)\n";
@@ -246,3 +257,67 @@ if ( $o{demo} && !$o{'no-index'} ) {
 my $url = 'http://127.0.0.1' . ( $root =~ m{/teitok$} ? '/teitok' : '' ) . "/$name/index.php";
 print "Open $url (log in with the shared admin)\n";
 exit 0;
+
+# ── the site project (public start page) ────────────────────────────────────
+sub site_project {
+	make_path( "$dir/Resources", "$dir/Pages" );
+	copy( "$tt/projects/default-shared/index.php", "$dir/index.php" ) or die "cannot copy index.php from $tt/projects/default-shared: $!\n";
+	my $t = xe($title);
+	write_file( "$dir/Resources/settings.xml", <<"X" );
+<?xml version="1.0"?>
+<ttsettings>
+	<!-- The public start page of this TEITOK server (written by create-project.pl, option site).
+	     Not a corpus: corpora are projects of their own, server-wide settings and admin
+	     tools are in the shared project, which visitors are not sent to. -->
+	<menu>
+		<itemlist>
+			<item key="fqs" display="Corpora"/>
+			<item key="about" display="About"/>
+		</itemlist>
+	</menu>
+	<defaults home="fqs">
+		<title display="$t"/>
+		<base foldername="$name"/>
+	</defaults>
+</ttsettings>
+X
+	write_file( "$dir/Pages/about.html", "<h1>About</h1>\n\n<p>These corpora are hosted by <i>(your institution)</i>.</p>\n<p><i>(Edit this page: $dir/Pages/about.html, or log in and use the page editor.)</i></p>\n" );
+	system( 'chown', '-R', $webu, $dir );
+	print "Created the site project: $dir (start page: the corpus list; About: Pages/about.html)\n";
+	my $fw = "$root/index.php";
+	my $want = "<?php\n\t// Visitors of the TEITOK root land in the site project (written by create-project.pl --site);\n\t// the shared project is for server-wide settings and administration only.\n\tchdir(__DIR__ . \"/$name\");\n\tinclude(__DIR__ . \"/$name/index.php\");\n?>\n";
+	if ( !-e $fw ) {
+		write_file( $fw, $want );
+		system( 'chown', $webu, $fw );
+		print "Wrote $fw: the TEITOK root now opens the site project\n";
+	} elsif ( read_file($fw) ne $want ) {
+		print "Left $fw as it is (it exists already); to open the site project from the TEITOK root, make it:\n$want";
+	}
+	print "Open http://127.0.0.1" . ( $root =~ m{/teitok$} ? '/teitok/' : "/$name/" ) . "\n";
+	exit 0;
+}
+
+# ── register an indexed project in FQS (what fqs.php's "Register this corpus" does) ──
+sub fqs_register {
+	my $fqs = cap('command -v fqs') || ( -x '/usr/local/bin/fqs' ? '/usr/local/bin/fqs' : '' );
+	return print "(FQS not installed: the corpus is not registered in the FQS catalogue)\n" unless $fqs;
+	( my $id = $name ) =~ s/[^A-Za-z0-9_-]+/_/g;
+	my @b = grep { -d "$dir/$_" } qw(pando cqp);
+	my $j = sub { my $v = shift; $v =~ s/\\/\\\\/g; $v =~ s/"/\\"/g; return "\"$v\""; };
+	my $url = ( $root =~ m{/teitok$} ? '/teitok' : '' ) . "/$name/index.php";
+	my $payload = '{' . join( ',',
+		'"id":' . $j->($id), '"label":' . $j->($title), '"project_root":' . $j->($dir), '"project_url":' . $j->($url),
+		'"preferred_backend":"auto"', '"environment":"live"', '"visibility":"published"', '"listing_visibility":"public"',
+		'"source_kind":"teitok"', '"supports_xml":' . ( -f "$dir/xidx/xidx.rng" || -d "$dir/cqp" ? 'true' : 'false' ),
+		'"interface_preference":"teitok"', '"http_policy_mode":"public_query"', '"http_allowed_operations":["query","catalog"]',
+		'"interfaces":["query"]', '"labels":["demo"' . ( $LANG ? ',"lang:' . $LANG . '"' : '' ) . ']', '"is_current":true',
+		( ( read_file("$dir/pando/corpus.info") =~ /^size=(\d+)/m ) ? ( '"corpus_size":' . $1 ) : () ),
+		'"settings":{"teitok_project_root":' . $j->($dir) . ( @b == 1 ? ',"query_backend":' . $j->( $b[0] ) : '' ) .
+			',"available_backends":[' . join( ',', map { $j->($_) } @b ) . ']' . ( $LANG ? ',"languages":[' . $j->($LANG) . ']' : '' ) . '}' ) . '}';
+	my $tmp = "$DEMO_TMP/fqs-register.json";
+	write_file( $tmp, $payload );
+	chmod 0644, $tmp; chmod 0755, $DEMO_TMP;
+	my $out = cap( as_u( $webu, q_($fqs) . ' corpora upsert-json --json-file ' . q_($tmp) ) . ' 2>&1' );
+	print( $? == 0 ? "Registered in FQS as \"$id\" (listed on the corpus page)\n" : "!!!! registering in FQS failed: " . ( ( split /\n/, $out )[-1] // '' ) . "\n" );
+}
+

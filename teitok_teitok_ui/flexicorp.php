@@ -835,10 +835,16 @@ require_once __DIR__ . '/flexicorp_functions.php';
 	}
 
 	if ( !function_exists('tt_flexicorp_backend_default') ) {
+		/**
+		 * Explicit corpus default from settings, or empty for auto
+		 * (see tt_flexicorp_preferred_combo: pando → cqp → …; legacy last).
+		 */
 		function tt_flexicorp_backend_default() {
-			$cfg = function_exists('getset') ? getset('defaults/flexicorp/backend') : '';
-			if ( $cfg ) return (string)$cfg;
-			return 'cqp';
+			$cfg = function_exists('getset') ? trim((string) getset('defaults/flexicorp/backend', '')) : '';
+			if ( $cfg === '' || strtolower($cfg) === 'auto' || $cfg === '-' ) {
+				return '';
+			}
+			return $cfg;
 		}
 	}
 
@@ -851,6 +857,40 @@ require_once __DIR__ . '/flexicorp_functions.php';
 			$b = trim((string)$backend);
 			if ( $b === 'flexicorp-pando' ) return 'pando';
 			return $b;
+		}
+	}
+
+	if ( !function_exists('tt_flexicorp_legacy_backends') ) {
+		/**
+		 * Kept for emergency / admin use only — not offered as normal defaults.
+		 * flexi = early native reader; clickql/clickhouse = deprecated ClickHouse path.
+		 */
+		function tt_flexicorp_legacy_backends() {
+			return array( 'flexi', 'clickql', 'clickhouse' );
+		}
+	}
+
+	if ( !function_exists('tt_flexicorp_is_legacy_backend') ) {
+		function tt_flexicorp_is_legacy_backend( $backend ) {
+			$b = tt_flexicorp_backend_canonical( $backend );
+			return $b !== '' && in_array( $b, tt_flexicorp_legacy_backends(), true );
+		}
+	}
+
+	if ( !function_exists('tt_flexicorp_show_legacy_backends') ) {
+		/**
+		 * Visitors: hidden unless flexicorp/show_legacy_backends is truthy.
+		 * Admins: always visible (Engines / settings escape hatch).
+		 */
+		function tt_flexicorp_show_legacy_backends( $isAdmin = false ) {
+			if ( $isAdmin ) {
+				return true;
+			}
+			if ( ! function_exists( 'getset' ) ) {
+				return false;
+			}
+			$raw = strtolower( trim( (string) getset( 'flexicorp/show_legacy_backends', '' ) ) );
+			return in_array( $raw, array( '1', 'true', 'yes', 'on' ), true );
 		}
 	}
 
@@ -1879,20 +1919,31 @@ require_once __DIR__ . '/flexicorp_functions.php';
 	 */
 	if ( !function_exists('tt_flexicorp_available_backends') ) {
 		function tt_flexicorp_available_backends( $projectRoot ) {
-			$list = array('flexi');
-			if ( tt_flexicorp_cqp_available($projectRoot) ) $list[] = 'cqp';
-			if ( tt_flexicorp_manatee_available($projectRoot) ) $list[] = 'manatee';
+			$list = array();
 			if ( !empty(tt_flexicorp_pando_status($projectRoot)['available']) ) {
 				$list[] = 'pando';
 			}
-			$clickSt = tt_flexicorp_clickhouse_status($projectRoot);
-			if ( !empty($clickSt['available']) ) {
-				$list[] = 'clickql';
-				$list[] = 'clickhouse';
-			}
+			if ( tt_flexicorp_cqp_available($projectRoot) ) $list[] = 'cqp';
+			if ( tt_flexicorp_manatee_available($projectRoot) ) $list[] = 'manatee';
 			$pmltqSt = tt_flexicorp_pmltq_status($projectRoot);
 			if ( !empty($pmltqSt['available']) ) {
 				$list[] = 'pmltq';
+			}
+			// Legacy escape hatch only when no primary engine is usable, or when explicitly enabled.
+			$showLegacy = function_exists( 'tt_flexicorp_show_legacy_backends' )
+				? tt_flexicorp_show_legacy_backends( false )
+				: false;
+			$clickSt = tt_flexicorp_clickhouse_status($projectRoot);
+			if ( $showLegacy || empty( $list ) ) {
+				$cqpOk = ! empty( tt_flexicorp_cqp_status_resolved( $projectRoot )['available'] );
+				$manateeFiles = ! empty( tt_flexicorp_manatee_status( $projectRoot )['corpus_available'] );
+				if ( $cqpOk || $manateeFiles ) {
+					$list[] = 'flexi';
+				}
+				if ( ! empty( $clickSt['available'] ) ) {
+					$list[] = 'clickql';
+					$list[] = 'clickhouse';
+				}
 			}
 			return $list;
 		}
@@ -1924,13 +1975,13 @@ require_once __DIR__ . '/flexicorp_functions.php';
 	if ( !function_exists('tt_flexicorp_backend_engine_overview') ) {
 		function tt_flexicorp_backend_engine_overview( $projectRoot ) {
 			$backends = array(
-				'flexi'     => array( 'label' => 'flexi', 'available' => true, 'reason' => 'Native flexicorp backend (always available).' ),
+				'pando' => array( 'label' => 'pando', 'available' => false, 'reason' => '' ),
 				'cqp'       => array( 'label' => 'cqp', 'available' => false, 'reason' => '' ),
 				'manatee'   => array( 'label' => 'manatee', 'available' => false, 'reason' => '' ),
-				'pando' => array( 'label' => 'pando', 'available' => false, 'reason' => '' ),
-				'clickql' => array( 'label' => 'clickql', 'available' => false, 'reason' => '' ),
-				'clickhouse' => array( 'label' => 'clickhouse', 'available' => false, 'reason' => '' ),
 				'pmltq' => array( 'label' => 'pmltq', 'available' => false, 'reason' => '' ),
+				'flexi'     => array( 'label' => 'flexi', 'available' => false, 'reason' => 'Legacy escape hatch (hidden unless flexicorp/show_legacy_backends).' ),
+				'clickql' => array( 'label' => 'clickql', 'available' => false, 'reason' => 'Deprecated ClickHouse query path.' ),
+				'clickhouse' => array( 'label' => 'clickhouse', 'available' => false, 'reason' => 'Deprecated ClickHouse SQL path.' ),
 				'teitokxml' => array( 'label' => 'teitokxml', 'available' => true, 'reason' => 'TEITOK XML files backend (doclist.sqlite).' ),
 			);
 			$cqpSt = tt_flexicorp_cqp_status_resolved( $projectRoot );
@@ -1983,54 +2034,6 @@ require_once __DIR__ . '/flexicorp_functions.php';
 
 			$combos = array();
 
-			// flexi on CWB corpus (reads CWB files directly; no reindex)
-			$combos[] = array(
-				'id' => 'flexi:cwb-cql:cwb',
-				'backend' => 'flexi',
-				'queryLanguage' => 'cwb-cql',
-				'corpusFormat' => 'cwb',
-				'available' => !empty($cqpSt['available']),
-				'reason' => !empty($cqpSt['reason']) ? $cqpSt['reason'] : (!empty($cqpSt['available']) ? 'CWB/CQP index available.' : 'CWB/CQP index not available for this corpus.'),
-				'capabilities' => array(
-					'reindex' => false,
-					'stats_keyness' => false,
-					'stats_collocations' => false,
-					'stats_dep_collocations' => false,
-				),
-			);
-
-			// flexi on Manatee corpus (reads Manatee files directly, no bindings; no reindex)
-			$combos[] = array(
-				'id' => 'flexi:manatee-cql:manatee',
-				'backend' => 'flexi',
-				'queryLanguage' => 'manatee-cql',
-				'corpusFormat' => 'manatee',
-				'available' => !empty($manateeSt['corpus_available']),
-				'reason' => !empty($manateeSt['corpus_available']) ? 'Manatee index available for this corpus (flexi native file path).' : 'Manatee index not available for this corpus.',
-				'capabilities' => array(
-					'reindex' => false,
-					'stats_keyness' => false,
-					'stats_collocations' => false,
-					'stats_dep_collocations' => false,
-				),
-			);
-
-			// Manatee backend (Python bindings, like Kontext; no HTTP/CLI)
-			$combos[] = array(
-				'id' => 'manatee:manatee-cql:manatee',
-				'backend' => 'manatee',
-				'queryLanguage' => 'manatee-cql',
-				'corpusFormat' => 'manatee',
-				'available' => $nativeManateeAvail,
-				'reason' => $nativeManateeReason,
-				'capabilities' => array(
-					'reindex' => true,
-					'stats_keyness' => false,
-					'stats_collocations' => false,
-					'stats_dep_collocations' => false,
-				),
-			);
-
 			$pandoComboReason = isset( $pandoSt['reason'] ) ? (string) $pandoSt['reason'] : '';
 			if ( ! empty( $pandoSt['available'] ) ) {
 				$fqsProbe = tt_flexicorp_fqs_probe( $projectRoot, $isAdmin );
@@ -2053,6 +2056,7 @@ require_once __DIR__ . '/flexicorp_functions.php';
 				}
 			}
 
+			// Primary engines first.
 			$combos[] = array(
 				'id' => 'pando:pando-cql:pando',
 				'backend' => 'pando',
@@ -2069,7 +2073,6 @@ require_once __DIR__ . '/flexicorp_functions.php';
 				),
 			);
 
-			// Direct CQP backend (CWB-CQL on CWB)
 			$combos[] = array(
 				'id' => 'cqp:cwb-cql:cwb',
 				'backend' => 'cqp',
@@ -2085,6 +2088,54 @@ require_once __DIR__ . '/flexicorp_functions.php';
 				),
 			);
 
+			$combos[] = array(
+				'id' => 'manatee:manatee-cql:manatee',
+				'backend' => 'manatee',
+				'queryLanguage' => 'manatee-cql',
+				'corpusFormat' => 'manatee',
+				'available' => $nativeManateeAvail,
+				'reason' => $nativeManateeReason,
+				'capabilities' => array(
+					'reindex' => true,
+					'stats_keyness' => false,
+					'stats_collocations' => false,
+					'stats_dep_collocations' => false,
+				),
+			);
+
+			// Legacy escape hatches (hidden for visitors unless flexicorp/show_legacy_backends).
+			$combos[] = array(
+				'id' => 'flexi:cwb-cql:cwb',
+				'backend' => 'flexi',
+				'queryLanguage' => 'cwb-cql',
+				'corpusFormat' => 'cwb',
+				'available' => !empty($cqpSt['available']),
+				'reason' => !empty($cqpSt['reason']) ? $cqpSt['reason'] : (!empty($cqpSt['available']) ? 'CWB/CQP index available.' : 'CWB/CQP index not available for this corpus.'),
+				'legacy' => true,
+				'capabilities' => array(
+					'reindex' => false,
+					'stats_keyness' => false,
+					'stats_collocations' => false,
+					'stats_dep_collocations' => false,
+				),
+			);
+
+			$combos[] = array(
+				'id' => 'flexi:manatee-cql:manatee',
+				'backend' => 'flexi',
+				'queryLanguage' => 'manatee-cql',
+				'corpusFormat' => 'manatee',
+				'available' => !empty($manateeSt['corpus_available']),
+				'reason' => !empty($manateeSt['corpus_available']) ? 'Manatee index available for this corpus (flexi native file path).' : 'Manatee index not available for this corpus.',
+				'legacy' => true,
+				'capabilities' => array(
+					'reindex' => false,
+					'stats_keyness' => false,
+					'stats_collocations' => false,
+					'stats_dep_collocations' => false,
+				),
+			);
+
 			$clickReason = isset($clickSt['reason']) ? (string)$clickSt['reason'] : '';
 			$combos[] = array(
 				'id' => 'clickql:clickcql:clickhouse',
@@ -2093,6 +2144,7 @@ require_once __DIR__ . '/flexicorp_functions.php';
 				'corpusFormat' => 'clickhouse',
 				'available' => !empty($clickSt['available']),
 				'reason' => $clickReason,
+				'legacy' => true,
 				'capabilities' => array(
 					'reindex' => true,
 					'stats_keyness' => false,
@@ -2107,6 +2159,7 @@ require_once __DIR__ . '/flexicorp_functions.php';
 				'corpusFormat' => 'clickhouse',
 				'available' => !empty($clickSt['available']),
 				'reason' => $clickReason,
+				'legacy' => true,
 				'capabilities' => array(
 					'reindex' => true,
 					'stats_keyness' => false,
@@ -2123,6 +2176,7 @@ require_once __DIR__ . '/flexicorp_functions.php';
 				'corpusFormat' => 'xml',
 				'available' => true,
 				'reason' => 'Lightweight backend over TEITOK xmlfiles/ and tmp/doclist.sqlite.',
+				'legacy' => true,
 			);
 
 			return $combos;
@@ -2186,28 +2240,41 @@ require_once __DIR__ . '/flexicorp_functions.php';
 
 			$order = array();
 			$preferredBackend = tt_flexicorp_backend_canonical(trim((string)$preferredBackend));
+			if ( $preferredBackend === 'pando' ) $order[] = 'pando:pando-cql:pando';
 			if ( $preferredBackend === 'cqp' ) $order[] = 'cqp:cwb-cql:cwb';
+			if ( $preferredBackend === 'manatee' ) $order[] = 'manatee:manatee-cql:manatee';
+			if ( $preferredBackend === 'blacklab' ) $order[] = 'blacklab:bcql:blacklab';
+			if ( $preferredBackend === 'pmltq' ) $order[] = 'pmltq:pmltq:pmltq';
 			if ( $preferredBackend === 'clickql' ) $order[] = 'clickql:clickcql:clickhouse';
-			if ( $preferredBackend === 'pando' ) {
-				$order[] = 'pando:pando-cql:pando';
-			}
+			if ( $preferredBackend === 'clickhouse' ) $order[] = 'clickql:sql:clickhouse';
 			if ( $preferredBackend === 'flexi' ) {
 				$order[] = 'flexi:manatee-cql:manatee';
 				$order[] = 'flexi:cwb-cql:cwb';
 			}
-			if ( $preferredBackend === 'clickhouse' ) $order[] = 'clickql:sql:clickhouse';
 
+			// Auto / fallback: primary engines first; legacy flexi + ClickHouse last.
 			$order = array_merge($order, array(
-				'cqp:cwb-cql:cwb',
-				'clickql:clickcql:clickhouse',
 				'pando:pando-cql:pando',
+				'cqp:cwb-cql:cwb',
+				'manatee:manatee-cql:manatee',
+				'blacklab:bcql:blacklab',
+				'pmltq:pmltq:pmltq',
 				'flexi:manatee-cql:manatee',
 				'flexi:cwb-cql:cwb',
+				'clickql:clickcql:clickhouse',
 				'clickql:sql:clickhouse',
+				'clickhouse:sql:clickhouse',
 			));
 
 			foreach ( $order as $comboId ) {
 				if ( isset($indexById[$comboId]) ) return $indexById[$comboId];
+			}
+			// Prefer a non-legacy available combo when the ordered list missed.
+			foreach ( $available as $combo ) {
+				$b = tt_flexicorp_backend_canonical( (string) ( $combo['backend'] ?? '' ) );
+				if ( ! tt_flexicorp_is_legacy_backend( $b ) ) {
+					return $combo;
+				}
 			}
 			return $available[0];
 		}
@@ -5977,6 +6044,20 @@ require_once __DIR__ . '/flexicorp_functions.php';
 			}
 		}
 	}
+	// Demote legacy flexi / ClickHouse: keep only when admin, explicitly enabled, or nothing else works.
+	$showLegacyBackends = tt_flexicorp_show_legacy_backends( $isAdmin );
+	$reqBackendForLegacy = tt_flexicorp_backend_canonical( trim( (string) ( $_REQUEST['backend'] ?? '' ) ) );
+	$primaryAvailable = array_values( array_filter( $availableBackends, function ( $b ) {
+		return ! tt_flexicorp_is_legacy_backend( $b );
+	} ) );
+	if ( ! $showLegacyBackends && count( $primaryAvailable ) > 0 ) {
+		$keepLegacy = array();
+		if ( tt_flexicorp_is_legacy_backend( $reqBackendForLegacy ) ) {
+			$keepLegacy[] = $reqBackendForLegacy;
+		}
+		// Do not keep sticky legacy — visitors should move off deprecated engines.
+		$availableBackends = array_values( array_unique( array_merge( $primaryAvailable, $keepLegacy ) ) );
+	}
 	$availableQueryEngines = array();
 	if ( isset($overviewResult['queryEngines']) && is_array($overviewResult['queryEngines']) ) {
 		foreach ( $overviewResult['queryEngines'] as $engineId => $engineCfg ) {
@@ -6060,6 +6141,12 @@ require_once __DIR__ . '/flexicorp_functions.php';
 	}
 	$defaultBackend = tt_flexicorp_backend_canonical(tt_flexicorp_backend_default());
 	$preferredCombo = tt_flexicorp_preferred_combo($allCombos, $defaultBackend);
+	$autoBackend = is_array($preferredCombo)
+		? tt_flexicorp_backend_canonical((string)($preferredCombo['backend'] ?? ''))
+		: '';
+	if ( $autoBackend === '' ) {
+		$autoBackend = 'cqp';
+	}
 
 	$requestBackend = tt_flexicorp_backend_canonical(trim((string)($_REQUEST['backend'] ?? '')));
 	$requestQueryLanguage = trim((string)($_REQUEST['query_language'] ?? ''));
@@ -6072,7 +6159,14 @@ require_once __DIR__ . '/flexicorp_functions.php';
 		$requestQueryLanguage = '';
 		$requestCorpusFormat = '';
 	}
-	$backend = $requestBackend !== '' ? $requestBackend : $defaultBackend;
+	// Explicit settings default, else auto (pando → cqp → …). Never default to legacy flexi/click.
+	if ( $requestBackend !== '' ) {
+		$backend = $requestBackend;
+	} elseif ( $defaultBackend !== '' ) {
+		$backend = $defaultBackend;
+	} else {
+		$backend = $autoBackend;
+	}
 	// Sticky backend from last flexicorp run (save_selection AJAX or full request).
 	$stickyBackendUnavailable = false;
 	if ( $requestBackend === '' && isset($_SESSION) && is_array($_SESSION) && isset($_SESSION['flexicorp_teitok']['last_backend']) ) {
@@ -6097,14 +6191,23 @@ require_once __DIR__ . '/flexicorp_functions.php';
 			}
 		}
 	}
-	// If the previously used backend (session sticky) is not available in this corpus,
-	// prefer CWB/CQP first (when available), otherwise fall back to first available backend.
+	// Sticky session on a missing or legacy engine → preferred primary (not availableBackends[0]=flexi).
 	if ( $requestBackend === '' && $stickyBackendUnavailable ) {
-		if ( in_array('cqp', $availableBackends, true) ) {
-			$backend = 'cqp';
-		} elseif ( count($availableBackends) ) {
-			$backend = (string)$availableBackends[0];
+		$backend = $autoBackend;
+		if ( ! in_array( $backend, $availableBackends, true ) && count( $availableBackends ) ) {
+			$nonLegacy = array_values( array_filter( $availableBackends, function ( $b ) {
+				return ! tt_flexicorp_is_legacy_backend( $b );
+			} ) );
+			$backend = count( $nonLegacy ) ? (string) $nonLegacy[0] : (string) $availableBackends[0];
 		}
+	}
+	// Drop sticky legacy selections for visitors unless legacy engines are explicitly enabled.
+	if (
+		$requestBackend === ''
+		&& tt_flexicorp_is_legacy_backend( $backend )
+		&& ! tt_flexicorp_show_legacy_backends( $isAdmin )
+	) {
+		$backend = $autoBackend;
 	}
 	$backend = tt_flexicorp_backend_canonical($backend);
 	$isPandoAlias = ( $backend === 'pando' );
@@ -6158,11 +6261,16 @@ require_once __DIR__ . '/flexicorp_functions.php';
 					: 'Requested backend "' . $backend . '" is not available for this corpus.';
 			}
 		} elseif ( is_array($preferredCombo) ) {
-			$backend = (string)($preferredCombo['backend'] ?? 'flexi');
+			$backend = (string)($preferredCombo['backend'] ?? $autoBackend);
 			if ( $requestQueryLanguage === '' ) $requestQueryLanguage = (string)($preferredCombo['queryLanguage'] ?? '');
 			if ( $requestCorpusFormat === '' ) $requestCorpusFormat = (string)($preferredCombo['corpusFormat'] ?? '');
 		} else {
-			$backend = count($availableBackends) ? $availableBackends[0] : 'flexi';
+			$nonLegacy = array_values( array_filter( $availableBackends, function ( $b ) {
+				return ! tt_flexicorp_is_legacy_backend( $b );
+			} ) );
+			$backend = count( $nonLegacy )
+				? (string) $nonLegacy[0]
+				: ( count( $availableBackends ) ? (string) $availableBackends[0] : $autoBackend );
 		}
 	}
 	$selectionBlockMessage = $backendSelectionError;
@@ -7373,21 +7481,52 @@ require_once __DIR__ . '/flexicorp_functions.php';
 		}
 		$backendCombosAll = array_values($comboById);
 		$publicComboIds = tt_flexicorp_public_combo_ids();
-		if ( $isAdmin || empty($publicComboIds) ) {
-			$backendCombos = $backendCombosAll;
-		} else {
+		if ( ! empty( $publicComboIds ) && ! $isAdmin ) {
 			foreach ( $backendCombosAll as $combo ) {
-				if ( in_array($combo['id'], $publicComboIds, true) ) {
+				if ( in_array( $combo['id'], $publicComboIds, true ) ) {
 					$backendCombos[] = $combo;
 				}
 			}
-			if ( empty($backendCombos) ) {
+			if ( empty( $backendCombos ) ) {
 				$backendCombos = $backendCombosAll;
 			}
+		} else {
+			$backendCombos = $backendCombosAll;
 		}
 		$backendCombos = array_values(array_filter($backendCombos, function ($combo) {
 			return isset($combo['backend']) && $combo['backend'] !== 'teitokxml';
 		}));
+		// Hide deprecated flexi / ClickHouse rows for visitors (admins keep the escape hatch).
+		if ( ! tt_flexicorp_show_legacy_backends( $isAdmin ) ) {
+			$primaryCombos = array_values( array_filter( $backendCombos, function ( $combo ) {
+				$b = tt_flexicorp_backend_canonical( (string) ( $combo['backend'] ?? '' ) );
+				return ! tt_flexicorp_is_legacy_backend( $b );
+			} ) );
+			if ( count( $primaryCombos ) > 0 ) {
+				$backendCombos = $primaryCombos;
+			}
+		}
+		// Stable UI order: primary engines before any remaining legacy rows.
+		$comboRank = array(
+			'pando' => 10,
+			'cqp' => 20,
+			'manatee' => 30,
+			'blacklab' => 40,
+			'pmltq' => 50,
+			'flexi' => 80,
+			'clickql' => 90,
+			'clickhouse' => 91,
+		);
+		usort( $backendCombos, function ( $a, $b ) use ( $comboRank ) {
+			$ba = tt_flexicorp_backend_canonical( (string) ( $a['backend'] ?? '' ) );
+			$bb = tt_flexicorp_backend_canonical( (string) ( $b['backend'] ?? '' ) );
+			$ra = isset( $comboRank[ $ba ] ) ? $comboRank[ $ba ] : 60;
+			$rb = isset( $comboRank[ $bb ] ) ? $comboRank[ $bb ] : 60;
+			if ( $ra !== $rb ) {
+				return $ra - $rb;
+			}
+			return strcmp( (string) ( $a['id'] ?? '' ), (string) ( $b['id'] ?? '' ) );
+		} );
 		// Startup lock: if FQS reports active reindex jobs, disable reindex actions
 		// for affected engines so Engines tab reflects current queue/worker activity.
 		$activeReindexBackends = ( isset($fqsActiveReindex['active_backends']) && is_array($fqsActiveReindex['active_backends']) )

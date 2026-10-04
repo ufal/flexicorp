@@ -1239,7 +1239,9 @@
 			$maintext .= '</p>';
 		}
 
-		if ( empty( $isshared ) && ! $havethiscorpus ) {
+		// a project without corpus data (e.g. the "site" start page) has nothing to register
+		$thisIsCorpus = is_dir( 'xmlfiles' ) || is_dir( 'pando' ) || is_dir( 'cqp' );
+		if ( empty( $isshared ) && ! $havethiscorpus && $thisIsCorpus ) {
 			$maintext .= "<p class=warning>The current corpus is not included in the corpus list.";
 			if ( $username ) {
 				$maintext .= " <a href='index.php?action=$action&amp;act=addcorpus'>Register this corpus in FQS</a></p>";

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Test container start: run TEITOK's services (no systemd in a container), check
-# the installation, then stay up so you can open http://localhost:<port>/teitok/shared/
+# the installation, then stay up so you can open http://localhost:<port>/teitok/
 #
 #   docker compose run --rm <service> check     only the check, exit with its status
 stack=/home/git/flexicorp/install/install-stack.pl
