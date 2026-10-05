@@ -210,13 +210,14 @@ if ( $mode eq 'upgrade' ) {
 	print "Upgrading the TEITOK installation found on this machine\n";
 	pkg_refresh();
 	pkg_install(qw(git curl)) if !have('git') || !have('curl');
-	# a copy of flexicorp just for its installer; install-stack.pl then puts flexicorp
-	# and pando next to the TEITOK checkout it finds and builds from there
+	# a copy of flexicorp just for its installer; install-stack.pl then builds flexicorp
+	# and pando in the git folder of the previous run (else next to the TEITOK checkout)
 	my $tmp = tempdir( 'teitok-stack-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
 	my @ref = $o{'flexicorp-ref'} ne '' ? ( '-b', $o{'flexicorp-ref'} ) : ();
 	sh( join( ' ', 'git', 'clone', '-q', '--depth', '1', @ref, q_( $o{'flexicorp-repo'} ), q_("$tmp/flexicorp") ) )
 		or do { print "Could not get flexicorp from $o{'flexicorp-repo'} (see $LOG)\n"; exit 1; };
 	my @a = ( 'perl', "$tmp/flexicorp/install/install-stack.pl", stack_args(), @ARGV );
+	local $ENV{TEITOK_STACK_TEMP_COPY} = 1;    # not the place to build from
 	push @a, '--git-folder', $o{'git-folder'} if $o{'git-folder'};
 	push @a, '--fqs-admin', $o{'admin-email'} if $o{'admin-email'};
 	system(@a);

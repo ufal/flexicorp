@@ -3216,6 +3216,9 @@ require_once __DIR__ . '/flexicorp_functions.php';
 				if ( ( $hasCmp || $hasRows ) && ( !isset($inner['result_type']) || trim((string)$inner['result_type']) === '' ) ) {
 					$inner['result_type'] = 'table';
 				}
+				if ( function_exists('tt_flexicorp_pando_normalize_aligned_pairs') ) {
+					tt_flexicorp_pando_normalize_aligned_pairs( $inner );
+				}
 				if ( function_exists('tt_flexicorp_fqs_enrich_hits_for_ui') ) {
 					$inner = tt_flexicorp_fqs_enrich_hits_for_ui($inner);
 				}
@@ -3999,6 +4002,144 @@ require_once __DIR__ . '/flexicorp_functions.php';
 			$logFile = $logDir . DIRECTORY_SEPARATOR . 'flexicorp_reindex.log';
 			$prefix = date('Y-m-d H:i:s') . ' [reindex][fqs] ';
 			@file_put_contents($logFile, $prefix . trim((string)$line) . "\n", FILE_APPEND | LOCK_EX);
+		}
+	}
+
+	if ( !function_exists('tt_flexicorp_pando_normalize_aligned_pairs') ) {
+		/**
+		 * Aligned `with` queries come back as result.pairs[{source,target}] instead of result.hits[]
+		 * (flexicorp-pando, pando --api and FQS alike): turn them into regular hits (source side,
+		 * target attached as aligned_counterpart) and derive the group legend from the query.
+		 */
+		function tt_flexicorp_pando_normalize_aligned_pairs( &$result ) {
+			if ( !is_array($result) ) return;
+			// Aligned "with" queries may come back as result.pairs[{source,target}] instead of result.hits[].
+			// Normalize to regular hits (source side) and keep target payload attached for enhanced UI rendering.
+			if (
+				(
+					!isset($result['hits'])
+					|| !is_array($result['hits'])
+					|| count($result['hits']) === 0
+				)
+				&& isset($result['pairs'])
+				&& is_array($result['pairs'])
+				&& count($result['pairs']) > 0
+			) {
+				$normalizedHits = array();
+				foreach ( $result['pairs'] as $pairIdx => $pair ) {
+					if ( !is_array($pair) ) continue;
+					$source = isset($pair['source']) && is_array($pair['source']) ? $pair['source'] : array();
+					$target = isset($pair['target']) && is_array($pair['target']) ? $pair['target'] : array();
+					if ( empty($source) && empty($target) ) continue;
+					if ( empty($source) ) $source = $target;
+					$alignment = isset($pair['alignment']) && is_array($pair['alignment']) ? $pair['alignment'] : array();
+					if ( !isset($source['doc_id']) || trim((string)$source['doc_id']) === '' ) {
+						$source['doc_id'] = isset($source['text_id']) ? (string)$source['text_id'] : '';
+					}
+					if ( !isset($target['doc_id']) || trim((string)$target['doc_id']) === '' ) {
+						$target['doc_id'] = isset($target['text_id']) ? (string)$target['text_id'] : '';
+					}
+					$source['aligned'] = true;
+					$source['aligned_role'] = 'source';
+					$source['aligned_pair_index'] = (int)$pairIdx;
+					$source['aligned_kind'] = isset($alignment['kind']) ? (string)$alignment['kind'] : '';
+					$target['aligned'] = true;
+					$target['aligned_role'] = 'target';
+					$target['aligned_pair_index'] = (int)$pairIdx;
+					$target['aligned_kind'] = isset($alignment['kind']) ? (string)$alignment['kind'] : '';
+					$collectMatchedTokIds = function ( $hitPart ) {
+						$out = array();
+						if ( !is_array($hitPart) ) return $out;
+						$toks = isset($hitPart['tokens']) && is_array($hitPart['tokens']) ? $hitPart['tokens'] : array();
+						foreach ( $toks as $tok ) {
+							if ( !is_array($tok) ) continue;
+							// Prefer TEITOK xml:id (w-*) over tuid: tuid can repeat in noisy payloads.
+							$tid = isset($tok['id']) ? trim((string)$tok['id']) : '';
+							if ( $tid === '' || $tid === '_' ) {
+								$tid = isset($tok['tuid']) ? trim((string)$tok['tuid']) : '';
+							}
+							if ( $tid === '' ) continue;
+							$out[] = $tid;
+						}
+						return array_values(array_unique($out));
+					};
+					$source['_matched_tok_ids'] = $collectMatchedTokIds($source);
+					$target['_matched_tok_ids'] = $collectMatchedTokIds($target);
+					$source['aligned_counterpart'] = $target;
+					$source['aligned_payload_raw'] = $pair;
+					if ( isset( $pair['teitok_tuview'] ) && is_array( $pair['teitok_tuview'] ) ) {
+						$source['teitok_tuview'] = $pair['teitok_tuview'];
+						$target['teitok_tuview'] = $pair['teitok_tuview'];
+					}
+					$normalizedHits[] = $source;
+				}
+				$result['hits'] = array_values($normalizedHits);
+				$result['aligned'] = true;
+				$result['aligned_pairs_count'] = count($result['pairs']);
+			}
+			// Aligned queries can expose multiple named token groups (e.g. a: ... with b: ...),
+			// while single-query hit payloads may only include the source-side groups.
+			// Derive group labels from the query text so the UI legend covers both sides.
+			if ( !empty($result['aligned']) ) {
+				// flexicorp-pando gives the query as a string, pando --api / pando-server (FQS) as {language, text}
+				$qtxt = '';
+				if ( isset($result['query']) && is_array($result['query']) ) {
+					$qtxt = (string)($result['query']['text'] ?? '');
+				} elseif ( isset($result['query']) && is_scalar($result['query']) ) {
+					$qtxt = (string)$result['query'];
+				}
+				if ( $qtxt !== '' ) {
+					$parseNodes = function ( $expr ) {
+						$rows = array();
+						if ( !is_string($expr) || trim($expr) === '' ) return $rows;
+						if ( preg_match_all('/(?:\b([A-Za-z_][A-Za-z0-9_]*)\s*:\s*)?\[/', $expr, $mm, PREG_SET_ORDER) ) {
+							foreach ( (array)$mm as $m ) {
+								$rows[] = array(
+									'name' => isset($m[1]) ? trim((string)$m[1]) : '',
+								);
+							}
+						}
+						return $rows;
+					};
+					$preAlign = preg_split('/\s*::\s*/', $qtxt, 2)[0] ?? $qtxt;
+					$splitWith = preg_split('/\s+with\s+/i', (string)$preAlign, 2);
+					$sourceExpr = isset($splitWith[0]) ? (string)$splitWith[0] : '';
+					$targetExpr = isset($splitWith[1]) ? (string)$splitWith[1] : '';
+					$sourceNodes = $parseNodes($sourceExpr);
+					$targetNodes = $parseNodes($targetExpr);
+					if ( count($sourceNodes) > 0 || count($targetNodes) > 0 ) {
+						$groupRows = array();
+						$globalIdx = 0;
+						foreach ( $sourceNodes as $n ) {
+							$nm = trim((string)($n['name'] ?? ''));
+							if ( $nm === '' ) $nm = 't' . (string)($globalIdx + 1);
+							$groupRows[] = array(
+								'index' => (int)$globalIdx,
+								'id' => 't' . (string)($globalIdx + 1),
+								'name' => (string)$nm,
+							);
+							$globalIdx++;
+						}
+						foreach ( $targetNodes as $n ) {
+							$nm = trim((string)($n['name'] ?? ''));
+							if ( $nm === '' ) $nm = 't' . (string)($globalIdx + 1);
+							$groupRows[] = array(
+								'index' => (int)$globalIdx,
+								'id' => 't' . (string)($globalIdx + 1),
+								'name' => (string)$nm,
+							);
+							$globalIdx++;
+						}
+						$result['groups'] = $groupRows;
+						$result['_aligned_group_plan'] = array(
+							'source_offset' => 0,
+							'source_count' => count($sourceNodes),
+							'target_offset' => count($sourceNodes),
+							'target_count' => count($targetNodes),
+						);
+					}
+				}
+			}
 		}
 	}
 
@@ -5406,127 +5547,7 @@ require_once __DIR__ . '/flexicorp_functions.php';
 				$result['engine'] = $viaDaemon ? 'flexicorp-pando-daemon' : 'flexicorp-pando';
 			}
 			if ( isset($result['daemon_socket']) ) unset($result['daemon_socket']);
-			// Aligned "with" queries may come back as result.pairs[{source,target}] instead of result.hits[].
-			// Normalize to regular hits (source side) and keep target payload attached for enhanced UI rendering.
-			if (
-				(
-					!isset($result['hits'])
-					|| !is_array($result['hits'])
-					|| count($result['hits']) === 0
-				)
-				&& isset($result['pairs'])
-				&& is_array($result['pairs'])
-				&& count($result['pairs']) > 0
-			) {
-				$normalizedHits = array();
-				foreach ( $result['pairs'] as $pairIdx => $pair ) {
-					if ( !is_array($pair) ) continue;
-					$source = isset($pair['source']) && is_array($pair['source']) ? $pair['source'] : array();
-					$target = isset($pair['target']) && is_array($pair['target']) ? $pair['target'] : array();
-					if ( empty($source) && empty($target) ) continue;
-					if ( empty($source) ) $source = $target;
-					$alignment = isset($pair['alignment']) && is_array($pair['alignment']) ? $pair['alignment'] : array();
-					if ( !isset($source['doc_id']) || trim((string)$source['doc_id']) === '' ) {
-						$source['doc_id'] = isset($source['text_id']) ? (string)$source['text_id'] : '';
-					}
-					if ( !isset($target['doc_id']) || trim((string)$target['doc_id']) === '' ) {
-						$target['doc_id'] = isset($target['text_id']) ? (string)$target['text_id'] : '';
-					}
-					$source['aligned'] = true;
-					$source['aligned_role'] = 'source';
-					$source['aligned_pair_index'] = (int)$pairIdx;
-					$source['aligned_kind'] = isset($alignment['kind']) ? (string)$alignment['kind'] : '';
-					$target['aligned'] = true;
-					$target['aligned_role'] = 'target';
-					$target['aligned_pair_index'] = (int)$pairIdx;
-					$target['aligned_kind'] = isset($alignment['kind']) ? (string)$alignment['kind'] : '';
-					$collectMatchedTokIds = function ( $hitPart ) {
-						$out = array();
-						if ( !is_array($hitPart) ) return $out;
-						$toks = isset($hitPart['tokens']) && is_array($hitPart['tokens']) ? $hitPart['tokens'] : array();
-						foreach ( $toks as $tok ) {
-							if ( !is_array($tok) ) continue;
-							// Prefer TEITOK xml:id (w-*) over tuid: tuid can repeat in noisy payloads.
-							$tid = isset($tok['id']) ? trim((string)$tok['id']) : '';
-							if ( $tid === '' || $tid === '_' ) {
-								$tid = isset($tok['tuid']) ? trim((string)$tok['tuid']) : '';
-							}
-							if ( $tid === '' ) continue;
-							$out[] = $tid;
-						}
-						return array_values(array_unique($out));
-					};
-					$source['_matched_tok_ids'] = $collectMatchedTokIds($source);
-					$target['_matched_tok_ids'] = $collectMatchedTokIds($target);
-					$source['aligned_counterpart'] = $target;
-					$source['aligned_payload_raw'] = $pair;
-					if ( isset( $pair['teitok_tuview'] ) && is_array( $pair['teitok_tuview'] ) ) {
-						$source['teitok_tuview'] = $pair['teitok_tuview'];
-						$target['teitok_tuview'] = $pair['teitok_tuview'];
-					}
-					$normalizedHits[] = $source;
-				}
-				$result['hits'] = array_values($normalizedHits);
-				$result['aligned'] = true;
-				$result['aligned_pairs_count'] = count($result['pairs']);
-			}
-			// Aligned queries can expose multiple named token groups (e.g. a: ... with b: ...),
-			// while single-query hit payloads may only include the source-side groups.
-			// Derive group labels from the query text so the UI legend covers both sides.
-			if ( !empty($result['aligned']) ) {
-				$qtxt = isset($result['query']) ? (string)$result['query'] : '';
-				if ( $qtxt !== '' ) {
-					$parseNodes = function ( $expr ) {
-						$rows = array();
-						if ( !is_string($expr) || trim($expr) === '' ) return $rows;
-						if ( preg_match_all('/(?:\b([A-Za-z_][A-Za-z0-9_]*)\s*:\s*)?\[/', $expr, $mm, PREG_SET_ORDER) ) {
-							foreach ( (array)$mm as $m ) {
-								$rows[] = array(
-									'name' => isset($m[1]) ? trim((string)$m[1]) : '',
-								);
-							}
-						}
-						return $rows;
-					};
-					$preAlign = preg_split('/\s*::\s*/', $qtxt, 2)[0] ?? $qtxt;
-					$splitWith = preg_split('/\s+with\s+/i', (string)$preAlign, 2);
-					$sourceExpr = isset($splitWith[0]) ? (string)$splitWith[0] : '';
-					$targetExpr = isset($splitWith[1]) ? (string)$splitWith[1] : '';
-					$sourceNodes = $parseNodes($sourceExpr);
-					$targetNodes = $parseNodes($targetExpr);
-					if ( count($sourceNodes) > 0 || count($targetNodes) > 0 ) {
-						$groupRows = array();
-						$globalIdx = 0;
-						foreach ( $sourceNodes as $n ) {
-							$nm = trim((string)($n['name'] ?? ''));
-							if ( $nm === '' ) $nm = 't' . (string)($globalIdx + 1);
-							$groupRows[] = array(
-								'index' => (int)$globalIdx,
-								'id' => 't' . (string)($globalIdx + 1),
-								'name' => (string)$nm,
-							);
-							$globalIdx++;
-						}
-						foreach ( $targetNodes as $n ) {
-							$nm = trim((string)($n['name'] ?? ''));
-							if ( $nm === '' ) $nm = 't' . (string)($globalIdx + 1);
-							$groupRows[] = array(
-								'index' => (int)$globalIdx,
-								'id' => 't' . (string)($globalIdx + 1),
-								'name' => (string)$nm,
-							);
-							$globalIdx++;
-						}
-						$result['groups'] = $groupRows;
-						$result['_aligned_group_plan'] = array(
-							'source_offset' => 0,
-							'source_count' => count($sourceNodes),
-							'target_offset' => count($sourceNodes),
-							'target_count' => count($targetNodes),
-						);
-					}
-				}
-			}
+			tt_flexicorp_pando_normalize_aligned_pairs( $result );
 			// Multi-query freq scripts return a distribution table (rows / compare_queries), not KWIC hits.
 			if ( $op === 'query' && is_array( $result ) ) {
 				$hasCmp = isset( $result['compare_queries'] ) && is_array( $result['compare_queries'] ) && count( $result['compare_queries'] ) > 0;

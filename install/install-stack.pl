@@ -25,7 +25,8 @@
 #   --shared DIR          the TEITOK shared project (TT_SHARED)  [detected]
 #   --web-user USER       the user PHP runs as                    [detected]
 #   --git-folder DIR      where flexicorp and pando are checked out
-#                         [the folder holding the TEITOK checkout]
+#                         [the folder of the flexicorp checkout this script runs from;
+#                          else the one the previous run used; else next to TEITOK]
 #   --prefix DIR          binaries and libraries (default /usr/local)
 #   --only LIST           comma-separated subset of: flexicorp,pages,flexencoder,pando,fqs
 #   --skip LIST           components to leave out
@@ -51,6 +52,7 @@ use warnings;
 use File::Basename qw(dirname basename);
 use File::Path qw(make_path remove_tree);
 use File::Copy qw(copy);
+use File::Spec;
 use Cwd qw(abs_path getcwd);
 use POSIX qw(strftime);
 use Getopt::Long qw(:config no_ignore_case bundling);
@@ -354,8 +356,26 @@ my %want = map { $_ => 1 } qw(flexicorp pages flexencoder pando fqs);
 if ( $o{only} ) { %want = map { $_ => 1 } split /[,\s]+/, $o{only}; }
 delete $want{$_} for split /[,\s]+/, $o{skip};
 
-my $GIT = $o{'git-folder'} || dirname( $D->{teitok_root} );
 my $PREFIX = $o{prefix};
+my $MANIFEST = "$PREFIX/share/teitok-stack/manifest.json";
+my $PREV_GIT = ( read_file($MANIFEST) =~ /"git_folder"\s*:\s*"([^"]+)"/ ) ? $1 : '';
+my ( $GIT, $GIT_WHY ) = git_folder();
+
+# where flexicorp and pando are checked out: what was asked for; else the checkout
+# this installer runs from (unless that is a temporary copy, as install-teitok.pl
+# --upgrade makes); else the folder the previous run used; else next to TEITOK
+sub git_folder {
+	return ( abs_path( $o{'git-folder'} ) || $o{'git-folder'}, '--git-folder' ) if $o{'git-folder'};
+	my $repo = dirname($HERE);    # .../flexicorp
+	if ( -d "$repo/.git" && !$ENV{TEITOK_STACK_TEMP_COPY} ) {
+		my $tmp = abs_path( File::Spec->tmpdir() ) || '/tmp';
+		my $shallow = capture( cmdline( 'git', '-C', $repo, 'rev-parse', '--is-shallow-repository' ) ) eq 'true';
+		my $in_tmp = grep { $_ && index( "$repo/", "$_/" ) == 0 } ( $tmp, '/tmp', '/var/tmp', '/private/tmp', '/private/var/folders' );
+		return ( dirname($repo), 'the checkout this installer runs from' ) unless $shallow || $in_tmp;
+	}
+	return ( $PREV_GIT, "the previous run ($MANIFEST)" ) if $PREV_GIT && -d $PREV_GIT;
+	return ( dirname( $D->{teitok_root} ), 'next to the TEITOK checkout' );
+}
 my $WEBU = $D->{web_user};
 my $WEBG = $D->{web_group};
 my $BUILD = ( $MAC ? '/var/tmp' : '/var/tmp' ) . "/teitok-stack-build";
@@ -465,6 +485,11 @@ sub checkout {
 }
 
 step('Sources');
+say_("  git folder: $GIT  ($GIT_WHY)\n");
+if ( $PREV_GIT && $PREV_GIT ne $GIT ) {
+	warn_( "the previous run built from $PREV_GIT, this one builds from $GIT: from now on the installed binaries come from $GIT"
+		  . ( -d "$PREV_GIT/pando" || -d "$PREV_GIT/flexicorp" ? " (the checkouts in $PREV_GIT are no longer used; remove them or pass --git-folder $PREV_GIT)" : '' ) );
+}
 # `git -C` as root in someone else's checkout: tell git that is fine
 system( 'git config --global --get-all safe.directory 2>/dev/null | grep -qx "\*" || git config --global --add safe.directory "*"' );
 my ( $FLEXI, $FLEXI_COMMIT ) = checkout( 'flexicorp', $o{'flexicorp-repo'}, $o{'flexicorp-ref'} );
@@ -736,14 +761,14 @@ if ( $o{'fqs-admin'} ) {
 
 # ── manifest ──────────────────────────────────────────────────────────────
 {
-	my $mf = "$PREFIX/share/teitok-stack/manifest.json";
+	my $mf = $MANIFEST;
 	make_path( dirname($mf) );
 	my %old;
 	my $s = read_file($mf);
 	while ( $s =~ /"(\w+)"\s*:\s*\{([^{}]*)\}/g ) { $old{$1} = $2; }
 	open my $fh, '>', "$mf.new-$$" or fail("cannot write $mf");
 	print $fh "{\n  \"installer\": \"install-stack.pl $VERSION\",\n  \"updated\": \"" . strftime( '%Y-%m-%dT%H:%M:%S%z', localtime ) . "\",\n";
-	print $fh "  \"teitok_root\": \"$D->{teitok_root}\",\n  \"shared\": \"$D->{shared}\",\n  \"web_user\": \"$WEBU\",\n  \"components\": {\n";
+	print $fh "  \"teitok_root\": \"$D->{teitok_root}\",\n  \"shared\": \"$D->{shared}\",\n  \"web_user\": \"$WEBU\",\n  \"git_folder\": \"$GIT\",\n  \"components\": {\n";
 	my @parts;
 	for my $c (qw(flexicorp pages flexencoder pando fqs)) {
 		if ( $manifest{$c} ) {

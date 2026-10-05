@@ -38,9 +38,15 @@ TEITOK installation with Pando.
 - **the venv**: `defaults/base/venv` in the shared settings, else `shared/Resources/venv`.
 
 Any of it can be given instead: `--teitok-root`, `--shared`, `--web-user`, `--git-folder`.
-flexicorp and pando are checked out next to the TEITOK checkout (`--git-folder`), as the
-owner of that folder; existing checkouts are updated with `git pull --ff-only` (not at all
-when they have local changes, or with `--no-pull`).
+flexicorp and pando are built from one git folder (`--git-folder`). Without it, that is the
+folder of the flexicorp checkout the installer is run from (so `perl ~/Git/flexicorp/install/install-stack.pl`
+builds `~/Git/flexicorp` and `~/Git/pando`); for a temporary copy (as `install-teitok.pl --upgrade`
+makes) it is the folder the previous run used (`git_folder` in the manifest), else the folder
+holding the TEITOK checkout. The installer warns when that differs from the previous run.
+Missing checkouts are cloned there as the owner of that folder; existing ones are updated
+with `git pull --ff-only` (not at all when they have local changes, or with `--no-pull`).
+Builds happen in `/var/tmp/teitok-stack-build` and are installed into `--prefix`, so nothing
+runs from the git folder afterwards.
 
 ## What an upgrade changes
 
