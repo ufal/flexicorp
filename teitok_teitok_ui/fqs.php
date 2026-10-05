@@ -1170,18 +1170,19 @@
 					foreach ( $xml->xpath( '/ttsettings/cqp/sattributes/item[@level="text" or @key="text"]/item' ) as $it ) {
 						$add( $sum['metadata'], $it, array( 'id' ) );
 					}
-					// search and documents: what the project's own menu offers
+					// documents: the project's own document browser when its menu has one
 					$menu = array();
 					foreach ( $xml->xpath( '/ttsettings/menu//item' ) as $it ) $menu[] = (string) $it['key'];
-					foreach ( array( 'flexicorp', 'cqp', 'multisearch', 'search', 'fwsearch' ) as $k ) {
-						if ( in_array( $k, $menu, true ) ) { $sum['search'] = $k; break; }
-					}
 					foreach ( array( 'browser', 'docsearch', 'files' ) as $k ) {
 						if ( in_array( $k, $menu, true ) ) { $sum['docs'] = $k; break; }
 					}
-					// no document browser in the menu: flexicorp's own Documents tab
-					if ( $sum['docs'] === '' && $sum['search'] === 'flexicorp' ) $sum['docs'] = 'flexicorp&active_tab=documents';
 				}
+				// search: always flexicorp, which searches CWB as well as Pando (and the other
+				// backends) - also for a project whose menu still only has cqp.php; other
+				// interfaces (KonText, ...) come from the catalogue as extra links on the card
+				$sum['search'] = 'flexicorp';
+				// no document browser in the menu: flexicorp's own Documents tab
+				if ( $sum['docs'] === '' ) $sum['docs'] = 'flexicorp&active_tab=documents';
 				$sum['features'] = tt_fqs_project_features( $dir, $xml );
 				if ( is_dir( "$dir/Facsimile" ) && count( (array) @scandir( "$dir/Facsimile" ) ) > 2 ) $sum['material'][] = 'Facsimile images';
 				if ( is_dir( "$dir/Audio" ) && count( (array) @scandir( "$dir/Audio" ) ) > 2 ) $sum['material'][] = 'Audio';
@@ -1199,6 +1200,30 @@
 			}
 		}
 
+		if ( ! function_exists( 'tt_fqs_alternative_frontends' ) ) {
+			/**
+			 * The other interfaces a catalogue row names in its settings (KonText, CQPweb, Korp,
+			 * NoSketch Engine; FQS lists them as `frontends`), as array( kind, label, url ) in
+			 * that order. A TEITOK corpus shows them next to its flexicorp search; a corpus
+			 * without a TEITOK project opens in the first of them.
+			 */
+			function tt_fqs_alternative_frontends( array $corp ) {
+				$out = array();
+				$fe = isset( $corp['frontends'] ) && is_array( $corp['frontends'] ) ? $corp['frontends'] : array();
+				foreach ( array( 'kontext', 'cqpweb', 'korp', 'noske' ) as $want ) {
+					foreach ( $fe as $f ) {
+						if ( ! is_array( $f ) || ( isset( $f['kind'] ) ? $f['kind'] : '' ) !== $want || empty( $f['url'] ) ) continue;
+						$url = (string) $f['url'];
+						$c = isset( $f['corpus'] ) ? (string) $f['corpus'] : '';
+						if ( $want === 'kontext' && $c !== '' ) $url .= '/query?corpname=' . rawurlencode( $c );
+						$out[] = array( $want, isset( $f['label'] ) ? (string) $f['label'] : $want, $url );
+						break;
+					}
+				}
+				return $out;
+			}
+		}
+
 		if ( ! function_exists( 'tt_fqs_row_interface' ) ) {
 			/**
 			 * Where a catalogue row opens: array( kind, label, url ). TEITOK projects first,
@@ -1208,16 +1233,8 @@
 				if ( tt_fqs_row_is_teitok_listable( $corp ) ) {
 					return array( 'teitok', 'TEITOK', tt_fqs_select_url( $corp ) );
 				}
-				$fe = isset( $corp['frontends'] ) && is_array( $corp['frontends'] ) ? $corp['frontends'] : array();
-				foreach ( array( 'kontext', 'cqpweb', 'korp', 'noske' ) as $want ) {
-					foreach ( $fe as $f ) {
-						if ( ! is_array( $f ) || ( isset( $f['kind'] ) ? $f['kind'] : '' ) !== $want || empty( $f['url'] ) ) continue;
-						$url = (string) $f['url'];
-						$c = isset( $f['corpus'] ) ? (string) $f['corpus'] : '';
-						if ( $want === 'kontext' && $c !== '' ) $url .= '/query?corpname=' . rawurlencode( $c );
-						return array( $want, isset( $f['label'] ) ? (string) $f['label'] : $want, $url );
-					}
-				}
+				$alt = tt_fqs_alternative_frontends( $corp );
+				if ( $alt ) return $alt[0];
 				$pref = isset( $corp['interface_preference'] ) ? strtolower( trim( (string) $corp['interface_preference'] ) ) : '';
 				$purl = isset( $corp['project_url'] ) ? trim( (string) $corp['project_url'] ) : '';
 				if ( $pref !== '' && $purl !== '' && $pref !== 'teitok' ) {
@@ -1350,6 +1367,10 @@
 					// the first link is the main one (a filled button in the default style)
 					if ( $sum && $sum['search'] !== '' ) $links[] = '<a class="corpus-main" href="' . $h( $base . '?action=' . $sum['search'] ) . '">' . $icon . '<span>{%Search}</span></a>';
 					if ( $sum && $sum['docs'] !== '' ) $links[] = '<a class="corpus-second" href="' . $h( $base . '?action=' . $sum['docs'] ) . '">{%Browse documents}</a>';
+					// the same corpus in other interfaces, when the catalogue settings name them
+					foreach ( tt_fqs_alternative_frontends( $corp ) as $alt ) {
+						$links[] = '<a class="corpus-more corpus-frontend corpus-frontend-' . $h( $alt[0] ) . '" href="' . $h( $alt[2] ) . '">{%Search in} ' . $h( $alt[1] ) . '</a>';
+					}
 					if ( $url !== '' ) $links[] = '<a class="' . ( $links ? 'corpus-more' : 'corpus-main' ) . '" href="' . $h( $url ) . '">' . ( $links ? '{%About}' : '<span>{%Open}</span>' ) . '</a>';
 				} elseif ( $url !== '' ) {
 					$links[] = '<a class="corpus-main" href="' . $h( $url ) . '"><span>{%Open in} ' . $h( $ifLabel ) . '</span></a>';
