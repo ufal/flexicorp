@@ -3216,6 +3216,22 @@ require_once __DIR__ . '/flexicorp_functions.php';
 				if ( ( $hasCmp || $hasRows ) && ( !isset($inner['result_type']) || trim((string)$inner['result_type']) === '' ) ) {
 					$inner['result_type'] = 'table';
 				}
+				// pando-server / warm library answers keep the counts in page{} and the
+				// background count in job{}: lift a known total to the flexicorp shape
+				if ( !isset($inner['total']) && isset($inner['page']) && is_array($inner['page']) ) {
+					$pg = $inner['page'];
+					$job = isset($inner['job']) && is_array($inner['job']) ? $inner['job'] : array();
+					if ( !empty($job['finished']) && isset($job['total']) && is_numeric($job['total']) ) {
+						$inner['total'] = (int)$job['total'];
+						$inner['total_exact'] = !empty($job['total_exact']);
+					} elseif ( isset($pg['total']) && is_numeric($pg['total']) && !empty($pg['total_exact']) ) {
+						// (a count still running is not a total: "Show more" must stay)
+						$inner['total'] = (int)$pg['total'];
+						$inner['total_exact'] = !empty($pg['total_exact']);
+					}
+					if ( !isset($inner['returned']) && isset($pg['returned']) ) $inner['returned'] = (int)$pg['returned'];
+					if ( !isset($inner['start']) && isset($pg['start']) ) $inner['start'] = (int)$pg['start'];
+				}
 				if ( function_exists('tt_flexicorp_pando_normalize_aligned_pairs') ) {
 					tt_flexicorp_pando_normalize_aligned_pairs( $inner );
 				}
