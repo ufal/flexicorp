@@ -7837,8 +7837,11 @@ require_once __DIR__ . '/flexicorp_functions.php';
 	}
 	$qbDependencyRelations = array_values(array_unique(array_filter(array_map('strval', $qbDependencyRelations))));
 	if ( !count($qbDependencyRelations) ) $qbDependencyRelations = array('child');
+	// Optional full-screen query builder, linked from the pop-up builder (opened with ?query=…&query_language=…).
+	$queryBuilderFullUrl = function_exists('getset') ? trim((string)getset('flexicorp/query_builder_full_url', '')) : '';
 	$queryBuilderConfig = array(
 		'enabled' => $queryBuilderEnabled,
+		'fullBuilderUrl' => $queryBuilderFullUrl,
 		'operators' => array('matches', 'contains', 'startswith', 'endsin'),
 		'dependencyRelations' => $qbDependencyRelations,
 		'sharedBase' => 'cqlCore',
@@ -7868,8 +7871,11 @@ require_once __DIR__ . '/flexicorp_functions.php';
 		: array();
 	// Full HTML page load (not an AJAX round-trip): always open Search so the workflow starts from a query,
 	// regardless of URL active_tab or promote-to-Stats. AJAX responses keep the tab chosen for that action.
+	// A link may still ask for the documents or the overview (the corpus list's "Browse
+	// documents" for a project whose menu has no document browser).
 	if ( $isInitialShellRequest && $run === '' ) {
-		$activeTab = 'search';
+		$askedTab = trim( (string) ( $_GET['active_tab'] ?? '' ) );
+		$activeTab = in_array( $askedTab, array( 'documents', 'overview' ), true ) ? $askedTab : 'search';
 	}
 	$state = array(
 		'action' => $actionName,

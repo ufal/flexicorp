@@ -998,6 +998,22 @@
 			}
 		}
 
+		if ( ! function_exists( 'tt_fqs_project_tokens' ) ) {
+			/** Tokens of a project on this server, from its own index when the catalogue has no
+			 *  size (a corpus registered before FQS recorded one): pando/corpus.info, else the
+			 *  CQP word attribute (4 bytes a position). */
+			function tt_fqs_project_tokens( $dir ) {
+				if ( ! $dir ) return null;
+				$info = @file_get_contents( "$dir/pando/corpus.info" );
+				if ( is_string( $info ) && preg_match( '/^size=(\d+)/m', $info, $m ) && (int) $m[1] > 0 ) return (float) $m[1];
+				foreach ( glob( "$dir/cqp/word.corpus" ) ?: array() as $f ) {
+					$sz = @filesize( $f );
+					if ( $sz ) return (float) ( $sz / 4 );
+				}
+				return null;
+			}
+		}
+
 		if ( ! function_exists( 'tt_fqs_count_documents' ) ) {
 			/** XML files under xmlfiles/, cached in tmp/ of the project showing the list. */
 			function tt_fqs_count_documents( $dir ) {
@@ -1027,6 +1043,80 @@
 			}
 		}
 
+		if ( ! function_exists( 'tt_fqs_project_features' ) ) {
+			/**
+			 * What sets a local project apart, as FQS feature keys (as `fqs corpora enrich`
+			 * detects them, so the card and the catalogue's filters agree): the kind of
+			 * linguistic annotation as one key (ud, dependencies, tagged), and the things that
+			 * are features by themselves: parallel translations, (time-aligned) audio, video,
+			 * facsimile images, dialects, geolocation, named entities. Not each annotation
+			 * layer, and not a regularised orthography (mostly just corrected spelling).
+			 */
+			function tt_fqs_project_features( $dir, $xml = null ) {
+				$f = array();
+				$nonempty = function ( $d ) { return is_dir( $d ) && count( (array) @scandir( $d ) ) > 2; };
+				$settings = strtolower( (string) @file_get_contents( "$dir/Resources/settings.xml" ) );
+				$info = (string) @file_get_contents( "$dir/pando/corpus.info" );
+				// token attributes: settings (XML files and index) and the Pando index
+				$pk = array();
+				if ( $xml ) {
+					foreach ( $xml->xpath( '/ttsettings/xmlfile/pattributes//item | /ttsettings/cqp/pattributes/item' ) as $it ) $pk[ strtolower( (string) $it['key'] ) ] = 1;
+				}
+				if ( preg_match( '/^positional=(.*)$/m', $info, $m ) ) foreach ( explode( ',', $m[1] ) as $k ) $pk[ strtolower( trim( $k ) ) ] = 1;
+				// document metadata: text-level index fields and header fields
+				$meta = array();
+				if ( $xml ) {
+					foreach ( $xml->xpath( '/ttsettings/cqp/sattributes/item[@level="text" or @key="text"]/item' ) as $it ) $meta[] = strtolower( (string) $it['key'] . ' ' . (string) $it['display'] );
+					foreach ( $xml->xpath( '/ttsettings/teiheader//item' ) as $it ) $meta[] = strtolower( (string) $it['cqp'] . ' ' . (string) $it['display'] . ' ' . (string) $it['xpath'] );
+				}
+				if ( preg_match( '/^region_attrs=(.*)$/m', $info, $m ) ) foreach ( explode( ',', $m[1] ) as $k ) if ( strpos( $k, 'text_' ) === 0 ) $meta[] = strtolower( $k );
+				$has = function ( $keys ) use ( $pk ) { foreach ( (array) $keys as $k ) if ( isset( $pk[ $k ] ) ) return true; return false; };
+
+				// linguistic annotation: one key
+				if ( $has( 'upos' ) && $has( array( 'feats', 'xpos', 'deprel' ) ) ) $f[] = 'ud';
+				elseif ( $has( 'deprel' ) && $has( array( 'head', 'head_id' ) ) ) $f[] = 'dependencies';
+				elseif ( $has( array( 'lemma', 'pos', 'xpos', 'upos', 'msd', 'tag', 'ctag' ) ) ) $f[] = 'tagged';
+
+				// parallel: token alignment ids, or documents grouped as translations
+				$textTu = false;
+				foreach ( $meta as $m ) if ( preg_match( '/\b(text_)?(tuid|setid)\b/', $m ) ) $textTu = true;
+				if ( $has( array( 'tuid', 'p_tuid' ) ) || $textTu || strpos( $settings, 'text_tuid' ) !== false ) $f[] = 'parallel';
+
+				// sound: audio files, time-aligned when the transcription has times (utterances
+				// with start / end, a wave view)
+				$audio = $nonempty( "$dir/Audio" ) || $nonempty( "$dir/audio" ) || $nonempty( "$dir/Media" ) || preg_match( '/wavesurfer|chunk_url|u_media|<media\b/', $settings );
+				$timed = preg_match( '/key=["\'](start|end|begin)["\']|wavesurfer|timeline|chunk_url/', $settings );
+				if ( $audio ) $f[] = $timed ? 'timealigned' : 'spoken';
+				if ( $nonempty( "$dir/Video" ) || $nonempty( "$dir/video" ) || preg_match( '/\.(mp4|webm)\b/', $settings ) ) $f[] = 'video';
+				if ( $nonempty( "$dir/Facsimile" ) || $nonempty( "$dir/facsimile" ) || $has( array( 'facs', 'bbox' ) ) ) $f[] = 'facsimile';
+
+				// the documents: dialects, places
+				foreach ( $meta as $m ) if ( preg_match( '/dialect|variet|regiolect/', $m ) ) { $f[] = 'dialect'; break; }
+				if ( preg_match( '/<geomap|geolocation|latitude|longitude|key=["\'](lat|lng|lon|long|geo)["\']/', $settings ) || is_file( "$dir/Resources/geo.json" ) || $nonempty( "$dir/Geo" ) ) $f[] = 'geolocation';
+				if ( preg_match( '/<ner\b|nerid/', $settings ) ) $f[] = 'ner';
+				return $f;
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_feature_tags' ) ) {
+			/** Feature keys (local and from the catalogue) as the card's tags: one each, in a fixed order. */
+			function tt_fqs_feature_tags( array $keys ) {
+				$keys = array_map( function ( $k ) { return strtolower( trim( (string) $k ) ); }, $keys );
+				$in = array_flip( $keys );
+				// one annotation tag: UD covers dependencies and tagging
+				if ( isset( $in['ud'] ) ) unset( $in['dependencies'], $in['deps'], $in['tagged'], $in['lemma'], $in['pos'], $in['morph'] );
+				if ( isset( $in['dependencies'] ) || isset( $in['deps'] ) ) unset( $in['tagged'], $in['lemma'], $in['pos'], $in['morph'] );
+				if ( isset( $in['timealigned'] ) ) unset( $in['spoken'], $in['audio'] );
+				if ( isset( $in['facs'] ) ) { $in['facsimile'] = 1; unset( $in['facs'] ); }
+				if ( isset( $in['aligned'] ) ) { $in['parallel'] = 1; unset( $in['aligned'] ); }
+				$order = array( 'ud', 'dependencies', 'deps', 'tagged', 'parallel', 'timealigned', 'spoken', 'audio', 'video', 'facsimile', 'dialect', 'geolocation', 'ner' );
+				$tags = array();
+				foreach ( $order as $k ) if ( isset( $in[ $k ] ) ) { $tags[] = tt_fqs_feature_name( $k ); unset( $in[ $k ] ); }
+				foreach ( array_keys( $in ) as $k ) if ( ! in_array( $k, array( 'demo', 'lemma', 'pos', 'morph', 'written' ), true ) ) $tags[] = tt_fqs_feature_name( $k );
+				return $tags;
+			}
+		}
+
 		if ( ! function_exists( 'tt_fqs_project_summary' ) ) {
 			/**
 			 * What a local TEITOK project says about itself: its description (and where it
@@ -1035,7 +1125,7 @@
 			 */
 			function tt_fqs_project_summary( $dir ) {
 				$sum = array( 'description' => '', 'source' => '', 'documents' => null,
-					'annotation' => array(), 'metadata' => array(), 'material' => array(),
+					'annotation' => array(), 'metadata' => array(), 'material' => array(), 'features' => array(),
 					'search' => '', 'docs' => '' );
 
 				list( $html, $file ) = tt_fqs_project_page( $dir, 'description' );
@@ -1089,7 +1179,10 @@
 					foreach ( array( 'browser', 'docsearch', 'files' ) as $k ) {
 						if ( in_array( $k, $menu, true ) ) { $sum['docs'] = $k; break; }
 					}
+					// no document browser in the menu: flexicorp's own Documents tab
+					if ( $sum['docs'] === '' && $sum['search'] === 'flexicorp' ) $sum['docs'] = 'flexicorp&active_tab=documents';
 				}
+				$sum['features'] = tt_fqs_project_features( $dir, $xml );
 				if ( is_dir( "$dir/Facsimile" ) && count( (array) @scandir( "$dir/Facsimile" ) ) > 2 ) $sum['material'][] = 'Facsimile images';
 				if ( is_dir( "$dir/Audio" ) && count( (array) @scandir( "$dir/Audio" ) ) > 2 ) $sum['material'][] = 'Audio';
 				if ( is_dir( "$dir/Video" ) && count( (array) @scandir( "$dir/Video" ) ) > 2 ) $sum['material'][] = 'Video';
@@ -1199,7 +1292,8 @@
 					$desc = $sum['description'];
 					$auto = true;
 				}
-				$size = isset( $corp['corpus_size'] ) && is_numeric( $corp['corpus_size'] ) ? (float) $corp['corpus_size'] : null;
+				$size = isset( $corp['corpus_size'] ) && is_numeric( $corp['corpus_size'] ) && (float) $corp['corpus_size'] > 0 ? (float) $corp['corpus_size'] : null;
+				if ( $size === null && $dir ) $size = tt_fqs_project_tokens( $dir );
 				$docs = $sum ? $sum['documents'] : null;
 				if ( $desc === '' && $sum ) {
 					// nothing written about the corpus: say what is in it (the annotation and
@@ -1223,16 +1317,16 @@
 					$out .= '</p>';
 				}
 
-				// tags: the annotation of a local project, else the catalogue's feature labels
+				// tags: what sets the corpus apart (one tag for its kind of annotation, and
+				// features such as parallel translations, time-aligned audio or facsimiles), from
+				// the project itself and from the catalogue
 				$tags = array();
-				$empty = $sum && ! $docs && ! $size;   // annotation of an empty project is only its template
-				if ( $empty ) {
-				} elseif ( $sum && $sum['annotation'] ) {
-					foreach ( array_slice( $sum['annotation'], 0, 6 ) as $a ) $tags[] = tt_fqs_tr( $a );
-				} elseif ( ! empty( $corp['facets']['feature'] ) && is_array( $corp['facets']['feature'] ) ) {
-					foreach ( $corp['facets']['feature'] as $f ) $tags[] = tt_fqs_feature_name( $f );
+				$empty = $sum && ! $docs && ! $size;   // the settings of an empty project are only its template
+				if ( ! $empty ) {
+					$fkeys = $sum ? $sum['features'] : array();
+					if ( ! empty( $corp['facets']['feature'] ) && is_array( $corp['facets']['feature'] ) ) $fkeys = array_merge( $fkeys, $corp['facets']['feature'] );
+					$tags = tt_fqs_feature_tags( $fkeys );
 				}
-				if ( $sum && $sum['material'] ) foreach ( $sum['material'] as $m ) $tags[] = tt_fqs_tr( $m );
 				if ( ! empty( $corp['facets']['other'] ) && is_array( $corp['facets']['other'] ) && in_array( 'demo', $corp['facets']['other'], true ) ) {
 					$tags[] = '<span class="corpus-tag corpus-tag-demo">{%Demo}</span>';
 				}
@@ -1275,10 +1369,11 @@
 			function tt_fqs_feature_name( $val ) {
 				// FQS's enrich sets dependencies, ud, spoken, facsimile, video, ner, parallel, geolocation
 				$names = array( 'deps' => 'Dependency syntax', 'dependencies' => 'Dependency syntax',
-					'ud' => 'Universal Dependencies', 'spoken' => 'Spoken', 'audio' => 'Audio', 'video' => 'Video',
+					'ud' => 'UD annotation', 'tagged' => 'POS-tagged', 'spoken' => 'Audio', 'audio' => 'Audio',
+					'timealigned' => 'Time-aligned audio', 'video' => 'Video',
 					'facs' => 'Facsimile images', 'facsimile' => 'Facsimile images', 'ner' => 'Named entities',
-					'aligned' => 'Parallel', 'parallel' => 'Parallel', 'geolocation' => 'Geolocation',
-					'lemma' => 'Lemmas', 'pos' => 'Parts of speech', 'morph' => 'Morphology', 'demo' => 'Demo' );
+					'aligned' => 'Parallel translations', 'parallel' => 'Parallel translations', 'geolocation' => 'Geolocation',
+					'dialect' => 'Dialects', 'lemma' => 'Lemmas', 'pos' => 'Parts of speech', 'morph' => 'Morphology', 'demo' => 'Demo' );
 				$k = strtolower( trim( (string) $val ) );
 				return isset( $names[ $k ] ) ? '{%' . $names[ $k ] . '}' : htmlspecialchars( (string) $val, ENT_QUOTES, 'UTF-8' );
 			}
@@ -1393,7 +1488,12 @@
 			$tokens = 0;
 			$langset = array();
 			foreach ( $publicRows as $corp ) {
-				if ( isset( $corp['corpus_size'] ) && is_numeric( $corp['corpus_size'] ) ) $tokens += (float) $corp['corpus_size'];
+				if ( isset( $corp['corpus_size'] ) && is_numeric( $corp['corpus_size'] ) && (float) $corp['corpus_size'] > 0 ) {
+					$tokens += (float) $corp['corpus_size'];
+				} else {
+					list( $ck, , $cu ) = tt_fqs_row_interface( $corp );
+					if ( $ck === 'teitok' ) $tokens += (float) tt_fqs_project_tokens( tt_fqs_local_project_dir( $cu ) );
+				}
 				foreach ( tt_fqs_row_languages( $corp ) as $lc ) $langset[ $lc ] = 1;
 			}
 			$bits = array( '<span><b>' . $total . '</b> {%corpora}</span>' );

@@ -414,306 +414,301 @@
 				</div>
 			</form>
 			<div
+				class="fc-qb-backdrop"
 				x-show="queryBuilderState && queryBuilderState.enabled && queryBuilderState.open"
 				x-transition.opacity
-				style="position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:2000;display:flex;align-items:center;justify-content:center;padding:18px;"
 				x-on:keydown.escape.window="queryBuilderClose()"
+				x-on:click.self="queryBuilderClose()"
 			>
-				<div
-					style="background:#fff;border-radius:8px;border:1px solid #d3d3d3;max-width:960px;width:100%;max-height:85vh;overflow:auto;padding:14px;"
-					x-on:click.stop
-				>
-					<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-						<h3 style="margin:0;">{%Query Builder}</h3>
+				<div class="fc-qb" role="dialog" aria-modal="true" aria-labelledby="fc-qb-title" x-on:click.stop>
+					<div class="fc-qb__head">
+						<h3 id="fc-qb-title">{%Query Builder}</h3>
+						<a
+							class="fc-qb__full"
+							x-show="qbFullBuilderUrl()"
+							:href="qbFullBuilderUrl()"
+							target="_blank"
+							rel="noopener"
+							title="Open the full-screen query builder with this query"
+						>{%Full query builder} &#8599;</a>
+						<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderReset()">{%Clear}</button>
 						<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderClose()">{%Close}</button>
-					</div>
-					<p class="flexicorp-panel-note" style="margin-top:0;">
-						Token-first builder (MVP). Text query remains canonical and will be updated on Apply.
-					</p>
-					<div class="flexicorp-form-row" style="margin-bottom:8px;">
-						<label for="fc-qb-query-name">Query name (optional)</label>
-						<input
-							id="fc-qb-query-name"
-							type="text"
-							x-model="queryBuilderState.queryName"
-							placeholder="My query"
-						>
 					</div>
 					<p class="wrong" x-show="queryBuilderState.warning" x-text="queryBuilderState.warning"></p>
 					<p class="flexicorp-panel-note" x-show="!queryBuilderSupportsCurrentLanguage()">
 						Current query language is not yet supported by the builder. Use text query mode.
 					</p>
-					<div style="display:grid;grid-template-columns:220px 1fr;gap:12px;">
-						<div style="border-right:1px solid #e1e1e1;padding-right:10px;">
-							<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-								<strong>{%Tokens}</strong>
-							</div>
-							<div style="display:flex;flex-direction:column;gap:6px;">
-								<template x-for="tok in (queryBuilderState.tokens || [])" :key="'qb-token-' + tok.id">
-									<div
-										style="display:flex;gap:6px;align-items:center;"
-									>
-										<button
-											type="button"
-											class="btn btn-sm"
-											:class="String(queryBuilderState.selectedTokenId || '') === String(tok.id) ? 'btn-primary' : 'btn-outline-secondary'"
-											:style="String(queryBuilderState.selectedTokenId || '') === String(tok.id) ? 'font-weight:700; background:#fff; border-color:#5f6b7a; color:#1f2d3d;' : ''"
-											x-on:click="queryBuilderSelectToken(tok.id)"
-											x-text="(tok.name && String(tok.name).trim()) ? tok.name : (tok.label || tok.id)"
-										></button>
-										<span class="flexicorp-panel-note" x-show="queryBuilderSupportsDependencies() && queryBuilderTokenDependencyLabel(tok)" x-text="queryBuilderTokenDependencyLabel(tok)"></span>
-										<button type="button" class="btn btn-sm btn-outline-secondary" x-show="!String(tok.dependsOn || '').trim()" x-on:click="queryBuilderMoveToken(tok.id, 'up')" :disabled="!queryBuilderCanMoveToken(tok.id, 'up')" title="Move up">&#8593;</button>
-										<button type="button" class="btn btn-sm btn-outline-secondary" x-show="!String(tok.dependsOn || '').trim()" x-on:click="queryBuilderMoveToken(tok.id, 'down')" :disabled="!queryBuilderCanMoveToken(tok.id, 'down')" title="Move down">&#8595;</button>
-										<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderRemoveToken(tok.id)" title="Remove token">&times;</button>
+
+					<div class="fc-qb__strip" aria-label="Tokens of the query">
+						<template x-for="(tok, idx) in (queryBuilderState.tokens || [])" :key="'qb-tok-' + tok.id">
+							<div class="fc-qb__strip-item">
+								<template x-if="idx > 0">
+									<div class="fc-qb__link" :class="'fc-qb__link--' + tok.link.type">
+										<select
+											class="fc-qb__link-select"
+											:aria-label="'Relation between token ' + idx + ' and token ' + (idx + 1)"
+											x-on:change="qbSetLink(tok, $event.target.value)"
+										>
+											<template x-for="opt in qbLinkOptions()" :key="'qb-lk-' + tok.id + opt.value">
+												<option :value="opt.value" :title="opt.title" :selected="opt.value === qbLinkValue(tok)" x-text="opt.label"></option>
+											</template>
+										</select>
+										<span class="fc-qb__gap" x-show="tok.link.type === 'gap'">
+											<input type="number" min="0" max="99" x-model.number="tok.link.min" x-on:input="qbStateChanged()" aria-label="Minimum number of words between">
+											<span aria-hidden="true">&ndash;</span>
+											<input type="number" min="0" max="99" x-model.number="tok.link.max" x-on:input="qbStateChanged()" aria-label="Maximum number of words between">
+										</span>
 									</div>
 								</template>
-								<div style="margin-top:4px;">
-									<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderAddToken()">Add token</button>
-								</div>
+								<button
+									type="button"
+									class="fc-qb__chip"
+									:class="String(queryBuilderState.selectedTokenId || '') === String(tok.id) ? 'fc-qb__chip--active' : ''"
+									:aria-pressed="String(queryBuilderState.selectedTokenId || '') === String(tok.id) ? 'true' : 'false'"
+									x-on:click="queryBuilderSelectToken(tok.id)"
+								>
+									<span class="fc-qb__chip-badge" x-text="qbTokenDisplayName(tok, idx)"></span>
+									<span class="fc-qb__chip-text" x-text="qbTokenSummary(tok)"></span>
+									<span class="fc-qb__chip-opt" x-show="tok.optional" title="optional">?</span>
+								</button>
 							</div>
-						</div>
-						<div>
-							<template x-if="queryBuilderSelectedToken()">
+						</template>
+						<button type="button" class="fc-qb__add" x-on:click="queryBuilderAddToken()">+ {%token}</button>
+					</div>
+
+					<div class="fc-qb__body">
+						<section class="fc-qb__token" aria-label="Selected token">
+							<template x-if="qbSel()">
 								<div>
-									<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-										<strong x-text="'Restrictions for ' + ((queryBuilderSelectedToken().name && String(queryBuilderSelectedToken().name).trim()) ? queryBuilderSelectedToken().name : (queryBuilderSelectedToken().label || queryBuilderSelectedToken().id))"></strong>
-										<div style="display:flex;gap:6px;">
-											<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderAddRestriction()">Add restriction</button>
-										</div>
+									<div class="fc-qb__section-head">
+										<strong x-text="'Token ' + qbTokenDisplayName(qbSel(), qbSelectedIndex())"></strong>
+										<span class="fc-qb__tools">
+											<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderMoveToken(qbSel().id, 'left')" :disabled="!queryBuilderCanMoveToken(qbSel().id, 'left')" title="Move left" aria-label="Move token left">&#8592;</button>
+											<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderMoveToken(qbSel().id, 'right')" :disabled="!queryBuilderCanMoveToken(qbSel().id, 'right')" title="Move right" aria-label="Move token right">&#8594;</button>
+											<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderRemoveToken(qbSel().id)" :disabled="(queryBuilderState.tokens || []).length < 2" title="Remove token" aria-label="Remove token">&times;</button>
+										</span>
 									</div>
-									<div style="display:flex;flex-direction:column;gap:8px;">
-										<template x-for="res in (queryBuilderSelectedToken().restrictions || [])" :key="'qb-res-' + res.id">
-											<div
-												:style="queryBuilderRestrictionInputType(res) === 'select'
-													? 'display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;'
-													: 'display:grid;grid-template-columns:1fr 150px 1fr auto;gap:8px;align-items:end;'"
-											>
-												<div>
-													<label style="display:block;font-size:12px;">Field</label>
-													<select
-														x-model="res.field"
-														:disabled="!queryBuilderSupportsCurrentLanguage()"
-														:style="queryBuilderRestrictionFieldMissing(res) ? 'border-color:#c63b3b;background:#fff3f3;' : ''"
-														x-on:change="queryBuilderOnRestrictionFieldChange(res)"
-													>
-														<option value="">field</option>
-														<template x-for="grp in queryBuilderFieldGroups()" :key="'qb-group-' + grp.id">
-															<optgroup :label="grp.label">
-																<template x-for="opt in grp.options" :key="'qb-field-' + grp.id + ':' + opt.value">
-																<option :value="opt.value" :class="opt.admin ? 'adminpart' : ''" x-text="opt.label"></option>
-																</template>
-															</optgroup>
-														</template>
-													</select>
-												</div>
-												<div x-show="queryBuilderRestrictionInputType(res) !== 'select'">
-													<label style="display:block;font-size:12px;">Match</label>
-													<select x-model="res.operator" :disabled="!queryBuilderSupportsCurrentLanguage()">
-														<template x-for="op in queryBuilderOperators()" :key="'qb-op-' + op">
-															<option :value="op" x-text="op"></option>
-														</template>
-													</select>
-												</div>
-												<div>
-													<label style="display:block;font-size:12px;">Value</label>
-													<template x-if="queryBuilderRestrictionInputType(res) === 'select'">
-														<select x-model="res.value" :disabled="!queryBuilderSupportsCurrentLanguage() || queryBuilderRestrictionFieldLoading(res)">
-															<option value="">select value</option>
-															<template x-for="vopt in queryBuilderRestrictionOptions(res)" :key="'qb-vopt-' + (res.id || '') + ':' + vopt.value">
-																<option :value="vopt.value" x-text="vopt.label || vopt.value"></option>
+									<div class="fc-qb__rows">
+										<template x-for="r in qbTokenRows(qbSel())" :key="'qb-row-' + r.key">
+											<div class="fc-qb__row" :class="r.admin ? 'adminpart' : ''">
+												<label class="fc-qb__label" :for="'qb-in-' + r.key" :title="r.field" x-text="r.label"></label>
+												<div class="fc-qb__op">
+													<template x-if="qbInputType(r.field) === 'udfeats'">
+														<button type="button" class="fc-qb__textbtn" x-on:click="qbToggleFeats(qbSel(), r.field)" x-text="qbSel().featsOpen ? '{%collapse}' : '{%expand}'"></button>
+													</template>
+													<template x-if="qbInputType(r.field) !== 'udfeats'">
+														<select :aria-label="r.label + ': match type'" x-on:change="r.row.op = $event.target.value; qbStateChanged()">
+															<template x-for="op in qbOperatorsFor(r.field)" :key="'qb-op-' + r.key + op.value">
+																<option :value="op.value" :selected="op.value === r.row.op || (op.value === 'is' && r.row.op === 'matches' && qbInputType(r.field) === 'select')" x-text="op.label"></option>
 															</template>
 														</select>
 													</template>
-													<template x-if="queryBuilderRestrictionInputType(res) !== 'select'">
-														<div style="position:relative;">
+												</div>
+												<div class="fc-qb__val">
+													<template x-if="qbInputType(r.field) === 'udfeats' && qbSel().featsOpen">
+														<div class="fc-qb__feats">
+															<template x-for="ft in qbFeatureList(r.field)" :key="'qb-ft-' + r.key + ft.name">
+																<label class="fc-qb__feat">
+																	<span x-text="ft.name"></span>
+																	<select x-on:change="qbSetFeat(qbSel(), ft.name, $event.target.value)">
+																		<option value="">any</option>
+																		<template x-for="v in ft.values" :key="'qb-fv-' + r.key + ft.name + v">
+																			<option :value="v" :selected="String((qbSel().feats || {})[ft.name] || '') === v" x-text="v"></option>
+																		</template>
+																	</select>
+																</label>
+															</template>
+															<span class="flexicorp-panel-note" x-show="!qbFieldLoading(r.field) && !qbFeatureList(r.field).length">No feature values found for this corpus.</span>
+														</div>
+													</template>
+													<template x-if="qbInputType(r.field) === 'udfeats' && !qbSel().featsOpen">
+														<input type="text" :id="'qb-in-' + r.key" x-model="r.row.value" x-on:input="qbStateChanged()" placeholder="e.g. Tense=Past" spellcheck="false">
+													</template>
+													<template x-if="qbInputType(r.field) === 'select'">
+														<select :id="'qb-in-' + r.key" x-on:change="r.row.value = $event.target.value; if (r.row.op === 'matches') r.row.op = 'is'; qbStateChanged()" :disabled="qbFieldLoading(r.field)">
+															<option value="">any</option>
+															<template x-for="vopt in qbOptions(r.field)" :key="'qb-v-' + r.key + vopt.value">
+																<option :value="vopt.value" :selected="vopt.value === r.row.value" x-text="vopt.label || vopt.value"></option>
+															</template>
+														</select>
+													</template>
+													<template x-if="qbInputType(r.field) === 'datalist'">
+														<div>
+															<input type="text" :id="'qb-in-' + r.key" :list="'qb-dl-' + r.key" x-model="r.row.value" x-on:input="qbStateChanged()" placeholder="any" spellcheck="false">
+															<datalist :id="'qb-dl-' + r.key">
+																<template x-for="vopt in qbOptions(r.field)" :key="'qb-dv-' + r.key + vopt.value">
+																	<option :value="vopt.value" x-text="vopt.label && vopt.label !== vopt.value ? vopt.label : ''"></option>
+																</template>
+															</datalist>
+														</div>
+													</template>
+													<template x-if="qbInputType(r.field) === 'text'">
+														<div class="fc-qb__suggest-wrap">
 															<input
 																type="text"
-																x-model="res.value"
-																:disabled="!queryBuilderSupportsCurrentLanguage()"
-																x-on:input="queryBuilderOnRestrictionValueInput(res)"
-																x-on:focus="queryBuilderOnRestrictionValueInput(res)"
-																x-on:keydown.escape="queryBuilderCloseSuggestions(res)"
+																:id="'qb-in-' + r.key"
+																x-model="r.row.value"
+																x-on:input="qbOnValueInput(r.key, r.field, r.row)"
+																x-on:keydown.escape.stop="qbCloseSuggest(r.key)"
+																x-on:blur="setTimeout(() => qbCloseSuggest(r.key), 150)"
+																placeholder="any"
+																spellcheck="false"
+																autocomplete="off"
 															>
-															<div
-																x-show="queryBuilderSuggestOpen(res)"
-																style="position:absolute;left:0;right:0;top:100%;z-index:30;background:#fff;border:1px solid #d0d7de;border-radius:4px;max-height:220px;overflow:auto;margin-top:2px;"
-															>
-																<template x-for="item in queryBuilderSuggestItems(res)" :key="'qb-sugg-' + (res.id || '') + ':' + item.value">
-																	<button
-																		type="button"
-																		class="btn btn-sm btn-link"
-																		style="display:block;width:100%;text-align:left;padding:4px 8px;border-radius:0;"
-																		x-on:click="queryBuilderSelectSuggestion(res, item)"
-																	>
-																		<span x-text="item.label || item.value"></span>
-																	</button>
+															<div class="fc-qb__suggest" x-show="qbSuggestOpen(r.key)">
+																<template x-for="item in qbSuggestItems(r.key)" :key="'qb-sg-' + r.key + item.value">
+																	<button type="button" x-on:mousedown.prevent="qbPickSuggestion(r.key, r.row, item)" x-text="item.label || item.value"></button>
 																</template>
 															</div>
 														</div>
 													</template>
-													<span class="flexicorp-panel-note" x-show="queryBuilderRestrictionFieldLoading(res)">loading values...</span>
-													<span class="flexicorp-panel-note" x-show="queryBuilderSuggestLoading(res)">loading suggestions...</span>
-												</div>
-												<div>
-													<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderRemoveRestriction(res.id)" title="Remove restriction">&times;</button>
 												</div>
 											</div>
 										</template>
-										<div class="flexicorp-form-row" style="margin-top:4px;">
-											<label>Token name (optional)</label>
-											<input
-												type="text"
-												x-model="queryBuilderSelectedToken().name"
-												:disabled="!queryBuilderSupportsCurrentLanguage()"
-												placeholder="e.g. t1"
-											>
+									</div>
+									<div class="fc-qb__row" x-show="(qbSel().extra || []).length">
+										<span class="fc-qb__label" title="Conditions on attributes this builder does not list; kept as typed">{%Other}</span>
+										<div class="fc-qb__extra">
+											<template x-for="(c, ci) in (qbSel().extra || [])" :key="'qb-x-' + qbSel().id + ci">
+												<span class="fc-qb__extra-item"><code x-text="c"></code><button type="button" x-on:click="qbRemoveExtra(qbSel(), ci)" aria-label="Remove condition">&times;</button></span>
+											</template>
 										</div>
 									</div>
-									<div class="flexicorp-form-row" style="margin-top:8px;" x-show="queryBuilderSupportsDependencies()">
-										<label>Dependency (optional)</label>
-										<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-											<select
-												x-model="queryBuilderSelectedToken().dependsOn"
-												:disabled="!queryBuilderSupportsCurrentLanguage()"
-												x-on:change="queryBuilderOnTokenDependencyChange(queryBuilderSelectedToken())"
-											>
-												<option value="">independent (top-level token)</option>
-												<template x-for="opt in queryBuilderDependencyParentOptions(queryBuilderSelectedToken().id)" :key="'qb-dep-parent-' + opt.value">
-													<option :value="opt.value" x-text="opt.label"></option>
-												</template>
-											</select>
-											<select
-												x-model="queryBuilderSelectedToken().dependencyRelation"
-												:disabled="!queryBuilderSupportsCurrentLanguage() || !String(queryBuilderSelectedToken().dependsOn || '').trim()"
-											>
-												<template x-for="rel in queryBuilderDependencyRelationOptions()" :key="'qb-dep-rel-' + rel">
-													<option :value="rel" x-text="rel"></option>
-												</template>
-											</select>
-										</div>
+									<div class="fc-qb__token-opts">
+										<label>{%Name} <input type="text" class="fc-qb__name" x-model="qbSel().name" x-on:input="qbStateChanged()" placeholder="e.g. a" spellcheck="false" title="Token name, e.g. to refer to it in frequencies (a.lemma)"></label>
+										<label><input type="checkbox" :checked="qbSel().optional" x-on:change="qbSel().optional = $event.target.checked; qbStateChanged()"> {%optional}</label>
+										<label x-show="qbDialect().nocase"><input type="checkbox" :checked="qbSel().nocase" x-on:change="qbSel().nocase = $event.target.checked; qbStateChanged()"> {%ignore case}</label>
 									</div>
 								</div>
 							</template>
-						</div>
-					</div>
-					<div
-						style="border:1px solid #e3e3e3;border-radius:6px;padding:8px;margin-top:10px;"
-						x-show="queryBuilderSupportsCurrentLanguage()"
-					>
-						<label style="display:flex;align-items:center;gap:8px;">
-							<input
-								type="checkbox"
-								:checked="queryBuilderState.alignment && queryBuilderState.alignment.enabled"
-								:disabled="!queryBuilderSupportsAlignment()"
-								x-on:change="queryBuilderSetAlignmentEnabled($event.target.checked)"
-							>
-							<span>Aligned query</span>
-						</label>
-						<div
-							style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:end;"
-							x-show="queryBuilderState.alignment && queryBuilderState.alignment.enabled"
-						>
-							<div>
-								<label style="display:block;font-size:12px;">Alignment type</label>
-								<select
-									x-model="queryBuilderState.alignment.joinField"
-									:disabled="!queryBuilderSupportsCurrentLanguage()"
-								>
-									<template x-for="opt in queryBuilderAlignmentJoinFieldOptions()" :key="'qb-align-join-' + opt.value">
-										<option :value="opt.value" x-text="opt.label"></option>
+						</section>
+
+						<aside class="fc-qb__side">
+							<template x-for="g in qbDocGroups()" :key="'qb-dg-' + g.id">
+								<section class="fc-qb__docs">
+									<h4 x-text="g.label"></h4>
+									<template x-for="r in qbDocRows(g)" :key="'qb-drow-' + r.key">
+										<div class="fc-qb__row fc-qb__row--doc" :class="r.admin ? 'adminpart' : ''">
+											<label class="fc-qb__label" :for="'qb-in-' + r.key" :title="r.field" x-text="r.label"></label>
+											<div class="fc-qb__val">
+												<template x-if="qbInputType(r.field) === 'select'">
+													<select :id="'qb-in-' + r.key" x-on:change="r.row.value = $event.target.value; r.row.op = 'is'; qbStateChanged()" :disabled="qbFieldLoading(r.field)">
+														<option value="">any</option>
+														<template x-for="vopt in qbOptions(r.field)" :key="'qb-dv2-' + r.key + vopt.value">
+															<option :value="vopt.value" :selected="vopt.value === r.row.value" x-text="vopt.label || vopt.value"></option>
+														</template>
+													</select>
+												</template>
+												<template x-if="qbInputType(r.field) !== 'select'">
+													<div>
+														<input type="text" :id="'qb-in-' + r.key" :list="qbInputType(r.field) === 'datalist' ? 'qb-dl-' + r.key : null" x-model="r.row.value" x-on:input="qbStateChanged()" placeholder="any" spellcheck="false">
+														<datalist :id="'qb-dl-' + r.key">
+															<template x-for="vopt in (qbInputType(r.field) === 'datalist' ? qbOptions(r.field) : [])" :key="'qb-ddl-' + r.key + vopt.value">
+																<option :value="vopt.value"></option>
+															</template>
+														</datalist>
+													</div>
+												</template>
+											</div>
+										</div>
 									</template>
-								</select>
-							</div>
-							<div>
-								<label style="display:block;font-size:12px;">Target alias</label>
-								<input
-									type="text"
-									x-model="queryBuilderState.alignment.targetAlias"
-									:disabled="!queryBuilderSupportsCurrentLanguage()"
-									placeholder="b"
-								>
-							</div>
-						</div>
-						<div
-							style="margin-top:10px;border-top:1px solid #ececec;padding-top:10px;"
-							x-show="queryBuilderState.alignment && queryBuilderState.alignment.enabled"
-						>
-							<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-								<strong x-text="queryBuilderAlignmentUsesSentenceTarget() ? 'Target sentence restrictions' : 'Target token restrictions'"></strong>
-								<div style="display:flex;gap:6px;">
-									<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderAddTargetRestriction()">Add target restriction</button>
+								</section>
+							</template>
+							<div class="fc-qb__row fc-qb__row--doc" x-show="!(queryBuilderState.alignment && queryBuilderState.alignment.enabled)">
+								<label class="fc-qb__label" for="fc-qb-within">{%Match within}</label>
+								<div class="fc-qb__val">
+									<select id="fc-qb-within" x-on:change="queryBuilderState.within = $event.target.value; qbStateChanged()">
+										<template x-for="opt in qbWithinOptions()" :key="'qb-w-' + opt.value">
+											<option :value="opt.value" :selected="opt.value === String(queryBuilderState.within || '')" x-text="opt.label"></option>
+										</template>
+									</select>
 								</div>
 							</div>
-							<div style="display:flex;flex-direction:column;gap:8px;">
-								<template x-for="res in ((queryBuilderState.alignment && queryBuilderState.alignment.targetRestrictions) || [])" :key="'qb-target-res-' + res.id">
-									<div
-										:style="queryBuilderRestrictionInputType(res) === 'select'
-											? 'display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;'
-											: 'display:grid;grid-template-columns:1fr 150px 1fr auto;gap:8px;align-items:end;'"
-									>
-										<div>
-											<label style="display:block;font-size:12px;">Field</label>
-											<select
-												x-model="res.field"
-												:disabled="!queryBuilderSupportsCurrentLanguage()"
-												:style="queryBuilderRestrictionFieldMissing(res) ? 'border-color:#c63b3b;background:#fff3f3;' : ''"
-												x-on:change="queryBuilderOnRestrictionFieldChange(res)"
-											>
-												<option value="">field</option>
-												<template x-for="grp in queryBuilderTargetFieldGroups()" :key="'qb-target-group-' + grp.id">
-													<optgroup :label="grp.label">
-														<template x-for="opt in grp.options" :key="'qb-target-field-' + grp.id + ':' + opt.value">
-															<option :value="opt.value" :class="opt.admin ? 'adminpart' : ''" x-text="opt.label"></option>
+
+							<section class="fc-qb__align" x-show="queryBuilderSupportsAlignment()">
+								<label class="fc-qb__align-toggle">
+									<input type="checkbox" :checked="queryBuilderState.alignment && queryBuilderState.alignment.enabled" x-on:change="queryBuilderSetAlignmentEnabled($event.target.checked)">
+									{%Search the aligned translation}
+								</label>
+								<template x-if="queryBuilderState.alignment && queryBuilderState.alignment.enabled">
+									<div class="fc-qb__align-body">
+										<div class="fc-qb__row fc-qb__row--doc" x-show="qbLanguageField()">
+											<label class="fc-qb__label" for="fc-qb-tlang">{%Translation in}</label>
+											<div class="fc-qb__val">
+												<template x-if="qbLanguageValues().length">
+													<select id="fc-qb-tlang" x-on:change="queryBuilderState.alignment.targetLang = $event.target.value; qbStateChanged()">
+														<option value="">any language</option>
+														<template x-for="vopt in qbLanguageValues()" :key="'qb-tl-' + vopt.value">
+															<option :value="vopt.value" :selected="vopt.value === queryBuilderState.alignment.targetLang" x-text="vopt.label || vopt.value"></option>
 														</template>
-													</optgroup>
+													</select>
 												</template>
-											</select>
-										</div>
-										<div x-show="queryBuilderRestrictionInputType(res) !== 'select'">
-											<label style="display:block;font-size:12px;">Match</label>
-											<select x-model="res.operator" :disabled="!queryBuilderSupportsCurrentLanguage()">
-												<template x-for="op in queryBuilderOperators()" :key="'qb-target-op-' + op">
-													<option :value="op" x-text="op"></option>
+												<template x-if="!qbLanguageValues().length">
+													<input id="fc-qb-tlang" type="text" x-model="queryBuilderState.alignment.targetLang" x-on:input="qbStateChanged()" placeholder="any language">
 												</template>
-											</select>
+											</div>
 										</div>
-										<div>
-											<label style="display:block;font-size:12px;">Value</label>
-											<template x-if="queryBuilderRestrictionInputType(res) === 'select'">
-												<select x-model="res.value" :disabled="!queryBuilderSupportsCurrentLanguage() || queryBuilderRestrictionFieldLoading(res)">
-													<option value="">select value</option>
-													<template x-for="vopt in queryBuilderRestrictionOptions(res)" :key="'qb-target-vopt-' + (res.id || '') + ':' + vopt.value">
-														<option :value="vopt.value" x-text="vopt.label || vopt.value"></option>
+										<div class="fc-qb__row fc-qb__row--doc">
+											<label class="fc-qb__label" for="fc-qb-join">{%Aligned on}</label>
+											<div class="fc-qb__val">
+												<select id="fc-qb-join" x-on:change="queryBuilderState.alignment.joinField = $event.target.value; qbStateChanged()">
+													<template x-for="opt in queryBuilderAlignmentJoinFieldOptions()" :key="'qb-j-' + opt.value">
+														<option :value="opt.value" :selected="opt.value === queryBuilderState.alignment.joinField" x-text="opt.label"></option>
 													</template>
 												</select>
-											</template>
-											<template x-if="queryBuilderRestrictionInputType(res) !== 'select'">
-												<input
-													type="text"
-													x-model="res.value"
-													:disabled="!queryBuilderSupportsCurrentLanguage()"
-												>
-											</template>
-											<span class="flexicorp-panel-note" x-show="queryBuilderRestrictionFieldLoading(res)">loading values...</span>
+											</div>
 										</div>
-										<div>
-											<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderRemoveTargetRestriction(res.id)" title="Remove restriction">&times;</button>
-										</div>
+										<p class="fc-qb__hint" x-text="queryBuilderAlignmentUsesSentenceTarget() ? 'Each hit is paired with the aligned sentence.' : 'Each hit is paired with its aligned word; leave the target open to see all translations.'"></p>
+										<template x-for="res in (queryBuilderState.alignment.targetRestrictions || [])" :key="'qb-tr-' + res.id">
+											<div class="fc-qb__target">
+												<select :aria-label="'Target field'" x-on:change="res.field = $event.target.value; queryBuilderEnsureFieldUiLoaded(res.field); qbStateChanged()" :class="queryBuilderRestrictionFieldMissing(res) ? 'fc-qb__invalid' : ''">
+													<option value="">field</option>
+													<template x-for="grp in queryBuilderTargetFieldGroups()" :key="'qb-tg-' + res.id + grp.id">
+														<optgroup :label="grp.label">
+															<template x-for="opt in grp.options" :key="'qb-tf-' + res.id + opt.value">
+																<option :value="opt.value" :selected="opt.value === res.field" x-text="opt.label"></option>
+															</template>
+														</optgroup>
+													</template>
+												</select>
+												<select :aria-label="'Target match type'" x-on:change="res.operator = $event.target.value; qbStateChanged()">
+													<template x-for="op in qbOperatorOptions()" :key="'qb-to-' + res.id + op.value">
+														<option :value="op.value" :selected="op.value === res.operator" x-text="op.label"></option>
+													</template>
+												</select>
+												<input type="text" :aria-label="'Target value'" :list="qbInputType(res.field) === 'datalist' || qbInputType(res.field) === 'select' ? 'qb-tdl-' + res.id : null" x-model="res.value" x-on:input="qbStateChanged()" placeholder="value" spellcheck="false">
+												<datalist :id="'qb-tdl-' + res.id">
+													<template x-for="vopt in (res.field ? qbOptions(res.field) : [])" :key="'qb-tdv-' + res.id + vopt.value">
+														<option :value="vopt.value"></option>
+													</template>
+												</datalist>
+												<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderRemoveTargetRestriction(res.id)" aria-label="Remove target restriction">&times;</button>
+											</div>
+										</template>
+										<button type="button" class="fc-qb__textbtn" x-on:click="queryBuilderAddTargetRestriction()">+ {%target restriction}</button>
 									</div>
 								</template>
-							</div>
-						</div>
-						<p class="flexicorp-panel-note" style="margin:6px 0 0 0;" x-show="queryBuilderState.alignment && queryBuilderState.alignment.enabled">
-							Source alias is taken from the source token name (or defaults to `a`).
-						</p>
+							</section>
+						</aside>
 					</div>
-					<div class="flexicorp-form-actions" style="margin-top:12px;">
-						<div style="margin-right:auto;min-width:320px;max-width:70%;">
-							<label style="display:block;font-size:12px;color:#555;">Preview</label>
-							<code style="display:block;padding:6px;border:1px solid #ddd;border-radius:4px;white-space:pre-wrap;word-break:break-word;background:#fafafa;" x-text="queryBuilderPreviewQuery() || '(query preview will appear here)'"></code>
-						</div>
-						<button type="button" class="btn btn-sm btn-primary" x-on:click="queryBuilderApplyToQuery()" :disabled="!queryBuilderSupportsCurrentLanguage()">Apply to query</button>
-						<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderClose()">Cancel</button>
+
+					<div class="fc-qb__query">
+						<label for="fc-qb-text">{%Query}</label>
+						<textarea
+							id="fc-qb-text"
+							rows="2"
+							spellcheck="false"
+							:value="qbCurrentText()"
+							x-on:input="qbOnTextInput($event.target.value)"
+							x-on:blur="qbOnTextBlur()"
+							placeholder="(the query appears here; you can also type it)"
+						></textarea>
+						<p class="fc-qb__note" x-show="queryBuilderState.textNote" x-text="queryBuilderState.textNote"></p>
+					</div>
+					<div class="fc-qb__foot">
+						<label class="fc-qb__qname">{%Query name} <input type="text" x-model="queryBuilderState.queryName" x-on:input="qbStateChanged()" placeholder="optional" spellcheck="false"></label>
+						<button type="button" class="btn btn-sm btn-primary" x-on:click="queryBuilderApplyToQuery()" :disabled="!queryBuilderSupportsCurrentLanguage()">{%Apply to query}</button>
+						<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="queryBuilderClose()">{%Cancel}</button>
 					</div>
 				</div>
 			</div>
@@ -895,7 +890,7 @@
 				</table>
 				<div id="mtxt">
 				<div x-show="!searchHasTableResults() && isSearchViewMode('grouped')">
-					<template x-for="group in groupHitsByDoc()" :key="group.docId">
+					<template x-for="group in groupHitsByDoc()" :key="searchRenderGen + ':' + group.docId">
 						<div class="flexicorp-hit-group">
 							<div class="flexicorp-hit-group-head">
 									<template x-if="group.docUrl">
@@ -906,7 +901,7 @@
 									</template>
 								<span class="flexicorp-panel-note" x-text="group.totalHits + ' hit(s) in ' + group.hits.length + ' occurrence(s)'"></span>
 							</div>
-							<template x-for="(hit, idx) in group.hits" :key="group.docId + ':' + idx">
+							<template x-for="(hit, idx) in group.hits" :key="searchRenderGen + ':' + group.docId + ':' + idx">
 								<div
 									class="flexicorp-hit"
 									x-bind:tid="getHitDocCid(hit) || ''"
@@ -959,7 +954,7 @@
 									</template>
 									<template x-if="getGroupedAlignedCompanions(hit).length">
 										<div class="flexicorp-hit" style="margin-top:8px;border-top:1px dashed #d8d8d8;padding-top:6px;">
-											<template x-for="(alignedHit, aidx) in getGroupedAlignedCompanions(hit)" :key="'aligned-grouped:' + idx + ':' + aidx">
+											<template x-for="(alignedHit, aidx) in getGroupedAlignedCompanions(hit)" :key="'aligned-grouped:' + searchRenderGen + ':' + idx + ':' + aidx">
 												<div
 													style="margin-top:6px;"
 													x-bind:tid="getHitDocCid(alignedHit) || ''"
@@ -1043,7 +1038,7 @@
 						</tr>
 					</thead>
 					<tbody>
-						<template x-for="(hit, idx) in getMergedSearchHits()" :key="'table:' + idx">
+						<template x-for="(hit, idx) in getMergedSearchHits()" :key="'table:' + searchRenderGen + ':' + idx">
 							<tr
 								x-bind:tid="getHitDocCid(hit) || ''"
 								x-on:mouseenter="window.tid = getHitDocCid(hit) || ''"
@@ -1081,7 +1076,7 @@
 								<td class="flexicorp-eye-candy-col" x-show="searchHasAlignedHits() && searchHasAnyEyeCandyAlignedSide('source')">
 									<template x-if="getGroupedAlignedCompanions(hit).length > 1">
 										<div class="flexicorp-aligned-table-cell" x-bind:style="'--aligned-count:' + Math.max(1, getGroupedAlignedCompanions(hit).length)">
-											<template x-for="(alignedHit, aidx) in getGroupedAlignedCompanions(hit)" :key="'table-src-eye:' + idx + ':' + aidx">
+											<template x-for="(alignedHit, aidx) in getGroupedAlignedCompanions(hit)" :key="'table-src-eye:' + searchRenderGen + ':' + idx + ':' + aidx">
 												<div class="flexicorp-eye-candy flexicorp-aligned-table-cell-row" x-html="getEyeCandyHtmlForAlignedPair(hit, alignedHit)"></div>
 											</template>
 										</div>
@@ -1110,7 +1105,7 @@
 								</td>
 								<td class="flexicorp-results-table-context" x-show="searchHasAlignedHits()">
 									<div class="flexicorp-aligned-table-cell" x-bind:style="'--aligned-count:' + Math.max(1, getGroupedAlignedCompanions(hit).length)">
-										<template x-for="(alignedHit, aidx) in getGroupedAlignedCompanions(hit)" :key="'table-align-ctx:' + idx + ':' + aidx">
+										<template x-for="(alignedHit, aidx) in getGroupedAlignedCompanions(hit)" :key="'table-align-ctx:' + searchRenderGen + ':' + idx + ':' + aidx">
 											<div class="flexicorp-aligned-table-cell-row">
 												<template x-if="getHitDocUrl(alignedHit)">
 													<a class="flexicorp-hit-context-link" x-bind:href="getHitDocUrl(alignedHit)" x-bind:cid="getHitDocCid(alignedHit)" x-bind:title="getDocumentTooltip(getHitDocLabel(alignedHit))" x-text="getHitContextLinkLabel(alignedHit)" onmouseover="if (typeof showdocinfo === 'function') showdocinfo(this)" onmouseout="if (typeof hidetokinfo === 'function') hidetokinfo()" target="flexicorp_source" rel="noopener noreferrer"></a>
@@ -1124,14 +1119,14 @@
 								</td>
 								<td class="flexicorp-eye-candy-col" x-show="searchHasAlignedHits() && searchHasAnyEyeCandyAlignedSide('target')">
 									<div class="flexicorp-aligned-table-cell" x-bind:style="'--aligned-count:' + Math.max(1, getGroupedAlignedCompanions(hit).length)">
-										<template x-for="(alignedHit, aidx) in getGroupedAlignedCompanions(hit)" :key="'table-align-eye:' + idx + ':' + aidx">
+										<template x-for="(alignedHit, aidx) in getGroupedAlignedCompanions(hit)" :key="'table-align-eye:' + searchRenderGen + ':' + idx + ':' + aidx">
 											<div class="flexicorp-eye-candy flexicorp-aligned-table-cell-row" x-show="hasEyeCandy(alignedHit)" x-html="getEyeCandyHtml(alignedHit)"></div>
 										</template>
 									</div>
 								</td>
 								<td x-show="searchHasAlignedHits()">
 									<div class="flexicorp-aligned-table-cell" x-bind:style="'--aligned-count:' + Math.max(1, getGroupedAlignedCompanions(hit).length)">
-										<template x-for="(alignedHit, aidx) in getGroupedAlignedCompanions(hit)" :key="'table-align-res:' + idx + ':' + aidx">
+										<template x-for="(alignedHit, aidx) in getGroupedAlignedCompanions(hit)" :key="'table-align-res:' + searchRenderGen + ':' + idx + ':' + aidx">
 											<div
 												class="flexicorp-aligned-table-cell-row"
 												x-bind:tid="getHitDocCid(alignedHit) || ''"
@@ -1162,7 +1157,7 @@
 					</colgroup>
 					<thead><tr><th>Context</th><th>Left</th><th x-text="kwicMatchColumnLabel()"></th><th>Right</th><th x-show="searchHasAlignedHits()">Aligned left</th><th x-show="searchHasAlignedHits()">Aligned match</th><th x-show="searchHasAlignedHits()">Aligned right</th></tr></thead>
 					<tbody>
-						<template x-for="(hit, idx) in search.hits" :key="'kwic:' + idx">
+						<template x-for="(hit, idx) in search.hits" :key="'kwic:' + searchRenderGen + ':' + idx">
 							<tr
 								x-bind:id="'r-' + idx"
 								x-bind:tid="getHitDocCid(hit) || ''"

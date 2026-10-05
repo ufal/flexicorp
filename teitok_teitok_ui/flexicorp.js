@@ -148,6 +148,10 @@ function flexicorpApp() {
 		searchRawSignature: '',
 		/** Internal request flag: true only while a "show more" append request is in flight. */
 		_pendingSearchAppend: false,
+		// Bumped for every new result (not for "Show more"): the result rows' x-for keys carry it,
+		// so a new search builds fresh rows instead of reusing the previous result's (Alpine kept
+		// their aligned-target content when only the index-based keys matched).
+		searchRenderGen: 0,
 		/** Display mode selected by the user while the current search request is in flight. */
 		_pendingSearchUiViewMode: '',
 		/** True until user explicitly changes display mode; allows scope-based defaults. */
@@ -2272,6 +2276,7 @@ function flexicorpApp() {
 				const mergedHits = appendAllowed ? prevRawHits.concat(nextHits) : nextHits;
 				const mergedRows = appendAllowed ? prevRawRows.concat(nextRows) : nextRows;
 				const mergedCols = appendAllowed ? (nextCols.length ? nextCols : prevRawCols) : nextCols;
+				if (!appendAllowed) this.searchRenderGen += 1;
 				this.searchRaw = {
 					hits: mergedHits,
 					tableColumns: mergedCols,

@@ -1270,6 +1270,14 @@ if ( ! function_exists( 'tt_flexicorp_fn_qb_candidate_value_files' ) ) {
 		foreach ( $dirs as $d ) {
 			$files[] = $d . '/' . $f . $suffix;
 		}
+		// Pando indexes: <attr>.lex (positional) and <region>_<attr>.lex (region attributes) are
+		// NUL-separated value lists like the CQP files, so pando-only corpora get value lists too.
+		if ( $root !== '' ) {
+			$pandoDir = function_exists( 'tt_flexicorp_pando_index_dir' ) ? (string) tt_flexicorp_pando_index_dir( $root ) : $root . '/pando';
+			if ( $pandoDir !== '' && preg_match( '/^[A-Za-z0-9_#-]+$/', $f ) ) {
+				$files[] = rtrim( $pandoDir, '/' ) . '/' . $f . '.lex';
+			}
+		}
 		return $files;
 	}
 }
@@ -1378,6 +1386,56 @@ if ( ! function_exists( 'tt_flexicorp_fn_qb_field_value_payload' ) ) {
 			$base['closed_list'] = true;
 			$base['options'] = array_values( $options );
 			$base['source'] = $source;
+		} elseif ( $type === 'udfeats' && $hit['ok'] ) {
+			// UD features: one list of values per feature, for the expanded feature selects.
+			$base['input'] = 'udfeats';
+			$features = array();
+			foreach ( tt_flexicorp_fn_qb_candidate_value_files( $f, (string) $hit['scope'], $project_root ) as $cand ) {
+				if ( ! is_file( $cand ) || ! is_readable( $cand ) ) continue;
+				$sz = @filesize( $cand );
+				if ( $sz === false || $sz > 16 * 1024 * 1024 ) continue;
+				$raw = @file_get_contents( $cand );
+				if ( ! is_string( $raw ) || $raw === '' ) continue;
+				foreach ( explode( "\0", $raw ) as $bundle ) {
+					foreach ( explode( '|', trim( (string) $bundle ) ) as $pair ) {
+						$eq = strpos( $pair, '=' );
+						if ( $eq === false || $eq === 0 ) continue;
+						$fn = substr( $pair, 0, $eq );
+						$fv = substr( $pair, $eq + 1 );
+						if ( $fv === '' || $fn === '_' ) continue;
+						$features[ $fn ][ $fv ] = true;
+					}
+				}
+				if ( $features ) {
+					$source = 'value-file';
+					break;
+				}
+			}
+			ksort( $features, SORT_NATURAL | SORT_FLAG_CASE );
+			$outFeatures = array();
+			foreach ( $features as $fn => $vals ) {
+				$list = array_keys( $vals );
+				natcasesort( $list );
+				$outFeatures[ (string) $fn ] = array_values( array_map( 'strval', $list ) );
+			}
+			$base['features'] = (object) $outFeatures;
+			$base['source'] = $source;
+		} elseif ( $hit['ok'] ) {
+			// Small open value lists (upos, deprel, a language attribute, ...): offered as a datalist,
+			// so the field still takes a regular expression but shows the values that exist.
+			$maxItems = 100;
+			foreach ( tt_flexicorp_fn_qb_candidate_value_files( $f, (string) $hit['scope'], $project_root ) as $cand ) {
+				if ( ! is_file( $cand ) || ! is_readable( $cand ) ) continue;
+				$sz = @filesize( $cand );
+				if ( $sz === false || $sz > 64 * 1024 ) break;
+				$vals = tt_flexicorp_fn_qb_values_from_cqp_file( $cand, $maxItems + 1 );
+				if ( $vals && count( $vals ) <= $maxItems ) {
+					$base['input'] = 'datalist';
+					foreach ( $vals as $vv ) $base['options'][] = array( 'value' => $vv, 'label' => $vv );
+					$base['source'] = 'value-file';
+				}
+				break;
+			}
 		}
 		if ( $debugMode ) {
 			$base['debug'] = array(
