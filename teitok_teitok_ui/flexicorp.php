@@ -3922,6 +3922,19 @@ require_once __DIR__ . '/flexicorp_functions.php';
 			if ( $pref === '' ) $pref = 'auto';
 			$lastErr = '';
 			foreach ( $candidates as $cid ) {
+				// A corpus that is already in the catalogue is left alone: this fallback is for
+				// unregistered projects, and a minimal row would replace its label, settings and
+				// the choices made in the FQS admin (FCS, KonText).
+				$showCmd = escapeshellarg($bin) . ' corpora show --id ' . escapeshellarg($cid)
+					. ' --db ' . escapeshellarg($dbPath) . ' 2>/dev/null';
+				$shown = json_decode((string) shell_exec($showCmd), true);
+				if ( is_array($shown) && ( ( $shown['id'] ?? '' ) === $cid || ( $shown['corpus']['id'] ?? '' ) === $cid ) ) {
+					$res['ok'] = true;
+					$res['id'] = (string)$cid;
+					$res['existing'] = true;
+					$res['error'] = '';
+					return $res;
+				}
 				$label = ucwords(str_replace(array('-', '_'), ' ', $cid));
 				$payload = array(
 					'id' => $cid,
