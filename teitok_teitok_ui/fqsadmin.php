@@ -21,6 +21,16 @@
  *   index.php?action=fqsadmin&fqsa=api/<path>&…  an admin API call (any method, JSON body)
  *   index.php?action=fqsadmin&fqsa=selftest      what this module sees: user, settings source,
  *                                                FQS reachability (JSON; no secret values)
+ *   index.php?action=fqsadmin&fqsa=session       is the TEITOK session still there (JSON: logged_in,
+ *                                                allowed, user, and this session's CSRF value);
+ *                                                the UI uses it as keep-alive ping and to pick up
+ *                                                a new session after logging in again
+ *   index.php?action=fqsadmin&fqsa=loggedin      where TEITOK's login returns to from the UI's
+ *                                                "log in again" tab (a page that closes itself)
+ *
+ * When the TEITOK session has ended, API calls get 401 with `login_required` and a
+ * `login_url` (the UI then asks to log in again, in another tab, and carries on), and
+ * opening the page itself goes to TEITOK's login and back.
  * API calls must carry the header X-FQS-Admin-CSRF with this session's value
  * (put in the page as <meta name="fqs-admin-csrf">): another site cannot set
  * it, so it cannot make a logged-in admin's browser change the catalog.
@@ -106,6 +116,25 @@
 		}
 	}
 
+	if ( ! function_exists( 'ttfa_json' ) ) {
+		function ttfa_json( $status, $data ) {
+			ttfa_out( $status, json_encode( $data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) );
+		}
+	}
+
+	if ( ! function_exists( 'ttfa_csrf' ) ) {
+		/** This session's CSRF value (made on first use). */
+		function ttfa_csrf() {
+			if ( function_exists( 'session_status' ) && session_status() === PHP_SESSION_NONE && ! headers_sent() ) {
+				@session_start();
+			}
+			if ( empty( $_SESSION['fqsadmin_csrf'] ) || ! is_string( $_SESSION['fqsadmin_csrf'] ) ) {
+				$_SESSION['fqsadmin_csrf'] = bin2hex( random_bytes( 24 ) );
+			}
+			return $_SESSION['fqsadmin_csrf'];
+		}
+	}
+
 	if ( ! function_exists( 'ttfa_b64url' ) ) {
 		function ttfa_b64url( $s ) {
 			return rtrim( strtr( base64_encode( $s ), '+/', '-_' ), '=' );
@@ -164,12 +193,55 @@
 	$ttfa_is_admin = isset( $ttfa_usr['permissions'] ) && $ttfa_usr['permissions'] === 'admin';
 	$ttfa_allowed_raw = ttfa_setting( 'flexicorp/fqs_admin_users', 'FQS_ADMIN_USERS' );
 	$ttfa_allowed = array_filter( array_map( 'trim', preg_split( '/[\s,;]+/', $ttfa_allowed_raw ) ) );
+	$ttfa_self = 'index.php?action=' . rawurlencode( isset( $action ) && is_string( $action ) && $action !== '' ? $action : 'fqsadmin' );
+	// `fqsa` (not `p`, which a TEITOK installation may use for itself)
+	$ttfa_p = isset( $_GET['fqsa'] ) && is_string( $_GET['fqsa'] ) ? trim( $_GET['fqsa'] ) : '';
+	// TEITOK's login, returning to a page that closes itself (the UI opens it in a new tab)
+	$ttfa_login_url = 'index.php?action=login&goon=' . rawurlencode( $ttfa_self . '&fqsa=loggedin' );
+	$ttfa_may = $ttfa_user !== '' && $ttfa_is_admin && $ttfa_allowed_raw !== ''
+		&& ( in_array( '*', $ttfa_allowed, true ) || in_array( $ttfa_user, $ttfa_allowed, true ) );
+
+	// session state: the UI's keep-alive ping, and how it picks up a new session
+	if ( $ttfa_p === 'session' ) {
+		ttfa_json( 200, array(
+			'ok' => true,
+			'logged_in' => $ttfa_user !== '',
+			'allowed' => $ttfa_may,
+			'user' => $ttfa_user,
+			'csrf' => $ttfa_may ? ttfa_csrf() : null,
+			'login_url' => $ttfa_login_url,
+		) );
+	}
+	if ( $ttfa_p === 'loggedin' ) {
+		ttfa_out( 200, '<!DOCTYPE html><html><head><meta charset="utf-8"><title>FQS admin</title></head><body>'
+			. '<p>' . ( $ttfa_may ? 'You are logged in again. You can close this tab: the FQS admin page carries on.'
+				: 'This TEITOK user cannot use the FQS admin.' ) . '</p>'
+			. ( $ttfa_may ? '<script src="' . htmlspecialchars( $ttfa_self . '&fqsa=loggedin.js', ENT_QUOTES ) . '"></script>' : '' )
+			. '</body></html>', 'text/html; charset=UTF-8',
+			array( "Content-Security-Policy: default-src 'none'; script-src 'self'" ) );
+	}
+	if ( $ttfa_p === 'loggedin.js' ) {
+		ttfa_out( 200, 'window.close();', 'text/javascript; charset=UTF-8' );
+	}
+
 	if ( $ttfa_allowed_raw === '' ) {
 		ttfa_err( 404, 'FQS admin is not enabled in this TEITOK project: set flexicorp/fqs_admin_users in its settings'
 				  . ' (e.g. <flexicorp fqs_admin_users="yourname"/> in Resources/settings.xml; * = every TEITOK admin'
 				  . ' of this project), or FQS_ADMIN_USERS in the web server environment' );
 	}
-	if ( ! $ttfa_is_admin || $ttfa_user === '' ) {
+	if ( $ttfa_user === '' ) {
+		// not (or no longer) logged in: the page goes to TEITOK's login and back here;
+		// the UI's calls get 401 so that it can ask to log in again
+		if ( $ttfa_p === '' ) {
+			while ( ob_get_level() > 0 ) ob_end_clean();
+			http_response_code( 302 );
+			header( 'Location: index.php?action=login&goon=' . rawurlencode( $ttfa_self ) );
+			exit;
+		}
+		ttfa_json( 401, array( 'ok' => false, 'login_required' => true, 'login_url' => $ttfa_login_url,
+			'error' => 'Your TEITOK session has ended: log in again to use the FQS admin.' ) );
+	}
+	if ( ! $ttfa_is_admin ) {
 		ttfa_err( 403, 'FQS admin: log in as a TEITOK admin' );
 	}
 	if ( ! in_array( '*', $ttfa_allowed, true ) && ! in_array( $ttfa_user, $ttfa_allowed, true ) ) {
@@ -197,19 +269,9 @@
 	$ttfa_base = rtrim( ttfa_setting( 'flexicorp/fqs_admin_url', 'FQS_ADMIN_URL' ), '/' );
 	if ( $ttfa_base === '' ) $ttfa_base = 'http://127.0.0.1:8790';
 
-	// per-session value the UI sends back on every API call (CSRF)
-	if ( function_exists( 'session_status' ) && session_status() === PHP_SESSION_NONE && ! headers_sent() ) {
-		@session_start();
-	}
-	if ( empty( $_SESSION['fqsadmin_csrf'] ) || ! is_string( $_SESSION['fqsadmin_csrf'] ) ) {
-		$_SESSION['fqsadmin_csrf'] = bin2hex( random_bytes( 24 ) );
-	}
-	$ttfa_csrf = $_SESSION['fqsadmin_csrf'];
+	// per-session value the UI sends back on every API call (CSRF; see ttfa_csrf)
+	$ttfa_csrf = ttfa_csrf();
 	if ( function_exists( 'session_write_close' ) ) session_write_close();   // do not hold the session lock during FQS calls
-
-	$ttfa_self = 'index.php?action=' . rawurlencode( isset( $action ) && is_string( $action ) && $action !== '' ? $action : 'fqsadmin' );
-	// `fqsa` (not `p`, which a TEITOK installation may use for itself)
-	$ttfa_p = isset( $_GET['fqsa'] ) && is_string( $_GET['fqsa'] ) ? trim( $_GET['fqsa'] ) : '';
 
 	// ── self-test: what this module sees (no secret values) ─────────────────────
 
@@ -267,7 +329,11 @@
 
 	if ( strpos( $ttfa_p, 'api/' ) === 0 ) {
 		$sent = isset( $_SERVER['HTTP_X_FQS_ADMIN_CSRF'] ) ? (string) $_SERVER['HTTP_X_FQS_ADMIN_CSRF'] : '';
-		if ( $sent === '' || ! hash_equals( $ttfa_csrf, $sent ) ) ttfa_err( 403, 'FQS admin: missing or wrong X-FQS-Admin-CSRF (reload the page)' );
+		if ( $sent === '' || ! hash_equals( $ttfa_csrf, $sent ) ) {
+			// e.g. after logging in again: a new session has a new value (the UI fetches it)
+			ttfa_json( 403, array( 'ok' => false, 'csrf_stale' => true,
+				'error' => 'FQS admin: missing or wrong X-FQS-Admin-CSRF (reload the page)' ) );
+		}
 		if ( isset( $_SERVER['HTTP_ORIGIN'] ) && $_SERVER['HTTP_ORIGIN'] !== '' ) {
 			$host = isset( $_SERVER['HTTP_HOST'] ) ? (string) $_SERVER['HTTP_HOST'] : '';
 			if ( parse_url( (string) $_SERVER['HTTP_ORIGIN'], PHP_URL_HOST ) !== parse_url( 'http://' . $host, PHP_URL_HOST ) ) {

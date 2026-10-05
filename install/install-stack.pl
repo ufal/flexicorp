@@ -38,6 +38,12 @@
 #   --fqs-admin EMAIL     TEITOK user allowed into the FQS admin (only set when
 #                         flexicorp/fqs_admin_users is not set yet)
 #   --no-check            skip the checks at the end
+#   --no-frontends        leave the files of other frontends (KonText, …) alone: by
+#                         default the FQS service gets write access to the files its
+#                         frontend modules edit (KonText's corplist.xml,
+#                         pando_corpora.json, the Manatee registry/data/vert folders):
+#                         a systemd ReadWritePaths drop-in, and an ACL (or group write)
+#                         for the service user — owners and other permissions stay
 #
 # Log: /var/log/teitok-install/stack-<time>.log (macOS: /Library/Logs/teitok-install/).
 use strict;
@@ -60,7 +66,7 @@ my %o = (
 );
 GetOptions( \%o, 'detect', 'check', 'q|yes', 'teitok-root=s', 'shared=s', 'web-user=s', 'git-folder=s',
 	'prefix=s', 'only=s', 'skip=s', 'flexicorp-repo=s', 'flexicorp-ref=s', 'pando-repo=s', 'pando-ref=s',
-	'no-pull', 'no-deps', 'fqs-admin=s', 'no-check', 'help|h' ) or exit 2;
+	'no-pull', 'no-deps', 'fqs-admin=s', 'no-check', 'no-frontends', 'help|h' ) or exit 2;
 if ( $o{help} ) { usage(); exit 0; }
 
 my $OS   = $^O;                                   # linux, darwin, freebsd
@@ -119,6 +125,66 @@ sub ask {
 	return $a eq '' ? $default : $a;
 }
 sub yes { my ( $q, $def ) = @_; my $a = ask( $q, $def ? 'y' : 'n' ); return $a =~ /^y/i; }
+
+# The files FQS's frontend modules edit (KonText's corplist.xml and pando_corpora.json,
+# the Manatee registry, data and vert folders; `fqs frontends paths` lists them) must be
+# writable for the FQS service: its systemd unit has ProtectSystem=strict, so their
+# folders go in a ReadWritePaths drop-in, and the service user gets write access by an ACL (owner,
+# group and mode stay as KonText has them), else — when the file's group is root — by
+# group write for the service group. Folders get a default ACL too, so that what FQS
+# creates there stays writable for it.
+sub frontend_access {
+	my ( $fqs, $user, $group ) = @_;
+	return unless -x $fqs;
+	my $json = capture( q_($fqs) . ' frontends paths' );
+	return if $json eq '';
+	require JSON::PP;
+	my $d = eval { JSON::PP::decode_json($json) } or return;
+	my @paths = @{ $d->{paths} || [] };
+	return unless @paths;
+	say_("  frontends: write access for $user to the files FQS edits for them\n");
+	my $acl = have('setfacl');
+	my @rw;
+	for my $p (@paths) {
+		my $path = $p->{path};
+		if ( $p->{dir} && !-d $path ) {
+			# the data / vert folders next to an existing Manatee registry folder
+			if ( -d dirname($path) ) { run( "create $path", [ 'install', '-d', '-m', '0755', $path ] ); }
+			else { next; }
+		}
+		next unless -e $path;
+		# the folder, not the file: a bind-mounted file would keep pointing at the old
+		# one when KonText's deployment replaces it. What may be written there is
+		# still decided by the permissions below (write access to the file only).
+		my $rwp = $p->{dir} ? $path : dirname($path);
+		push @rw, $rwp unless grep { $_ eq $rwp } @rw;
+		my $ok = system( as_user( $user, 'test', '-w', $path ) ) == 0;
+		if ( !$ok ) {
+			if ($acl) {
+				my $perm = $p->{dir} ? 'rwx' : 'rw';
+				run( "ACL $user:$perm on $path", [ 'setfacl', '-m', "u:$user:$perm", $path ], soft => 1 )
+					or warn_("setfacl failed on $path");
+				run( '', [ 'setfacl', '-d', '-m', "u:$user:rwx", $path ], soft => 1 ) if $p->{dir};
+			} elsif ( ( stat($path) )[5] == 0 ) {
+				run( "group $group, group write on $path", [ 'chgrp', $group, $path ] );
+				run( '', [ 'chmod', $p->{dir} ? 'g+rwxs' : 'g+rw', $path ] );
+			} else {
+				warn_("$user cannot write $path (and setfacl is not installed): give it write access, e.g. apt install acl && setfacl -m u:$user:rw $path");
+			}
+		}
+		say_("    $path\n");
+	}
+	if ( -d '/run/systemd/system' && @rw ) {
+		my $dir = '/etc/systemd/system/fqs.service.d';
+		make_path($dir);
+		open my $fh, '>', "$dir/frontends.conf" or return warn_("cannot write $dir/frontends.conf: $!");
+		print $fh "# written by install-stack.pl: files and folders FQS's frontend modules edit\n"
+			. "# (`fqs frontends paths`); '-' = ignore when missing\n[Service]\n";
+		print $fh "ReadWritePaths=-$_\n" for @rw;
+		close $fh;
+		say_("    systemd: $dir/frontends.conf (ReadWritePaths)\n");
+	}
+}
 
 # run as another user: runuser (Linux, works with nologin shells) or sudo
 sub as_user {
@@ -580,6 +646,7 @@ if ( $want{fqs} ) {
 	env_set( $envf, 'PATH', "$PREFIX/bin:/usr/local/bin:/usr/bin:/bin" ) and say_("  $envf: PATH added (flexencoder, pando-index)\n");
 	my $n = env_dedupe_secret($envf);
 	warn_("$envf had $n extra FQS_SECRET line(s); kept the last one (the one in use)") if $n;
+	frontend_access( "$PREFIX/bin/fqs", $WEBU, $WEBG ) unless $o{'no-frontends'};
 
 	# start / restart
 	my $start = "$PREFIX/sbin/teitok-fqs";

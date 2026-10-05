@@ -56,6 +56,16 @@ when they have local changes, or with `--no-pull`).
 - TEITOK settings: only `flexicorp/fqs_admin_users`, and only when it is not set and
   `--fqs-admin` is given (fresh installs pass the admin's email).
 
+- other frontends' files that FQS's frontend modules edit (`fqs frontends paths`; for
+  KonText: `corplist.xml`, kontext-pando's `pando_corpora.json`, the Manatee
+  `registry`, `data` and `vert` folders): the FQS service user gets write access by an
+  ACL (`setfacl`; owner, group and mode stay as they are; without `setfacl`, group
+  write when the group is root), and their folders go in
+  `/etc/systemd/system/fqs.service.d/frontends.conf` (`ReadWritePaths`, since the
+  unit has `ProtectSystem=strict`). `--no-frontends` leaves them alone. KonText
+  installed or redeployed later (a deployment that replaces `corplist.xml` drops the
+  ACL): run `install-stack.pl --only fqs` again.
+
 Versions and commits go to `/usr/local/share/teitok-stack/manifest.json`; logs to
 `/var/log/teitok-install/`.
 
