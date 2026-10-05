@@ -3936,16 +3936,29 @@ require_once __DIR__ . '/flexicorp_functions.php';
 					return $res;
 				}
 				$label = ucwords(str_replace(array('-', '_'), ' ', $cid));
+				$purl = '';
+				// this project's own title and URL, so that the new row is listed properly
+				// (fqsadmin or "Register this corpus" can complete it later)
+				if ( @realpath((string)$projectRoot) === @realpath(getcwd()) ) {
+					if ( function_exists('getset') ) {
+						$t = getset('defaults/title/display', '');
+						if ( is_string($t) && trim($t) !== '' ) $label = trim($t);
+					}
+					$sn = isset($_SERVER['SCRIPT_NAME']) ? (string)$_SERVER['SCRIPT_NAME'] : '';
+					if ( $sn !== '' ) $purl = rtrim(str_replace('\\', '/', dirname($sn)), '/') . '/index.php';
+				}
 				$payload = array(
 					'id' => $cid,
 					'label' => $label,
 					'project_root' => (string)$projectRoot,
+					'interface_preference' => 'teitok',
 					'preferred_backend' => $pref,
 					'source_kind' => 'teitok_pando',
 					'supports_xml' => true,
 					'http_policy_mode' => 'public_query',
 					'http_allowed_operations' => array('query', 'catalog'),
 				);
+				if ( $purl !== '' ) $payload['project_url'] = $purl;
 				$json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 				if ( !is_string($json) || trim($json) === '' ) {
 					$lastErr = 'upsert payload encoding failed for ' . $cid;
