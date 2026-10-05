@@ -1043,6 +1043,51 @@
 			}
 		}
 
+		if ( ! function_exists( 'tt_fqs_xml_evidence' ) ) {
+			/**
+			 * What a sample of a project's documents shows (as FQS's enrich): audio or video
+			 * <media>, start / begin times, facsimile references. Up to 30 files, the first
+			 * 512 KB of each; cached in tmp/ of the project showing the list.
+			 */
+			function tt_fqs_xml_evidence( $dir ) {
+				static $cache = null;
+				$none = array( 'audio' => false, 'video' => false, 'timed' => false, 'facs' => false );
+				$cfile = 'tmp/fqs-evidence-cache.json';
+				if ( $cache === null ) {
+					$cache = is_readable( $cfile ) ? json_decode( (string) file_get_contents( $cfile ), true ) : array();
+					if ( ! is_array( $cache ) ) $cache = array();
+				}
+				if ( ! is_dir( "$dir/xmlfiles" ) ) return $none;
+				$sig = 'v1/' . @filemtime( "$dir/xmlfiles" );
+				if ( isset( $cache[ $dir ] ) && $cache[ $dir ]['sig'] === $sig ) return $cache[ $dir ]['ev'] + $none;
+				$ev = $none;
+				$seen = 0;
+				try {
+					$it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( "$dir/xmlfiles", FilesystemIterator::SKIP_DOTS ) );
+					foreach ( $it as $file ) {
+						$ext = strtolower( pathinfo( $file->getFilename(), PATHINFO_EXTENSION ) );
+						if ( $ext !== 'xml' && $ext !== 'tei' ) continue;
+						$txt = strtolower( (string) @file_get_contents( $file->getPathname(), false, null, 0, 512 * 1024 ) );
+						if ( preg_match_all( '/<media\b[^>]*>/', $txt, $mm ) ) {
+							foreach ( $mm[0] as $tag ) {
+								if ( preg_match( '/audio|\.(wav|mp3|ogg|m4a|flac)\b/', $tag ) ) $ev['audio'] = true;
+								if ( preg_match( '/video|\.(mp4|webm|mov)\b/', $tag ) ) $ev['video'] = true;
+							}
+						}
+						if ( preg_match( '/\s(start|begin)=["\']\d/', $txt ) || strpos( $txt, '<timeline' ) !== false ) $ev['timed'] = true;
+						if ( preg_match( '/\sfacs=["\'][^"\']/', $txt ) || strpos( $txt, '<facsimile' ) !== false
+							|| strpos( $txt, '<surface' ) !== false || strpos( $txt, ' bbox="' ) !== false ) $ev['facs'] = true;
+						if ( ++$seen >= 30 || ! in_array( false, $ev, true ) ) break;
+					}
+				} catch ( Exception $e ) {
+					return $none;
+				}
+				$cache[ $dir ] = array( 'sig' => $sig, 'ev' => $ev );
+				if ( is_dir( 'tmp' ) || @mkdir( 'tmp' ) ) @file_put_contents( $cfile, json_encode( $cache ) );
+				return $ev;
+			}
+		}
+
 		if ( ! function_exists( 'tt_fqs_project_features' ) ) {
 			/**
 			 * What sets a local project apart, as FQS feature keys (as `fqs corpora enrich`
@@ -1082,17 +1127,22 @@
 				foreach ( $meta as $m ) if ( preg_match( '/\b(text_)?(tuid|setid)\b/', $m ) ) $textTu = true;
 				if ( $has( array( 'tuid', 'p_tuid' ) ) || $textTu || strpos( $settings, 'text_tuid' ) !== false ) $f[] = 'parallel';
 
-				// sound: audio files, time-aligned when the transcription has times (utterances
-				// with start / end, a wave view)
-				$audio = $nonempty( "$dir/Audio" ) || $nonempty( "$dir/audio" ) || $nonempty( "$dir/Media" ) || preg_match( '/wavesurfer|chunk_url|u_media|<media\b/', $settings );
-				$timed = preg_match( '/key=["\'](start|end|begin)["\']|wavesurfer|timeline|chunk_url/', $settings );
-				if ( $audio ) $f[] = $timed ? 'timealigned' : 'spoken';
-				if ( $nonempty( "$dir/Video" ) || $nonempty( "$dir/video" ) || preg_match( '/\.(mp4|webm)\b/', $settings ) ) $f[] = 'video';
-				if ( $nonempty( "$dir/Facsimile" ) || $nonempty( "$dir/facsimile" ) || $has( array( 'facs', 'bbox' ) ) ) $f[] = 'facsimile';
+				// sound, video, page images: only real evidence - a non-empty folder, or media, times
+				// and facsimile references in the documents. Words in settings.xml do not count:
+				// stock settings (teiHeader fields, menus) mention audio and facsimiles everywhere.
+				$ev = tt_fqs_xml_evidence( $dir );
+				$mediaDir = $nonempty( "$dir/Media" ) || $nonempty( "$dir/media" );
+				if ( $nonempty( "$dir/Audio" ) || $nonempty( "$dir/audio" ) || $ev['audio'] || ( $mediaDir && ! $ev['video'] ) ) {
+					$f[] = $ev['timed'] ? 'timealigned' : 'spoken';
+				}
+				if ( $nonempty( "$dir/Video" ) || $nonempty( "$dir/video" ) || $ev['video'] ) $f[] = 'video';
+				if ( $nonempty( "$dir/Facsimile" ) || $nonempty( "$dir/facsimile" ) || $ev['facs'] ) $f[] = 'facsimile';
 
 				// the documents: dialects, places
 				foreach ( $meta as $m ) if ( preg_match( '/dialect|variet|regiolect/', $m ) ) { $f[] = 'dialect'; break; }
-				if ( preg_match( '/<geomap|geolocation|latitude|longitude|key=["\'](lat|lng|lon|long|geo)["\']/', $settings ) || is_file( "$dir/Resources/geo.json" ) || $nonempty( "$dir/Geo" ) ) $f[] = 'geolocation';
+				// a map view or coordinate fields; not the bare word (the stock teiHeader template
+				// describes its place fields as "Geolocation coordinates")
+				if ( preg_match( '/<geomap|key=["\'](lat|lng|lon|long|geo|latitude|longitude|coordinates)["\']/', $settings ) || is_file( "$dir/Resources/geo.json" ) || $nonempty( "$dir/Geo" ) ) $f[] = 'geolocation';
 				if ( preg_match( '/<ner\b|nerid/', $settings ) ) $f[] = 'ner';
 				return $f;
 			}
