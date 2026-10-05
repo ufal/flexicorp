@@ -29,6 +29,8 @@ function flexicorpApp() {
 			blacklab_field: '',
 		},
 		isAdmin: false,
+		/** The corpus's entry in corpus lists (admins): { description, descriptionRequired, editUrl } */
+		corpusListing: null,
 		attributeCatalog: {},
 		debugMode: false,
 		activeTab: 'search',
@@ -2147,6 +2149,7 @@ function flexicorpApp() {
 			this.projectRoot = state.projectRoot || '';
 			this.backendOverrides = Object.assign({}, this.backendOverrides, state.backendOverrides || {});
 			this.isAdmin = !!state.isAdmin;
+			this.corpusListing = state.corpusListing && typeof state.corpusListing === 'object' ? state.corpusListing : null;
 			this.noshowFields = Array.isArray(state.noshowFields) ? state.noshowFields : [];
 			this.attributeCatalog = state.attributeCatalog && typeof state.attributeCatalog === 'object'
 				? state.attributeCatalog
@@ -4400,7 +4403,10 @@ function flexicorpApp() {
 				: '';
 			const ok = window.confirm(`Run reindex for ${backendLabel}${target}?`);
 			if (!ok) return;
+			const listingDescription = this.askListingDescription();
+			if (listingDescription === null) return;
 			const formData = new FormData();
+			if (listingDescription) formData.set('corpus_description', listingDescription);
 			formData.set('action', this.action || 'flexicorp');
 			formData.set('backend', combo.backend);
 			formData.set('reindex_backend', combo.backend);
@@ -4432,6 +4438,26 @@ function flexicorpApp() {
 			}
 		},
 
+		/**
+		 * Indexing puts the corpus in the corpus list, which shows its description: when it
+		 * has none, ask for one. Returns the text, '' when not needed, null when cancelled.
+		 */
+		askListingDescription() {
+			const cl = this.corpusListing;
+			if (!cl || !cl.descriptionRequired || (cl.description && cl.description.trim())) return '';
+			const text = window.prompt(
+				'This corpus has no description yet. Indexing lists it in the corpus list, which shows '
+				+ 'what it is: write one or two sentences about it (you can change it later as the page "description").'
+			);
+			if (text === null) return null;
+			if (!text.trim()) {
+				window.alert('Indexing needs a short description of the corpus.');
+				return null;
+			}
+			cl.description = text.trim();
+			return text.trim();
+		},
+
 		toggleReindexSelection(combo) {
 			if (!this.canReindexBackend(combo)) return;
 			const id = combo && combo.id;
@@ -4445,7 +4471,10 @@ function flexicorpApp() {
 			const label = backends.map((b) => this.getBackendLabel(b)).join(', ');
 			const ok = window.confirm(`Run reindex for selected backends (${label})? This will use flexencoder once for CQP/ClickHouse, then BlackLab separately if selected.`);
 			if (!ok) return;
+			const listingDescription = this.askListingDescription();
+			if (listingDescription === null) return;
 			const formData = this.buildCommonRequestData();
+			if (listingDescription) formData.set('corpus_description', listingDescription);
 			formData.set('active_tab', 'overview');
 			formData.set('run', 'reindex');
 			backends.forEach((b) => formData.append('reindex_backends[]', b));

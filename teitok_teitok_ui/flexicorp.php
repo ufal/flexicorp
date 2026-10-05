@@ -7127,7 +7127,25 @@ require_once __DIR__ . '/flexicorp_functions.php';
 	}
 
 	$reindexCall = null;
-	if ( $run === 'reindex' ) {
+	// The corpus's entry in corpus lists (FQS): indexing registers it, or brings it up to
+	// date (title, URL, description, languages), and needs a short description — from
+	// Pages/description.html, or given with the reindex request (corpus_description).
+	// <flexicorp require_description="0"/> lets indexing go ahead without one.
+	if ( is_file( __DIR__ . '/fqs-lib.php' ) ) require_once __DIR__ . '/fqs-lib.php';
+	$listingDescription = function_exists( 'tt_fqs_project_description' ) ? tt_fqs_project_description( $projectRoot ) : '';
+	$listingDescriptionRequired = function_exists( 'tt_fqs_project_description' )
+		&& (string) getset( 'flexicorp/require_description', '1' ) !== '0';
+	if ( $run === 'reindex' && $isAdmin ) {
+		$descIn = isset( $_REQUEST['corpus_description'] ) && is_string( $_REQUEST['corpus_description'] ) ? trim( $_REQUEST['corpus_description'] ) : '';
+		if ( $descIn !== '' && $listingDescription === '' && function_exists( 'tt_fqs_save_project_description' ) ) {
+			if ( tt_fqs_save_project_description( $projectRoot, $descIn ) ) $listingDescription = $descIn;
+		}
+	}
+	if ( $run === 'reindex' && $listingDescriptionRequired && $listingDescription === '' ) {
+		$reindexCall = tt_flexicorp_error_call( $backend, 'reindex',
+			'Before indexing, give the corpus a short description: it is what the corpus list shows about it. '
+			. 'Write it when asked, or as the page "description" (index.php?action=pageedit&id=description).' );
+	} elseif ( $run === 'reindex' ) {
 		$reindexWantsManatee = ( $reindexBackend === 'manatee' );
 		if ( ! $reindexWantsManatee ) {
 			$rb = $_REQUEST['reindex_backends'] ?? null;
@@ -7194,6 +7212,11 @@ require_once __DIR__ . '/flexicorp_functions.php';
 			&& !empty($fqsProbe['cli_installed'])
 		);
 		if ( $fqsReindexEligible ) {
+			// register the corpus in FQS, or update its entry, before its reindex is queued
+			if ( function_exists( 'tt_fqs_register_project' ) ) {
+				$reg = tt_fqs_register_project( $projectRoot );
+				tt_flexicorp_reindex_log_append( $projectRoot, $reg['ok'] ? 'fqs_register_ok id=' . $reg['id'] : 'fqs_register_failed error=' . $reg['error'] );
+			}
 			$fqsEnq = tt_flexicorp_fqs_enqueue_reindex($fqsProbe, $reindexBackendsForFqs, $projectRoot, 'teitok-flexicorp-ui');
 			if ( !empty($fqsEnq['ok']) && trim((string)($fqsEnq['job_id'] ?? '')) !== '' ) {
 				$fqsJobId = trim((string)$fqsEnq['job_id']);
@@ -7792,6 +7815,12 @@ require_once __DIR__ . '/flexicorp_functions.php';
 		'action' => $actionName,
 		'projectRoot' => $projectRoot,
 		'isAdmin' => $isAdmin,
+		// the corpus's entry in corpus lists: indexing asks for a description when there is none
+		'corpusListing' => $isAdmin ? array(
+			'description' => $listingDescription,
+			'descriptionRequired' => $listingDescriptionRequired,
+			'editUrl' => 'index.php?action=fqsadmin',
+		) : null,
 		'noshowFields' => function_exists('tt_flexicorp_noshow_fields') ? tt_flexicorp_noshow_fields() : array(),
 		'attributeCatalog' => function_exists('tt_flexicorp_fn_attribute_catalog') ? tt_flexicorp_fn_attribute_catalog( $isAdmin ) : array(),
 		'debugMode' => $debugMode,

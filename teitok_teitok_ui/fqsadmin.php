@@ -9,11 +9,14 @@
  * browser never sees a token, FQS_SECRET never leaves the server, and the
  * admin listener can stay on 127.0.0.1.
  *
- * Who: a TEITOK admin (permissions = admin) whose username is listed in
- * `flexicorp/fqs_admin_users` (comma-separated; `*` = every TEITOK admin of
- * this project), e.g. `<flexicorp fqs_admin_users="maarten"/>` in the
- * project's settings.xml, or env FQS_ADMIN_USERS. Without it the page is off. Use it in the shared /
- * global TEITOK folder: an FQS admin manages every corpus of the server.
+ * Who, and for what:
+ * - server-wide: an admin of the shared project, or a shared user for all projects
+ *   (projects="all"), listed in `flexicorp/fqs_admin_users` (comma-separated; `*` = every
+ *   such admin), e.g. `<flexicorp fqs_admin_users="maarten"/>` in the shared settings.xml,
+ *   or env FQS_ADMIN_USERS: the whole FQS admin, for every corpus of the server;
+ * - a project: the admins of a project, opening it from that project: only the
+ *   catalogue entry of that project's corpus (its listing: title, description, labels,
+ *   FCS, …), nothing server-wide. `<flexicorp fqs_project_admins="0"/>` turns this off.
  *
  * Requests:
  *   index.php?action=fqsadmin                 the UI (FQS's admin/index.html, rewritten)
@@ -41,7 +44,7 @@
  *   flexicorp/fqs_admin_users                                           (who; see above)
  */
 
-	global $user, $username;
+	global $user, $username, $isshared;
 
 	if ( ! function_exists( 'ttfa_setting' ) ) {
 		function ttfa_setting( $key, $env = '' ) {
@@ -198,8 +201,21 @@
 	$ttfa_p = isset( $_GET['fqsa'] ) && is_string( $_GET['fqsa'] ) ? trim( $_GET['fqsa'] ) : '';
 	// TEITOK's login, returning to a page that closes itself (the UI opens it in a new tab)
 	$ttfa_login_url = 'index.php?action=login&goon=' . rawurlencode( $ttfa_self . '&fqsa=loggedin' );
-	$ttfa_may = $ttfa_user !== '' && $ttfa_is_admin && $ttfa_allowed_raw !== ''
+	// server-wide admins (shared project, or a shared user for all projects) get the whole
+	// FQS admin; the admins of a project only the entry of that project's corpus
+	$ttfa_serverwide = $ttfa_is_admin && ( ! empty( $isshared )
+		|| ( isset( $ttfa_usr['projects'] ) && $ttfa_usr['projects'] === 'all' ) );
+	$ttfa_listed = $ttfa_allowed_raw !== ''
 		&& ( in_array( '*', $ttfa_allowed, true ) || in_array( $ttfa_user, $ttfa_allowed, true ) );
+	$ttfa_scope = '';
+	if ( $ttfa_user !== '' && $ttfa_is_admin ) {
+		if ( $ttfa_serverwide && $ttfa_listed ) {
+			$ttfa_scope = 'server';
+		} elseif ( empty( $isshared ) && ttfa_setting( 'flexicorp/fqs_project_admins' ) !== '0' ) {
+			$ttfa_scope = 'project';
+		}
+	}
+	$ttfa_may = $ttfa_scope !== '';
 
 	// session state: the UI's keep-alive ping, and how it picks up a new session
 	if ( $ttfa_p === 'session' ) {
@@ -207,6 +223,7 @@
 			'ok' => true,
 			'logged_in' => $ttfa_user !== '',
 			'allowed' => $ttfa_may,
+			'scope' => $ttfa_scope,
 			'user' => $ttfa_user,
 			'csrf' => $ttfa_may ? ttfa_csrf() : null,
 			'login_url' => $ttfa_login_url,
@@ -224,11 +241,6 @@
 		ttfa_out( 200, 'window.close();', 'text/javascript; charset=UTF-8' );
 	}
 
-	if ( $ttfa_allowed_raw === '' ) {
-		ttfa_err( 404, 'FQS admin is not enabled in this TEITOK project: set flexicorp/fqs_admin_users in its settings'
-				  . ' (e.g. <flexicorp fqs_admin_users="yourname"/> in Resources/settings.xml; * = every TEITOK admin'
-				  . ' of this project), or FQS_ADMIN_USERS in the web server environment' );
-	}
 	if ( $ttfa_user === '' ) {
 		// not (or no longer) logged in: the page goes to TEITOK's login and back here;
 		// the UI's calls get 401 so that it can ask to log in again
@@ -244,8 +256,16 @@
 	if ( ! $ttfa_is_admin ) {
 		ttfa_err( 403, 'FQS admin: log in as a TEITOK admin' );
 	}
-	if ( ! in_array( '*', $ttfa_allowed, true ) && ! in_array( $ttfa_user, $ttfa_allowed, true ) ) {
-		ttfa_err( 403, 'FQS admin: TEITOK user "' . $ttfa_user . '" is not listed in flexicorp/fqs_admin_users' );
+	if ( $ttfa_scope === '' ) {
+		if ( $ttfa_allowed_raw === '' ) {
+			ttfa_err( 404, 'FQS admin is not enabled: set flexicorp/fqs_admin_users in the settings of the shared project'
+					  . ' (e.g. <flexicorp fqs_admin_users="yourname"/>; * = every server-wide TEITOK admin),'
+					  . ' or FQS_ADMIN_USERS in the web server environment' );
+		}
+		if ( ! empty( $isshared ) || $ttfa_serverwide ) {
+			ttfa_err( 403, 'FQS admin: TEITOK user "' . $ttfa_user . '" is not listed in flexicorp/fqs_admin_users' );
+		}
+		ttfa_err( 403, 'FQS admin: project admins may not edit the listing of their corpus here (flexicorp/fqs_project_admins="0")' );
 	}
 
 	// FQS's own env file first (the secret fqs serve actually runs with), then a
@@ -269,12 +289,41 @@
 	$ttfa_base = rtrim( ttfa_setting( 'flexicorp/fqs_admin_url', 'FQS_ADMIN_URL' ), '/' );
 	if ( $ttfa_base === '' ) $ttfa_base = 'http://127.0.0.1:8790';
 
+	/** A fresh admin token for one call to FQS (2 minutes). */
+	$ttfa_jwt = function () use ( $ttfa_user, $ttfa_secret, $ttfa_scope ) {
+		$now = time();
+		$claims = array( 'iss' => 'teitok-fqsadmin', 'aud' => 'fqs-admin', 'role' => 'admin',
+						 'user' => $ttfa_user, 'scope' => $ttfa_scope, 'iat' => $now, 'exp' => $now + 120 );
+		$h = ttfa_b64url( json_encode( array( 'alg' => 'HS256', 'typ' => 'JWT' ) ) );
+		$pl = ttfa_b64url( json_encode( $claims, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) );
+		return $h . '.' . $pl . '.' . ttfa_b64url( hash_hmac( 'sha256', $h . '.' . $pl, $ttfa_secret, true ) );
+	};
+
+	// project scope: this project's corpus entries (project_root = this folder), and all ids
+	$ttfa_here = @realpath( getcwd() );
+	$ttfa_own = array();
+	$ttfa_all_ids = array();
+	if ( $ttfa_scope === 'project' ) {
+		list( $st, $out ) = ttfa_http( 'GET', $ttfa_base . '/admin/api/corpora', null,
+			array( 'Accept: application/json', 'Authorization: Bearer ' . $ttfa_jwt() ), 20.0 );
+		$dec = $st === 200 ? json_decode( $out, true ) : null;
+		foreach ( ( is_array( $dec ) && isset( $dec['corpora'] ) && is_array( $dec['corpora'] ) ) ? $dec['corpora'] : array() as $c ) {
+			if ( ! is_array( $c ) || ! isset( $c['id'] ) ) continue;
+			$ttfa_all_ids[] = (string) $c['id'];
+			$pr = isset( $c['project_root'] ) ? @realpath( (string) $c['project_root'] ) : false;
+			if ( $pr !== false && $ttfa_here !== false && $pr === $ttfa_here ) $ttfa_own[] = (string) $c['id'];
+		}
+	}
+
 	// per-session value the UI sends back on every API call (CSRF; see ttfa_csrf)
 	$ttfa_csrf = ttfa_csrf();
 	if ( function_exists( 'session_write_close' ) ) session_write_close();   // do not hold the session lock during FQS calls
 
 	// ── self-test: what this module sees (no secret values) ─────────────────────
 
+	if ( $ttfa_p === 'selftest' && $ttfa_scope !== 'server' ) {
+		ttfa_err( 403, 'FQS admin: the self-test is for server-wide admins' );
+	}
 	if ( $ttfa_p === 'selftest' ) {
 		$now = time();
 		$h = ttfa_b64url( json_encode( array( 'alg' => 'HS256', 'typ' => 'JWT' ) ) );
@@ -345,19 +394,55 @@
 		$qs = $_GET;
 		unset( $qs['action'], $qs['fqsa'] );
 		$url = $ttfa_base . '/admin/api/' . $rest . ( $qs ? '?' . http_build_query( $qs ) : '' );
-		$now = time();
-		$claims = array( 'iss' => 'teitok-fqsadmin', 'aud' => 'fqs-admin', 'role' => 'admin',
-						 'user' => $ttfa_user, 'iat' => $now, 'exp' => $now + 120 );
-		$h = ttfa_b64url( json_encode( array( 'alg' => 'HS256', 'typ' => 'JWT' ) ) );
-		$pl = ttfa_b64url( json_encode( $claims, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) );
-		$jwt = $h . '.' . $pl . '.' . ttfa_b64url( hash_hmac( 'sha256', $h . '.' . $pl, $ttfa_secret, true ) );
 		$method = strtoupper( isset( $_SERVER['REQUEST_METHOD'] ) ? (string) $_SERVER['REQUEST_METHOD'] : 'GET' );
 		if ( ! in_array( $method, array( 'GET', 'POST', 'PUT', 'DELETE' ), true ) ) ttfa_err( 405, 'FQS admin: method not allowed' );
 		$body = in_array( $method, array( 'POST', 'PUT', 'DELETE' ), true ) ? (string) file_get_contents( 'php://input' ) : null;
-		$headers = array( 'Accept: application/json', 'Authorization: Bearer ' . $jwt );
+
+		// project scope: only this project's corpus entry
+		$ttfa_filter_list = false;
+		if ( $ttfa_scope === 'project' ) {
+			$seg = explode( '/', $rest );
+			$ok = false;
+			if ( $rest === 'corpora' && $method === 'GET' ) {
+				$ok = true;
+				$ttfa_filter_list = true;
+			} elseif ( $rest === 'corpora' && $method === 'PUT' ) {
+				// entries of this project only: its own ids (or a new one), its own folder
+				$dec = json_decode( (string) $body, true );
+				$entries = ( is_array( $dec ) && array_keys( $dec ) === range( 0, count( $dec ) - 1 ) ) ? $dec : array( $dec );
+				$ok = count( $entries ) > 0;
+				foreach ( $entries as $e ) {
+					$id = is_array( $e ) && isset( $e['id'] ) ? (string) $e['id'] : '';
+					$pr = is_array( $e ) && isset( $e['project_root'] ) ? @realpath( (string) $e['project_root'] ) : false;
+					if ( $id === '' || $pr === false || $pr !== $ttfa_here
+						|| ( ! in_array( $id, $ttfa_own, true ) && in_array( $id, $ttfa_all_ids, true ) ) ) {
+						$ok = false;
+					}
+				}
+			} elseif ( $seg[0] === 'corpora' && isset( $seg[1] ) && in_array( rawurldecode( $seg[1] ), $ttfa_own, true ) ) {
+				$ok = ( count( $seg ) === 2 && in_array( $method, array( 'GET', 'DELETE' ), true ) )
+					|| ( count( $seg ) === 3 && $method === 'POST' && in_array( $seg[2], array( 'validate', 'fcs-enabled' ), true ) );
+			}
+			if ( ! $ok ) {
+				ttfa_err( 403, 'FQS admin: opened from this project, you can edit the entry of this project\'s corpus only;'
+						  . ' everything else is for server-wide admins (the FQS admin of the shared project)' );
+			}
+		}
+		$headers = array( 'Accept: application/json', 'Authorization: Bearer ' . $ttfa_jwt() );
 		if ( $body !== null && $body !== '' ) $headers[] = 'Content-Type: application/json';
 		list( $st, $out, $ctype, $err ) = ttfa_http( $method, $url, $body, $headers, 120.0 );
 		if ( $st === 0 ) ttfa_err( 502, 'FQS admin unreachable at ' . $ttfa_base . ( $err !== '' ? ' (' . $err . ')' : '' ) );
+		if ( $ttfa_filter_list && $st === 200 ) {
+			$dec = json_decode( $out, true );
+			if ( is_array( $dec ) && isset( $dec['corpora'] ) && is_array( $dec['corpora'] ) ) {
+				$dec['corpora'] = array_values( array_filter( $dec['corpora'], function ( $c ) use ( $ttfa_own ) {
+					return is_array( $c ) && isset( $c['id'] ) && in_array( (string) $c['id'], $ttfa_own, true );
+				} ) );
+				$dec['count'] = count( $dec['corpora'] );
+				$dec['scope'] = 'project';
+				$out = json_encode( $dec, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+			}
+		}
 		ttfa_out( $st, $out, $ctype !== '' ? $ctype : 'application/json; charset=UTF-8' );
 	}
 
@@ -385,7 +470,10 @@
 	$html = preg_replace_callback( '#\b(href|src)="(?:\./)?([A-Za-z0-9_-]+\.(?:js|css|svg|png|ico))"#', $asset, $html );
 	$meta = '<meta name="fqs-admin-proxy" content="' . htmlspecialchars( $ttfa_self, ENT_QUOTES ) . '" />'
 		  . '<meta name="fqs-admin-csrf" content="' . htmlspecialchars( $ttfa_csrf, ENT_QUOTES ) . '" />'
-		  . '<meta name="fqs-admin-user" content="' . htmlspecialchars( $ttfa_user, ENT_QUOTES ) . '" />';
+		  . '<meta name="fqs-admin-user" content="' . htmlspecialchars( $ttfa_user, ENT_QUOTES ) . '" />'
+		  . '<meta name="fqs-admin-scope" content="' . htmlspecialchars( $ttfa_scope, ENT_QUOTES ) . '" />'
+		  . '<meta name="fqs-admin-corpora" content="' . htmlspecialchars( implode( ',', $ttfa_own ), ENT_QUOTES ) . '" />'
+		  . '<meta name="fqs-admin-register" content="index.php?action=fqs&amp;act=addcorpus" />';
 	$html = preg_replace( '#<head([^>]*)>#i', '<head$1>' . $meta, $html, 1 );
 	ttfa_out( 200, $html, 'text/html; charset=UTF-8', array(
 		"Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",

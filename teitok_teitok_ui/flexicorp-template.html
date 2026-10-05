@@ -50,6 +50,12 @@
 				<p class="flexicorp-panel-note" x-show="isAdmin">
 					CQP corpus: <code>{{CQP_CORPUS_NAME}}</code>
 				</p>
+				<p class="flexicorp-panel-note" x-show="isAdmin && corpusListing">
+					In the corpus list:
+					<em x-text="(corpusListing && corpusListing.description) ? corpusListing.description : 'no description yet (indexing asks for one)'"></em>
+					— <a x-bind:href="corpusListing ? corpusListing.editUrl : '#'">edit the listing</a>
+					(title, description, languages and features, FCS)
+				</p>
 				<p class="flexicorp-panel-note">Usable query combinations for this corpus based on <code>flexicorp info backends</code>. Choose a combination to switch the entire module to that triple. The XML/doclist helper is intentionally kept out of this table.</p>
 				<p class="flexicorp-panel-note" x-show="selectedReindexBackends().length > 0">
 					<button type="button" class="btn btn-sm btn-primary" x-on:click="runReindexSelected()" :disabled="isLoading('reindex') || hasLockedReindexBackend()">Reindex selected</button>
