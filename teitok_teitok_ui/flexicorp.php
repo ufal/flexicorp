@@ -3235,7 +3235,17 @@ require_once __DIR__ . '/flexicorp_functions.php';
 				if ( function_exists('tt_flexicorp_pando_normalize_aligned_pairs') ) {
 					tt_flexicorp_pando_normalize_aligned_pairs( $inner );
 				}
-				if ( function_exists('tt_flexicorp_fqs_enrich_hits_for_ui') ) {
+				if ( !empty($inner['aligned']) && isset($inner['hits']) && is_array($inner['hits']) ) {
+					// aligned pairs: both sides highlighted by query token, as on the flexicorp-pando route
+					$hlRoot = isset($qopts['project_root']) ? (string)$qopts['project_root'] : '';
+					foreach ( $inner['hits'] as &$alHit ) {
+						tt_flexicorp_pando_hit_highlight_meta( $alHit, $hlRoot, $inner );
+						if ( isset($alHit['aligned_counterpart']) && is_array($alHit['aligned_counterpart']) ) {
+							tt_flexicorp_pando_hit_highlight_meta( $alHit['aligned_counterpart'], $hlRoot, $inner );
+						}
+					}
+					unset($alHit);
+				} elseif ( function_exists('tt_flexicorp_fqs_enrich_hits_for_ui') ) {
 					$inner = tt_flexicorp_fqs_enrich_hits_for_ui($inner);
 				}
 				$inner['fqs_meta'] = array(
@@ -4154,6 +4164,167 @@ require_once __DIR__ . '/flexicorp_functions.php';
 							'target_count' => count($targetNodes),
 						);
 					}
+				}
+			}
+		}
+	}
+
+	if ( !function_exists('tt_flexicorp_pando_hit_highlight_meta') ) {
+		/**
+		 * highlight_map / toks for one Pando hit (or the aligned target side of a pair): matched
+		 * token ids (TEITOK xml:id) by query token, named from $result['groups'], offset by the
+		 * side's place in an aligned query (`_aligned_group_plan`); also facs / bbox of the match.
+		 * Shared by the flexicorp-pando route and the FQS route.
+		 */
+		function tt_flexicorp_pando_hit_highlight_meta( &$hitRow, $projectRoot, $result ) {
+			if ( !is_array($hitRow) || !isset($hitRow['tokens']) || !is_array($hitRow['tokens']) ) return;
+			$groupPlan = isset($result['_aligned_group_plan']) && is_array($result['_aligned_group_plan']) ? $result['_aligned_group_plan'] : array();
+			$isTargetSide = isset($hitRow['aligned_role']) && (string)$hitRow['aligned_role'] === 'target';
+			$sideOffset = $isTargetSide ? (int)($groupPlan['target_offset'] ?? 0) : (int)($groupPlan['source_offset'] ?? 0);
+			$sideCount = $isTargetSide ? (int)($groupPlan['target_count'] ?? 0) : (int)($groupPlan['source_count'] ?? 0);
+			$explicitMatchedIds = isset($hitRow['_matched_tok_ids']) && is_array($hitRow['_matched_tok_ids']) ? array_values(array_unique(array_map('strval', $hitRow['_matched_tok_ids']))) : array();
+			$explicitMatchedMap = array();
+			foreach ( $explicitMatchedIds as $mi => $mid ) {
+				$mk = trim((string)$mid);
+				if ( $mk === '' ) continue;
+				$explicitMatchedMap[$mk] = (int)$mi;
+			}
+			$fragXml = isset($hitRow['fragment']) ? (string)$hitRow['fragment'] : '';
+			if ( $fragXml === '' && isset($hitRow['context_xml']) ) {
+				$fragXml = (string)$hitRow['context_xml'];
+			}
+			$fragTokIds = ( $fragXml !== '' ) ? tt_flexicorp_tok_ids_from_xml_fragment($fragXml) : array();
+			$useFragZip = ( count($fragTokIds) === count($hitRow['tokens']) && count($fragTokIds) > 0 );
+			$hasExplicitMatchFlags = false;
+			foreach ( $hitRow['tokens'] as $t0 ) {
+				if ( !is_array($t0) ) continue;
+				foreach ( array('matched', 'is_match', 'in_match', 'isMatched', 'match') as $mk ) {
+					if ( array_key_exists($mk, $t0) ) {
+						$hasExplicitMatchFlags = true;
+						break 2;
+					}
+				}
+			}
+			$allIds = array();
+			$groupIds = array();
+			foreach ( $hitRow['tokens'] as $ti => $tok ) {
+				if ( !is_array($tok) ) continue;
+				// Prefer TEITOK xml:id over tuid to avoid accidental collisions.
+				$tokId = (isset($tok['id']) && $tok['id'] !== '' && (string)$tok['id'] !== '_') ? (string)$tok['id']
+					: (isset($tok['tuid']) && $tok['tuid'] !== '' ? (string)$tok['tuid'] : '');
+				if ( $tokId === '' && $useFragZip ) {
+					$tokId = (string)($fragTokIds[$ti] ?? '');
+				}
+				if ( $tokId === '' && isset($tok['corpus_pos']) ) {
+					// Pando token corpus_pos indexing is shifted by +1 relative to the
+					// xidx/tokens.bin corpus_pos used for tok_id_idx resolution.
+					$tokId = tt_flexicorp_xidx_tok_id_string_for_corpus_pos(
+						$projectRoot,
+						(int)$tok['corpus_pos'] + 1
+					);
+				}
+				if ( $tokId === '' ) continue;
+				$tokIsMatched = true;
+				if ( count($explicitMatchedMap) > 0 ) {
+					$tokIsMatched = isset($explicitMatchedMap[$tokId]);
+				}
+				if ( count($explicitMatchedMap) === 0 && $hasExplicitMatchFlags ) {
+					$tokIsMatched = false;
+					foreach ( array('matched', 'is_match', 'in_match', 'isMatched', 'match') as $mk ) {
+						if ( !array_key_exists($mk, $tok) ) continue;
+						$mv = $tok[$mk];
+						if ( is_bool($mv) ) {
+							$tokIsMatched = $mv;
+							break;
+						}
+						if ( is_numeric($mv) ) {
+							$tokIsMatched = ( (int)$mv !== 0 );
+							break;
+						}
+						$ms = strtolower(trim((string)$mv));
+						$tokIsMatched = in_array($ms, array('1', 'true', 'yes', 'on', 'match', 'matched'), true);
+						break;
+					}
+				}
+				if ( !$tokIsMatched ) continue;
+				$allIds[] = $tokId;
+				$grp = null;
+				if ( count($explicitMatchedMap) > 0 && isset($explicitMatchedMap[$tokId]) ) {
+					$grp = (int)$explicitMatchedMap[$tokId];
+				}
+				if ( isset($tok['group']) ) {
+					$grp = (int)$tok['group'];
+				} elseif ( isset($tok['corpus_pos']) && isset($hitRow['groups']) && is_array($hitRow['groups']) ) {
+					$cp = (int)$tok['corpus_pos'];
+					foreach ( $hitRow['groups'] as $g ) {
+						if ( !is_array($g) || !isset($g['index']) ) continue;
+						$gs = isset($g['start']) ? (int)$g['start'] : null;
+						$ge = isset($g['end']) ? (int)$g['end'] : null;
+						if ( $gs === null || $ge === null ) continue;
+						if ( $cp >= $gs && $cp <= $ge ) {
+							$grp = (int)$g['index'];
+							break;
+						}
+					}
+				}
+				if ( $grp === null ) {
+					$grp = ( $sideCount > 0 ) ? (int)$ti : 0;
+				}
+				$grpGlobal = (int)$grp + (int)$sideOffset;
+				if ( !isset($groupIds[$grpGlobal]) ) $groupIds[$grpGlobal] = array();
+				$groupIds[$grpGlobal][] = $tokId;
+			}
+			ksort( $groupIds, SORT_NUMERIC );
+			$hmGroups = array();
+			$resultGroups = isset($result['groups']) && is_array($result['groups']) ? $result['groups'] : array();
+			foreach ( $groupIds as $grpIdx => $ids ) {
+				$name = '';
+				$stableId = 't' . (string) ( (int) $grpIdx + 1 );
+				foreach ( $resultGroups as $rg ) {
+					if ( isset($rg['index']) && (int)$rg['index'] === $grpIdx ) {
+						$name = (string)($rg['name'] ?? '');
+						if ( isset($rg['id']) && trim((string)$rg['id']) !== '' ) {
+							$stableId = (string)$rg['id'];
+						}
+						break;
+					}
+				}
+				if ( $name === '' ) $name = 't' . ((int)$grpIdx + 1);
+				$hmGroups[] = array(
+					'id' => $stableId,
+					'name' => $name,
+					'tok_ids' => array_values($ids),
+					'result_group' => isset($hitRow['aligned_pair_index']) ? (int)$hitRow['aligned_pair_index'] : null,
+				);
+			}
+			$hitRow['highlight_map'] = array(
+				'groups' => $hmGroups,
+				'match' => array_values($allIds),
+				'default' => array('tok_ids' => array_values($allIds)),
+			);
+			$hitRow['toks'] = array_values($allIds);
+			$hf = isset($hitRow['facs']) ? trim((string)$hitRow['facs']) : '';
+			$hb = isset($hitRow['bbox']) ? trim((string)$hitRow['bbox']) : '';
+			$needFacs = ( $hf === '' || $hf === '_' );
+			$needBbox = ( $hb === '' || $hb === '_' );
+			if ( ( $needFacs || $needBbox ) && is_array($hitRow['tokens']) ) {
+				foreach ( $hitRow['tokens'] as $t ) {
+					if ( !is_array($t) ) continue;
+					if ( $needFacs && isset($t['facs']) ) {
+						$fv = trim((string)$t['facs']);
+						if ( $fv !== '' && $fv !== '_' ) {
+							$hitRow['facs'] = $fv;
+							$needFacs = false;
+						}
+					}
+					if ( $needBbox && isset($t['bbox']) ) {
+						$bv = trim((string)$t['bbox']);
+						if ( $bv !== '' && $bv !== '_' ) {
+							$hitRow['bbox'] = $bv;
+							$needBbox = false;
+						}
+					}
+					if ( !$needFacs && !$needBbox ) break;
 				}
 			}
 		}
@@ -5644,156 +5815,7 @@ require_once __DIR__ . '/flexicorp_functions.php';
 			// Build highlight_map for each hit from per-token group assignments.
 			if ( isset($result['hits']) && is_array($result['hits']) ) {
 				$buildHitHighlightMeta = function ( &$hitRow ) use ( $projectRoot, $result ) {
-					if ( !is_array($hitRow) || !isset($hitRow['tokens']) || !is_array($hitRow['tokens']) ) return;
-					$groupPlan = isset($result['_aligned_group_plan']) && is_array($result['_aligned_group_plan']) ? $result['_aligned_group_plan'] : array();
-					$isTargetSide = isset($hitRow['aligned_role']) && (string)$hitRow['aligned_role'] === 'target';
-					$sideOffset = $isTargetSide ? (int)($groupPlan['target_offset'] ?? 0) : (int)($groupPlan['source_offset'] ?? 0);
-					$sideCount = $isTargetSide ? (int)($groupPlan['target_count'] ?? 0) : (int)($groupPlan['source_count'] ?? 0);
-					$explicitMatchedIds = isset($hitRow['_matched_tok_ids']) && is_array($hitRow['_matched_tok_ids']) ? array_values(array_unique(array_map('strval', $hitRow['_matched_tok_ids']))) : array();
-					$explicitMatchedMap = array();
-					foreach ( $explicitMatchedIds as $mi => $mid ) {
-						$mk = trim((string)$mid);
-						if ( $mk === '' ) continue;
-						$explicitMatchedMap[$mk] = (int)$mi;
-					}
-					$fragXml = isset($hitRow['fragment']) ? (string)$hitRow['fragment'] : '';
-					if ( $fragXml === '' && isset($hitRow['context_xml']) ) {
-						$fragXml = (string)$hitRow['context_xml'];
-					}
-					$fragTokIds = ( $fragXml !== '' ) ? tt_flexicorp_tok_ids_from_xml_fragment($fragXml) : array();
-					$useFragZip = ( count($fragTokIds) === count($hitRow['tokens']) && count($fragTokIds) > 0 );
-					$hasExplicitMatchFlags = false;
-					foreach ( $hitRow['tokens'] as $t0 ) {
-						if ( !is_array($t0) ) continue;
-						foreach ( array('matched', 'is_match', 'in_match', 'isMatched', 'match') as $mk ) {
-							if ( array_key_exists($mk, $t0) ) {
-								$hasExplicitMatchFlags = true;
-								break 2;
-							}
-						}
-					}
-					$allIds = array();
-					$groupIds = array();
-					foreach ( $hitRow['tokens'] as $ti => $tok ) {
-						if ( !is_array($tok) ) continue;
-						// Prefer TEITOK xml:id over tuid to avoid accidental collisions.
-						$tokId = (isset($tok['id']) && $tok['id'] !== '' && (string)$tok['id'] !== '_') ? (string)$tok['id']
-							: (isset($tok['tuid']) && $tok['tuid'] !== '' ? (string)$tok['tuid'] : '');
-						if ( $tokId === '' && $useFragZip ) {
-							$tokId = (string)($fragTokIds[$ti] ?? '');
-						}
-						if ( $tokId === '' && isset($tok['corpus_pos']) ) {
-							// Pando token corpus_pos indexing is shifted by +1 relative to the
-							// xidx/tokens.bin corpus_pos used for tok_id_idx resolution.
-							$tokId = tt_flexicorp_xidx_tok_id_string_for_corpus_pos(
-								$projectRoot,
-								(int)$tok['corpus_pos'] + 1
-							);
-						}
-						if ( $tokId === '' ) continue;
-						$tokIsMatched = true;
-						if ( count($explicitMatchedMap) > 0 ) {
-							$tokIsMatched = isset($explicitMatchedMap[$tokId]);
-						}
-						if ( count($explicitMatchedMap) === 0 && $hasExplicitMatchFlags ) {
-							$tokIsMatched = false;
-							foreach ( array('matched', 'is_match', 'in_match', 'isMatched', 'match') as $mk ) {
-								if ( !array_key_exists($mk, $tok) ) continue;
-								$mv = $tok[$mk];
-								if ( is_bool($mv) ) {
-									$tokIsMatched = $mv;
-									break;
-								}
-								if ( is_numeric($mv) ) {
-									$tokIsMatched = ( (int)$mv !== 0 );
-									break;
-								}
-								$ms = strtolower(trim((string)$mv));
-								$tokIsMatched = in_array($ms, array('1', 'true', 'yes', 'on', 'match', 'matched'), true);
-								break;
-							}
-						}
-						if ( !$tokIsMatched ) continue;
-						$allIds[] = $tokId;
-						$grp = null;
-						if ( count($explicitMatchedMap) > 0 && isset($explicitMatchedMap[$tokId]) ) {
-							$grp = (int)$explicitMatchedMap[$tokId];
-						}
-						if ( isset($tok['group']) ) {
-							$grp = (int)$tok['group'];
-						} elseif ( isset($tok['corpus_pos']) && isset($hitRow['groups']) && is_array($hitRow['groups']) ) {
-							$cp = (int)$tok['corpus_pos'];
-							foreach ( $hitRow['groups'] as $g ) {
-								if ( !is_array($g) || !isset($g['index']) ) continue;
-								$gs = isset($g['start']) ? (int)$g['start'] : null;
-								$ge = isset($g['end']) ? (int)$g['end'] : null;
-								if ( $gs === null || $ge === null ) continue;
-								if ( $cp >= $gs && $cp <= $ge ) {
-									$grp = (int)$g['index'];
-									break;
-								}
-							}
-						}
-						if ( $grp === null ) {
-							$grp = ( $sideCount > 0 ) ? (int)$ti : 0;
-						}
-						$grpGlobal = (int)$grp + (int)$sideOffset;
-						if ( !isset($groupIds[$grpGlobal]) ) $groupIds[$grpGlobal] = array();
-						$groupIds[$grpGlobal][] = $tokId;
-					}
-					ksort( $groupIds, SORT_NUMERIC );
-					$hmGroups = array();
-					$resultGroups = isset($result['groups']) && is_array($result['groups']) ? $result['groups'] : array();
-					foreach ( $groupIds as $grpIdx => $ids ) {
-						$name = '';
-						$stableId = 't' . (string) ( (int) $grpIdx + 1 );
-						foreach ( $resultGroups as $rg ) {
-							if ( isset($rg['index']) && (int)$rg['index'] === $grpIdx ) {
-								$name = (string)($rg['name'] ?? '');
-								if ( isset($rg['id']) && trim((string)$rg['id']) !== '' ) {
-									$stableId = (string)$rg['id'];
-								}
-								break;
-							}
-						}
-						if ( $name === '' ) $name = 't' . ((int)$grpIdx + 1);
-						$hmGroups[] = array(
-							'id' => $stableId,
-							'name' => $name,
-							'tok_ids' => array_values($ids),
-							'result_group' => isset($hitRow['aligned_pair_index']) ? (int)$hitRow['aligned_pair_index'] : null,
-						);
-					}
-					$hitRow['highlight_map'] = array(
-						'groups' => $hmGroups,
-						'match' => array_values($allIds),
-						'default' => array('tok_ids' => array_values($allIds)),
-					);
-					$hitRow['toks'] = array_values($allIds);
-					$hf = isset($hitRow['facs']) ? trim((string)$hitRow['facs']) : '';
-					$hb = isset($hitRow['bbox']) ? trim((string)$hitRow['bbox']) : '';
-					$needFacs = ( $hf === '' || $hf === '_' );
-					$needBbox = ( $hb === '' || $hb === '_' );
-					if ( ( $needFacs || $needBbox ) && is_array($hitRow['tokens']) ) {
-						foreach ( $hitRow['tokens'] as $t ) {
-							if ( !is_array($t) ) continue;
-							if ( $needFacs && isset($t['facs']) ) {
-								$fv = trim((string)$t['facs']);
-								if ( $fv !== '' && $fv !== '_' ) {
-									$hitRow['facs'] = $fv;
-									$needFacs = false;
-								}
-							}
-							if ( $needBbox && isset($t['bbox']) ) {
-								$bv = trim((string)$t['bbox']);
-								if ( $bv !== '' && $bv !== '_' ) {
-									$hitRow['bbox'] = $bv;
-									$needBbox = false;
-								}
-							}
-							if ( !$needFacs && !$needBbox ) break;
-						}
-					}
+					tt_flexicorp_pando_hit_highlight_meta( $hitRow, $projectRoot, $result );
 				};
 				foreach ( $result['hits'] as &$hit ) {
 					$buildHitHighlightMeta($hit);
@@ -7036,6 +7058,7 @@ require_once __DIR__ . '/flexicorp_functions.php';
 							&& in_array(strtolower(trim((string)$contextScope)), array('window', 'tok'), true)
 						),
 						'fragment' => ! empty( $pandoWithoutXml ),
+						'project_root' => (string)$projectRoot,
 					)
 			);
 		} else {
