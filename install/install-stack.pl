@@ -11,8 +11,11 @@
 # (Apache .htaccess or vhost SetEnv, nginx fastcgi_param, php-fpm env[], the
 # Scripts symlink, the usual places), which user runs PHP, and the shared
 # project, and changes nothing in TEITOK's configuration except adding
-# settings that are not there yet. Re-running it upgrades every component
-# (git pull --ff-only of the checkouts, clean rebuilds, atomic installs).
+# settings that are not there yet. Re-running it upgrades the stack: it pulls the
+# checkouts (git pull --ff-only, as their owner), then rebuilds and installs only the
+# components whose sources changed since the last install (clean builds, atomic
+# installs); --force rebuilds them anyway. When the pull updated this installer
+# itself, it restarts with the new version.
 # install-teitok.pl runs it at the end of a fresh install and for --upgrade.
 #
 # Usage:
@@ -20,7 +23,8 @@
 #
 #   --detect              only print what was found (as KEY=VALUE lines) and exit
 #   --check               only run the checks (check-stack.pl) and exit
-#   -q, --yes             no questions: accept what was detected
+#   -q, --yes             no questions: accept what was detected (an installation
+#                         confirmed once is not asked about again)
 #   --teitok-root DIR     the TEITOK checkout (TT_ROOT)          [detected]
 #   --shared DIR          the TEITOK shared project (TT_SHARED)  [detected]
 #   --web-user USER       the user PHP runs as                    [detected]
@@ -35,6 +39,8 @@
 #   --pando-repo URL      (default https://github.com/ufal/pando.git)
 #   --pando-ref REF
 #   --no-pull             use the existing checkouts as they are
+#   --force [LIST]        rebuild and reinstall even when the sources did not change:
+#                         every component, or the comma-separated ones in LIST
 #   --no-deps             do not install system packages (compilers, RE2, Rust, ...)
 #   --fqs-admin EMAIL     TEITOK user allowed into the FQS admin (only set when
 #                         flexicorp/fqs_admin_users is not set yet)
@@ -56,8 +62,9 @@ use File::Spec;
 use Cwd qw(abs_path getcwd);
 use POSIX qw(strftime);
 use Getopt::Long qw(:config no_ignore_case bundling);
+use Digest::SHA qw(sha1_hex);
 
-my $VERSION = '0.1.0';
+my $VERSION = '0.2.0';
 my %o = (
 	prefix         => '/usr/local',
 	'flexicorp-repo' => 'https://github.com/ufal/flexicorp.git',
@@ -66,9 +73,10 @@ my %o = (
 	'pando-ref'      => '',
 	only => '', skip => '',
 );
+my @ORIG_ARGV = @ARGV;    # to restart with the same options when the pull updated this script
 GetOptions( \%o, 'detect', 'check', 'q|yes', 'teitok-root=s', 'shared=s', 'web-user=s', 'git-folder=s',
 	'prefix=s', 'only=s', 'skip=s', 'flexicorp-repo=s', 'flexicorp-ref=s', 'pando-repo=s', 'pando-ref=s',
-	'no-pull', 'no-deps', 'fqs-admin=s', 'no-check', 'no-frontends', 'help|h' ) or exit 2;
+	'no-pull', 'no-deps', 'fqs-admin=s', 'no-check', 'no-frontends', 'force:s', 'help|h' ) or exit 2;
 if ( $o{help} ) { usage(); exit 0; }
 
 my $OS   = $^O;                                   # linux, darwin, freebsd
@@ -76,6 +84,7 @@ my $MAC  = $OS eq 'darwin';
 my $ME   = abs_path($0);
 my $HERE = dirname($ME);                           # .../flexicorp/install
 my $STAMP = strftime( '%Y%m%d-%H%M%S', localtime );
+my $ME_SHA = do { open my $fh, '<', $ME; local $/; my $c = <$fh> // ''; sha1_hex($c) };   # to notice a pull that updates this script
 
 # ── logging ──────────────────────────────────────────────────────────────────
 my $LOGDIR = $MAC ? '/Library/Logs/teitok-install' : '/var/log/teitok-install';
@@ -188,13 +197,18 @@ sub frontend_access {
 	}
 }
 
-# run as another user: runuser (Linux, works with nologin shells) or sudo
+# run as another user: runuser (Linux, works with nologin shells) or sudo. With that
+# user's HOME (runuser keeps root's otherwise), so git finds their ssh keys, known_hosts and
+# credential helper; an ssh agent passed through sudo (--preserve-env=SSH_AUTH_SOCK) too.
 sub as_user {
 	my ( $user, @cmd ) = @_;
 	my $cur = getpwuid($<);
 	return @cmd if !defined $user || $user eq '' || $user eq $cur;
-	return ( 'runuser', '-u', $user, '--', @cmd ) if !$MAC && have('runuser');
-	return ( 'sudo', '-H', '-u', $user, @cmd );
+	my @pw = getpwnam($user);
+	my @env = ( 'env', ( @pw && $pw[7] ? ( "HOME=$pw[7]" ) : () ), "USER=$user", "LOGNAME=$user",
+		( $ENV{SSH_AUTH_SOCK} ? ( "SSH_AUTH_SOCK=$ENV{SSH_AUTH_SOCK}" ) : () ) );
+	return ( 'runuser', '-u', $user, '--', @env, @cmd ) if !$MAC && have('runuser');
+	return ( 'sudo', '-H', '-u', $user, @env, @cmd );
 }
 
 sub usage { open my $me, '<', $0 or return; while (<$me>) { next if /^#!/; last unless /^#/; s/^# ?//; print; } }
@@ -347,17 +361,31 @@ fail("no web user found; pass --web-user USER") unless $D->{web_user};
 printf "  %-16s %s\n" x 6, 'TEITOK checkout', $D->{teitok_root}, 'shared project', $D->{shared}, 'web user', "$D->{web_user} (group $D->{web_group})",
 	'web server', ( $D->{webserver} || '?' ), 'venv', $D->{venv}, 'system', "$OS, $PKG, init: $INIT";
 logline("teitok_root=$D->{teitok_root} shared=$D->{shared} web_user=$D->{web_user} webserver=" . ( $D->{webserver} // '' ) . "\n");
-if ( !$o{q} && -t STDIN && !yes( "Is this the installation to add the query stack to?", 1 ) ) {
-	say_("Stopped: re-run with --teitok-root / --shared / --web-user to point at the right one.\n");
-	exit 0;
+# asked once: an installation confirmed before (or installed into by a previous run) is not
+# asked about again
+my $PREFIX = $o{prefix};
+my $MANIFEST = "$PREFIX/share/teitok-stack/manifest.json";
+my $CONFIRMED = "$PREFIX/share/teitok-stack/confirmed";
+my $THIS_INSTALL = "teitok_root=$D->{teitok_root}\nshared=$D->{shared}\nweb_user=$D->{web_user}\n";
+{
+	my $mf = read_file($MANIFEST);
+	my %m = map { ( $_ => ( $mf =~ /"$_"\s*:\s*"([^"]*)"/ ? $1 : '' ) ) } qw(teitok_root shared web_user);
+	my $known = read_file($CONFIRMED) eq $THIS_INSTALL
+		|| ( $m{teitok_root} eq $D->{teitok_root} && $m{shared} eq $D->{shared} && $m{web_user} eq $D->{web_user} );
+	if ( $known || $ENV{TEITOK_STACK_CONFIRMED} ) {
+		say_("  (the installation the previous run used: not asking again)\n");
+	} elsif ( !$o{q} && -t STDIN && !yes( "Is this the installation to add the query stack to?", 1 ) ) {
+		say_("Stopped: re-run with --teitok-root / --shared / --web-user to point at the right one.\n");
+		exit 0;
+	}
+	make_path( dirname($CONFIRMED) );
+	if ( open my $cf, '>', $CONFIRMED ) { print $cf $THIS_INSTALL; close $cf; }
 }
 
 my %want = map { $_ => 1 } qw(flexicorp pages flexencoder pando fqs);
 if ( $o{only} ) { %want = map { $_ => 1 } split /[,\s]+/, $o{only}; }
 delete $want{$_} for split /[,\s]+/, $o{skip};
 
-my $PREFIX = $o{prefix};
-my $MANIFEST = "$PREFIX/share/teitok-stack/manifest.json";
 my $PREV_GIT = ( read_file($MANIFEST) =~ /"git_folder"\s*:\s*"([^"]+)"/ ) ? $1 : '';
 my ( $GIT, $GIT_WHY ) = git_folder();
 
@@ -421,7 +449,16 @@ sub rust_ok {
 	return '';
 }
 
-if ( !$o{'no-deps'} ) {
+# build tools already there (an upgrade): no package manager run
+sub build_tools_ok {
+	my $re2 = capture('pkg-config --exists re2 && echo y') eq 'y' || grep { -f "$_/re2/re2.h" } ( '/usr/include', '/usr/local/include', '/opt/homebrew/include' );
+	return have('git') && have('make') && ( have('cmake') || have('cmake3') ) && ( have('c++') || have('g++') || have('clang++') )
+		&& python_ok() ne '' && $re2 && ( !$want{fqs} || rust_ok() ne '' );
+}
+if ( !$o{'no-deps'} && -f $MANIFEST && build_tools_ok() ) {
+	step('System packages for building');
+	say_("  compilers, cmake, RE2, Python and Rust are there: no package installs\n");
+} elsif ( !$o{'no-deps'} ) {
 	step('System packages for building');
 	my %pk = (
 		apt    => [qw(git g++ make cmake pkg-config libre2-dev python3 python3-venv python3-dev curl ca-certificates sudo)],
@@ -456,17 +493,45 @@ for my $t (qw(git make cmake)) { fail("$t not found; install it or drop --no-dep
 # ── sources ─────────────────────────────────────────────────────────────────
 sub owner_of { my $p = shift; my $u = getpwuid( ( stat($p) )[4] ); return $u // 'root'; }
 
+sub git_in { my ( $dir, @a ) = @_; return capture( cmdline( 'git', '-C', $dir, @a ) ); }
+
 sub checkout {
 	my ( $name, $repo, $ref ) = @_;
 	my $dir = "$GIT/$name";
 	if ( -d "$dir/.git" ) {
 		my $own = owner_of($dir);
-		if ( $o{'no-pull'} ) { say_("  $dir: using as is (--no-pull)\n"); }
+		my $before = git_in( $dir, 'rev-parse', '--short', 'HEAD' );
+		if ( $o{'no-pull'} ) { say_("  $name: using $dir as it is (--no-pull)\n"); }
 		else {
-			my $dirty = capture( cmdline( as_user( $own, 'git', '-C', $dir, 'status', '--porcelain', '--untracked-files=no' ) ) );
-			if ( $dirty ne '' ) { warn_("$dir has local changes: not pulling, building it as it is"); }
-			elsif ( !run( "update $dir (git pull --ff-only, as $own)", [ as_user( $own, 'git', '-C', $dir, 'pull', '--ff-only', '-q' ) ], soft => 1 ) ) {
-				warn_("git pull in $dir failed (see log): building the checkout as it is");
+			my $dirty = git_in( $dir, 'status', '--porcelain', '--untracked-files=no' );
+			my $upstream = git_in( $dir, 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}' );
+			if ( $dirty ne '' ) {
+				warn_("$dir has uncommitted changes: not pulling (commit or stash them to get updates); building it as it is");
+			} elsif ( $upstream eq '' ) {
+				warn_("$dir: the branch " . git_in( $dir, 'rev-parse', '--abbrev-ref', 'HEAD' ) . " tracks no remote branch: not pulling");
+			} else {
+				say_("  $name: git pull --ff-only from $upstream (as $own) ...\n");
+				my $cmd = cmdline( as_user( $own, 'git', '-C', $dir, 'pull', '--ff-only', '-q' ) );
+				logline("\$ $cmd\n");
+				my $out = `$cmd 2>&1`;
+				my $rc = $? >> 8;
+				logline( $out // '' );
+				my $after = git_in( $dir, 'rev-parse', '--short', 'HEAD' );
+				if ($rc) {
+					my ($why) = grep { /\S/ } reverse split /\n/, ( $out // '' );
+					warn_( "git pull in $dir failed" . ( $why ? ": $why" : '' ) . "; building $before as it is" );
+					my $url = git_in( $dir, 'remote', 'get-url', 'origin' );
+					if ( $url =~ m{^(git@|ssh://)} ) {
+						say_("    (an ssh remote: the pull runs as $own with $own\'s ~/.ssh; for a key with a passphrase\n"
+							. "     pass your agent along: sudo --preserve-env=SSH_AUTH_SOCK perl $0 ...)\n");
+					}
+				} elsif ( $after ne $before ) {
+					my $n = git_in( $dir, 'rev-list', '--count', "$before..$after" );
+					say_("  $name: $n new commit" . ( $n == 1 ? '' : 's' ) . ": $before -> $after\n");
+					say_("    $_\n") for grep { $_ ne '' } split /\n/, git_in( $dir, 'log', '--oneline', '--no-decorate', '-n', '8', "$before..$after" );
+				} else {
+					say_("  $name: up to date\n");
+				}
 			}
 		}
 	} elsif ( -d $dir ) {
@@ -477,9 +542,9 @@ sub checkout {
 		my @c = ( 'git', 'clone', '-q', ( $ref ne '' ? ( '-b', $ref ) : () ), $repo, $dir );
 		run( "clone $repo into $dir (as $own)", [ as_user( $own, @c ) ] );
 	}
-	my $commit = capture( cmdline( 'git', '-C', $dir, 'rev-parse', '--short', 'HEAD' ) );
-	my $branch = capture( cmdline( 'git', '-C', $dir, 'rev-parse', '--abbrev-ref', 'HEAD' ) );
-	my $dirty = capture( cmdline( 'git', '-C', $dir, 'status', '--porcelain', '--untracked-files=no' ) ) ne '' ? '-dirty' : '';
+	my $commit = git_in( $dir, 'rev-parse', '--short', 'HEAD' );
+	my $branch = git_in( $dir, 'rev-parse', '--abbrev-ref', 'HEAD' );
+	my $dirty = git_in( $dir, 'status', '--porcelain', '--untracked-files=no' ) ne '' ? '-dirty' : '';
 	say_( "  $name: $dir  ($branch $commit$dirty)\n" );
 	return ( $dir, "$commit$dirty" );
 }
@@ -492,10 +557,87 @@ if ( $PREV_GIT && $PREV_GIT ne $GIT ) {
 }
 # `git -C` as root in someone else's checkout: tell git that is fine
 system( 'git config --global --get-all safe.directory 2>/dev/null | grep -qx "\*" || git config --global --add safe.directory "*"' );
+# this installer as the flexicorp checkout has it before the pull (to notice a pull that updates it)
+my $INSTALLER_IN_GIT = "$GIT/flexicorp/install/install-stack.pl";
+my $INSTALLER_BEFORE = -f $INSTALLER_IN_GIT ? sha1_hex( read_file($INSTALLER_IN_GIT) ) : '';
 my ( $FLEXI, $FLEXI_COMMIT ) = checkout( 'flexicorp', $o{'flexicorp-repo'}, $o{'flexicorp-ref'} );
 my ( $PANDO, $PANDO_COMMIT ) = ( '', '' );
 ( $PANDO, $PANDO_COMMIT ) = checkout( 'pando', $o{'pando-repo'}, $o{'pando-ref'} ) if $want{pando} || $want{fqs};
 my $FLEXI_VERSION = ( read_file("$FLEXI/pyproject.toml") =~ /^version\s*=\s*"([^"]+)"/m ) ? $1 : '?';
+
+# the pull brought a new version of this installer: run that one instead (once). Only a
+# change made by this pull counts: a checkout that merely differs from the copy running
+# (an older checkout, a newer copy elsewhere) is not a reason to switch.
+{
+	my $new = $INSTALLER_IN_GIT;
+	if ( !$o{'no-pull'} && !$ENV{TEITOK_STACK_REEXEC} && $INSTALLER_BEFORE ne '' && -f $new
+		&& sha1_hex( read_file($new) ) ne $INSTALLER_BEFORE && sha1_hex( read_file($new) ) ne $ME_SHA ) {
+		say_("\n  the pull updated this installer: restarting with the new version ($new)\n");
+		$ENV{TEITOK_STACK_REEXEC} = 1;
+		$ENV{TEITOK_STACK_CONFIRMED} = 1;
+		close $LOGFH;
+		my @args = grep { $_ ne '--no-pull' } @ORIG_ARGV;
+		exec( $^X, $new, @args, '--no-pull', ( $o{'git-folder'} ? () : ( '--git-folder', $GIT ) ) ) or fail("cannot run $new: $!");
+	}
+}
+
+# ── what changed since the last install ─────────────────────────────────────────
+# Each component is rebuilt only when its sources differ from the ones it was last built
+# from (a fingerprint of the git trees plus any uncommitted changes, kept in the manifest),
+# or when what it installs is missing; --force rebuilds anyway.
+my %OLD;
+{
+	my $s = read_file($MANIFEST);
+	while ( $s =~ /"(\w+)"\s*:\s*\{([^{}]*)\}/g ) {
+		my ( $c, $body ) = ( $1, $2 );
+		my %h;
+		$h{$1} = $2 while $body =~ /"(\w+)"\s*:\s*"([^"]*)"/g;
+		$OLD{$c} = \%h;
+	}
+}
+# fingerprint of some paths of a checkout: their committed trees, the uncommitted diff, and
+# untracked files; '' when it cannot be told (then the component is always rebuilt)
+sub source_print {
+	my ( $repo, @paths ) = @_;
+	return '' unless $repo && -d "$repo/.git";
+	my @parts;
+	for my $p (@paths) {
+		my $t = git_in( $repo, 'rev-parse', $p eq '' ? 'HEAD^{tree}' : "HEAD:$p" );
+		return '' if $t eq '';
+		push @parts, "$p=$t";
+	}
+	my @scope = ( '--', map { $_ eq '' ? '.' : $_ } @paths );
+	push @parts, sha1_hex( scalar `@{[ cmdline( 'git', '-C', $repo, 'diff', 'HEAD', '--binary', @scope ) ]} 2>/dev/null` // '' );
+	for my $u ( sort split /\n/, git_in( $repo, 'ls-files', '--others', '--exclude-standard', @scope ) ) {
+		push @parts, "$u:" . sha1_hex( read_file("$repo/$u") );
+	}
+	return sha1_hex( join( "\n", @parts ) );
+}
+sub prints { my @p = @_; return ( grep { $_ eq '' } @p ) ? '' : sha1_hex( join( '+', "install-stack $VERSION", $PREFIX, @p ) ); }
+my %SRC = (
+	pando       => prints( source_print( $PANDO, '' ), source_print( $FLEXI, 'flexicorp_pando' ) ),
+	flexencoder => prints( source_print( $FLEXI, 'flexencoder' ) ),
+	flexicorp   => prints( source_print( $FLEXI, 'flexicorp', 'pyproject.toml' ), $D->{venv} ),
+	pages       => prints( source_print( $FLEXI, 'teitok_teitok_ui' ), $D->{shared} ),
+	fqs         => prints( source_print( $FLEXI, 'fqs' ) ),
+);
+my %FORCE;
+if ( defined $o{force} ) {
+	%FORCE = $o{force} eq '' ? map { $_ => 1 } qw(flexicorp pages flexencoder pando fqs) : map { $_ => 1 } split /[,\s]+/, $o{force};
+}
+my ( %BUILT, @UNCHANGED );
+# true (and says so) when a component can be left as it is
+sub unchanged {
+	my ( $c, $present ) = @_;
+	return 0 if $FORCE{$c} || !$present || $SRC{$c} eq '';
+	my $old = $OLD{$c} || {};
+	return 0 unless ( $old->{source} // '' ) eq $SRC{$c};
+	step("$c: unchanged");
+	say_( "  same sources as its install of " . ( $old->{installed} // '?' ) . ( $old->{commit} ? " ($old->{commit})" : '' ) . ": skipped (--force $c rebuilds it)\n" );
+	push @UNCHANGED, $c;
+	return 1;
+}
+my $LIBFP = $MAC ? "$PREFIX/lib/libflexicorp_pando.dylib" : "$PREFIX/lib/libflexicorp_pando.so";
 
 sub fresh_dir { my $d = "$BUILD/" . shift; remove_tree($d) if -e $d; make_path($d); return $d; }
 sub copy_tree {    # a clean copy of a source tree (no .git, build outputs, objects)
@@ -513,7 +655,7 @@ sub install_file {    # atomic: copy next to the target, then rename over it
 }
 
 # ── pando + libflexicorp_pando (one CMake build) ───────────────────────────────
-if ( $want{pando} ) {
+if ( $want{pando} && !unchanged( 'pando', -x "$PREFIX/bin/pando-index" && -e $LIBFP ) ) {
 	step('Pando and libflexicorp_pando');
 	my $b = fresh_dir('pando');
 	my @args = ( "-DPANDO_DIR=$PANDO", '-DCMAKE_BUILD_TYPE=Release', '-DPANDO_USE_RE2=ON', '-DBUILD_TESTING=OFF' );
@@ -533,12 +675,13 @@ if ( $want{pando} ) {
 	run( 'ldconfig', 'ldconfig', soft => 1 ) if !$MAC && have('ldconfig');
 	my $v = capture( q_("$PREFIX/bin/pando-index") . ' --version' );
 	say_("  installed: $v\n");
-	$manifest{pando} = { version => $v, commit => $PANDO_COMMIT };
+	$manifest{pando} = { version => $v, commit => $PANDO_COMMIT, source => $SRC{pando} };
+	$BUILT{pando} = 1;
 	remove_tree( $b, $stage );
 }
 
 # ── flexencoder ────────────────────────────────────────────────────────────
-if ( $want{flexencoder} ) {
+if ( $want{flexencoder} && !unchanged( 'flexencoder', -x "$PREFIX/bin/flexencoder" ) ) {
 	step('flexencoder');
 	my $b = fresh_dir('flexencoder');
 	copy_tree( "$FLEXI/flexencoder", $b );    # never reuses objects from the checkout
@@ -548,12 +691,14 @@ if ( $want{flexencoder} ) {
 	my $usage = capture( q_("$PREFIX/bin/flexencoder") . ' --help 2>&1' );
 	fail('the installed flexencoder does not accept --output-pando') if $usage !~ /--output-pando/;
 	say_("  installed: $PREFIX/bin/flexencoder\n");
-	$manifest{flexencoder} = { commit => $FLEXI_COMMIT };
+	$manifest{flexencoder} = { commit => $FLEXI_COMMIT, source => $SRC{flexencoder} };
+	$BUILT{flexencoder} = 1;
 	remove_tree($b);
 }
 
 # ── flexicorp (Python, in TEITOK's venv, as the web user) ────────────────────
-if ( $want{flexicorp} ) {
+if ( $want{flexicorp} && !unchanged( 'flexicorp', -x "$D->{venv}/bin/python"
+		&& capture( cmdline( "$D->{venv}/bin/python", '-c', 'import flexicorp; print("ok")' ) ) eq 'ok' ) ) {
 	step('flexicorp (Python package in the TEITOK venv)');
 	my $venv = $D->{venv};
 	if ( !-x "$venv/bin/python" ) {
@@ -580,12 +725,13 @@ if ( $want{flexicorp} ) {
 	my $chk = capture( cmdline( as_user( $WEBU, "$venv/bin/python", '-c', 'import flexicorp.cli,inspect; print("ok" if "reindex_staging" in inspect.getsource(flexicorp.cli) else "old")' ) ) );
 	fail("flexicorp does not import in $venv as $WEBU") if $chk eq '';
 	say_("  installed: flexicorp $FLEXI_VERSION ($FLEXI_COMMIT) into $venv\n");
-	$manifest{flexicorp} = { version => $FLEXI_VERSION, commit => $FLEXI_COMMIT, venv => $venv };
+	$manifest{flexicorp} = { version => $FLEXI_VERSION, commit => $FLEXI_COMMIT, venv => $venv, source => $SRC{flexicorp} };
+	$BUILT{flexicorp} = 1;
 	remove_tree( $src, $whl );
 }
 
 # ── TEITOK pages (shared project) ───────────────────────────────────────────────
-if ( $want{pages} ) {
+if ( $want{pages} && !unchanged( 'pages', -f "$D->{shared}/Sources/flexicorp.php" ) ) {
 	step('flexicorp pages for TEITOK (shared project)');
 	my $ui = "$FLEXI/teitok_teitok_ui/install-teitok-ui.pl";
 	fail("$ui not found") unless -f $ui;
@@ -593,7 +739,8 @@ if ( $want{pages} ) {
 	logline($out);
 	print map { "  $_\n" } split /\n/, $out;
 	fail('installing the TEITOK pages failed') if $?;
-	$manifest{pages} = { version => $FLEXI_VERSION, commit => $FLEXI_COMMIT };
+	$manifest{pages} = { version => $FLEXI_VERSION, commit => $FLEXI_COMMIT, source => $SRC{pages} };
+	$BUILT{pages} = 1;
 }
 
 # ── FQS ────────────────────────────────────────────────────────────────────
@@ -623,7 +770,7 @@ sub env_dedupe_secret {    # several FQS_SECRET= lines: keep the last (the one s
 	return scalar(@idx) - 1;
 }
 
-if ( $want{fqs} ) {
+if ( $want{fqs} && !unchanged( 'fqs', -x "$PREFIX/bin/fqs" ) ) {
 	step('FQS (query / reindex service)');
 	my $cargo = rust_ok() or fail('Rust >= 1.85 (cargo) not found; drop --no-deps or install rustup');
 	my $src = fresh_dir('fqs-src');
@@ -733,8 +880,27 @@ SH
 	for ( 1 .. 30 ) { if ( capture('curl -sf -m 2 http://127.0.0.1:8787/health') ne '' ) { $ok = 1; last; } sleep 1; }
 	$ok ? say_("  FQS is up: http://127.0.0.1:8787/health\n") : warn_("FQS did not answer on 127.0.0.1:8787 within 30 s (see /var/log/fqs/)");
 	my $fv = capture( q_("$PREFIX/bin/fqs") . ' --version' );
-	$manifest{fqs} = { version => $fv, commit => $FLEXI_COMMIT, init => $INIT };
+	$manifest{fqs} = { version => $fv, commit => $FLEXI_COMMIT, init => $INIT, source => $SRC{fqs} };
+	$BUILT{fqs} = 1;
 	remove_tree($src);
+}
+
+# FQS loads libflexicorp_pando: a new one only counts after a restart
+if ( $BUILT{pando} && !$BUILT{fqs} && -x "$PREFIX/bin/fqs" ) {
+	my $running = $INIT eq 'systemd' ? capture('systemctl is-active fqs') eq 'active'
+		: $MAC ? capture('launchctl print system/org.teitok.fqs') ne ''
+		: capture('pgrep -x fqs') ne '';
+	if ($running) {
+		step('Restart FQS (new libflexicorp_pando)');
+		my $did = 1;
+		if ( $INIT eq 'systemd' ) { run( 'systemctl restart fqs', 'systemctl restart fqs', soft => 1 ); }
+		elsif ($MAC) { run( 'launchctl kickstart -k system/org.teitok.fqs', 'launchctl kickstart -k system/org.teitok.fqs', soft => 1 ); }
+		elsif ( -x "$PREFIX/sbin/teitok-fqs" ) { run( "$PREFIX/sbin/teitok-fqs restart", [ "$PREFIX/sbin/teitok-fqs", 'restart' ], soft => 1 ); }
+		else { warn_('FQS runs, but not through a start script this installer knows: restart it yourself'); $did = 0; }
+		my $ok = !$did;
+		for ( 1 .. ( $did ? 30 : 0 ) ) { if ( capture('curl -sf -m 2 http://127.0.0.1:8787/health') ne '' ) { $ok = 1; last; } sleep 1; }
+		if ($did) { $ok ? say_("  FQS is up again\n") : warn_("FQS did not answer on 127.0.0.1:8787 within 30 s (see /var/log/fqs/)"); }
+	}
 }
 
 # ── TEITOK settings: only add what is missing ─────────────────────────────────
@@ -782,8 +948,13 @@ if ( $o{'fqs-admin'} ) {
 }
 
 step('Done');
-say_("  components: " . join( ', ', grep { $manifest{$_} } qw(flexicorp pages flexencoder pando fqs) ) . "\n  log: $LOG\n");
-if ( !$o{'no-check'} && -f "$HERE/check-stack.pl" ) {
+my @built = grep { $BUILT{$_} } qw(flexicorp pages flexencoder pando fqs);
+say_( "  installed: " . ( @built ? join( ', ', @built ) : 'nothing (no changes)' ) . "\n" );
+say_( "  unchanged: " . join( ', ', @UNCHANGED ) . "\n" ) if @UNCHANGED;
+say_("  log: $LOG\n");
+if ( !@built && !$o{'no-check'} ) {
+	say_("  nothing changed: checks skipped (--check runs them)\n");
+} elsif ( !$o{'no-check'} && -f "$HERE/check-stack.pl" ) {
 	step('Checks');
 	system( 'perl', "$HERE/check-stack.pl", '--shared', $D->{shared}, '--web-user', $WEBU, '--prefix', $PREFIX );
 	exit( $? >> 8 );

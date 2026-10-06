@@ -44,14 +44,42 @@ builds `~/Git/flexicorp` and `~/Git/pando`); for a temporary copy (as `install-t
 makes) it is the folder the previous run used (`git_folder` in the manifest), else the folder
 holding the TEITOK checkout. The installer warns when that differs from the previous run.
 Missing checkouts are cloned there as the owner of that folder; existing ones are updated
-with `git pull --ff-only` (not at all when they have local changes, or with `--no-pull`).
+with `git pull --ff-only`, run as the checkout's owner with that user's HOME (so their ssh
+keys and git credentials are used; a key with a passphrase needs the agent passed along:
+`sudo --preserve-env=SSH_AUTH_SOCK perl …/install-stack.pl`). The installer says what each
+pull brought (the new commits), or why it did not pull: local changes, no upstream branch,
+or the error git gave. `--no-pull` builds the checkouts as they are. When the pull changed
+`install-stack.pl` itself, the installer restarts with the new version.
 Builds happen in `/var/tmp/teitok-stack-build` and are installed into `--prefix`, so nothing
 runs from the git folder afterwards.
+
+The question "Is this the installation to add the query stack to?" is asked once: the answer
+is kept (`/usr/local/share/teitok-stack/confirmed`), and an installation the manifest already
+names is not asked about either.
+
+## Only what changed
+
+An upgrade rebuilds a component only when its sources changed since it was last installed,
+or when what it installs is missing. The manifest keeps, per component, a fingerprint of its
+sources (the git trees plus any uncommitted changes and untracked files):
+
+| component | sources |
+|-----------|---------|
+| pando (with `libflexicorp_pando`) | the pando checkout, `flexicorp_pando/` |
+| flexencoder | `flexencoder/` |
+| flexicorp | `flexicorp/`, `pyproject.toml` |
+| pages | `teitok_teitok_ui/` |
+| fqs | `fqs/` |
+
+A new `libflexicorp_pando` restarts a running FQS (it loads the library), also when FQS
+itself is unchanged. `--force` rebuilds everything, `--force pando,fqs` only those. System
+packages are only installed on a first install or when a build tool is missing.
 
 ## What an upgrade changes
 
 - binaries in `/usr/local` (`--prefix`): `pando*`, `flexicorp-pando`, `flexencoder`, `fqs`,
-  `lib/libflexicorp_pando`; each replaced atomically, from a clean build;
+  `lib/libflexicorp_pando`; each replaced atomically, from a clean build (only components
+  whose sources changed, see above);
 - flexicorp in the venv (a wheel built from a clean copy, installed as the web user; a venv
   with root-owned files is given back to the web user first);
 - the pages in the shared project (`Sources/`, `Scripts/`, `Pages/`; locally changed files are

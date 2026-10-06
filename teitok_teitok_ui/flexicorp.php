@@ -4355,6 +4355,21 @@ require_once __DIR__ . '/flexicorp_functions.php';
 					if ( $idx !== null ) $groupNamesByIdx[$idx] = $name;
 					if ( !isset($groupTokIds[$name]) ) $groupTokIds[$name] = array();
 				}
+				// no hit groups (an older engine): the tokens' query-token index still says which
+				// query token each one matched, as t1, t2, … (only worth it for several)
+				if ( !$groups ) {
+					$seenGroups = array();
+					foreach ( $tokens as $t ) {
+						if ( is_array($t) && isset($t['group']) && is_numeric($t['group']) ) $seenGroups[intval($t['group'])] = true;
+					}
+					if ( count($seenGroups) > 1 ) {
+						ksort($seenGroups);
+						foreach ( array_keys($seenGroups) as $gi ) {
+							$groupNamesByIdx[$gi] = 't' . ($gi + 1);
+							$groupTokIds['t' . ($gi + 1)] = array();
+						}
+					}
+				}
 				foreach ( $tokens as $t ) {
 					if ( !is_array($t) ) continue;
 					$tid = trim((string)($t['id'] ?? ''));

@@ -220,6 +220,17 @@
 					if ( isset( $g['index'] ) ) $names[ (int) $g['index'] ] = $n;
 					if ( ! isset( $byGroup[ $n ] ) ) $byGroup[ $n ] = array();
 				}
+				if ( ! $names ) {
+					// no hit groups (an older engine): number the query tokens the tokens matched
+					$seen = array();
+					foreach ( ( isset( $hit['tokens'] ) && is_array( $hit['tokens'] ) ) ? $hit['tokens'] : array() as $t ) {
+						if ( is_array( $t ) && isset( $t['group'] ) && is_numeric( $t['group'] ) ) $seen[ (int) $t['group'] ] = true;
+					}
+					if ( count( $seen ) > 1 ) {
+						ksort( $seen );
+						foreach ( array_keys( $seen ) as $gi ) { $names[ $gi ] = 't' . ( $gi + 1 ); $byGroup[ 't' . ( $gi + 1 ) ] = array(); }
+					}
+				}
 				$ids = array();
 				foreach ( ( isset( $hit['tokens'] ) && is_array( $hit['tokens'] ) ) ? $hit['tokens'] : array() as $t ) {
 					if ( ! is_array( $t ) ) continue;
