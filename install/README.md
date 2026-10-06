@@ -5,7 +5,7 @@ Three scripts, all re-runnable:
 | script | what it does |
 |--------|--------------|
 | `install-teitok.pl` | The one command for users (published on teitok.org). A fresh install sets up TEITOK (Apache or nginx + php-fpm), then runs `install-stack.pl`. On a machine where TEITOK is already installed, it upgrades: it hands over to `install-stack.pl`, which leaves TEITOK's configuration alone. |
-| `install-stack.pl` | Installs or upgrades flexicorp (in TEITOK's venv), its TEITOK pages (in the shared project), flexencoder, Pando with `libflexicorp_pando`, and FQS (systemd, launchd, or a start script). It finds an existing TEITOK by itself (see below). |
+| `install-stack.pl` | Upgrades TEITOK itself (pulls its checkout, rebuilds its tools when they changed) and installs or upgrades flexicorp (in TEITOK's venv), its TEITOK pages (in the shared project), flexencoder, Pando with `libflexicorp_pando`, and FQS (systemd, launchd, or a start script). It finds an existing TEITOK by itself (see below). |
 | `create-project.pl` | Creates a TEITOK project the way TEITOK's shared admin does: empty, or with `--demo` a sample of a UD treebank (default: 500 sentences of UD English EWT, CC BY-SA 4.0) converted to TEITOK XML and indexed for Pando. A fresh install ends with one of the two (asked; `-q` makes the demo), so that real data does not go into the shared project. |
 | `create-project.pl --site` | The public start page: a non-corpus project `site` that opens on the corpus list (fqs.php) and has an About page, with `<teitok>/index.php` forwarding to it, so visitors never land in the shared project (which stays for server-wide settings, creating projects and other admin tools). Visitors get no corpus functions there: only the corpus list, the project's own pages (About, …), login and logout (`<site nocorpus="1" allow="…"/>` in its settings, enforced by its `Sources/startup.php`; logged-in users are not restricted). Fresh installs set this up (asked; `--no-site`); an existing `index.php` in the TEITOK root is never overwritten. |
 | `check-stack.pl` | Checks an installation the way TEITOK uses it: as the web user, with FQS's PATH, plus a smoke test (encode a small document, run a dependency query). Runs at the end of every install. |
@@ -53,6 +53,11 @@ or the error git gave. `--no-pull` builds the checkouts as they are. When the pu
 Builds happen in `/var/tmp/teitok-stack-build` and are installed into `--prefix`, so nothing
 runs from the git folder afterwards.
 
+TEITOK itself is pulled the same way (its checkout, as its owner; not when it has local
+changes), before flexicorp and pando. Its pages are PHP, so a pull is in use right away; its
+tools are rebuilt when `src/` changed. `--skip teitok` leaves TEITOK alone. smarty is not
+updated (a new major version would break TEITOK's templates).
+
 The question "Is this the installation to add the query stack to?" is asked once: the answer
 is kept (`/usr/local/share/teitok-stack/confirmed`), and an installation the manifest already
 names is not asked about either.
@@ -65,6 +70,7 @@ sources (the git trees plus any uncommitted changes and untracked files):
 
 | component | sources |
 |-----------|---------|
+| teitok (`tt-cwb-encode`, `tt-cwb-xidx`, `tt-cqp`) | the TEITOK checkout's `src/` |
 | pando (with `libflexicorp_pando`) | the pando checkout, `flexicorp_pando/` |
 | flexencoder | `flexencoder/` |
 | flexicorp | `flexicorp/`, `pyproject.toml` |
