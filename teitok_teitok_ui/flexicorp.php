@@ -1764,6 +1764,79 @@ require_once __DIR__ . '/flexicorp_functions.php';
 		}
 	}
 
+	if ( !function_exists('tt_flexicorp_clickhouse_enabled') ) {
+		/**
+		 * ClickHouse (backends clickql / clickhouse, and PML-TQ translated to ClickHouse SQL) is
+		 * deprecated. The code stays, but it is not probed, offered or reindexed unless the setting
+		 * flexicorp/enable_clickhouse is set (1/true/yes/on); that setting is also passed on to
+		 * python -m flexicorp as FLEXICORP_ENABLE_CLICKHOUSE=1.
+		 */
+		function tt_flexicorp_clickhouse_enabled() {
+			if ( !function_exists('getset') ) return false;
+			$raw = strtolower( trim( (string) getset( 'flexicorp/enable_clickhouse', '' ) ) );
+			return in_array( $raw, array( '1', 'true', 'yes', 'on' ), true );
+		}
+	}
+
+	if ( !function_exists('tt_flexicorp_pmltq_in_use') ) {
+		/**
+		 * Whether this request needs the (native) PML-TQ backend, and so whether its status check
+		 * (a Python process plus an HTTP call to the PML-TQ server) is worth running:
+		 * - the request itself asks for PML-TQ (backend, engine, query language, combo, reindex), or
+		 * - the corpus is set up for PML-TQ (a <pmltq> section, defaults/flexicorp/pmltq_treebank, or
+		 *   PML-TQ as default backend) and the request is not a search with another backend.
+		 */
+		function tt_flexicorp_pmltq_in_use() {
+			static $memo = null;
+			if ( $memo !== null ) return $memo;
+			foreach ( array( 'backend', 'query_engine', 'query_language', 'backend_combo', 'reindex_backend', 'reindex_backends' ) as $k ) {
+				$v = isset( $_REQUEST[$k] ) && is_scalar( $_REQUEST[$k] ) ? strtolower( (string) $_REQUEST[$k] ) : '';
+				if ( $v !== '' && strpos( $v, 'pmltq' ) !== false ) return $memo = true;
+			}
+			$configured = false;
+			if ( function_exists('getset') ) {
+				$configured = getset( 'pmltq', '' ) !== ''
+					|| trim( (string) getset( 'defaults/flexicorp/pmltq_treebank', '' ) ) !== ''
+					|| strtolower( trim( (string) getset( 'defaults/flexicorp/backend', '' ) ) ) === 'pmltq';
+			}
+			if ( !$configured ) return $memo = false;
+			$run = trim( (string) ( $_REQUEST['run'] ?? '' ) );
+			$isSearch = in_array( $run, array( 'query', 'kwic', 'freq', 'coll' ), true )
+				|| ( (string) ( $_REQUEST['ajax'] ?? '' ) === '1' && trim( (string) ( $_REQUEST['active_tab'] ?? '' ) ) === 'search' );
+			return $memo = !$isSearch;
+		}
+	}
+
+	if ( !function_exists('tt_flexicorp_status_cache') ) {
+		/**
+		 * Per-project file cache (tmp/flexicorp-status-cache.json) for backend status checks that
+		 * start a Python process (PML-TQ: 0.2 s or more, including a call to the PML-TQ server),
+		 * so that a corpus that does use PML-TQ does not pay for the check on every request.
+		 * Read: tt_flexicorp_status_cache($root, $key) returns the value or null.
+		 * Write: tt_flexicorp_status_cache($root, $key, $value).
+		 * Lifetime: setting flexicorp/status_cache_ttl in seconds (default 600; 0 turns the cache off).
+		 */
+		function tt_flexicorp_status_cache( $projectRoot, $key, $value = null ) {
+			$ttl = function_exists('getset') ? trim((string) getset('flexicorp/status_cache_ttl', '')) : '';
+			$ttl = $ttl === '' ? 600 : (int) $ttl;
+			if ( $ttl <= 0 ) return null;
+			$dir = rtrim((string) $projectRoot, '/') . '/tmp';
+			$file = $dir . '/flexicorp-status-cache.json';
+			$data = is_file($file) ? json_decode((string) @file_get_contents($file), true) : array();
+			if ( !is_array($data) ) $data = array();
+			if ( $value === null ) {
+				$e = isset($data[$key]) && is_array($data[$key]) ? $data[$key] : null;
+				if ( $e && isset($e['v']) && is_array($e['v']) && time() - (int) ($e['t'] ?? 0) < $ttl ) return $e['v'];
+				return null;
+			}
+			if ( !is_dir($dir) || !is_writable($dir) ) return null;
+			$data[$key] = array( 't' => time(), 'v' => $value );
+			$tmp = $file . '.' . getmypid();
+			if ( @file_put_contents($tmp, json_encode($data)) !== false ) @rename($tmp, $file);
+			return null;
+		}
+	}
+
 	if ( !function_exists('tt_flexicorp_clickhouse_status') ) {
 		/**
 		 * ClickHouse/ClickQL availability via the same python -m flexicorp runtime used by queries.
@@ -1779,6 +1852,19 @@ require_once __DIR__ . '/flexicorp_functions.php';
 			$memoKey = $rootKey . '|' . $argsKey;
 			if ( isset($memo[$memoKey]) ) {
 				return $memo[$memoKey];
+			}
+			if ( !tt_flexicorp_clickhouse_enabled() ) {
+				$memo[$memoKey] = array(
+					'available' => false,
+					'disabled' => true,
+					'reason' => 'ClickHouse is deprecated and disabled (setting flexicorp/enable_clickhouse).',
+				);
+				return $memo[$memoKey];
+			}
+			$cached = tt_flexicorp_status_cache( $projectRoot, 'clickhouse|' . $argsKey );
+			if ( is_array($cached) ) {
+				$memo[$memoKey] = $cached;
+				return $cached;
 			}
 			$out = array(
 				'available' => false,
@@ -1824,6 +1910,7 @@ require_once __DIR__ . '/flexicorp_functions.php';
 					? 'ClickHouse backend is available.'
 					: 'ClickHouse backend is not available for this corpus.';
 			}
+			tt_flexicorp_status_cache( $projectRoot, 'clickhouse|' . $argsKey, $out );
 			$memo[$memoKey] = $out;
 			return $out;
 		}
@@ -1863,6 +1950,19 @@ require_once __DIR__ . '/flexicorp_functions.php';
 			}
 			$memoKey = $rootKey . '|' . $argsKey;
 			if ( isset($memo[$memoKey]) ) return $memo[$memoKey];
+			if ( !tt_flexicorp_pmltq_in_use() ) {
+				$memo[$memoKey] = array(
+					'available' => false,
+					'not_checked' => true,
+					'reason' => 'PML-TQ is not set up for this corpus (no <pmltq> settings), so it is not checked.',
+				);
+				return $memo[$memoKey];
+			}
+			$cached = tt_flexicorp_status_cache( $projectRoot, 'pmltq|' . $argsKey );
+			if ( is_array($cached) ) {
+				$memo[$memoKey] = $cached;
+				return $cached;
+			}
 
 			$out = array(
 				'available' => false,
@@ -1909,6 +2009,7 @@ require_once __DIR__ . '/flexicorp_functions.php';
 					? 'PMLTQ backend is available.'
 					: 'PMLTQ backend is not available for this corpus.';
 			}
+			tt_flexicorp_status_cache( $projectRoot, 'pmltq|' . $argsKey, $out );
 			$memo[$memoKey] = $out;
 			return $out;
 		}
@@ -2010,6 +2111,9 @@ require_once __DIR__ . '/flexicorp_functions.php';
 				'pmltq'     => array( 'label' => 'pmltq', 'available' => !empty($pmltqSt['available']), 'reason' => (string)($pmltqSt['reason'] ?? '') ),
 				'teitokxml' => array( 'label' => 'teitokxml', 'available' => true, 'reason' => 'TEITOK XML files backend (doclist.sqlite).' ),
 			);
+			if ( !tt_flexicorp_clickhouse_enabled() ) {
+				unset( $backends['clickql'], $backends['clickhouse'], $engines['clickql'], $engines['clickhouse'] );
+			}
 			return array( 'backends' => $backends, 'queryEngines' => $engines );
 		}
 	}
@@ -2137,6 +2241,7 @@ require_once __DIR__ . '/flexicorp_functions.php';
 			);
 
 			$clickReason = isset($clickSt['reason']) ? (string)$clickSt['reason'] : '';
+			if ( tt_flexicorp_clickhouse_enabled() ) {
 			$combos[] = array(
 				'id' => 'clickql:clickcql:clickhouse',
 				'backend' => 'clickql',
@@ -2167,6 +2272,7 @@ require_once __DIR__ . '/flexicorp_functions.php';
 					'stats_dep_collocations' => false,
 				),
 			);
+			}
 
 			// TEITOK XML files backend (no query support, documents only)
 			$combos[] = array(
@@ -2935,7 +3041,42 @@ require_once __DIR__ . '/flexicorp_functions.php';
 	}
 
 	if ( !function_exists('tt_flexicorp_fqs_probe') ) {
-		function tt_flexicorp_fqs_probe( $projectRoot, $isAdmin ) {
+		/**
+		 * FQS readiness for this project. The checks behind it (fqs --version, /health, fqs status,
+		 * fqs corpora show: three process starts and an HTTP call) do not depend on the caller's role,
+		 * so they run once per PHP request; only request_role and jwt_preview are filled in per call.
+		 * Pass $fresh = true after changing the FQS catalogue in the same request.
+		 */
+		function tt_flexicorp_fqs_probe( $projectRoot, $isAdmin, $fresh = false ) {
+			static $memo = array();
+			$key = rtrim( (string) $projectRoot, '/' );
+			if ( $fresh || !isset( $memo[$key] ) ) {
+				$memo[$key] = tt_flexicorp_fqs_probe_uncached( $projectRoot, $isAdmin );
+			}
+			$probe = $memo[$key];
+			$role = $isAdmin ? 'admin' : ( tt_flexicorp_request_user() !== '' ? 'user' : 'visitor' );
+			if ( $probe['request_role'] !== $role ) {
+				$probe['request_role'] = $role;
+				$probe['jwt_preview'] = '';
+				$secret = tt_flexicorp_fqs_secret();
+				if ( $secret !== '' ) {
+					$now = time();
+					$jwt = tt_flexicorp_make_hs256_jwt( array(
+						'iss' => 'teitok-flexicorp',
+						'sub' => $probe['corpus_id'],
+						'role' => $role,
+						'iat' => $now,
+						'exp' => $now + 300,
+					), $secret );
+					$probe['jwt_preview'] = $jwt !== '' ? substr( $jwt, 0, 20 ) . '...' : '';
+				}
+			}
+			return $probe;
+		}
+	}
+
+	if ( !function_exists('tt_flexicorp_fqs_probe_uncached') ) {
+		function tt_flexicorp_fqs_probe_uncached( $projectRoot, $isAdmin ) {
 			$url = tt_flexicorp_fqs_url();
 			$bin = tt_flexicorp_fqs_bin();
 			$corpusId = tt_flexicorp_corpus_id_from_root($projectRoot);
@@ -4485,9 +4626,15 @@ require_once __DIR__ . '/flexicorp_functions.php';
 			if ( $manateePythonPath !== '' ) {
 				$probeCmd = 'env PYTHONPATH=' . escapeshellarg($manateePythonPath) . ' ' . $probeCmd;
 			}
-			$probeOut = array();
-			$probeCode = 0;
-			@exec($probeCmd . ' 2>&1', $probeOut, $probeCode);
+			// The module check starts a Python process; its answer does not change within a request.
+			static $moduleProbes = array();
+			if ( !isset($moduleProbes[$probeCmd]) ) {
+				$probeOut = array();
+				$probeCode = 0;
+				@exec($probeCmd . ' 2>&1', $probeOut, $probeCode);
+				$moduleProbes[$probeCmd] = array($probeCode, $probeOut);
+			}
+			list($probeCode, $probeOut) = $moduleProbes[$probeCmd];
 			if ( $probeCode !== 0 ) {
 				$probeRaw = implode("\n", $probeOut);
 				$msg = 'flexicorp Python module is not runnable in the TEITOK venv (missing package or flexicorp.__main__).';
@@ -4540,6 +4687,9 @@ require_once __DIR__ . '/flexicorp_functions.php';
 			$cmd = implode(' ', $parts);
 			if ( $manateePythonPath !== '' ) {
 				$cmd = 'env PYTHONPATH=' . escapeshellarg($manateePythonPath) . ' ' . $cmd;
+			}
+			if ( function_exists('tt_flexicorp_clickhouse_enabled') && tt_flexicorp_clickhouse_enabled() ) {
+				$cmd = 'env FLEXICORP_ENABLE_CLICKHOUSE=1 ' . $cmd;
 			}
 			$isReindex = ( isset($subcommandParts[0]) && $subcommandParts[0] === 'reindex' );
 			if ( $isReindex ) {
@@ -6267,6 +6417,18 @@ require_once __DIR__ . '/flexicorp_functions.php';
 		$requestBackend = $reindexBackend;
 		$requestQueryLanguage = '';
 		$requestCorpusFormat = '';
+	}
+	// ClickHouse is deprecated and disabled: a request, link or settings default naming it gets the
+	// normal choice instead (a reindex request for it is passed on and refused with the reason).
+	if ( !tt_flexicorp_clickhouse_enabled() && !$forceReindexBackend ) {
+		if ( in_array( $requestBackend, array( 'clickql', 'clickhouse' ), true ) ) {
+			$requestBackend = '';
+			$requestQueryLanguage = '';
+			$requestCorpusFormat = '';
+		}
+		if ( in_array( $defaultBackend, array( 'clickql', 'clickhouse' ), true ) ) {
+			$defaultBackend = '';
+		}
 	}
 	// Explicit settings default, else auto (pando → cqp → …). Never default to legacy flexi/click.
 	if ( $requestBackend !== '' ) {

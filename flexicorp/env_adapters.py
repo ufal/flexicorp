@@ -1312,5 +1312,10 @@ def build_adapter_registry() -> Dict[str, EnvAdapter]:
         KontextEnvAdapter(),
         PmltqEnvAdapter(),
     ]
+    from .core import clickhouse_enabled
+
+    if not clickhouse_enabled():
+        # ClickHouse is deprecated and disabled (FLEXICORP_ENABLE_CLICKHOUSE=1 brings it back).
+        adapters = [a for a in adapters if a.name != "clickhouse"]
     return {a.name: a for a in adapters}
 

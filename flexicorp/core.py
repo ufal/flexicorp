@@ -97,6 +97,27 @@ BUILTIN_BACKEND_MODULES: Dict[str, str] = {
 }
 
 
+# ClickHouse ("clickhouse", and "clickql" on top of it) is deprecated. The code stays, but these
+# backends are not loaded, listed, probed or reindexed unless FLEXICORP_ENABLE_CLICKHOUSE=1
+# (TEITOK passes that when the setting flexicorp/enable_clickhouse is on).
+DEPRECATED_CLICKHOUSE_BACKENDS = frozenset({"clickhouse", "clickql"})
+
+
+def clickhouse_enabled() -> bool:
+    return os.environ.get("FLEXICORP_ENABLE_CLICKHOUSE", "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def backend_disabled_reason(name: str) -> str:
+    """Why backend ``name`` is switched off, or '' when it may be used."""
+    key = (name or "").strip().lower()
+    if key in DEPRECATED_CLICKHOUSE_BACKENDS and not clickhouse_enabled():
+        return (
+            f"The {key} backend (ClickHouse) is deprecated and disabled; "
+            "set FLEXICORP_ENABLE_CLICKHOUSE=1 (TEITOK: flexicorp/enable_clickhouse) to use it."
+        )
+    return ""
+
+
 def register_backend(backend: CorpusBackend) -> None:
     """
     Register a backend instance.
@@ -115,6 +136,8 @@ def ensure_backend_loaded(name: str) -> CorpusBackend | None:
     key = (name or "").strip().lower()
     if not key:
         return None
+    if backend_disabled_reason(key):
+        return None
 
     backend = BACKENDS.get(key)
     if backend is not None:
@@ -132,7 +155,7 @@ def available_backend_names() -> List[str]:
     """Return known backend ids, including lazy-loadable built-ins."""
     names = set(BACKENDS.backends)
     names.update(BUILTIN_BACKEND_MODULES)
-    return sorted(names)
+    return sorted(n for n in names if not backend_disabled_reason(n))
 
 
 def backend_descriptor(backend: CorpusBackend) -> Dict[str, Any]:
@@ -495,11 +518,20 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
         backends = [str(b).strip().lower() for b in backends_raw if b]
     else:
         backends = []
+    disabled = [b for b in backends if backend_disabled_reason(b)]
+    if disabled:
+        backends = [b for b in backends if b not in disabled]
+        if not backends:
+            return _make_error_response(
+                backend="flexencoder",
+                operation="reindex",
+                message=backend_disabled_reason(disabled[0]),
+            )
     if not backends:
         return _make_error_response(
             backend="flexencoder",
             operation="reindex",
-            message="reindex_backends is required (list or comma-separated, e.g. cqp,clickhouse,pando,manatee).",
+            message="reindex_backends is required (list or comma-separated, e.g. cqp,pando,manatee).",
         )
 
     project = dict(req.get("project") or {})
@@ -794,7 +826,8 @@ def handle_request(req: FlexiRequest) -> FlexiResponse:
         return _make_error_response(
             backend=backend_name,
             operation=operation,
-            message=f"Unknown backend '{backend_name}'. Available: {', '.join(available_backend_names())}",
+            message=backend_disabled_reason(backend_name)
+            or f"Unknown backend '{backend_name}'. Available: {', '.join(available_backend_names())}",
         )
 
     # Resolve operation method on backend

@@ -12,6 +12,7 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Any, Dict
 import json
+import os
 
 
 _CONFIG_DIR = Path.home() / ".flexicorp"
@@ -20,13 +21,13 @@ _CONFIG_FILE = _CONFIG_DIR / "config.json"
 
 @dataclass
 class FlexiConfig:
-    default_backend: str = "clickhouse"
+    default_backend: str = "pando"
     auto_install_optional_deps: bool = True
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "FlexiConfig":
         return cls(
-            default_backend=str(data.get("default_backend", "clickhouse")),
+            default_backend=str(data.get("default_backend", "pando")),
             auto_install_optional_deps=bool(data.get("auto_install_optional_deps", True)),
         )
 
@@ -57,7 +58,12 @@ def write_config(cfg: FlexiConfig) -> None:
 
 def get_default_backend() -> str:
     cfg = read_config()
-    return cfg.default_backend or "clickhouse"
+    backend = (cfg.default_backend or "pando").strip().lower()
+    # ClickHouse is deprecated: a stored default of clickhouse/clickql falls back to pando
+    # unless FLEXICORP_ENABLE_CLICKHOUSE is set (see core.backend_disabled_reason).
+    if backend in ("clickhouse", "clickql") and os.environ.get("FLEXICORP_ENABLE_CLICKHOUSE", "").strip().lower() not in ("1", "true", "yes", "on"):
+        return "pando"
+    return backend
 
 
 def set_default_backend(backend: str) -> None:

@@ -568,7 +568,7 @@ def _build_parser() -> argparse.ArgumentParser:
     config = subparsers.add_parser("config", help="Manage flexicorp CLI configuration.", parents=[shared_parent])
     config.add_argument(
         "--set-default-backend",
-        choices=["blacklab", "clickhouse", "clickql", "cqp", "flexi", "manatee", "pmltq"],
+        choices=["blacklab", "clickhouse", "clickql", "cqp", "flexi", "manatee", "pando", "pmltq"],
         metavar="BACKEND",
         help="Set the default backend to use when --backend is not provided.",
     )
@@ -786,6 +786,10 @@ def _infer_backend_for_cli(args: argparse.Namespace) -> str | None:
         return "cqp"
     if ql == "bcql" or cf == "blacklab":
         return "blacklab"
+    if ql == "pando-cql" or cf == "pando":
+        return "pando"
+    if ql == "pmltq" and os.environ.get("FLEXICORP_ENABLE_CLICKHOUSE", "").strip().lower() not in ("1", "true", "yes", "on"):
+        return "pmltq"  # native PML-TQ; PML-TQ over ClickHouse is deprecated
     if cf == "clickhouse" or ql in ("clickcql", "clickql", "pmltq", "clickpmltq"):
         return "clickql"
     if ql == "teitok" or cf == "xml":
@@ -801,7 +805,7 @@ def _resolve_backend(arg_backend: str | None, args: argparse.Namespace | None = 
     1. Explicit --backend CLI argument.
     2. Inferred from query language / corpus format (kwic and query subcommands only).
     3. User configuration (settings.default_backend).
-    4. Hard-coded default "clickhouse".
+    4. Hard-coded default "pando".
     """
     if arg_backend:
         return arg_backend

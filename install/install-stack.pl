@@ -1040,6 +1040,67 @@ if ( -f $RESTART_PENDING && !$RESTARTED && !$POSTPONED ) {
 	else { fqs_restart( $why || 'new files' ); }
 }
 
+# ── restarts from fqsadmin (systemd) ───────────────────────────────────────────────
+# FQS runs as an unprivileged user with NoNewPrivileges, so it cannot run `systemctl
+# restart` itself. For each unit fqsadmin may restart (FQS itself; KonText when
+# kontext.service is on this machine) a root-owned path unit watches a file in
+# /var/lib/fqs/restart that only the FQS user may write; writing it makes systemd restart
+# that one unit. Which units can be restarted is decided here, not by FQS. Runs on every
+# install (it only changes something when a unit or the FQS user is new).
+sub write_if_changed {
+	my ( $f, $text ) = @_;
+	return 0 if -f $f && read_file($f) eq $text;
+	open my $fh, '>', "$f.new-$$" or return warn_("cannot write $f: $!") && 0;
+	print $fh $text;
+	close $fh;
+	chmod 0644, "$f.new-$$";
+	rename "$f.new-$$", $f;
+	return 1;
+}
+sub restart_triggers {
+	my ($user) = @_;
+	my $svc = capture('systemctl show -p User --value fqs.service');
+	$user = $svc if $svc ne '' && defined getpwnam($svc);
+	my $uid = getpwnam($user);
+	return warn_("restart triggers: no user $user") unless defined $uid;
+	my @units = ('fqs');
+	push @units, 'kontext'
+		if !$o{'no-frontends'} && capture('systemctl list-unit-files --no-legend kontext.service') =~ /^kontext\.service/m;
+	my $dir = '/var/lib/fqs/restart';
+	return unless -d dirname($dir);
+	make_path($dir) unless -d $dir;
+	chmod 0755, $dir;
+	my $changed = write_if_changed( '/etc/systemd/system/fqs-restart@.service',
+		"# written by install-stack.pl: restarts %i.service when FQS asks for it (fqs-restart-%i.path)\n"
+		. "[Unit]\nDescription=Restart %i.service on request from FQS (fqsadmin)\n\n"
+		. "[Service]\nType=oneshot\nExecStart=/bin/systemctl restart %i.service\n" );
+	for my $u (@units) {
+		my $f = "$dir/$u";
+		# only touch the file when needed: a change of owner or mode counts as a restart request
+		if ( !-f $f ) { open my $fh, '>', $f; close $fh; }
+		my @st = stat($f);
+		chown $uid, 0, $f if $st[4] != $uid;
+		chmod 0644, $f if ( $st[2] & 07777 ) != 0644;
+		$changed += write_if_changed( "/etc/systemd/system/fqs-restart-$u.path",
+			"# written by install-stack.pl: FQS writes $f to restart $u.service\n"
+			. "[Unit]\nDescription=Restart requests from FQS for $u.service\n\n"
+			. "[Path]\nPathModified=$f\nUnit=fqs-restart\@$u.service\n\n[Install]\nWantedBy=multi-user.target\n" );
+	}
+	run( '', 'systemctl daemon-reload', soft => 1 ) if $changed;
+	my @new;
+	for my $u (@units) {
+		next if capture("systemctl is-active fqs-restart-$u.path") eq 'active';
+		run( '', "systemctl enable --now -q fqs-restart-$u.path", soft => 1 )
+			or ( warn_("could not enable fqs-restart-$u.path: fqsadmin cannot restart $u") && next );
+		push @new, $u;
+	}
+	say_( "  fqsadmin can restart: " . join( ', ', map { $_ eq 'fqs' ? 'FQS' : $_ eq 'kontext' ? 'KonText' : $_ } @new )
+		. " (systemd: fqs-restart-<unit>.path, $dir)\n" ) if @new;
+}
+if ( $want{fqs} && $INIT eq 'systemd' && -x "$PREFIX/bin/fqs" ) {
+	restart_triggers($WEBU);
+}
+
 # ── TEITOK settings: only add what is missing ─────────────────────────────────
 if ( $o{'fqs-admin'} ) {
 	step('TEITOK settings');

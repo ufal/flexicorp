@@ -1603,6 +1603,10 @@ r.set(k,json.dumps(L))
 	$isKontextAct = ( $screenAct === 'kontext' );
 	$isStatusAct = ( ! $isEditAct && ! $isLogsAct && ! $isKontextAct );
 	$debugEnabled = ( !empty($debug) || (isset($_REQUEST['debug']) && trim((string)$_REQUEST['debug']) !== '') );
+	// ClickHouse is deprecated and disabled unless the setting flexicorp/enable_clickhouse is on
+	// (same switch as tt_flexicorp_clickhouse_enabled() in flexicorp.php).
+	$clickhouseEnabled = function_exists('getset')
+		&& in_array( strtolower( trim( (string) getset( 'flexicorp/enable_clickhouse', '' ) ) ), array( '1', 'true', 'yes', 'on' ), true );
 	$backendMeta = array(
 		'teitok' => array('kind' => 'frontend', 'depends_on' => array(), 'depends_hint' => 'auto-detected from project settings'),
 		'fcs' => array('kind' => 'frontend', 'depends_on' => array(), 'depends_hint' => 'auto-detected from FQS FCS-enabled corpora'),
@@ -1611,10 +1615,10 @@ r.set(k,json.dumps(L))
 		'manatee' => array('kind' => 'backend', 'depends_on' => array()),
 		'blacklab' => array('kind' => 'backend', 'depends_on' => array()),
 		'kontext' => array('kind' => 'frontend', 'depends_on' => array('manatee')),
-		'pmltq' => array('kind' => 'backend', 'depends_on' => array(), 'depends_hint' => 'PML-TQ→ClickHouse (same DB as ClickQL) vs native PML-TQ HTTP (PostgreSQL); independent'),
+		'pmltq' => array('kind' => 'backend', 'depends_on' => array(), 'depends_hint' => $clickhouseEnabled ? 'PML-TQ→ClickHouse (same DB as ClickQL) vs native PML-TQ HTTP (PostgreSQL); independent' : 'native PML-TQ HTTP server (PostgreSQL)'),
 	);
 	if ( !empty($debug) ) {
-		$backendMeta['clickhouse'] = array('kind' => 'backend', 'depends_on' => array(), 'depends_hint' => 'debug-only backend adapter');
+		if ( $clickhouseEnabled ) $backendMeta['clickhouse'] = array('kind' => 'backend', 'depends_on' => array(), 'depends_hint' => 'debug-only backend adapter');
 		$backendMeta['teitokxml'] = array('kind' => 'backend', 'depends_on' => array(), 'depends_hint' => 'debug-only (mainly EasyCorp)');
 	}
 	$backendOptions = array_keys($backendMeta);
@@ -1655,6 +1659,7 @@ r.set(k,json.dumps(L))
 			array('key' => 'cfg_links_fcs_corpus_url_pattern', 'path' => array('links', 'fcs_corpus_url_pattern')),
 		);
 		foreach ( $fields as $f ) {
+			if ( !$clickhouseEnabled && $f['path'][0] === 'clickhouse' ) continue; // not on the form: keep what is stored
 			$val = isset($_POST[$f['key']]) ? trim((string) $_POST[$f['key']]) : '';
 			if ( $val === '' ) {
 				tt_fqsb_cfg_unset($newCfg, $f['path']);
@@ -1667,6 +1672,7 @@ r.set(k,json.dumps(L))
 			array('key' => 'cfg_clickhouse_port', 'path' => array('clickhouse', 'port')),
 		);
 		foreach ( $portFields as $f ) {
+			if ( !$clickhouseEnabled && $f['path'][0] === 'clickhouse' ) continue;
 			$raw = isset($_POST[$f['key']]) ? trim((string) $_POST[$f['key']]) : '';
 			if ( $raw === '' ) {
 				tt_fqsb_cfg_unset($newCfg, $f['path']);
@@ -2087,15 +2093,15 @@ r.set(k,json.dumps(L))
 		. "<tr><th align='left'>FQS</th><td>"
 		. "binary <input type='text' name='cfg_fqs_bin' size='52' value='" . htmlspecialchars($cfgFqsBin, ENT_QUOTES, 'UTF-8') . "' />"
 		. "</td></tr>"
-		. "<tr><th align='left'>ClickHouse</th><td>"
+		. ( !$clickhouseEnabled ? '' : "<tr><th align='left'>ClickHouse</th><td>"
 		. "host <input type='text' name='cfg_clickhouse_host' size='20' value='" . htmlspecialchars($cfgClickHost, ENT_QUOTES, 'UTF-8') . "' /> "
 		. "port <input type='text' name='cfg_clickhouse_port' size='6' value='" . htmlspecialchars($cfgClickPort, ENT_QUOTES, 'UTF-8') . "' /> "
 		. "database <input type='text' name='cfg_clickhouse_database' size='18' value='" . htmlspecialchars($cfgClickDb, ENT_QUOTES, 'UTF-8') . "' />"
 		. "<br/><small>Same database for ClickQL, direct SQL, and PML-TQ→SQL translation (only the query language differs).</small>"
-		. "</td></tr>"
+		. "</td></tr>" )
 		. "<tr><th align='left'>PML-TQ (native HTTP)</th><td>"
 		. "server URL <input type='text' name='cfg_pmltq_server_url' size='52' value='" . htmlspecialchars($cfgPmlServerUrl, ENT_QUOTES, 'UTF-8') . "' placeholder='http://127.0.0.1:19100' /> "
-		. "<small>Native PML-TQ API (PostgreSQL). Expected treebank id comes from the TEITOK corpus / ClickHouse DB name (same as other backends), not from here.</small>"
+		. "<small>Native PML-TQ API (PostgreSQL). Expected treebank id comes from the TEITOK corpus" . ( $clickhouseEnabled ? " / ClickHouse DB name" : "" ) . " (same as other backends), not from here.</small>"
 		. "</td></tr>"
 		. "<tr><th align='left'>Live link mapping</th><td>"
 		. "KonText URL <input type='text' name='cfg_links_kontext_live_url' size='36' value='" . htmlspecialchars($cfgLinksKontextUrl, ENT_QUOTES, 'UTF-8') . "' /> "
@@ -2114,7 +2120,7 @@ r.set(k,json.dumps(L))
 			. "<code>FLEXICORP_ENV_CONFIG</code>, <code>/etc/flexicorp/env-config.json</code>, "
 			. "<code>~/.config/flexicorp/env-config.json</code>, <code>~/.flexicorp/env-config.json</code>, "
 			. "<code>/tmp/flexicorp/env-config.json</code>.</small></p>";
-		$maintext .= "<p><small>Debug mode enabled: extra backend adapters are visible (e.g. <code>clickhouse</code>, <code>teitokxml</code>).</small></p>";
+		$maintext .= "<p><small>Debug mode enabled: extra backend adapters are visible (e.g. " . ( $clickhouseEnabled ? "<code>clickhouse</code>, " : "" ) . "<code>teitokxml</code>).</small></p>";
 	}
 
 	if ( $isStatusAct ) {

@@ -133,6 +133,14 @@ it up. By hand, the same is:
   unit has `ProtectSystem=strict`). `--no-frontends` leaves them alone. KonText
   installed or redeployed later (a deployment that replaces `corplist.xml` drops the
   ACL): run `install-stack.pl --only fqs` again.
+- restarts from fqsadmin (systemd): FQS runs as an unprivileged user with
+  `NoNewPrivileges`, so it cannot run `systemctl restart` itself. For FQS, and for KonText
+  when `kontext.service` is on the machine, the installer adds a root-owned path unit
+  `fqs-restart-<unit>.path` that watches `/var/lib/fqs/restart/<unit>` (writable for the FQS
+  user only) and runs `fqs-restart@<unit>.service` (`systemctl restart <unit>.service`) when
+  FQS writes it. This gives fqsadmin a Restart button for FQS and KonText, also when KonText is
+  not in `fqs.json`, and nothing more: which units can be restarted is decided here.
+  Checked on every run; `--no-frontends` leaves out KonText.
 
 Versions and commits go to `/usr/local/share/teitok-stack/manifest.json`; logs to
 `/var/log/teitok-install/`.

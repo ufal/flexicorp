@@ -18,6 +18,17 @@ function flexicorpApp() {
 		'<p>For <strong>CWB-style CQL</strong>, a typical pattern is to search for a word form or lemma; for example, words <em>starting with the letter a</em> often use a prefix pattern where your dialect supports regular expressions.</p>' +
 		'<p><strong>Example</strong> buttons below (if configured by the corpus administrator) follow your currently selected engine and corpus setup.</p>';
 
+	/**
+	 * Memo for values derived from one search result, kept outside the Alpine component so that
+	 * filling it does not trigger re-renders. Keys are the raw (unproxied) hits array or hit object;
+	 * a new search, or a further page, replaces the hits array, so entries expire with it.
+	 * Without it the results table rebuilt the merged hit list (re-parsing every XML fragment)
+	 * for each x-show/x-bind that asked for it: about 50 times for 25 aligned rows.
+	 */
+	const _fcRaw = (o) => (o && typeof window !== 'undefined' && window.Alpine && typeof window.Alpine.raw === 'function') ? window.Alpine.raw(o) : o;
+	const _fcMergedHitsMemo = new WeakMap();
+	const _fcSentenceIdMemo = new WeakMap();
+
 	const _flexicorpCore = {
 		action: 'flexicorp',
 		projectRoot: '',
@@ -5468,6 +5479,18 @@ function flexicorpApp() {
 
 		/** Sentence id for navigation (deptree, etc.): CWB fields first, then token s_id (Pando), then XML &lt;s&gt;/&lt;seg&gt;. */
 		getHitSentenceIdForNavigation(hit) {
+			const rawHit = hit && typeof hit === 'object' ? _fcRaw(hit) : null;
+			const memoKey = this.isXmlContext() ? 'xml' : 'plain';
+			if (rawHit) {
+				const m = _fcSentenceIdMemo.get(rawHit);
+				if (m && m.key === memoKey) return m.value;
+			}
+			const value = this._getHitSentenceIdForNavigationUncached(hit);
+			if (rawHit) _fcSentenceIdMemo.set(rawHit, { key: memoKey, value });
+			return value;
+		},
+
+		_getHitSentenceIdForNavigationUncached(hit) {
 			const a = this.getHitSentenceId(hit);
 			if (a) return a;
 			const b = this.getHitSentenceRegionIdFromTokens(hit);
@@ -9521,6 +9544,10 @@ function flexicorpApp() {
 			// Merging by sentence key collapses many distinct aligned rows into one unhelpful occurrence.
 			if (this.queryUsesStructuralAlignedTarget()) return hits;
 			if (!shouldGroup) return hits;
+			const rawHits = _fcRaw(hits);
+			const memoKey = this.isXmlContext() ? 'xml' : 'plain';
+			const memo = _fcMergedHitsMemo.get(rawHits);
+			if (memo && memo.key === memoKey && memo.length === rawHits.length) return memo.value;
 			const merged = [];
 			const seen = {};
 			hits.forEach(hit => {
@@ -9531,9 +9558,11 @@ function flexicorpApp() {
 				}
 				seen[key].push(hit);
 			});
-			return merged
+			const value = merged
 				.map(group => this.buildMergedHit(group))
 				.filter(Boolean);
+			_fcMergedHitsMemo.set(rawHits, { key: memoKey, length: rawHits.length, value });
+			return value;
 		},
 
 		groupHitsByDoc() {

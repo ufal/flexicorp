@@ -10,7 +10,14 @@ from urllib.request import Request, urlopen
 from .backends.manatee import load_manatee_bindings
 from .clickhouse_errors import format_clickhouse_error_message
 from .config import get_blacklab_settings, get_clickhouse_config, get_project_root
-from .core import available_backend_names, backend_descriptor, ensure_backend_loaded
+from .core import (
+    DEPRECATED_CLICKHOUSE_BACKENDS,
+    available_backend_names,
+    backend_descriptor,
+    backend_disabled_reason,
+    clickhouse_enabled,
+    ensure_backend_loaded,
+)
 from .env_config import load_env_config, resolve_pmltq_native_server_url
 from .teitok import detect_teitok_cqp, detect_teitok_manatee
 
@@ -227,6 +234,13 @@ def _teitokxml_status(project: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _clickhouse_status(project: Dict[str, Any]) -> Dict[str, Any]:
+    if not clickhouse_enabled():
+        return {
+            "available": False,
+            "daemon_reachable": False,
+            "disabled": True,
+            "reason": backend_disabled_reason("clickhouse"),
+        }
     cfg = get_clickhouse_config(project)
     if cfg is None:
         return {
@@ -308,6 +322,17 @@ def _pmltq_http_status(project: Dict[str, Any]) -> Dict[str, Any]:
             "url_source": "env_config.native_http_false",
         }
     base, source = resolve_pmltq_native_server_url(project)
+    if source == "default" and not clickhouse_enabled():
+        # Nothing names a PML-TQ server (project, env-config, PMLTQ_URL): the corpus does not use
+        # PML-TQ, so do not spend an HTTP call (up to 2.5 s) on the default address.
+        return {
+            "available": False,
+            "native_http_reachable": False,
+            "not_checked": True,
+            "reason": "PML-TQ is not configured (no PML-TQ server set for this corpus or in env-config).",
+            "url": "",
+            "url_source": source,
+        }
     url = f"{base}/v1/treebanks"
 
     def _default_refused_ok(exc: BaseException) -> bool:
@@ -386,6 +411,13 @@ def _pmltq_http_status(project: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _clickql_status(project: Dict[str, Any], clickhouse_status: Dict[str, Any]) -> Dict[str, Any]:
+    if not clickhouse_enabled():
+        return {
+            "available": False,
+            "daemon_reachable": False,
+            "disabled": True,
+            "reason": backend_disabled_reason("clickql"),
+        }
     cfg = get_clickhouse_config(project)
     if cfg is None:
         return {"available": False, "daemon_reachable": False, "reason": "No ClickHouse configuration available."}
@@ -824,6 +856,17 @@ def build_backend_overview(project: Dict[str, Any]) -> Dict[str, Any]:
         if name == "pmltq_native" and not st.get("native_http_reachable", False):
             return False
         return True
+
+    if not clickhouse_enabled():
+        # Deprecated: leave ClickHouse out of the overview altogether (also PML-TQ over ClickHouse).
+        for name in DEPRECATED_CLICKHOUSE_BACKENDS:
+            backend_status.pop(name, None)
+            query_engines.pop(name, None)
+        query_engines.pop("pmltq", None)
+        backend_combos = [
+            c for c in backend_combos
+            if str(c.get("backend") or "") not in DEPRECATED_CLICKHOUSE_BACKENDS
+        ]
 
     primary_backends = [
         name for name, st in backend_status.items() if _backend_listable(name, st)
