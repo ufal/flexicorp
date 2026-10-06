@@ -43,6 +43,21 @@
 #   --no-pull             use the existing checkouts as they are
 #   --force [LIST]        rebuild and reinstall even when the sources did not change:
 #                         every component, or the comma-separated ones in LIST
+#   --cron                for unattended updates (cron, a systemd timer): no questions,
+#                         no output and no log when nothing changed; a summary (which cron
+#                         mails) when something was updated, a pull failed or a step failed.
+#                         Exits quietly when another run is still busy.
+#                         e.g. /etc/cron.d/teitok-stack:
+#                           30 3 * * * root perl /path/to/flexicorp/install/install-stack.pl --cron
+#
+#   --auto-update [HH:MM] set up a nightly run with --cron (default 02:00): a systemd timer
+#                         (teitok-stack-update.timer), else /etc/cron.d/teitok-stack, on
+#                         macOS a launchd job. A first interactive run offers this itself.
+#   --no-auto-update      remove that nightly run (and do not offer it again)
+#
+# Only one run at a time (a lock in PREFIX/share/teitok-stack). FQS is not restarted while
+# it runs a reindex job: the restart is postponed (marked in PREFIX/share/teitok-stack) and
+# done by the next run once the jobs have finished.
 #   --no-deps             do not install system packages (compilers, RE2, Rust, ...)
 #   --fqs-admin EMAIL     TEITOK user allowed into the FQS admin (only set when
 #                         flexicorp/fqs_admin_users is not set yet)
@@ -78,7 +93,9 @@ my %o = (
 my @ORIG_ARGV = @ARGV;    # to restart with the same options when the pull updated this script
 GetOptions( \%o, 'detect', 'check', 'q|yes', 'teitok-root=s', 'shared=s', 'web-user=s', 'git-folder=s',
 	'prefix=s', 'only=s', 'skip=s', 'flexicorp-repo=s', 'flexicorp-ref=s', 'pando-repo=s', 'pando-ref=s',
-	'no-pull', 'no-deps', 'fqs-admin=s', 'no-check', 'no-frontends', 'force:s', 'help|h' ) or exit 2;
+	'no-pull', 'no-deps', 'fqs-admin=s', 'no-check', 'no-frontends', 'force:s', 'cron', 'auto-update:s', 'no-auto-update', 'help|h' ) or exit 2;
+my $CRON = $o{cron} ? 1 : 0;
+$o{q} = 1 if $CRON;
 if ( $o{help} ) { usage(); exit 0; }
 
 my $OS   = $^O;                                   # linux, darwin, freebsd
@@ -98,12 +115,16 @@ open( my $LOGFH, '>>', $LOG ) or die "cannot write $LOG: $!\n";
 $| = 1;
 
 sub logline { print $LOGFH @_; }
-sub say_ { my $m = join( '', @_ ); print $m; logline($m); }
+# --cron: everything goes to the log only; the summary at the end decides what is printed
+sub say_ { my $m = join( '', @_ ); print $m unless $CRON; logline($m); }
+my @WARNINGS;
 sub step { my $m = shift; say_("\n== $m\n"); }
-sub warn_ { say_( "  warning: ", @_, "\n" ); }
+sub warn_ { push @WARNINGS, join( '', @_ ); say_( "  warning: ", @_, "\n" ); }
 sub fail {
 	my $m = shift;
-	say_("\n!!!! $m\n     full log: $LOG\n");
+	my $out = "\n!!!! $m\n     full log: $LOG\n";
+	print $out;    # also with --cron: this is what cron mails
+	logline($out);
 	exit 1;
 }
 sub q_ { my $s = shift; return $s if $s =~ m{^[\w./:=+,@%-]+$}; $s =~ s/'/'\\''/g; return "'$s'"; }
@@ -220,6 +241,20 @@ $ENV{PATH} = join( ':', grep { -d $_ } ( split( /:/, $ENV{PATH} || '/usr/bin:/bi
 
 if ( $< != 0 && !$o{detect} && !$o{check} ) {
 	fail("run as root (sudo perl $0 ...): it installs into $o{prefix} and runs builds as other users");
+}
+
+# one run at a time: two runs would remove each other's build folders (a lock held until the
+# process ends; a restart with a newer version of this script takes it over)
+my $LOCKFH;
+if ( !$o{detect} && !$o{check} ) {
+	use Fcntl qw(:flock);
+	my $ld = "$o{prefix}/share/teitok-stack";
+	make_path($ld) unless -d $ld;
+	open( $LOCKFH, '>>', "$ld/install.lock" ) or fail("cannot open $ld/install.lock: $!");
+	if ( !flock( $LOCKFH, LOCK_EX | LOCK_NB ) ) {
+		if ($CRON) { close $LOGFH; unlink $LOG; exit 0; }    # the previous run is still busy: next time
+		fail("another install-stack.pl is running (lock: $ld/install.lock)");
+	}
 }
 
 # ── platform ────────────────────────────────────────────────────────────────
@@ -360,7 +395,7 @@ say_("  $_\n") for map { "found $_" } @{ $D->{how} };
 fail("no TEITOK checkout found (common/Sources/main.php); pass --teitok-root DIR") unless $D->{teitok_root};
 fail("no TEITOK shared project found; pass --shared DIR") unless $D->{shared} && -d $D->{shared};
 fail("no web user found; pass --web-user USER") unless $D->{web_user};
-printf "  %-16s %s\n" x 6, 'TEITOK checkout', $D->{teitok_root}, 'shared project', $D->{shared}, 'web user', "$D->{web_user} (group $D->{web_group})",
+say_ sprintf "  %-16s %s\n" x 6, 'TEITOK checkout', $D->{teitok_root}, 'shared project', $D->{shared}, 'web user', "$D->{web_user} (group $D->{web_group})",
 	'web server', ( $D->{webserver} || '?' ), 'venv', $D->{venv}, 'system', "$OS, $PKG, init: $INIT";
 logline("teitok_root=$D->{teitok_root} shared=$D->{shared} web_user=$D->{web_user} webserver=" . ( $D->{webserver} // '' ) . "\n");
 # asked once: an installation confirmed before (or installed into by a previous run) is not
@@ -599,6 +634,8 @@ my $FLEXI_VERSION = ( read_file("$FLEXI/pyproject.toml") =~ /^version\s*=\s*"([^
 		say_("\n  the pull updated this installer: restarting with the new version ($new)\n");
 		$ENV{TEITOK_STACK_REEXEC} = 1;
 		$ENV{TEITOK_STACK_CONFIRMED} = 1;
+		$ENV{TEITOK_STACK_PULLED} = join( ';', map { "$_=$PULLED{$_}" } sort keys %PULLED );
+		close $LOCKFH if $LOCKFH;    # the new run takes the lock
 		close $LOGFH;
 		my @args = grep { $_ ne '--no-pull' } @ORIG_ARGV;
 		exec( $^X, $new, @args, '--no-pull', ( $o{'git-folder'} ? () : ( '--git-folder', $GIT ) ) ) or fail("cannot run $new: $!");
@@ -791,8 +828,7 @@ if ( $want{pages} && !unchanged( 'pages', -f "$D->{shared}/Sources/flexicorp.php
 	my $ui = "$FLEXI/teitok_teitok_ui/install-teitok-ui.pl";
 	fail("$ui not found") unless -f $ui;
 	my $out = `perl $ui --shared @{[q_($D->{shared})]} --user @{[q_($WEBU)]} 2>&1`;
-	logline($out);
-	print map { "  $_\n" } split /\n/, $out;
+	say_( map { "  $_\n" } split /\n/, $out );
 	fail('installing the TEITOK pages failed') if $?;
 	$manifest{pages} = { version => $FLEXI_VERSION, commit => $FLEXI_COMMIT, source => $SRC{pages} };
 	$BUILT{pages} = 1;
@@ -823,6 +859,51 @@ sub env_dedupe_secret {    # several FQS_SECRET= lines: keep the last (the one s
 	chown $u, $g, "$file.new-$$";
 	rename "$file.new-$$", $file;
 	return scalar(@idx) - 1;
+}
+
+# ── restarting FQS without cancelling reindex jobs ────────────────────────────────
+my $RESTART_PENDING = "$PREFIX/share/teitok-stack/fqs-restart-pending";
+my ( $RESTARTED, $POSTPONED ) = ( 0, '' );
+sub fqs_running {
+	return $INIT eq 'systemd' ? capture('systemctl is-active fqs') eq 'active'
+		: $MAC ? capture('launchctl print system/org.teitok.fqs') ne ''
+		: capture('pgrep -x fqs') ne '';
+}
+# reindex jobs FQS is running now (a restart would cancel them; queued ones survive it)
+sub fqs_jobs_running {
+	my $j = capture('curl -sf -m 5 "http://127.0.0.1:8787/reindex/jobs?status=running&limit=100"');
+	my $n = () = $j =~ /"job_id"/g;
+	return $n;
+}
+sub fqs_wait_health {
+	for ( 1 .. 30 ) { return 1 if capture('curl -sf -m 2 http://127.0.0.1:8787/health') ne ''; sleep 1; }
+	return 0;
+}
+# restart a running FQS now, or postpone it while reindex jobs run (the next run does it)
+sub fqs_restart {
+	my $why = shift;
+	return 0 unless fqs_running();
+	if ( my $n = fqs_jobs_running() ) {
+		my $later = !$o{q} && -t STDIN ? !yes( "FQS is running $n reindex job(s); restart now anyway (they are cancelled)?", 0 ) : 1;
+		if ($later) {
+			$POSTPONED = $why;
+			if ( open my $fh, '>', $RESTART_PENDING ) { print $fh "$why\n"; close $fh; }
+			warn_("FQS runs $n reindex job(s): its restart ($why) is postponed; the next run of this installer (or a restart by hand) does it");
+			return 0;
+		}
+	}
+	step("Restart FQS ($why)");
+	my $done = 1;
+	if ( $INIT eq 'systemd' ) { run( 'systemctl restart fqs', 'systemctl daemon-reload && systemctl restart fqs', soft => 1 ); }
+	elsif ($MAC) { run( 'launchctl kickstart -k system/org.teitok.fqs', 'launchctl kickstart -k system/org.teitok.fqs', soft => 1 ); }
+	elsif ( -x "$PREFIX/sbin/teitok-fqs" ) { run( "$PREFIX/sbin/teitok-fqs restart", [ "$PREFIX/sbin/teitok-fqs", 'restart' ], soft => 1 ); }
+	else { warn_('FQS runs, but not through a start script this installer knows: restart it yourself'); $done = 0; }
+	if ($done) {
+		fqs_wait_health() ? say_("  FQS is up again\n") : warn_("FQS did not answer on 127.0.0.1:8787 within 30 s (see /var/log/fqs/)");
+		unlink $RESTART_PENDING;
+		$RESTARTED = 1;
+	}
+	return $done;
 }
 
 if ( $want{fqs} && !unchanged( 'fqs', -x "$PREFIX/bin/fqs" ) ) {
@@ -884,7 +965,12 @@ if ( $want{fqs} && !unchanged( 'fqs', -x "$PREFIX/bin/fqs" ) ) {
 				run( 'stop the FQS started outside systemd', 'pkill -x fqs; sleep 2', soft => 1 );
 			}
 		}
-		run( ( $was_running ? 'restart' : 'start' ) . ' fqs.service', 'systemctl daemon-reload && systemctl enable -q fqs && systemctl restart fqs' );
+		if ($was_running) {
+			run( 'systemctl daemon-reload, enable fqs', 'systemctl daemon-reload && systemctl enable -q fqs' );
+			fqs_restart('new FQS');
+		} else {
+			run( 'start fqs.service', 'systemctl daemon-reload && systemctl enable -q fqs && systemctl restart fqs' );
+		}
 	} elsif ($MAC) {
 		my $plist = '/Library/LaunchDaemons/org.teitok.fqs.plist';
 		open my $fh, '>', $plist or fail("cannot write $plist");
@@ -905,7 +991,8 @@ if ( $want{fqs} && !unchanged( 'fqs', -x "$PREFIX/bin/fqs" ) ) {
 </dict></plist>
 PLIST
 		close $fh;
-		run( 'reload launchd job org.teitok.fqs', "launchctl bootout system/org.teitok.fqs 2>/dev/null; launchctl bootstrap system $plist" );
+		if ( $was_running && fqs_jobs_running() ) { fqs_restart('new FQS'); }    # postponed while jobs run
+		else { run( 'reload launchd job org.teitok.fqs', "launchctl bootout system/org.teitok.fqs 2>/dev/null; launchctl bootstrap system $plist" ); $RESTARTED = 1; }
 	} else {
 		# no init system (containers): a start script; the container entrypoint (or you) runs it
 		make_path( dirname($start) );
@@ -928,12 +1015,13 @@ echo "fqs started (log /var/log/fqs/fqs.log)"
 SH
 		close $fh;
 		chmod 0755, $start;
-		run( 'start FQS (no systemd: ' . $start . ')', [$start] );
+		if ($was_running) { fqs_restart('new FQS'); }
+		else { run( 'start FQS (no systemd: ' . $start . ')', [$start] ); }
 	}
-	# wait for /health
-	my $ok = 0;
-	for ( 1 .. 30 ) { if ( capture('curl -sf -m 2 http://127.0.0.1:8787/health') ne '' ) { $ok = 1; last; } sleep 1; }
-	$ok ? say_("  FQS is up: http://127.0.0.1:8787/health\n") : warn_("FQS did not answer on 127.0.0.1:8787 within 30 s (see /var/log/fqs/)");
+	if ( !$POSTPONED ) {
+		fqs_wait_health() ? say_("  FQS is up: http://127.0.0.1:8787/health\n") : warn_("FQS did not answer on 127.0.0.1:8787 within 30 s (see /var/log/fqs/)");
+		unlink $RESTART_PENDING;
+	}
 	my $fv = capture( q_("$PREFIX/bin/fqs") . ' --version' );
 	$manifest{fqs} = { version => $fv, commit => $FLEXI_COMMIT, init => $INIT, source => $SRC{fqs} };
 	$BUILT{fqs} = 1;
@@ -942,20 +1030,14 @@ SH
 
 # FQS loads libflexicorp_pando: a new one only counts after a restart
 if ( $BUILT{pando} && !$BUILT{fqs} && -x "$PREFIX/bin/fqs" ) {
-	my $running = $INIT eq 'systemd' ? capture('systemctl is-active fqs') eq 'active'
-		: $MAC ? capture('launchctl print system/org.teitok.fqs') ne ''
-		: capture('pgrep -x fqs') ne '';
-	if ($running) {
-		step('Restart FQS (new libflexicorp_pando)');
-		my $did = 1;
-		if ( $INIT eq 'systemd' ) { run( 'systemctl restart fqs', 'systemctl restart fqs', soft => 1 ); }
-		elsif ($MAC) { run( 'launchctl kickstart -k system/org.teitok.fqs', 'launchctl kickstart -k system/org.teitok.fqs', soft => 1 ); }
-		elsif ( -x "$PREFIX/sbin/teitok-fqs" ) { run( "$PREFIX/sbin/teitok-fqs restart", [ "$PREFIX/sbin/teitok-fqs", 'restart' ], soft => 1 ); }
-		else { warn_('FQS runs, but not through a start script this installer knows: restart it yourself'); $did = 0; }
-		my $ok = !$did;
-		for ( 1 .. ( $did ? 30 : 0 ) ) { if ( capture('curl -sf -m 2 http://127.0.0.1:8787/health') ne '' ) { $ok = 1; last; } sleep 1; }
-		if ($did) { $ok ? say_("  FQS is up again\n") : warn_("FQS did not answer on 127.0.0.1:8787 within 30 s (see /var/log/fqs/)"); }
-	}
+	fqs_restart('new libflexicorp_pando');
+}
+# a restart an earlier run postponed (reindex jobs were running then)
+if ( -f $RESTART_PENDING && !$RESTARTED && !$POSTPONED ) {
+	my $why = read_file($RESTART_PENDING);
+	chomp $why;
+	if ( !fqs_running() ) { unlink $RESTART_PENDING; }    # it loads the new files when it starts
+	else { fqs_restart( $why || 'new files' ); }
 }
 
 # ── TEITOK settings: only add what is missing ─────────────────────────────────
@@ -1003,13 +1085,126 @@ if ( $o{'fqs-admin'} ) {
 	rename "$mf.new-$$", $mf;
 }
 
+# a restart of this script after the pull updated it: the pulls the first part did
+if ( my $p = $ENV{TEITOK_STACK_PULLED} ) {
+	for ( split /;/, $p ) { my ( $n, $v ) = split /=/, $_, 2; $PULLED{$n} //= $v if $n; }
+}
+# ── automatic updates: a nightly run with --cron ─────────────────────────────────
+# Offered once on an interactive run (the answer is kept); --auto-update / --no-auto-update
+# set or remove it without asking.
+my $AUTO_FILE = "$PREFIX/share/teitok-stack/auto-update";
+my $AUTO_UNIT = '/etc/systemd/system/teitok-stack-update';
+my $AUTO_CRON = '/etc/cron.d/teitok-stack';
+my $AUTO_PLIST = '/Library/LaunchDaemons/org.teitok.stack-update.plist';
+my $AUTO_NOTE = '';
+sub auto_update_remove {
+	if ( -f "$AUTO_UNIT.timer" ) {
+		run( 'remove teitok-stack-update.timer', 'systemctl disable --now teitok-stack-update.timer', soft => 1 );
+		unlink "$AUTO_UNIT.timer", "$AUTO_UNIT.service";
+		run( '', 'systemctl daemon-reload', soft => 1 );
+	}
+	unlink $AUTO_CRON if -f $AUTO_CRON;
+	if ( -f $AUTO_PLIST ) { run( '', "launchctl bootout system/org.teitok.stack-update", soft => 1 ); unlink $AUTO_PLIST; }
+}
+sub auto_update_install {
+	my $at = shift;
+	my ( $hh, $mm ) = $at =~ /^(\d{1,2}):(\d{2})$/ ? ( $1 + 0, $2 + 0 ) : ( 2, 0 );
+	$hh = 2 if $hh > 23; $mm = 0 if $mm > 59;
+	my $hm = sprintf( '%02d:%02d', $hh, $mm );
+	# the installer in the flexicorp checkout (a copy elsewhere may be temporary), with the
+	# folders of this run
+	my $inst = "$GIT/flexicorp/install/install-stack.pl";
+	$inst = $ME unless -f $inst;
+	my @args = ( '--cron', '--git-folder', $GIT, '--prefix', $PREFIX );
+	push @args, '--teitok-root', $D->{teitok_root}, '--shared', $D->{shared} if $o{'teitok-root'} || $o{shared};
+	my $cmd = join( ' ', map { q_($_) } ( '/usr/bin/env', 'perl', $inst, @args ) );
+	auto_update_remove();
+	my $how;
+	if ( $INIT eq 'systemd' ) {
+		open my $sv, '>', "$AUTO_UNIT.service" or fail("cannot write $AUTO_UNIT.service");
+		print $sv "[Unit]\nDescription=TEITOK stack update (install-stack.pl --cron)\nAfter=network-online.target\nWants=network-online.target\n\n"
+			. "[Service]\nType=oneshot\nExecStart=$cmd\n";
+		close $sv;
+		open my $tm, '>', "$AUTO_UNIT.timer" or fail("cannot write $AUTO_UNIT.timer");
+		print $tm "[Unit]\nDescription=Nightly TEITOK stack update\n\n[Timer]\nOnCalendar=*-*-* $hm:00\nRandomizedDelaySec=10min\nPersistent=true\n\n"
+			. "[Install]\nWantedBy=timers.target\n";
+		close $tm;
+		run( 'enable teitok-stack-update.timer', 'systemctl daemon-reload && systemctl enable --now teitok-stack-update.timer' );
+		$how = "systemd timer teitok-stack-update.timer (output: journalctl -u teitok-stack-update)";
+	} elsif ($MAC) {
+		open my $fh, '>', $AUTO_PLIST or fail("cannot write $AUTO_PLIST");
+		my $pargs = join( '', map { "<string>$_</string>" } ( '/usr/bin/perl', $inst, @args ) );
+		print $fh qq(<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n)
+			. qq(<plist version="1.0"><dict><key>Label</key><string>org.teitok.stack-update</string>)
+			. qq(<key>ProgramArguments</key><array>$pargs</array>)
+			. qq(<key>StartCalendarInterval</key><dict><key>Hour</key><integer>$hh</integer><key>Minute</key><integer>$mm</integer></dict>)
+			. qq(<key>StandardOutPath</key><string>/Library/Logs/teitok-install/auto-update.log</string></dict></plist>\n);
+		close $fh;
+		run( 'load launchd job org.teitok.stack-update', "launchctl bootstrap system $AUTO_PLIST" );
+		$how = "launchd job org.teitok.stack-update";
+	} elsif ( -d '/etc/cron.d' ) {
+		open my $fh, '>', $AUTO_CRON or fail("cannot write $AUTO_CRON");
+		print $fh "# Nightly TEITOK stack update (written by install-stack.pl; remove with --no-auto-update)\n"
+			. "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n$mm $hh * * * root $cmd\n";
+		close $fh;
+		chmod 0644, $AUTO_CRON;
+		$how = "$AUTO_CRON (cron mails what it reports to root)";
+		warn_("no cron daemon seems to run here: $AUTO_CRON only works once one does") if capture('pgrep -x cron || pgrep -x crond') eq '';
+	} else {
+		warn_("no systemd, launchd or /etc/cron.d here: add a nightly '$cmd' to your scheduler yourself");
+		return;
+	}
+	if ( open my $af, '>', $AUTO_FILE ) { print $af "$hm\n"; close $af; }
+	$AUTO_NOTE = "nightly update at $hm: $how";
+	say_("  $AUTO_NOTE\n");
+}
+if ( !$CRON ) {
+	if ( $o{'no-auto-update'} ) {
+		step('Automatic updates');
+		auto_update_remove();
+		if ( open my $af, '>', $AUTO_FILE ) { print $af "no\n"; close $af; }
+		say_("  no nightly update (removed if there was one)\n");
+	} elsif ( defined $o{'auto-update'} ) {
+		step('Automatic updates');
+		auto_update_install( $o{'auto-update'} );
+	} elsif ( !-f $AUTO_FILE && !$o{q} && -t STDIN ) {
+		step('Automatic updates');
+		say_("  A nightly run of this installer (with --cron) pulls TEITOK, flexicorp and pando and\n"
+			. "  rebuilds what changed; it reports only when something happened.\n");
+		if ( yes( 'Set up automatic nightly updates?', 1 ) ) {
+			my $at = ask( 'At what time (HH:MM)?', '02:00' );
+			auto_update_install($at);
+		} else {
+			if ( open my $af, '>', $AUTO_FILE ) { print $af "no\n"; close $af; }
+			say_("  no automatic updates (not asked again; --auto-update sets them up later)\n");
+		}
+	}
+}
+
 step('Done');
 my @built = grep { $BUILT{$_} } qw(teitok flexicorp pages flexencoder pando fqs);
 say_( "  installed: " . ( @built ? join( ', ', @built ) : 'nothing to rebuild' ) . "\n" );
 say_( "  unchanged: " . join( ', ', @UNCHANGED ) . "\n" ) if @UNCHANGED;
 say_( "  updated by the pull: " . join( ', ', map { "$_ ($PULLED{$_})" } sort keys %PULLED )
 	. ( $PULLED{TEITOK} ? "  (TEITOK's pages are PHP: in use right away)" : '' ) . "\n" ) if %PULLED;
+say_( "  FQS restart postponed (reindex jobs running): $POSTPONED\n" ) if $POSTPONED;
+say_("  automatic updates: $AUTO_NOTE\n") if $AUTO_NOTE;
 say_("  log: $LOG\n");
+if ($CRON) {
+	# unattended: silent when there is nothing to report, else a short summary (cron mails it)
+	if ( !@built && !%PULLED && !@WARNINGS && !$RESTARTED && !$POSTPONED ) {
+		close $LOGFH;
+		unlink $LOG;
+		exit 0;
+	}
+	print "TEITOK stack update on " . ( capture('hostname') || 'this server' ) . " ($STAMP)\n";
+	print "  updated by the pull: " . join( ', ', map { "$_ ($PULLED{$_})" } sort keys %PULLED ) . "\n" if %PULLED;
+	print "  rebuilt and installed: " . ( @built ? join( ', ', @built ) : 'nothing' ) . "\n";
+	print "  FQS restarted\n" if $RESTARTED;
+	print "  FQS restart postponed (reindex jobs running): $POSTPONED\n" if $POSTPONED;
+	print "  warning: $_\n" for @WARNINGS;
+	print "  log: $LOG\n";
+}
 if ( !@built && !$o{'no-check'} ) {
 	say_("  nothing changed: checks skipped (--check runs them)\n");
 } elsif ( !$o{'no-check'} && -f "$HERE/check-stack.pl" ) {

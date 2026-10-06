@@ -81,6 +81,34 @@ A new `libflexicorp_pando` restarts a running FQS (it loads the library), also w
 itself is unchanged. `--force` rebuilds everything, `--force pando,fqs` only those. System
 packages are only installed on a first install or when a build tool is missing.
 
+## Unattended updates (cron)
+
+The first interactive run offers to set up a nightly update (default 02:00); the answer is
+kept, so it is asked only once. `--auto-update [HH:MM]` sets it up (or moves it) without
+asking, `--no-auto-update` removes it. It becomes a systemd timer
+(`teitok-stack-update.timer`; output in `journalctl -u teitok-stack-update`), else
+`/etc/cron.d/teitok-stack` (cron mails what it reports to root), on macOS a launchd job; each
+runs the installer of the flexicorp checkout with `--cron` and the folders of the run that set
+it up. By hand, the same is:
+
+```
+30 3 * * * root perl /home/you/Git/flexicorp/install/install-stack.pl --cron
+```
+
+- No questions, and no output and no log when nothing changed. When something was pulled or
+  rebuilt, FQS restarted, a pull or a step failed, or a restart was postponed, it prints a short
+  summary (which cron mails) and keeps the log.
+- Only one run at a time (`/usr/local/share/teitok-stack/install.lock`): a cron run that finds
+  another one busy exits quietly; a manual run says so and stops.
+- FQS is not restarted while it runs a reindex job (a restart would cancel it): the restart is
+  postponed (`/usr/local/share/teitok-stack/fqs-restart-pending`) and the next run does it once
+  the jobs have finished. Manual runs ask instead (default: postpone).
+- The pull runs as the checkouts' owner without an ssh agent: use https remotes for public
+  repositories, or a read-only deploy key without a passphrase. Let the checkouts follow a
+  stable branch: whatever is pushed there goes live.
+- A rebuild of pando or FQS takes minutes and restarts FQS: a nightly time suits better than
+  every few minutes.
+
 ## What an upgrade changes
 
 - binaries in `/usr/local` (`--prefix`): `pando*`, `flexicorp-pando`, `flexencoder`, `fqs`,
