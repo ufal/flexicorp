@@ -55,7 +55,7 @@ runs from the git folder afterwards.
 
 TEITOK itself is pulled the same way (its checkout, as its owner; not when it has local
 changes), before flexicorp and pando. Its pages are PHP, so a pull is in use right away; its
-tools are rebuilt when `src/` changed. `--skip teitok` leaves TEITOK alone. smarty is not
+tool (`tt-xpath`) is rebuilt when `src/` changed. `--skip teitok` leaves TEITOK alone. smarty is not
 updated (a new major version would break TEITOK's templates).
 
 The question "Is this the installation to add the query stack to?" is asked once: the answer
@@ -70,7 +70,7 @@ sources (the git trees plus any uncommitted changes and untracked files):
 
 | component | sources |
 |-----------|---------|
-| teitok (`tt-cwb-encode`, `tt-cwb-xidx`, `tt-cqp`) | the TEITOK checkout's `src/` |
+| teitok (`tt-xpath`, the TEITOK tool its pages still need with flexicorp; `tt-cwb-encode` and `tt-cwb-xidx` are replaced by flexencoder, `tt-cqp` is phased out, neotag is replaced by flexipipe's flexitag) | the TEITOK checkout's `src/` |
 | pando (with `libflexicorp_pando`) | the pando checkout, `flexicorp_pando/` |
 | flexencoder | `flexencoder/` |
 | flexicorp | `flexicorp/`, `pyproject.toml` |

@@ -1,8 +1,8 @@
 #!/usr/bin/env perl
 # install-stack.pl - install or upgrade the TEITOK query stack:
 #
-#   teitok      TEITOK itself: its checkout is pulled, and its tools (tt-cwb-encode,
-#               tt-cwb-xidx, tt-cqp) rebuilt when their sources changed
+#   teitok      TEITOK itself: its checkout is pulled, and the TEITOK tool it still needs
+#               (tt-xpath) rebuilt when its sources changed
 #   flexicorp   Python package in TEITOK's venv (multi-engine corpus access)
 #   pages       flexicorp's TEITOK pages, installed into the shared project
 #   flexencoder TEITOK XML -> CWB / Pando / xidx encoder
@@ -681,7 +681,10 @@ sub install_file {    # atomic: copy next to the target, then rename over it
 
 # ── pando + libflexicorp_pando (one CMake build) ───────────────────────────────
 # ── TEITOK's own tools (as install-teitok.pl builds them) ──────────────────────
-my @TT_TOOLS = qw(tt-cwb-encode tt-cwb-xidx tt-cqp);
+# the one TEITOK's pages still need with flexicorp: tt-xpath (tualign, XPath search, the API).
+# Not tt-cwb-encode / tt-cwb-xidx (flexencoder replaces them; kept only by installations without
+# flexicorp), tt-cqp (phased out: too slow), neotag (flexipipe's flexitag) or xpathquery (unused)
+my @TT_TOOLS = qw(tt-xpath);
 if ( $want{teitok} && -d "$TT/src" && !unchanged( 'teitok', !grep { !-x "$PREFIX/bin/$_" } @TT_TOOLS ) ) {
 	step('TEITOK tools');
 	my $b = fresh_dir('teitok-src');
@@ -697,7 +700,7 @@ if ( $want{teitok} && -d "$TT/src" && !unchanged( 'teitok', !grep { !-x "$PREFIX
 			warn_("building $t failed (see the log): the installed one is kept");
 		}
 	}
-	say_("  installed: $n of " . scalar(@TT_TOOLS) . " tools into $PREFIX/bin\n");
+	say_( "  installed: $n of " . scalar(@TT_TOOLS) . ' ' . ( @TT_TOOLS == 1 ? 'tool' : 'tools' ) . " into $PREFIX/bin\n" );
 	$manifest{teitok} = { commit => $TT_COMMIT, checkout => $TT_COMMIT, source => $SRC{teitok} } if $n == @TT_TOOLS;
 	$BUILT{teitok} = 1 if $n;
 	remove_tree($b);

@@ -286,9 +286,13 @@ if ( !-d $tt ) {
 
 if ( $ws eq 'apache' ) { setup_apache(); } else { setup_nginx(); }
 
-if ( !-e '/usr/local/bin/tt-cwb-encode' ) {
+# TEITOK's own tool that its pages still need with flexicorp: tt-xpath (tualign, XPath search,
+# the API). tt-cwb-encode / tt-cwb-xidx are replaced by flexencoder, tt-cqp is phased out, neotag
+# by flexipipe's flexitag. install-stack.pl rebuilds it when TEITOK's src/ changes.
+my @tt_tools = grep { !-e "/usr/local/bin/$_" } qw(tt-xpath);
+if (@tt_tools) {
 	print "Installing C++ modules of TEITOK\n";
-	for my $p (qw(tt-cwb-encode tt-cwb-xidx tt-cqp)) {
+	for my $p (@tt_tools) {
 		sh( "cd " . q_("$git/TEITOK/src") . " && g++ -std=c++11 -o /usr/local/bin/$p $p.cpp pugixml.cpp functions-c11.cpp" ) or print "  (building $p failed, see $LOG)\n";
 	}
 }
