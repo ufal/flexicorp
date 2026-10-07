@@ -4800,7 +4800,6 @@ require_once __DIR__ . '/flexicorp_functions.php';
 			if ( $env !== '' ) $candidates[] = $env;
 			$candidates[] = $root . '/tmp/flexicorp-pando.sock';
 			$candidates[] = '/tmp/flexicorp-pando.sock';
-			$candidates[] = '/Users/mjanssen/programming/flexicorp/tmp/flexicorp-pando.sock';
 			$normalized = array();
 			foreach ( $candidates as $cand ) {
 				$cand = trim((string)$cand);
@@ -5008,7 +5007,6 @@ require_once __DIR__ . '/flexicorp_functions.php';
 			if ( $cfg !== '' ) $candidates[] = $cfg;
 			$envBin = trim( (string) ( getenv( 'PANDO_BIN' ) ?: '' ) );
 			if ( $envBin !== '' ) $candidates[] = $envBin;
-			$candidates[] = '/Users/mjanssen/programming/pando/build/pando';
 			$candidates[] = $flexicorpRepoRoot . '/../pando/build/pando';
 			$candidates[] = '/opt/homebrew/bin/pando';
 			$candidates[] = '/usr/local/bin/pando';
@@ -5550,7 +5548,7 @@ require_once __DIR__ . '/flexicorp_functions.php';
 				// Resolution order (first executable with Pando API wins):
 				// 1) TEITOK setting pando/flexencoder_bin (explicit override)
 				// 2) flexencoder on PATH (e.g. /usr/local/bin after install)
-				// 3) flexicorp repo Scripts/flexencoder, corpus Scripts, then dev fallbacks
+				// 3) FLEXENCODER_BIN env var, flexicorp repo Scripts/flexencoder, corpus Scripts
 				$repoFlexencoder = dirname(__DIR__, 1) . '/Scripts/flexencoder';
 				$cfgBin = function_exists('getset') ? trim((string)getset('pando/flexencoder_bin', '')) : '';
 				$pathFlexencoder = trim((string)shell_exec('command -v flexencoder 2>/dev/null'));
@@ -5561,10 +5559,12 @@ require_once __DIR__ . '/flexicorp_functions.php';
 				if ( $pathFlexencoder !== '' ) {
 					$candidates[] = $pathFlexencoder;
 				}
+				$envFlexencoder = trim( (string) ( getenv( 'FLEXENCODER_BIN' ) ?: '' ) );
+				if ( $envFlexencoder !== '' ) {
+					$candidates[] = $envFlexencoder;
+				}
 				$candidates[] = $repoFlexencoder;
 				$candidates[] = rtrim($projectRoot, '/') . '/Scripts/flexencoder';
-				$candidates[] = '/Users/mjanssen/programming/easycorp/git/TEITOK/Scripts/flexencoder';
-				$candidates[] = '/Users/mjanssen/programming/flexicorp/flexencoder/Scripts/flexencoder';
 				$seen = array();
 				$candidates = array_values(
 					array_filter(

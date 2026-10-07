@@ -484,11 +484,14 @@ $context = req_int(["context", "window"], 5);
 $maxTotal = req_int(["max_total", "maxtotal"], 10000);
 $attrs = req_str(["attrs"], "");
 $mode = strtolower(req_str(["mode"], "daemon")); // daemon|ffi|cli|auto
-$daemonSocket = req_str(["daemon_socket", "socket"], "/Users/mjanssen/programming/flexicorp/tmp/flexicorp-pando.sock");
+// Defaults are relative to this flexicorp checkout (this test page is not installed into TEITOK).
+$flexicorpRoot = dirname(__DIR__);
+$libExt = (PHP_OS_FAMILY === "Darwin") ? "dylib" : "so";
+$daemonSocket = req_str(["daemon_socket", "socket"], $flexicorpRoot . "/tmp/flexicorp-pando.sock");
 $allowCliFallback = req_str(["allow_cli_fallback", "cli_fallback"], "0") === "1";
-$ffiHeader = req_str(["ffi_header"], "/Users/mjanssen/programming/flexicorp/flexicorp_pando/flexicorp_pando_ffi.h");
-$ffiLib = req_str(["ffi_lib"], "/Users/mjanssen/programming/flexicorp/flexicorp_pando/build/libflexicorp_pando.dylib");
-$cppCliBin = req_str(["flexicorp_pando_bin"], "/Users/mjanssen/programming/flexicorp/flexicorp_pando/build/flexicorp-pando");
+$ffiHeader = req_str(["ffi_header"], $flexicorpRoot . "/flexicorp_pando/flexicorp_pando_ffi.h");
+$ffiLib = req_str(["ffi_lib"], $flexicorpRoot . "/flexicorp_pando/build/libflexicorp_pando." . $libExt);
+$cppCliBin = req_str(["flexicorp_pando_bin"], $flexicorpRoot . "/flexicorp_pando/build/flexicorp-pando");
 $extractFragments = req_str(["extract_fragments", "extract_xml"], "1") === "1";
 $contextScope = req_str(["context_scope"], "s");
 $contextFormat = strtolower(req_str(["context_format"], "xml"));
