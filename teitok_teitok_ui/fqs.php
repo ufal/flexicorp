@@ -523,7 +523,7 @@
 		}
 
 		if ( ! function_exists( 'tt_fqs_http_get_json' ) ) {
-			function tt_fqs_http_get_json( $url, $timeout = 8 ) {
+			function tt_fqs_http_get_json( $url, $timeout = 8, $extraHeaders = array() ) {
 				$body = false;
 				$ctype = '';
 				$status = 0;
@@ -534,7 +534,7 @@
 						CURLOPT_FOLLOWLOCATION => true,
 						CURLOPT_CONNECTTIMEOUT => 3,
 						CURLOPT_TIMEOUT => (int) $timeout,
-						CURLOPT_HTTPHEADER => array( 'Accept: application/json' ),
+						CURLOPT_HTTPHEADER => array_merge( array( 'Accept: application/json' ), $extraHeaders ),
 					) );
 					$body = curl_exec( $ch );
 					$status = (int) curl_getinfo( $ch, CURLINFO_HTTP_CODE );
@@ -545,7 +545,7 @@
 						'http' => array(
 							'method' => 'GET',
 							'timeout' => (int) $timeout,
-							'header' => "Accept: application/json\r\n",
+							'header' => implode( "\r\n", array_merge( array( 'Accept: application/json' ), $extraHeaders ) ) . "\r\n",
 						),
 					) );
 					$body = @file_get_contents( $url, false, $ctx );
@@ -688,6 +688,9 @@
 			$qs['frontend'] = 'teitok';
 		}
 		if ( $qSearch !== '' ) $qs['q'] = $qSearch;
+		// older versions of a corpus family (UD 2.18 next to 2.19): only on request
+		$allVersions = ( isset( $_GET['versions'] ) && $_GET['versions'] === 'all' );
+		if ( $allVersions ) $qs['include_noncurrent'] = 'true';
 		$listUrl = $base . '/corpora?' . http_build_query( $qs );
 		foreach ( $selectedFacets as $f ) {
 			$listUrl .= '&facet=' . rawurlencode( $f );
@@ -701,8 +704,10 @@
 			$labelsUrl .= '&facet=' . rawurlencode( $f );
 		}
 
-		$listJson = tt_fqs_http_get_json( $listUrl );
-		$labelsJson = tt_fqs_http_get_json( $labelsUrl );
+		// FQS ignores request_role when it runs with a secret: the role must come signed.
+		$fqsAuth = tt_fqs_bearer_headers( $role, isset( $username ) ? (string) $username : '' );
+		$listJson = tt_fqs_http_get_json( $listUrl, 8, $fqsAuth );
+		$labelsJson = tt_fqs_http_get_json( $labelsUrl, 8, $fqsAuth );
 		if ( ! empty( $listJson['ok'] ) && isset( $listJson['corpora'] ) && is_array( $listJson['corpora'] ) ) {
 			$corplist = $listJson['corpora'];
 			$listSource = 'http';
@@ -1338,8 +1343,10 @@
 				$out = '<li class="corpus corpus-' . $h( $kind ) . ( $current ? ' current' : '' ) . '"'
 					. ( $id !== '' ? ' id="corpus-' . $h( preg_replace( '/[^A-Za-z0-9_.-]/', '_', $id ) ) . '"' : '' ) . '>';
 
-				// name and languages
-				$out .= '<div class="corpus-head"><h2>' . ( $url !== '' ? '<a href="' . $h( $url ) . '">' . $h( $label ) . '</a>' : $h( $label ) ) . '</h2>';
+				// name and languages; an older version of its family says so
+				$older = ( isset( $corp['is_current'] ) && $corp['is_current'] === false );
+				$out .= '<div class="corpus-head"><h2>' . ( $url !== '' ? '<a href="' . $h( $url ) . '">' . $h( $label ) . '</a>' : $h( $label ) )
+					. ( $older ? ' <span class="corpus-older">{%earlier version}</span>' : '' ) . '</h2>';
 				$langs = array_map( 'tt_fqs_language_name', tt_fqs_row_languages( $corp ) );
 				if ( $langs ) {
 					$out .= '<p class="corpus-langs">';
@@ -1570,6 +1577,14 @@
 			$bits = array( '<span><b>' . $total . '</b> {%corpora}</span>' );
 			if ( $tokens > 0 ) $bits[] = '<span><b>' . tt_fqs_number( $tokens ) . '</b> {%tokens}</span>';
 			if ( count( $langset ) > 1 ) $bits[] = '<span><b>' . count( $langset ) . '</b> {%languages}</span>';
+			// versioned corpora: a link to show (or hide again) their earlier versions
+			$versioned = false;
+			foreach ( $corplist as $corp ) if ( ! empty( $corp['version_tag'] ) ) $versioned = true;
+			if ( $versioned || $allVersions ) {
+				$vurl = 'index.php?action=' . rawurlencode( (string) $action ) . ( $allVersions ? '' : '&versions=all' );
+				$bits[] = "<a href='" . htmlspecialchars( $vurl, ENT_QUOTES, 'UTF-8' ) . "'>"
+					. ( $allVersions ? '{%only the latest versions}' : '{%also earlier versions}' ) . '</a>';
+			}
 			$maintext .= '<p class="corpus-summary">' . implode( '<span class="corpus-sep"> · </span>', $bits ) . '</p>';
 		}
 

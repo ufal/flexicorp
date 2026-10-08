@@ -30,7 +30,7 @@
 #   --teitok-root DIR     the TEITOK checkout (TT_ROOT)          [detected]
 #   --shared DIR          the TEITOK shared project (TT_SHARED)  [detected]
 #   --web-user USER       the user PHP runs as                    [detected]
-#   --git-folder DIR      where flexicorp and pando are checked out
+#   --git-folder DIR      where flexicorp, pando and fqs are checked out
 #                         [the folder of the flexicorp checkout this script runs from;
 #                          else the one the previous run used; else next to TEITOK]
 #   --prefix DIR          binaries and libraries (default /usr/local)
@@ -40,6 +40,8 @@
 #   --flexicorp-ref REF   branch / tag for a new clone (default: the repository's default)
 #   --pando-repo URL      (default https://github.com/ufal/pando.git)
 #   --pando-ref REF
+#   --fqs-repo URL        (default https://github.com/ufal/fqs.git)
+#   --fqs-ref REF
 #   --no-pull             use the existing checkouts as they are
 #   --force [LIST]        rebuild and reinstall even when the sources did not change:
 #                         every component, or the comma-separated ones in LIST
@@ -86,13 +88,15 @@ my %o = (
 	prefix         => '/usr/local',
 	'flexicorp-repo' => 'https://github.com/ufal/flexicorp.git',
 	'pando-repo'     => 'https://github.com/ufal/pando.git',
+	'fqs-repo'       => 'https://github.com/ufal/fqs.git',
 	'flexicorp-ref'  => '',
 	'pando-ref'      => '',
+	'fqs-ref'        => '',
 	only => '', skip => '',
 );
 my @ORIG_ARGV = @ARGV;    # to restart with the same options when the pull updated this script
 GetOptions( \%o, 'detect', 'check', 'q|yes', 'teitok-root=s', 'shared=s', 'web-user=s', 'git-folder=s',
-	'prefix=s', 'only=s', 'skip=s', 'flexicorp-repo=s', 'flexicorp-ref=s', 'pando-repo=s', 'pando-ref=s',
+	'prefix=s', 'only=s', 'skip=s', 'flexicorp-repo=s', 'flexicorp-ref=s', 'pando-repo=s', 'pando-ref=s', 'fqs-repo=s', 'fqs-ref=s',
 	'no-pull', 'no-deps', 'fqs-admin=s', 'no-check', 'no-frontends', 'force:s', 'cron', 'auto-update:s', 'no-auto-update', 'help|h' ) or exit 2;
 my $CRON = $o{cron} ? 1 : 0;
 $o{q} = 1 if $CRON;
@@ -622,6 +626,9 @@ my $INSTALLER_BEFORE = -f $INSTALLER_IN_GIT ? sha1_hex( read_file($INSTALLER_IN_
 my ( $FLEXI, $FLEXI_COMMIT ) = checkout( 'flexicorp', $o{'flexicorp-repo'}, $o{'flexicorp-ref'} );
 my ( $PANDO, $PANDO_COMMIT ) = ( '', '' );
 ( $PANDO, $PANDO_COMMIT ) = checkout( 'pando', $o{'pando-repo'}, $o{'pando-ref'} ) if $want{pando} || $want{fqs};
+# FQS: its own repository (it used to live in flexicorp's fqs/)
+my ( $FQS, $FQS_COMMIT ) = ( '', '' );
+( $FQS, $FQS_COMMIT ) = checkout( 'fqs', $o{'fqs-repo'}, $o{'fqs-ref'} ) if $want{fqs};
 my $FLEXI_VERSION = ( read_file("$FLEXI/pyproject.toml") =~ /^version\s*=\s*"([^"]+)"/m ) ? $1 : '?';
 
 # the pull brought a new version of this installer: run that one instead (once). Only a
@@ -681,7 +688,7 @@ my %SRC = (
 	flexencoder => prints( source_print( $FLEXI, 'flexencoder' ) ),
 	flexicorp   => prints( source_print( $FLEXI, 'flexicorp', 'pyproject.toml' ), $D->{venv} ),
 	pages       => prints( source_print( $FLEXI, 'teitok_teitok_ui' ), $D->{shared} ),
-	fqs         => prints( source_print( $FLEXI, 'fqs' ) ),
+	fqs         => prints( source_print( $FQS, '' ) ),
 );
 my %FORCE;
 if ( defined $o{force} ) {
@@ -910,7 +917,7 @@ if ( $want{fqs} && !unchanged( 'fqs', -x "$PREFIX/bin/fqs" ) ) {
 	step('FQS (query / reindex service)');
 	my $cargo = rust_ok() or fail('Rust >= 1.85 (cargo) not found; drop --no-deps or install rustup');
 	my $src = fresh_dir('fqs-src');
-	copy_tree( "$FLEXI/fqs", $src );
+	copy_tree( $FQS, $src );
 	my %renv = ( CARGO_TARGET_DIR => "$CACHE/fqs-target", PATH => dirname($cargo) . ":$ENV{PATH}" );
 	if ( $cargo =~ m{^/opt/rust/} ) { $renv{RUSTUP_HOME} = '/opt/rust/rustup'; $renv{CARGO_HOME} = '/opt/rust/cargo'; }
 	# --locked when the checkout has a Cargo.lock (reproducible dependency versions)
@@ -1023,7 +1030,7 @@ SH
 		unlink $RESTART_PENDING;
 	}
 	my $fv = capture( q_("$PREFIX/bin/fqs") . ' --version' );
-	$manifest{fqs} = { version => $fv, commit => $FLEXI_COMMIT, init => $INIT, source => $SRC{fqs} };
+	$manifest{fqs} = { version => $fv, commit => $FQS_COMMIT, init => $INIT, source => $SRC{fqs} };
 	$BUILT{fqs} = 1;
 	remove_tree($src);
 }

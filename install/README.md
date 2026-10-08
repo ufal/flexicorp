@@ -38,9 +38,9 @@ TEITOK installation with Pando.
 - **the venv**: `defaults/base/venv` in the shared settings, else `shared/Resources/venv`.
 
 Any of it can be given instead: `--teitok-root`, `--shared`, `--web-user`, `--git-folder`.
-flexicorp and pando are built from one git folder (`--git-folder`). Without it, that is the
+flexicorp, pando and fqs are built from one git folder (`--git-folder`). Without it, that is the
 folder of the flexicorp checkout the installer is run from (so `perl ~/Git/flexicorp/install/install-stack.pl`
-builds `~/Git/flexicorp` and `~/Git/pando`); for a temporary copy (as `install-teitok.pl --upgrade`
+builds `~/Git/flexicorp`, `~/Git/pando` and `~/Git/fqs`); for a temporary copy (as `install-teitok.pl --upgrade`
 makes) it is the folder the previous run used (`git_folder` in the manifest), else the folder
 holding the TEITOK checkout. The installer warns when that differs from the previous run.
 Missing checkouts are cloned there as the owner of that folder; existing ones are updated
@@ -75,7 +75,7 @@ sources (the git trees plus any uncommitted changes and untracked files):
 | flexencoder | `flexencoder/` |
 | flexicorp | `flexicorp/`, `pyproject.toml` |
 | pages | `teitok_teitok_ui/` |
-| fqs | `fqs/` |
+| fqs | the fqs checkout (its own repository, `--fqs-repo`; it used to be flexicorp's `fqs/`) |
 
 A new `libflexicorp_pando` restarts a running FQS (it loads the library), also when FQS
 itself is unchanged. `--force` rebuilds everything, `--force pando,fqs` only those. System
