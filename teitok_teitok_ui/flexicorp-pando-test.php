@@ -489,9 +489,11 @@ $flexicorpRoot = dirname(__DIR__);
 $libExt = (PHP_OS_FAMILY === "Darwin") ? "dylib" : "so";
 $daemonSocket = req_str(["daemon_socket", "socket"], $flexicorpRoot . "/tmp/flexicorp-pando.sock");
 $allowCliFallback = req_str(["allow_cli_fallback", "cli_fallback"], "0") === "1";
-$ffiHeader = req_str(["ffi_header"], $flexicorpRoot . "/flexicorp_pando/flexicorp_pando_ffi.h");
-$ffiLib = req_str(["ffi_lib"], $flexicorpRoot . "/flexicorp_pando/build/libflexicorp_pando." . $libExt);
-$cppCliBin = req_str(["flexicorp_pando_bin"], $flexicorpRoot . "/flexicorp_pando/build/flexicorp-pando");
+// the adapter: in flexicorp (older checkouts) or in its own repository next to it
+$adapterDir = is_dir($flexicorpRoot . "/flexicorp_pando") ? $flexicorpRoot . "/flexicorp_pando" : dirname($flexicorpRoot) . "/flexencoder/flexicorp_pando";
+$ffiHeader = req_str(["ffi_header"], $adapterDir . "/flexicorp_pando_ffi.h");
+$ffiLib = req_str(["ffi_lib"], $adapterDir . "/build/libflexicorp_pando." . $libExt);
+$cppCliBin = req_str(["flexicorp_pando_bin"], $adapterDir . "/build/flexicorp-pando");
 $extractFragments = req_str(["extract_fragments", "extract_xml"], "1") === "1";
 $contextScope = req_str(["context_scope"], "s");
 $contextFormat = strtolower(req_str(["context_format"], "xml"));

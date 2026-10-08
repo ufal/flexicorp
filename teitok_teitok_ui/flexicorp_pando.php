@@ -29,6 +29,9 @@ if (!function_exists('easycorp_flexicorp_pando_paths')) {
 		$workspaceRoot = dirname($sourcesDir, 3);
 		$bases[] = dirname($workspaceRoot) . '/flexicorp/flexicorp_pando';
 		$bases[] = $workspaceRoot . '/flexicorp/flexicorp_pando';
+		// the adapter's own repository (flexencoder), next to the flexicorp checkout
+		$bases[] = dirname($workspaceRoot) . '/flexencoder/flexicorp_pando';
+		$bases[] = $workspaceRoot . '/flexencoder/flexicorp_pando';
 
 		$bases = array_values(array_unique(array_filter($bases)));
 		foreach ($bases as $home) {

@@ -4934,6 +4934,8 @@ require_once __DIR__ . '/flexicorp_functions.php';
 			$candidates = array();
 			$workspaceBuild = $flexicorpRepoRoot . '/flexicorp_pando/build/flexicorp-pando';
 			$workspaceBuildDarwin = $flexicorpRepoRoot . '/flexicorp_pando/build-darwin/flexicorp-pando';
+			// the adapter's own repository (flexencoder) next to the flexicorp checkout
+			$siblingBuild = dirname($flexicorpRepoRoot) . '/flexencoder/flexicorp_pando/build/flexicorp-pando';
 			// If config still points to legacy build-darwin but a newer standard build exists,
 			// prefer the newer local build so PHP/web path matches direct CLI checks.
 			if ( $cfg !== '' && strpos($cfg, '/flexicorp_pando/build-darwin/flexicorp-pando') !== false ) {
@@ -4957,6 +4959,7 @@ require_once __DIR__ . '/flexicorp_functions.php';
 			// globally installed binaries in /usr/local or Homebrew paths.
 			$candidates[] = $workspaceBuild;
 			$candidates[] = $workspaceBuildDarwin;
+			$candidates[] = $siblingBuild;
 			// findapp() may not probe all Homebrew layouts; keep explicit fallbacks.
 			$candidates[] = '/opt/homebrew/bin/flexicorp-pando';
 			$candidates[] = '/usr/local/bin/flexicorp-pando';

@@ -30,7 +30,7 @@
 #   --teitok-root DIR     the TEITOK checkout (TT_ROOT)          [detected]
 #   --shared DIR          the TEITOK shared project (TT_SHARED)  [detected]
 #   --web-user USER       the user PHP runs as                    [detected]
-#   --git-folder DIR      where flexicorp, pando and fqs are checked out
+#   --git-folder DIR      where flexicorp, pando, fqs and flexencoder are checked out
 #                         [the folder of the flexicorp checkout this script runs from;
 #                          else the one the previous run used; else next to TEITOK]
 #   --prefix DIR          binaries and libraries (default /usr/local)
@@ -42,6 +42,9 @@
 #   --pando-ref REF
 #   --fqs-repo URL        (default https://github.com/ufal/fqs.git)
 #   --fqs-ref REF
+#   --flexencoder-repo URL (default https://github.com/ufal/flexencoder.git; flexencoder and
+#                         the pando adapter libflexicorp_pando)
+#   --flexencoder-ref REF
 #   --no-pull             use the existing checkouts as they are
 #   --force [LIST]        rebuild and reinstall even when the sources did not change:
 #                         every component, or the comma-separated ones in LIST
@@ -89,14 +92,16 @@ my %o = (
 	'flexicorp-repo' => 'https://github.com/ufal/flexicorp.git',
 	'pando-repo'     => 'https://github.com/ufal/pando.git',
 	'fqs-repo'       => 'https://github.com/ufal/fqs.git',
+	'flexencoder-repo' => 'https://github.com/ufal/flexencoder.git',
 	'flexicorp-ref'  => '',
 	'pando-ref'      => '',
 	'fqs-ref'        => '',
+	'flexencoder-ref' => '',
 	only => '', skip => '',
 );
 my @ORIG_ARGV = @ARGV;    # to restart with the same options when the pull updated this script
 GetOptions( \%o, 'detect', 'check', 'q|yes', 'teitok-root=s', 'shared=s', 'web-user=s', 'git-folder=s',
-	'prefix=s', 'only=s', 'skip=s', 'flexicorp-repo=s', 'flexicorp-ref=s', 'pando-repo=s', 'pando-ref=s', 'fqs-repo=s', 'fqs-ref=s',
+	'prefix=s', 'only=s', 'skip=s', 'flexicorp-repo=s', 'flexicorp-ref=s', 'pando-repo=s', 'pando-ref=s', 'fqs-repo=s', 'fqs-ref=s', 'flexencoder-repo=s', 'flexencoder-ref=s',
 	'no-pull', 'no-deps', 'fqs-admin=s', 'no-check', 'no-frontends', 'force:s', 'cron', 'auto-update:s', 'no-auto-update', 'help|h' ) or exit 2;
 my $CRON = $o{cron} ? 1 : 0;
 $o{q} = 1 if $CRON;
@@ -629,6 +634,11 @@ my ( $PANDO, $PANDO_COMMIT ) = ( '', '' );
 # FQS: its own repository (it used to live in flexicorp's fqs/)
 my ( $FQS, $FQS_COMMIT ) = ( '', '' );
 ( $FQS, $FQS_COMMIT ) = checkout( 'fqs', $o{'fqs-repo'}, $o{'fqs-ref'} ) if $want{fqs};
+# flexencoder and the pando adapter (flexicorp_pando/, built with pando): their own repository
+# (they used to live in flexicorp)
+my ( $FLEXENC, $FLEXENC_COMMIT ) = ( '', '' );
+( $FLEXENC, $FLEXENC_COMMIT ) = checkout( 'flexencoder', $o{'flexencoder-repo'}, $o{'flexencoder-ref'} )
+	if $want{flexencoder} || $want{pando};
 my $FLEXI_VERSION = ( read_file("$FLEXI/pyproject.toml") =~ /^version\s*=\s*"([^"]+)"/m ) ? $1 : '?';
 
 # the pull brought a new version of this installer: run that one instead (once). Only a
@@ -684,8 +694,8 @@ sub source_print {
 sub prints { my @p = @_; return ( grep { $_ eq '' } @p ) ? '' : sha1_hex( join( '+', "install-stack $VERSION", $PREFIX, @p ) ); }
 my %SRC = (
 	teitok      => prints( source_print( $TT, 'src' ) ),
-	pando       => prints( source_print( $PANDO, '' ), source_print( $FLEXI, 'flexicorp_pando' ) ),
-	flexencoder => prints( source_print( $FLEXI, 'flexencoder' ) ),
+	pando       => prints( source_print( $PANDO, '' ), source_print( $FLEXENC, 'flexicorp_pando' ) ),
+	flexencoder => prints( source_print( $FLEXENC, 'flexencoder' ) ),
 	flexicorp   => prints( source_print( $FLEXI, 'flexicorp', 'pyproject.toml' ), $D->{venv} ),
 	pages       => prints( source_print( $FLEXI, 'teitok_teitok_ui' ), $D->{shared} ),
 	fqs         => prints( source_print( $FQS, '' ) ),
@@ -760,7 +770,7 @@ if ( $want{pando} && !unchanged( 'pando', -x "$PREFIX/bin/pando-index" && -e $LI
 	my @args = ( "-DPANDO_DIR=$PANDO", '-DCMAKE_BUILD_TYPE=Release', '-DPANDO_USE_RE2=ON', '-DBUILD_TESTING=OFF' );
 	if ($MAC) { my $bp = capture('brew --prefix') || '/opt/homebrew'; push @args, "-DCMAKE_PREFIX_PATH=$bp"; }
 	my $cmake = have('cmake3') && !have('cmake') ? 'cmake3' : 'cmake';
-	run( 'configure (cmake, RE2 required)', [ $cmake, '-S', "$FLEXI/flexicorp_pando", '-B', $b, @args ] );
+	run( 'configure (cmake, RE2 required)', [ $cmake, '-S', "$FLEXENC/flexicorp_pando", '-B', $b, @args ] );
 	my $jobs = capture('nproc') || capture('sysctl -n hw.ncpu') || 2;
 	run( "build (make -j$jobs; a few minutes)", [ $cmake, '--build', $b, '-j', $jobs, '--target', qw(flexicorp_pando flexicorp-pando pando pando-index pando-check pando-server) ] );
 	# install into a staging prefix, then move each file into place (atomic per file)
@@ -783,14 +793,14 @@ if ( $want{pando} && !unchanged( 'pando', -x "$PREFIX/bin/pando-index" && -e $LI
 if ( $want{flexencoder} && !unchanged( 'flexencoder', -x "$PREFIX/bin/flexencoder" ) ) {
 	step('flexencoder');
 	my $b = fresh_dir('flexencoder');
-	copy_tree( "$FLEXI/flexencoder", $b );    # never reuses objects from the checkout
+	copy_tree( "$FLEXENC/flexencoder", $b );    # never reuses objects from the checkout
 	my $jobs = capture('nproc') || capture('sysctl -n hw.ncpu') || 2;
 	run( 'build (make)', [ 'make', '-s', '-j', $jobs, '-f', 'Makefile.flexencoder', 'BINDIR=.' ], cwd => $b );
 	install_file( "$b/flexencoder", "$PREFIX/bin/flexencoder", 0755 );
 	my $usage = capture( q_("$PREFIX/bin/flexencoder") . ' --help 2>&1' );
 	fail('the installed flexencoder does not accept --output-pando') if $usage !~ /--output-pando/;
 	say_("  installed: $PREFIX/bin/flexencoder\n");
-	$manifest{flexencoder} = { commit => $FLEXI_COMMIT, source => $SRC{flexencoder} };
+	$manifest{flexencoder} = { commit => $FLEXENC_COMMIT, source => $SRC{flexencoder} };
 	$BUILT{flexencoder} = 1;
 	remove_tree($b);
 }

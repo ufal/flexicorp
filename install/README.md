@@ -38,9 +38,9 @@ TEITOK installation with Pando.
 - **the venv**: `defaults/base/venv` in the shared settings, else `shared/Resources/venv`.
 
 Any of it can be given instead: `--teitok-root`, `--shared`, `--web-user`, `--git-folder`.
-flexicorp, pando and fqs are built from one git folder (`--git-folder`). Without it, that is the
+flexicorp, pando, fqs and flexencoder are built from one git folder (`--git-folder`). Without it, that is the
 folder of the flexicorp checkout the installer is run from (so `perl ~/Git/flexicorp/install/install-stack.pl`
-builds `~/Git/flexicorp`, `~/Git/pando` and `~/Git/fqs`); for a temporary copy (as `install-teitok.pl --upgrade`
+builds `~/Git/flexicorp`, `~/Git/pando`, `~/Git/fqs` and `~/Git/flexencoder`); for a temporary copy (as `install-teitok.pl --upgrade`
 makes) it is the folder the previous run used (`git_folder` in the manifest), else the folder
 holding the TEITOK checkout. The installer warns when that differs from the previous run.
 Missing checkouts are cloned there as the owner of that folder; existing ones are updated
@@ -71,8 +71,8 @@ sources (the git trees plus any uncommitted changes and untracked files):
 | component | sources |
 |-----------|---------|
 | teitok (`tt-xpath`, the TEITOK tool its pages still need with flexicorp; `tt-cwb-encode` and `tt-cwb-xidx` are replaced by flexencoder, `tt-cqp` is phased out, neotag is replaced by flexipipe's flexitag) | the TEITOK checkout's `src/` |
-| pando (with `libflexicorp_pando`) | the pando checkout, `flexicorp_pando/` |
-| flexencoder | `flexencoder/` |
+| pando (with `libflexicorp_pando`) | the pando checkout, and `flexicorp_pando/` of the flexencoder checkout |
+| flexencoder | the flexencoder checkout (its own repository, `--flexencoder-repo`; it used to be flexicorp's `flexencoder/`) |
 | flexicorp | `flexicorp/`, `pyproject.toml` |
 | pages | `teitok_teitok_ui/` |
 | fqs | the fqs checkout (its own repository, `--fqs-repo`; it used to be flexicorp's `fqs/`) |
