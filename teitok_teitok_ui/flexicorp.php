@@ -4458,6 +4458,16 @@ require_once __DIR__ . '/flexicorp_functions.php';
 		 */
 		function tt_flexicorp_hit_facs_from_tokens( &$hitRow ) {
 			if ( !is_array($hitRow) || !isset($hitRow['tokens']) || !is_array($hitRow['tokens']) ) return;
+			// the line the match is on (cut-out shows the line, the words highlighted)
+			if ( !isset($hitRow['line_bbox']) ) {
+				foreach ( $hitRow['tokens'] as $t ) {
+					$lv = ( is_array($t) && isset($t['lbbox']) ) ? trim((string)$t['lbbox']) : '';
+					if ( $lv !== '' && $lv !== '_' ) {
+						$hitRow['line_bbox'] = $lv;
+						break;
+					}
+				}
+			}
 			$hf = isset($hitRow['facs']) ? trim((string)$hitRow['facs']) : '';
 			$hb = isset($hitRow['bbox']) ? trim((string)$hitRow['bbox']) : '';
 			$needFacs = ( $hf === '' || $hf === '_' );

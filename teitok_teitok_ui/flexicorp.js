@@ -6146,9 +6146,40 @@ function flexicorpApp() {
 		},
 
 		/** TEI line / line-break geometry from the context fragment (verse line), when @facs is only on pb. */
-		_lineBBoxFromFragmentContainer(container) {
+		_parseBBox(raw) {
+			const nums = String(raw == null ? '' : raw).trim().split(/\s+/).map(Number).filter((n) => Number.isFinite(n));
+			if (nums.length < 4) return null;
+			const [x1, y1, x2, y2] = nums.slice(0, 4);
+			return (x2 > x1 && y2 > y1) ? [x1, y1, x2, y2] : null;
+		},
+
+		_unionBBox(a, b) {
+			return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])];
+		},
+
+		/**
+		 * Line box from the fragment: the <l bbox> around the first matched token, else
+		 * the last <lb bbox> before it (not simply the first line in the fragment, which
+		 * may be a later line: Litoměřice "bogu" is on the line before the sentence's
+		 * only <lb>); without matched ids, the first line.
+		 */
+		_lineBBoxFromFragmentContainer(container, idSet) {
 			if (!container || !container.querySelector) return null;
-			const line = container.querySelector('l[bbox], lb[bbox]');
+			let line = null;
+			if (idSet && idSet.size) {
+				const ref = this._refTokenForPrecedingPb(container, idSet);
+				if (ref) {
+					line = ref.closest ? ref.closest('l[bbox]') : null;
+					if (!line) {
+						const before = Array.from(container.querySelectorAll('lb[bbox]')).filter(
+							(lb) => lb.compareDocumentPosition(ref) & Node.DOCUMENT_POSITION_FOLLOWING
+						);
+						if (before.length) line = before[before.length - 1];
+						else if (container.querySelector('lb[bbox]')) return null; // its line starts before the fragment
+					}
+				}
+			}
+			if (!line) line = container.querySelector('l[bbox], lb[bbox]');
 			if (!line || !line.getAttribute) return null;
 			const raw = (line.getAttribute('bbox') || '').trim();
 			if (!raw) return null;
@@ -6332,7 +6363,8 @@ function flexicorpApp() {
 				// (it is often the full page from pb, not the verse line).
 				let lineBBox = null;
 				if (fallbackContainer && !fallbackContainer.querySelector('pre.flexicorp-hit-ridx-fallback, pre.flexicorp-hit-xml-fallback')) {
-					lineBBox = this._lineBBoxFromFragmentContainer(fallbackContainer);
+					lineBBox = this._parseBBox(hit.line_bbox)
+						|| this._lineBBoxFromFragmentContainer(fallbackContainer, new Set(this.getHitMatchIds(hit)));
 				}
 				if (bboxArr !== undefined && bboxArr !== null && !Array.isArray(bboxArr)) {
 					const bboxStr = String(bboxArr).trim();
@@ -6352,8 +6384,15 @@ function flexicorpApp() {
 			if (out && this.isXmlContext() && this.hitHasStructuredContext(hit)) {
 				const container = this.buildContextContainer(hit);
 				if (container && !container.querySelector('pre.flexicorp-hit-ridx-fallback, pre.flexicorp-hit-xml-fallback')) {
-					const lineBBox = this._lineBBoxFromFragmentContainer(container);
-					if (lineBBox) out.bbox = lineBBox;
+					// the line the match is on: indexed per token (hit.line_bbox), else the
+					// line break before the match in the fragment
+					const lineBBox = this._parseBBox(hit && hit.line_bbox)
+						|| this._lineBBoxFromFragmentContainer(container, new Set(this.getHitMatchIds(hit)));
+					if (lineBBox) {
+						const word = Array.isArray(out.bbox) ? out.bbox : null;
+						out.bbox = word ? this._unionBBox(lineBBox, word) : lineBBox;
+						if (word && !out.highlights) out.highlights = [word];
+					}
 					else if (resolvedScope === 'l' || resolvedScope === 'lb') {
 						const outer = container.querySelector(`${resolvedScope}[bbox]`);
 						if (outer && outer.getAttribute) {
