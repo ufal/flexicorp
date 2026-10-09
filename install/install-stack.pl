@@ -928,7 +928,9 @@ if ( $want{fqs} && !unchanged( 'fqs', -x "$PREFIX/bin/fqs" ) ) {
 	my $cargo = rust_ok() or fail('Rust >= 1.85 (cargo) not found; drop --no-deps or install rustup');
 	my $src = fresh_dir('fqs-src');
 	copy_tree( $FQS, $src );
-	my %renv = ( CARGO_TARGET_DIR => "$CACHE/fqs-target", PATH => dirname($cargo) . ":$ENV{PATH}" );
+	my %renv = ( CARGO_TARGET_DIR => "$CACHE/fqs-target", PATH => dirname($cargo) . ":$ENV{PATH}",
+		# the copy has no .git: tell FQS's build stamp (build.rs) which commit it is
+		FQS_BUILD_COMMIT => $FQS_COMMIT, FQS_BUILD_DATE => git_in( $FQS, 'log', '-1', '--format=%cs' ) );
 	if ( $cargo =~ m{^/opt/rust/} ) { $renv{RUSTUP_HOME} = '/opt/rust/rustup'; $renv{CARGO_HOME} = '/opt/rust/cargo'; }
 	# --locked when the checkout has a Cargo.lock (reproducible dependency versions)
 	( -f "$src/Cargo.lock" && run( 'build (cargo build --release --locked; several minutes the first time)', [ $cargo, 'build', '--release', '--locked', '-q' ], cwd => $src, env => \%renv, soft => 1 ) )

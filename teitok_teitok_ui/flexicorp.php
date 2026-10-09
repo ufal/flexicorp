@@ -4444,28 +4444,47 @@ require_once __DIR__ . '/flexicorp_functions.php';
 				'default' => array('tok_ids' => array_values($allIds)),
 			);
 			$hitRow['toks'] = array_values($allIds);
+			tt_flexicorp_hit_facs_from_tokens( $hitRow );
+		}
+	}
+
+	if ( !function_exists('tt_flexicorp_hit_facs_from_tokens') ) {
+		/**
+		 * facs / bbox of a hit from its token rows (indexed attributes), for the
+		 * facsimile cut-out when the XML fragment carries no <pb facs>: the page image
+		 * (`facs`, settings xpath ./preceding::pb[1]/@facs), the word box (`bbox`), else
+		 * the line box (`lbbox`, xpath ./preceding::lb[1]/@bbox) for line-aligned
+		 * manuscripts. Used on the flexicorp-pando route and on the FQS route.
+		 */
+		function tt_flexicorp_hit_facs_from_tokens( &$hitRow ) {
+			if ( !is_array($hitRow) || !isset($hitRow['tokens']) || !is_array($hitRow['tokens']) ) return;
 			$hf = isset($hitRow['facs']) ? trim((string)$hitRow['facs']) : '';
 			$hb = isset($hitRow['bbox']) ? trim((string)$hitRow['bbox']) : '';
 			$needFacs = ( $hf === '' || $hf === '_' );
 			$needBbox = ( $hb === '' || $hb === '_' );
-			if ( ( $needFacs || $needBbox ) && is_array($hitRow['tokens']) ) {
+			if ( !$needFacs && !$needBbox ) return;
+			$val = function ( $t, $k ) {
+				if ( !is_array($t) || !isset($t[$k]) ) return '';
+				$v = trim((string)$t[$k]);
+				return ( $v === '_' ) ? '' : $v;
+			};
+			foreach ( $hitRow['tokens'] as $t ) {
+				if ( $needFacs && ( $fv = $val($t, 'facs') ) !== '' ) {
+					$hitRow['facs'] = $fv;
+					$needFacs = false;
+				}
+				if ( $needBbox && ( $bv = $val($t, 'bbox') ) !== '' ) {
+					$hitRow['bbox'] = $bv;
+					$needBbox = false;
+				}
+				if ( !$needFacs && !$needBbox ) return;
+			}
+			if ( $needBbox ) {
 				foreach ( $hitRow['tokens'] as $t ) {
-					if ( !is_array($t) ) continue;
-					if ( $needFacs && isset($t['facs']) ) {
-						$fv = trim((string)$t['facs']);
-						if ( $fv !== '' && $fv !== '_' ) {
-							$hitRow['facs'] = $fv;
-							$needFacs = false;
-						}
+					if ( ( $lv = $val($t, 'lbbox') ) !== '' ) {
+						$hitRow['bbox'] = $lv;
+						return;
 					}
-					if ( $needBbox && isset($t['bbox']) ) {
-						$bv = trim((string)$t['bbox']);
-						if ( $bv !== '' && $bv !== '_' ) {
-							$hitRow['bbox'] = $bv;
-							$needBbox = false;
-						}
-					}
-					if ( !$needFacs && !$needBbox ) break;
 				}
 			}
 		}
@@ -4482,6 +4501,7 @@ require_once __DIR__ . '/flexicorp_functions.php';
 			}
 			foreach ( $result['hits'] as &$hit ) {
 				if ( !is_array($hit) ) continue;
+				if ( function_exists('tt_flexicorp_hit_facs_from_tokens') ) tt_flexicorp_hit_facs_from_tokens( $hit );
 				if ( isset($hit['highlight_map']) && is_array($hit['highlight_map']) ) continue;
 				$tokens = isset($hit['tokens']) && is_array($hit['tokens']) ? $hit['tokens'] : array();
 				$groups = isset($hit['groups']) && is_array($hit['groups']) ? $hit['groups'] : array();

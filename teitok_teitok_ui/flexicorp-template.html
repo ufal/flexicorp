@@ -714,8 +714,8 @@
 			</div>
 			<p class="flexicorp-panel-note" x-show="isLoading('search')">executing</p>
 			<div class="flexicorp-call-errors" x-show="search.ran && callHasIssues(search.response)">
-				<template x-for="msg in callMessages(search.response)" :key="msg">
-					<p class="wrong" x-text="msg"></p>
+				<template x-for="msg in searchCallMessages()" :key="msg">
+					<p class="wrong" style="white-space: pre-line" x-text="msg"></p>
 				</template>
 			</div>
 			<div class="flexicorp-search-intro-slot" x-show="!search.ran && !isLoading('search')">

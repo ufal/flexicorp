@@ -731,7 +731,7 @@ function flexicorpApp() {
 				if (!document.getElementById('track')) {
 					const wrap = document.createElement('div');
 					wrap.style.display = 'none';
-					wrap.innerHTML = '<audio id="track" controls></audio>';
+					wrap.innerHTML = '<audio id="track" data-flexicorp-track="1" controls></audio>';
 					document.body.appendChild(wrap);
 				}
 				const src = `${this.getTeitokScriptsBase()}/audiocontrol.js`;
@@ -4622,6 +4622,53 @@ function flexicorpApp() {
 			return this.callMessages(call).length > 0;
 		},
 
+		/**
+		 * Messages of the search call, with query syntax errors shown as such: the
+		 * engine's parser message, the query, and a hint for a bare word, instead of the
+		 * raw backend error with its request payload (which reads like a corpus failure).
+		 * The payload stays in the debug panel.
+		 */
+		searchCallMessages() {
+			const query = String((this.search && this.search.query) || '').trim();
+			const seen = new Set();
+			const out = [];
+			for (const msg of this.callMessages(this.search && this.search.response)) {
+				const shown = this.formatQuerySyntaxError(String(msg), query) || String(msg);
+				if (!seen.has(shown)) {
+					seen.add(shown);
+					out.push(shown);
+				}
+			}
+			return out;
+		},
+
+		/** A query syntax error message (pando or CQP parser) made readable, or '' if `msg` is not one. */
+		formatQuerySyntaxError(msg, query) {
+			let text = msg.split(/\n\nRequest payload:/)[0].trim();
+			// FQS may pass the engine's JSON answer as the error text
+			if (text.startsWith('{')) {
+				try {
+					const j = JSON.parse(text);
+					const e = j && (j.error || j.message);
+					if (typeof e === 'string') text = e.trim();
+					else if (e && typeof e.message === 'string') text = e.message.trim();
+				} catch (_) { /* not JSON */ }
+			}
+			const syntax = /^(Unexpected|Unterminated|Unclosed|Expected|Invalid number|Unknown (attribute|flag|function|show target|command)|Unsupported)\b/.test(text)
+				|| /\bsyntax error\b/i.test(text)
+				|| /\bat position \d+|\bnear offset \d+/.test(text);
+			if (!syntax) return '';
+			let out = `Query syntax error: ${text}`;
+			if (query) out += `\nYour query: ${query}`;
+			// a bare word (or words) without CQL syntax: show the CQL for it
+			if (/^[\p{L}\p{N}'’-]+(\s+[\p{L}\p{N}'’-]+)*$/u.test(query)) {
+				const words = query.split(/\s+/).map((w) => `"${w.replace(/"/g, '\\"')}"`).join(' ');
+				const first = query.split(/\s+/)[0];
+				out += `\nWords need quotes in CQL: ${words}, or name the attribute: [form="${first}"].`;
+			}
+			return out;
+		},
+
 		/** True for failed calls / backend errors only (not warnings). Used when UI should stay usable with warnings (e.g. frequency chart toolbar). */
 		callHasErrors(call) {
 			if (!call || typeof call !== 'object') return false;
@@ -6695,6 +6742,65 @@ function flexicorpApp() {
 			setTimeout(tryBind, 250);
 		},
 
+		/**
+		 * For a video (…/Video/<name>.mp4), an audio-only Audio/<name>.mp3 next to it
+		 * is used for snippet playback when it exists: every browser decodes mp3, while
+		 * whether an mp4 decodes in <audio> or <video> differs per browser, and the clip
+		 * needs a few hundred KB instead of the whole video. Checked once per URL.
+		 */
+		async _preferAudioTrackFor(url) {
+			const m = String(url).match(/^(.*\/)Video\/+([^/?#]+)\.(mp4|m4v|webm|ogv|mov)([?#].*)?$/i);
+			if (!m) return url;
+			if (!this._audioTrackForVideo) this._audioTrackForVideo = Object.create(null);
+			if (this._audioTrackForVideo[url] !== undefined) return this._audioTrackForVideo[url] || url;
+			const candidate = `${m[1]}Audio/${m[2]}.mp3`;
+			let found = '';
+			try {
+				const r = await fetch(candidate, { method: 'HEAD', credentials: 'same-origin' });
+				if (r.ok && /audio|mpeg/i.test(r.headers.get('content-type') || 'audio')) found = candidate;
+			} catch (_) { /* keep the video */ }
+			this._audioTrackForVideo[url] = found;
+			return found || url;
+		},
+
+		/**
+		 * TEITOK's playpart() plays through whatever element has id="track". For a
+		 * video file that must be a <video> element: some browsers load an mp4 video
+		 * in an <audio> element but then fail to decode it (MEDIA_ERR_DECODE), while
+		 * the same file plays as video. Swap the hidden #track element to match.
+		 */
+		_ensureTrackElementFor(url) {
+			const isVideo = /\.(mp4|m4v|webm|ogv|mov)(\?|#|$)/i.test(String(url || ''));
+			const want = isVideo ? 'VIDEO' : 'AUDIO';
+			const cur = document.getElementById('track');
+			if (cur && cur.tagName === want) return;
+			// keep a track element that belongs to the page itself (e.g. TEITOK's own player)
+			if (cur && !cur.dataset.flexicorpTrack && cur.parentElement && cur.parentElement.style.display !== 'none') return;
+			const el = document.createElement(want.toLowerCase());
+			el.id = 'track';
+			el.dataset.flexicorpTrack = '1';
+			el.setAttribute('preload', 'auto');
+			if (isVideo) {
+				el.setAttribute('playsinline', '');
+				// not display:none: some browsers pause invisible videos
+				el.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none';
+			} else {
+				el.controls = true;
+			}
+			if (cur) {
+				try { cur.pause(); } catch (_) { /* ignore */ }
+				cur.replaceWith(el);
+				if (el.parentElement && el.parentElement !== document.body) {
+					el.parentElement.style.display = isVideo ? '' : 'none';
+				}
+			} else {
+				const wrap = document.createElement('div');
+				wrap.style.display = isVideo ? '' : 'none';
+				wrap.appendChild(el);
+				document.body.appendChild(wrap);
+			}
+		},
+
 		async playHitAudio(url, startRaw, endRaw, btn, docIdForResolve) {
 			this._clearAudioSegmentEndGuard();
 			const ok = await this.ensureAudioControlLoaded();
@@ -6707,6 +6813,8 @@ function flexicorpApp() {
 			if (resolvedUrl && !/^https?:\/\//i.test(resolvedUrl)) {
 				resolvedUrl = this._resolveMaybeRelativeMediaUrl(resolvedUrl) || resolvedUrl;
 			}
+			if (resolvedUrl) resolvedUrl = await this._preferAudioTrackFor(resolvedUrl);
+			if (resolvedUrl) this._ensureTrackElementFor(resolvedUrl);
 			if (ok && typeof window.playpart === 'function' && resolvedUrl) {
 				window.playpart(resolvedUrl, Number.isFinite(start) ? start : 0, Number.isFinite(end) ? end : 0, btn || null);
 				// TEITOK audiocontrol often seeks to start but does not stop at end; enforce segment end on #track.
