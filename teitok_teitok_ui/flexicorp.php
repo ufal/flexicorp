@@ -3294,7 +3294,21 @@ require_once __DIR__ . '/flexicorp_functions.php';
 				$payload['backend'] = trim((string)$backendOverride);
 			}
 
-			$resp = tt_flexicorp_http_json_request('POST', $url . '/query', $payload, $headers, 10.0);
+			// A program ("…; freq by x;", coll, count, …) runs on FQS /run: /query executes
+			// only the query statement and returns hits, so the aggregation would be lost.
+			$isProgram = !empty($qopts['program']);
+			if ( $isProgram ) {
+				$payload = array(
+					'corpus' => (string)($probe['corpus_id'] ?? ''),
+					'cql' => (string)$queryText,
+					'offset' => (int)$start,
+					'limit' => (int)$size,
+					'group_limit' => max(1, (int)$size),
+					'request_role' => (string)($probe['request_role'] ?? 'visitor'),
+					'user' => tt_flexicorp_request_user(),
+				);
+			}
+			$resp = tt_flexicorp_http_json_request('POST', $url . ( $isProgram ? '/run' : '/query' ), $payload, $headers, $isProgram ? 120.0 : 10.0);
 			$opErr = '';
 			$doneErrors = array();
 			$result = null;
@@ -3314,6 +3328,11 @@ require_once __DIR__ . '/flexicorp_functions.php';
 					} elseif ( function_exists('tt_flexicorp_pando_top_level_looks_like_query_result') && tt_flexicorp_pando_top_level_looks_like_query_result($fqs['raw']) ) {
 						$inner = $fqs['raw'];
 					}
+				}
+				if ( !is_array($inner) && $isProgram ) {
+					// /run answers with the engine's own payload: {ok, operation, result{rows…}}
+					$inner = $fqs;
+					unset($inner['ok']);
 				}
 				if ( !is_array($inner) ) {
 					$inner = array();
@@ -7359,7 +7378,8 @@ require_once __DIR__ . '/flexicorp_functions.php';
 					$queryLanguage,
 					0,
 					$freqLimit,
-					$fqsBackendOverride
+					$fqsBackendOverride,
+					array( 'program' => true )
 				);
 			}
 		} else {
