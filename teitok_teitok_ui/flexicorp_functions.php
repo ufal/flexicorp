@@ -447,7 +447,21 @@ if ( ! function_exists( 'tt_flexicorp_fn_geo_hint_assoc_children_are_metadata_on
 		if ( count( $assoc ) === 0 ) {
 			return true;
 		}
-		$meta = '/^(type|label|name|display|desc|hint|help|sort|readonly|multivalued|ui|widget|icon|color|width|height|required|default|encoding|xpath|namespace|attr|path|level|key)$/i';
+		// An attribute definition in TEITOK's flattened settings has only plain values
+		// (display, xpath, nosearch, noshow, …); a container holds further items. Any
+		// TEITOK flag then counts as metadata: `<item key="geo" nosearch="1" noshow="1">`
+		// must give `text_geo`, not `text_geo_nosearch` / `text_geo_noshow`.
+		$allScalar = true;
+		foreach ( $assoc as $cv ) {
+			if ( is_array( $cv ) ) {
+				$allScalar = false;
+				break;
+			}
+		}
+		if ( $allScalar ) {
+			return true;
+		}
+		$meta = '/^(type|label|name|display|desc|hint|help|sort|readonly|multivalued|ui|widget|icon|color|width|height|required|default|encoding|xpath|namespace|attr|path|level|key|nosearch|noshow|nolist|noview|admin|values|external|inherit|translate|transliterate|audio)$/i';
 		foreach ( array_keys( $assoc ) as $ck ) {
 			if ( ! is_string( $ck ) || trim( (string) $ck ) === '' ) {
 				return false;
