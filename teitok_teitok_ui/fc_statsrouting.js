@@ -242,6 +242,18 @@ window.ttFlexicorpCoreParts.statsrouting = function () {
 		},
 
 		/** If the active Stats sub-tab is not offered for this engine, fall back to Frequency. */
+		/**
+		 * A result for this Stats subtab is loaded. An aggregation program (`A = …; freq A by …`)
+		 * answers with a table and no hits, so "no hits" must not close the subtab showing it.
+		 */
+		statsHasResultFor(sub) {
+			const ran = (slot) => !!(slot && slot.ran && !(slot.response && this.callHasErrors(slot.response)));
+			if (sub === 'freq') return ran(this.frequency);
+			if (sub === 'coll') return ran(this.collocation);
+			if (sub === 'other') return ran(this.other);
+			return false;
+		},
+
 		ensureStatsSubTabAllowed() {
 			const prev = this.statsSubTab;
 			const dynIds =
@@ -251,7 +263,7 @@ window.ttFlexicorpCoreParts.statsrouting = function () {
 			if (!this.search || !this.search.ran) {
 				this.statsSubTab = 'corpus';
 			} else if (typeof this.statsSearchHasHits === 'function' && !this.statsSearchHasHits()) {
-				if (prev && !['corpus', 'queries'].includes(prev)) {
+				if (prev && !['corpus', 'queries'].includes(prev) && !this.statsHasResultFor(prev)) {
 					this.statsSubTab = 'corpus';
 				}
 			} else {

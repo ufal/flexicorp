@@ -18,7 +18,7 @@ window.ttFlexicorpFreqsParts.stats_tabs = function () {
 			const baseAllowed = ['freq', 'coll', 'other', 'corpus', 'queries'];
 			if (!wanted || (!baseAllowed.includes(wanted) && !dyn.includes(wanted))) return;
 			if (wanted !== 'corpus' && wanted !== 'queries') {
-				if (typeof this.statsSearchHasHits === 'function' && !this.statsSearchHasHits()) return;
+				if (typeof this.statsSearchHasHits === 'function' && !this.statsSearchHasHits() && !this.statsHasResultFor(wanted)) return;
 			}
 			if (wanted === 'coll' && typeof this.statsCapabilityCollocations === 'function' && !this.statsCapabilityCollocations()) return;
 			if (wanted === 'other' && typeof this.statsCapabilityOther === 'function' && !this.statsCapabilityOther()) return;

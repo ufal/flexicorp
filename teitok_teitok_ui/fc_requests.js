@@ -116,6 +116,10 @@ window.ttFlexicorpCoreParts.requests = function () {
 							this.syncFlexicorpSelectionToUrl();
 						}
 					}
+				} else {
+					// The tab this request's answer moved to (e.g. Stats for a typed `freq … by`
+					// program) is where the user now is: a later probe must restore that one.
+					this._userActiveTab = this.activeTab;
 				}
 			} catch (err) {
 				const debugEntry = this.buildDebugEntryFromFormData(formData, err);
