@@ -5,6 +5,7 @@
 	require_once __DIR__ . '/flexicorp_search.php';
 	require_once __DIR__ . '/flexicorp_freqs.php';
 require_once __DIR__ . '/flexicorp_functions.php';
+require_once __DIR__ . '/fc_result.php';
 
 	if ( !isset($maintext) ) $maintext = "";
 
@@ -3318,80 +3319,19 @@ require_once __DIR__ . '/flexicorp_functions.php';
 				if ( isset($fqs['operation_effective']) && is_string($fqs['operation_effective']) ) {
 					$fqsOpEffective = strtolower(trim($fqs['operation_effective']));
 				}
-				// FQS returns an envelope where backend result is usually under raw.done.result.
-				$inner = null;
-				if ( isset($fqs['raw']) && is_array($fqs['raw']) ) {
-					if ( isset($fqs['raw']['done']['result']) && is_array($fqs['raw']['done']['result']) ) {
-						$inner = $fqs['raw']['done']['result'];
-					} elseif ( isset($fqs['raw']['result']) && is_array($fqs['raw']['result']) ) {
-						$inner = $fqs['raw']['result'];
-					} elseif ( function_exists('tt_flexicorp_pando_top_level_looks_like_query_result') && tt_flexicorp_pando_top_level_looks_like_query_result($fqs['raw']) ) {
-						$inner = $fqs['raw'];
-					}
+				// The result body under FQS's envelope (/query: raw.done.result; /run: the engine's
+				// own payload {ok, operation, result{…}}), peeled as on every route (fc_result.php).
+				if ( $isProgram ) {
+					$inner = tt_fc_result_unwrap( $fqs );
+					unset( $inner['ok'] );
+				} else {
+					$inner = isset( $fqs['raw'] ) && is_array( $fqs['raw'] ) ? tt_fc_result_unwrap( $fqs, true )
+						: ( $fqsOpEffective !== '' ? array( 'operation' => $fqsOpEffective ) : array() );
 				}
-				if ( !is_array($inner) && $isProgram ) {
-					// /run answers with the engine's own payload: {ok, operation, result{rows…}}
-					$inner = $fqs;
-					unset($inner['ok']);
-				}
-				if ( !is_array($inner) ) {
-					$inner = array();
-				}
-				// Preserve effective operation from FQS envelope when backend payload omits it.
-				if ( $fqsOpEffective !== '' && !isset($inner['operation']) ) {
-					$inner['operation'] = $fqsOpEffective;
-				}
-				// Some Pando program payloads use one extra wrapper:
-				// { operation: "freq"|"dcoll"|"coll"|…, result: { rows|collocates: ... } }.
-				if ( is_array($inner) && isset($inner['result']) && is_array($inner['result']) ) {
-					$innerResult = $inner['result'];
-					$opTag = isset($inner['operation']) ? strtolower((string)$inner['operation']) : '';
-					$innerIsTable = isset($innerResult['rows']) || isset($innerResult['compare_queries']) || isset($innerResult['totals_per_query']);
-					$innerIsCollocates = isset($innerResult['collocates']) && is_array($innerResult['collocates']);
-					$aggOps = array( 'freq', 'group', 'count', 'dist', 'coll', 'dcoll', 'keyness' );
-					if ( $opTag === 'freq' || $innerIsTable || $innerIsCollocates || in_array( $opTag, $aggOps, true ) ) {
-						// Preserve outer operation tag through unwrap (count/dist/dcoll/keyness/freq/coll).
-						if ( $opTag !== '' && ! isset( $innerResult['operation'] ) ) {
-							$innerResult['operation'] = $opTag;
-						}
-						$inner = $innerResult;
-					}
-				}
-				if ( is_array( $inner ) && isset( $inner['collocates'] ) && is_array( $inner['collocates'] ) ) {
-					if ( ! isset( $inner['result_type'] ) || trim( (string) $inner['result_type'] ) === '' ) {
-						$inner['result_type'] = 'table';
-					}
-					if ( ! isset( $inner['returned'] ) ) {
-						$inner['returned'] = count( $inner['collocates'] );
-					}
-					if ( ! isset( $inner['total'] ) && isset( $inner['matches'] ) && is_numeric( $inner['matches'] ) ) {
-						$inner['total'] = (int) $inner['matches'];
-					}
-				}
-				if ( function_exists('tt_flexicorp_pando_normalize_multiquery_freq_result') ) {
-					tt_flexicorp_pando_normalize_multiquery_freq_result($inner);
-				}
-				$hasCmp = isset($inner['compare_queries']) && is_array($inner['compare_queries']) && count($inner['compare_queries']) > 0;
-				$hasRows = isset($inner['rows']) && is_array($inner['rows']) && count($inner['rows']) > 0;
-				if ( ( $hasCmp || $hasRows ) && ( !isset($inner['result_type']) || trim((string)$inner['result_type']) === '' ) ) {
-					$inner['result_type'] = 'table';
-				}
-				// pando-server / warm library answers keep the counts in page{} and the
-				// background count in job{}: lift a known total to the flexicorp shape
-				if ( !isset($inner['total']) && isset($inner['page']) && is_array($inner['page']) ) {
-					$pg = $inner['page'];
-					$job = isset($inner['job']) && is_array($inner['job']) ? $inner['job'] : array();
-					if ( !empty($job['finished']) && isset($job['total']) && is_numeric($job['total']) ) {
-						$inner['total'] = (int)$job['total'];
-						$inner['total_exact'] = !empty($job['total_exact']);
-					} elseif ( isset($pg['total']) && is_numeric($pg['total']) && !empty($pg['total_exact']) ) {
-						// (a count still running is not a total: "Show more" must stay)
-						$inner['total'] = (int)$pg['total'];
-						$inner['total_exact'] = !empty($pg['total_exact']);
-					}
-					if ( !isset($inner['returned']) && isset($pg['returned']) ) $inner['returned'] = (int)$pg['returned'];
-					if ( !isset($inner['start']) && isset($pg['start']) ) $inner['start'] = (int)$pg['start'];
-				}
+				tt_fc_result_finish_collocates( $inner );
+				tt_fc_result_finish_table( $inner );
+				tt_fc_result_lift_page_total( $inner );
+				$inner['kind'] = tt_fc_result_kind( $inner );
 				if ( function_exists('tt_flexicorp_pando_normalize_aligned_pairs') ) {
 					tt_flexicorp_pando_normalize_aligned_pairs( $inner );
 				}
@@ -5356,83 +5296,7 @@ require_once __DIR__ . '/flexicorp_functions.php';
 		}
 	}
 
-	if ( !function_exists('tt_flexicorp_pando_top_level_looks_like_query_result') ) {
-		/**
-		 * True when flexicorp-pando returned native program JSON from run_program_json (multi-statement
-		 * scripts with ';') rather than the flexicorp envelope { success, done: { result } }.
-		 * Without this, daemon/CLI treat the call as failed (no top-level ok/success) and PHP
-		 * leaves result empty so Stats (e.g. freq A, B, C by …) breaks.
-		 */
-		function tt_flexicorp_pando_top_level_looks_like_query_result( $a ) {
-			if ( ! is_array( $a ) ) {
-				return false;
-			}
-			if ( isset( $a['done'] ) && is_array( $a['done'] ) && isset( $a['done']['result'] ) ) {
-				return false;
-			}
-			if ( ( ! empty( $a['success'] ) || ! empty( $a['ok'] ) ) && isset( $a['result'] ) && is_array( $a['result'] ) ) {
-				return false;
-			}
-			$err = isset( $a['error'] ) ? trim( (string) $a['error'] ) : '';
-			if ( $err !== '' && empty( $a['rows'] ) && empty( $a['hits'] ) && empty( $a['items'] ) && empty( $a['compare_queries'] ) ) {
-				return false;
-			}
-			if ( isset( $a['compare_queries'] ) && is_array( $a['compare_queries'] ) ) {
-				return true;
-			}
-			if ( isset( $a['rows'] ) && is_array( $a['rows'] ) ) {
-				return true;
-			}
-			if ( isset( $a['table'] ) && is_array( $a['table'] ) ) {
-				return true;
-			}
-			if ( isset( $a['items'] ) && is_array( $a['items'] ) ) {
-				return true;
-			}
-			if ( isset( $a['hits'] ) && is_array( $a['hits'] ) ) {
-				return true;
-			}
-			if ( isset( $a['total'] ) && isset( $a['items'] ) && is_array( $a['items'] ) ) {
-				return true;
-			}
-			return false;
-		}
-	}
-
-	if ( ! function_exists( 'tt_flexicorp_pando_normalize_multiquery_freq_result' ) ) {
-		/**
-		 * Some Pando program JSON builds multi-query freq rows with per-row `queries:{Q:{count:…}}`
-		 * but omits top-level `compare_queries`. TEITOK Stats + promote-to-Stats need the names array.
-		 */
-		function tt_flexicorp_pando_normalize_multiquery_freq_result( &$result ) {
-			if ( ! is_array( $result ) ) {
-				return;
-			}
-			if ( isset( $result['compare_queries'] ) && is_array( $result['compare_queries'] ) && count( $result['compare_queries'] ) > 0 ) {
-				return;
-			}
-			if ( isset( $result['rows'][0] ) && is_array( $result['rows'][0] ) ) {
-				$first = &$result['rows'][0];
-			} elseif ( isset( $result['table']['rows'][0] ) && is_array( $result['table']['rows'][0] ) ) {
-				$first = &$result['table']['rows'][0];
-			} else {
-				return;
-			}
-			if ( isset( $first['queries'] ) && is_string( $first['queries'] ) && trim( $first['queries'] ) !== '' ) {
-				$decoded = json_decode( $first['queries'], true );
-				if ( is_array( $decoded ) && count( $decoded ) > 0 ) {
-					$first['queries'] = $decoded;
-				}
-			}
-			if ( ! isset( $first['queries'] ) || ! is_array( $first['queries'] ) || ! count( $first['queries'] ) ) {
-				return;
-			}
-			$result['compare_queries'] = array_keys( $first['queries'] );
-			if ( ! isset( $result['result_type'] ) || trim( (string) $result['result_type'] ) === '' ) {
-				$result['result_type'] = 'table';
-			}
-		}
-	}
+	// tt_flexicorp_pando_top_level_looks_like_query_result, tt_flexicorp_pando_normalize_multiquery_freq_result: fc_result.php
 
 	if ( ! function_exists( 'tt_flexicorp_sanitize_pando_ident' ) ) {
 		/**
@@ -5895,54 +5759,12 @@ require_once __DIR__ . '/flexicorp_functions.php';
 			}
 
 			$resp = $call['data'];
-			// Some toolchains wrap the program payload once under `data` without `done`.
-			if ( is_array( $resp ) && ! isset( $resp['done'] ) && isset( $resp['data'] ) && is_array( $resp['data'] ) ) {
-				$inner = $resp['data'];
-				if ( tt_flexicorp_pando_top_level_looks_like_query_result( $inner ) ) {
-					$resp = $inner;
-				}
-			}
-			// Handle flexicorp envelope (success/done/result), old Pando (ok/result), and native
-			// run_program_json output (rows/compare_queries/… at top level — no done.result).
-			$isOk = !empty($resp['success']) || !empty($resp['ok']);
-			if ( isset($resp['done']['result']) && is_array($resp['done']['result']) ) {
-				$result = $resp['done']['result'];
-			} elseif ( isset($resp['result']) && is_array($resp['result']) ) {
-				$result = $resp['result'];
-			} elseif ( tt_flexicorp_pando_top_level_looks_like_query_result( $resp ) ) {
-				$result = $resp;
-				$isOk = true;
-			} else {
-				$result = array();
-			}
-			// run_program_json output is often wrapped as done.result = { ok, operation: "freq"|"dcoll"|"coll"|…, result: { … } }.
-			// TEITOK expects rows/collocates on the object we surface as search/stats result.
-			if ( is_array( $result ) && isset( $result['result'] ) && is_array( $result['result'] ) ) {
-				$inner = $result['result'];
-				$opTag = isset( $result['operation'] ) ? strtolower( (string) $result['operation'] ) : '';
-				$innerIsTable = isset( $inner['rows'] ) || isset( $inner['compare_queries'] ) || isset( $inner['totals_per_query'] );
-				$innerIsCollocates = isset( $inner['collocates'] ) && is_array( $inner['collocates'] );
-				$aggOps = array( 'freq', 'group', 'count', 'dist', 'coll', 'dcoll', 'keyness' );
-				if ( $opTag === 'freq' || $innerIsTable || $innerIsCollocates || in_array( $opTag, $aggOps, true ) ) {
-					if ( $opTag !== '' && ! isset( $inner['operation'] ) ) {
-						$inner['operation'] = $opTag;
-					}
-					$result = $inner;
-					$isOk = true;
-				}
-			}
-			// dcoll/coll: expose collocates for Stats UI + hit-count helpers.
-			if ( is_array( $result ) && isset( $result['collocates'] ) && is_array( $result['collocates'] ) ) {
-				if ( ! isset( $result['result_type'] ) || trim( (string) $result['result_type'] ) === '' ) {
-					$result['result_type'] = 'table';
-				}
-				if ( ! isset( $result['returned'] ) ) {
-					$result['returned'] = count( $result['collocates'] );
-				}
-				if ( ! isset( $result['total'] ) && isset( $result['matches'] ) && is_numeric( $result['matches'] ) ) {
-					$result['total'] = (int) $result['matches'];
-				}
-			}
+			// The result body under whatever envelope the CLI / daemon answered with: the flexicorp
+			// envelope, a pando program answer {ok, operation, result{…}}, native program JSON at
+			// the top level, a toolchain's `data` wrapper (fc_result.php, as on the FQS route).
+			$result = tt_fc_result_unwrap( $resp, true );
+			$isOk = !empty($resp['success']) || !empty($resp['ok']) || tt_fc_result_is_body( $result );
+			tt_fc_result_finish_collocates( $result );
 			// Backward compatibility for earlier adapter output.
 			if ( !isset($result['groups']) && isset($result['query_groups']) && is_array($result['query_groups']) ) {
 				$result['groups'] = $result['query_groups'];
@@ -5954,21 +5776,16 @@ require_once __DIR__ . '/flexicorp_functions.php';
 			tt_flexicorp_pando_normalize_aligned_pairs( $result );
 			// Multi-query freq scripts return a distribution table (rows / compare_queries), not KWIC hits.
 			if ( $op === 'query' && is_array( $result ) ) {
-				$hasCmp = isset( $result['compare_queries'] ) && is_array( $result['compare_queries'] ) && count( $result['compare_queries'] ) > 0;
 				$hasRows = isset( $result['rows'] ) && is_array( $result['rows'] ) && count( $result['rows'] ) > 0;
-				if ( ( $hasCmp || $hasRows ) && ( ! isset( $result['result_type'] ) || trim( (string) $result['result_type'] ) === '' ) ) {
-					$result['result_type'] = 'table';
-				}
 				if ( $hasRows && ( ! isset( $result['table'] ) || ! is_array( $result['table'] ) || ! isset( $result['table']['rows'] ) || ! count( $result['table']['rows'] ) ) ) {
 					if ( ! isset( $result['table'] ) || ! is_array( $result['table'] ) ) {
 						$result['table'] = array();
 					}
 					$result['table']['rows'] = $result['rows'];
 				}
-				if ( function_exists( 'tt_flexicorp_pando_normalize_multiquery_freq_result' ) ) {
-					tt_flexicorp_pando_normalize_multiquery_freq_result( $result );
-				}
+				tt_fc_result_finish_table( $result );
 			}
+			$result['kind'] = tt_fc_result_kind( $result );
 			// Compatibility bridge: some daemon builds can under-handle slash-regex queries
 			// that flexicorp-pando CLI already supports. If daemon returns 0/0 on a slash-regex,
 			// retry once through CLI and promote that result when it yields hits.
