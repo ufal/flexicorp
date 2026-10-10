@@ -222,6 +222,7 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 				},
 				c: {
 					f: p.collocation && p.collocation.field,
+					a: p.collocation && p.collocation.anchor_token,
 					l: p.collocation && p.collocation.left,
 					r: p.collocation && p.collocation.right,
 					mf: p.collocation && p.collocation.min_freq,
@@ -327,6 +328,7 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 				},
 				collocation: {
 					field: p.c && p.c.f ? String(p.c.f) : '',
+					anchor_token: p.c && p.c.a ? String(p.c.a) : '',
 					left: p.c && p.c.l != null ? Number(p.c.l) : null,
 					right: p.c && p.c.r != null ? Number(p.c.r) : null,
 					min_freq: p.c && p.c.mf != null ? Number(p.c.mf) : null,

@@ -3309,6 +3309,9 @@ require_once __DIR__ . '/fc_engine.php';
 					'request_role' => (string)($probe['request_role'] ?? 'visitor'),
 					'user' => tt_flexicorp_request_user(),
 				);
+				// the user's engine session: named queries defined again unchanged are reused
+				$engineSid = function_exists( 'tt_fc_engine_session_id' ) ? tt_fc_engine_session_id( (string)($probe['corpus_id'] ?? '') ) : '';
+				if ( $engineSid !== '' ) $payload['session_id'] = $engineSid;
 			}
 			$resp = tt_flexicorp_http_json_request('POST', $url . ( $isProgram ? '/run' : '/query' ), $payload, $headers, $isProgram ? 120.0 : 10.0);
 			$opErr = '';

@@ -114,6 +114,7 @@ if ( ! function_exists( 'tt_fc_result_unwrap' ) ) {
 	function tt_fc_result_unwrap( $payload, $strict = false ) {
 		if ( ! is_array( $payload ) ) return array();
 		$op = '';
+		$reused = null;
 		$x = $payload;
 		for ( $depth = 0; $depth < 8; $depth++ ) {
 			foreach ( array( 'operation_effective', 'operation' ) as $k ) {
@@ -121,6 +122,8 @@ if ( ! function_exists( 'tt_fc_result_unwrap' ) ) {
 					$op = strtolower( trim( $x[ $k ] ) );
 				}
 			}
+			// named queries pando took from the session instead of running them again
+			if ( isset( $x['reused'] ) && is_array( $x['reused'] ) ) $reused = $x['reused'];
 			if ( tt_fc_result_is_body( $x ) ) break;
 			if ( isset( $x['raw']['done']['result'] ) && is_array( $x['raw']['done']['result'] ) ) {
 				$x = $x['raw']['done']['result'];
@@ -143,6 +146,9 @@ if ( ! function_exists( 'tt_fc_result_unwrap' ) ) {
 		}
 		if ( $op !== '' && ! isset( $x['operation'] ) ) {
 			$x['operation'] = $op;
+		}
+		if ( $reused !== null && ! isset( $x['reused'] ) ) {
+			$x['reused'] = $reused;
 		}
 		return $x;
 	}

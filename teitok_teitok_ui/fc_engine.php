@@ -16,6 +16,23 @@
  * corpus_format, pando_exec.
  */
 
+if ( ! function_exists( 'tt_fc_engine_session_id' ) ) {
+	/**
+	 * This user's engine session for a corpus: stable per PHP session and corpus, never the PHP
+	 * session id itself (as in fqs_query.php). Named queries a program defines stay in it, and
+	 * pando reuses them when the next program defines them again unchanged (`"reused"`): a
+	 * search, then Frequency, then Dependencies run each named query once. '' without a session.
+	 */
+	function tt_fc_engine_session_id( $corpusId ) {
+		if ( function_exists( 'session_status' ) && session_status() === PHP_SESSION_NONE && ! headers_sent() ) {
+			@session_start();
+		}
+		$sid = function_exists( 'session_id' ) ? (string) session_id() : '';
+		if ( $sid === '' || (string) $corpusId === '' ) return '';
+		return 'tt-' . substr( hash( 'sha256', $sid . '|' . $corpusId ), 0, 32 );
+	}
+}
+
 if ( ! function_exists( 'tt_fc_engine_is_program' ) ) {
 	/** A statement FQS /query would drop: aggregations (freq, count, coll, …), dcoll, keyness, dist. */
 	function tt_fc_engine_is_program( $text ) {
