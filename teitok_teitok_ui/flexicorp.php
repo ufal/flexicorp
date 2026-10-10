@@ -8760,6 +8760,36 @@ require_once __DIR__ . '/flexicorp_functions.php';
 		);
 	}
 
+	// Parts of the root component (fc_<id>.js: FLEXICORP_CORE_PARTS in flexicorp.js, FLEXICORP_FREQS_PARTS in
+	// flexicorp_freqs.js): load before flexicorp.js.
+	$fcCoreParts = array(
+		'viewstate', 'backend', 'statsrouting', 'kwicview', 'requests', 'highlight', 'querystore', 'documents', 'hitdetail', 'hits',
+		'stats_fields', 'scope', 'stats_corpus', 'stats_freq', 'stats_tabs', 'stats_coll', 'stats_other',
+	);
+	if ( preg_match( '#<script[^>]+src="[^"]*flexicorp\\.js[^"]*"[^>]*></script>#i', $maintext ) ) {
+		$fcPartTags = '';
+		$fcBase = rtrim( (string) $ecscriptsBaseUrl, '/' );
+		foreach ( $fcCoreParts as $fcPart ) {
+			$fcFile = 'fc_' . $fcPart . '.js';
+			if ( strpos( $maintext, $fcFile ) !== false ) continue;
+			$fcVer = tt_flexicorp_asset_version( array(
+				__DIR__ . '/' . $fcFile,
+				$prRoot . DIRECTORY_SEPARATOR . 'Scripts' . DIRECTORY_SEPARATOR . $fcFile,
+				$ecscripts !== '' ? $ecscripts . '/' . $fcFile : '',
+				$ecscripts !== '' ? $ecscripts . '/Scripts/' . $fcFile : '',
+			), $flexicorpJsVersion );
+			$fcPartTags .= '<script src="' . tt_flexicorp_h( $fcBase . '/' . $fcFile . '?v=' . $fcVer ) . '" defer></script>';
+		}
+		if ( $fcPartTags !== '' ) {
+			$maintext = preg_replace(
+				'#<script([^>]*src="[^"]*flexicorp\\.js[^"]*"[^>]*)></script>#i',
+				$fcPartTags . '<script$1></script>',
+				$maintext,
+				1
+			);
+		}
+	}
+
 	// CWB/CQP-only client hooks (e.g. outgoing query tweaks). Omit for Pando, Manatee, BlackLab, etc.
 	$injectFlexicorpCwbJs = ( $backend === 'cqp' ) || ( $backend === 'flexi' && $corpusFormat === 'cwb' );
 	if ( $injectFlexicorpCwbJs ) {
