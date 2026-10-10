@@ -17,7 +17,7 @@ if ( ! function_exists( 'tt_flexicorp_adv_dcoll_render_stats_panel' ) ) {
 						<select id="fc-dcoll-anchor-token" class="flexicorp-form-control flexicorp-form-control-sm" x-model="dcollAdv.anchorToken">
 							<option value="">(unspecified — only safe for a single token span)</option>
 							<template x-for="tok in collocationTokenAliasOptions()" :key="'dcoll-anch-' + tok">
-								<option :value="tok" x-text="tok"></option>
+								<option :value="tok" :selected="String(tok) === String(dcollAdv.anchorToken)" x-text="tok"></option>
 							</template>
 						</select>
 					</div>
@@ -25,7 +25,7 @@ if ( ! function_exists( 'tt_flexicorp_adv_dcoll_render_stats_panel' ) ) {
 						<label for="fc-dcoll-field">Field</label>
 						<select id="fc-dcoll-field" class="flexicorp-form-control flexicorp-form-control-sm" x-model="dcollAdv.field">
 							<template x-for="opt in dcollAdvFieldOptions()" :key="'dcoll-field-' + opt.key">
-								<option :value="opt.key" x-text="opt.label"></option>
+								<option :value="opt.key" :selected="String(opt.key) === String(dcollAdv.field)" x-text="opt.label"></option>
 							</template>
 						</select>
 					</div>
@@ -33,7 +33,7 @@ if ( ! function_exists( 'tt_flexicorp_adv_dcoll_render_stats_panel' ) ) {
 						<label for="fc-dcoll-relation">Relation</label>
 						<select id="fc-dcoll-relation" class="flexicorp-form-control flexicorp-form-control-sm" x-model="dcollAdv.relation">
 							<template x-for="opt in dcollAdvRelationOptions()" :key="'dcoll-rel-' + opt.key">
-								<option :value="opt.key" x-text="opt.label"></option>
+								<option :value="opt.key" :selected="String(opt.key) === String(dcollAdv.relation)" x-text="opt.label"></option>
 							</template>
 						</select>
 					</div>
@@ -81,7 +81,7 @@ if ( ! function_exists( 'tt_flexicorp_adv_dcoll_render_stats_panel' ) ) {
 					<span class="flexicorp-inline-label">Metric</span>
 					<select class="flexicorp-form-control flexicorp-form-control-sm" x-model="dcollAdvChartMetricKey" x-on:change="onDcollAdvChartMetricChanged()">
 						<template x-for="opt in dcollAdvChartMetricOptions()" :key="'dcoll-metric-' + opt.key">
-							<option :value="opt.key" x-text="opt.label"></option>
+							<option :value="opt.key" :selected="String(opt.key) === String(dcollAdvChartMetricKey)" x-text="opt.label"></option>
 						</template>
 					</select>
 				</div>

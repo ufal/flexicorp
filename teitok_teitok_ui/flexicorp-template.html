@@ -403,7 +403,7 @@
 						<label for="fc-kwic-limit">Hit limit</label>
 						<select id="fc-kwic-limit" name="kwic_limit" x-model="search.limit" x-on:change="onSearchLimitChanged($event)" class="flexicorp-inline-select">
 							<template x-for="opt in searchLimitOptions()" :key="'kwic-limit-' + opt">
-								<option :value="String(opt)" x-text="opt"></option>
+								<option :value="String(opt)" :selected="String(String(opt)) === String(search.limit)" x-text="opt"></option>
 							</template>
 						</select>
 					</div>
@@ -1341,7 +1341,7 @@
 							<template x-for="combo in backendCombinationList()" :key="'settings-backend:' + combo.id">
 								<template x-if="combo.available && combo.backend !== 'flexi' && combo.backend !== 'clickql' && combo.backend !== 'clickhouse'">
 									<option
-										:value="combo.id"
+										:value="combo.id" :selected="String(combo.id) === String(settingsSelectedComboId)"
 										x-text="getBackendLabel(combo.backend) + ' \u2013 ' + queryLanguageShort(combo.queryLanguage)"
 									></option>
 								</template>

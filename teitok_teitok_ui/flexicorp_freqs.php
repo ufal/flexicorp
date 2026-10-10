@@ -2451,7 +2451,7 @@
 								<select id="fc-coll-anchor-token" name="coll_anchor_token" class="flexicorp-form-control flexicorp-form-control-sm" x-model="collocation.anchorToken">
 									<option value="">(unspecified — only safe for a single token span)</option>
 									<template x-for="tok in collocationTokenAliasOptions()" :key="'coll-anch-' + tok">
-										<option :value="tok" x-text="tok"></option>
+										<option :value="tok" :selected="String(tok) === String(collocation.anchorToken)" x-text="tok"></option>
 									</template>
 								</select>
 							</div>
@@ -2524,7 +2524,7 @@
 										<span class="flexicorp-inline-label">Metric</span>
 										<select class="flexicorp-form-control flexicorp-form-control-sm" x-model="collocationChartMetricKey" x-on:change="onCollocationChartMetricChanged()">
 											<template x-for="opt in collocationChartMetricOptions()" :key="'coll-chart-metric-' + opt.key">
-												<option :value="opt.key" x-text="opt.label"></option>
+												<option :value="opt.key" :selected="String(opt.key) === String(collocationChartMetricKey)" x-text="opt.label"></option>
 											</template>
 										</select>
 									</div>
@@ -2623,7 +2623,7 @@
 							<label for="fc-other-xcol">X column</label>
 							<select id="fc-other-xcol" class="form-control form-control-sm" x-model="otherChartXColumn" x-on:change="onOtherChartColumnsChanged()">
 								<template x-for="col in otherColumnsList()" :key="'other-x-' + col">
-									<option :value="col" x-text="String(col)"></option>
+									<option :value="col" :selected="String(col) === String(otherChartXColumn)" x-text="String(col)"></option>
 								</template>
 							</select>
 						</div>
@@ -2631,7 +2631,7 @@
 							<label for="fc-other-ycol">Y column (numeric)</label>
 							<select id="fc-other-ycol" class="form-control form-control-sm" x-model="otherChartYColumn" x-on:change="onOtherChartColumnsChanged()">
 								<template x-for="col in otherNumericColumns().filter(c => c !== otherChartXColumn)" :key="'other-y-' + col">
-									<option :value="col" x-text="String(col)"></option>
+									<option :value="col" :selected="String(col) === String(otherChartYColumn)" x-text="String(col)"></option>
 								</template>
 							</select>
 						</div>

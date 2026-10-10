@@ -47,7 +47,7 @@ if ( ! function_exists( 'tt_flexicorp_adv_maps_render_panel' ) ) {
 							<label class="flexicorp-inline-label">Boundaries</label>
 							<select class="form-control form-control-sm" style="max-width:20rem;" x-model="mapsBoundaryDatasetKey" x-on:change="setMapsBoundaryDatasetKey($event.target.value)">
 								<template x-for="ds in mapsBoundaryDefinitions()" :key="'boundary-' + ds.key">
-									<option :value="ds.key" x-text="ds.label"></option>
+									<option :value="ds.key" :selected="String(ds.key) === String(mapsBoundaryDatasetKey)" x-text="ds.label"></option>
 								</template>
 							</select>
 						</div>
@@ -55,7 +55,7 @@ if ( ! function_exists( 'tt_flexicorp_adv_maps_render_panel' ) ) {
 							<label class="flexicorp-inline-label">Metric</label>
 							<select class="form-control form-control-sm" style="max-width:14rem;" x-model="mapsRegionMetric" x-on:change="syncMapsViz()">
 								<template x-for="opt in regionMetricOptions()" :key="'metric-' + opt.key">
-									<option :value="opt.key" x-text="opt.label"></option>
+									<option :value="opt.key" :selected="String(opt.key) === String(mapsRegionMetric)" x-text="opt.label"></option>
 								</template>
 							</select>
 						</div>
@@ -63,7 +63,7 @@ if ( ! function_exists( 'tt_flexicorp_adv_maps_render_panel' ) ) {
 							<label class="flexicorp-inline-label">Compare scale</label>
 							<select class="form-control form-control-sm" style="max-width:16rem;" x-model="mapsCompareScaleMode" x-on:change="syncMapsViz()">
 								<template x-for="opt in mapsCompareScaleOptions()" :key="'cmp-scale-' + opt.key">
-									<option :value="opt.key" x-text="opt.label"></option>
+									<option :value="opt.key" :selected="String(opt.key) === String(mapsCompareScaleMode)" x-text="opt.label"></option>
 								</template>
 							</select>
 						</div>
@@ -71,7 +71,7 @@ if ( ! function_exists( 'tt_flexicorp_adv_maps_render_panel' ) ) {
 							<label class="flexicorp-inline-label">Colors</label>
 							<select class="form-control form-control-sm" style="max-width:16rem;" x-model="mapsRegionColorMode" x-on:change="syncMapsViz()">
 								<template x-for="opt in mapsRegionColorModeOptions()" :key="'colormode-' + opt.key">
-									<option :value="opt.key" x-text="opt.label"></option>
+									<option :value="opt.key" :selected="String(opt.key) === String(mapsRegionColorMode)" x-text="opt.label"></option>
 								</template>
 							</select>
 						</div>
@@ -81,7 +81,7 @@ if ( ! function_exists( 'tt_flexicorp_adv_maps_render_panel' ) ) {
 							<option value="__default__">Default view</option>
 							<option value="__fit__">Zoom to fit</option>
 							<template x-for="area in mapsConfiguredAreas()" :key="'area-' + (area.key || area.display || '')">
-								<option :value="area.key || ''" x-text="area.display || area.key || 'Area'"></option>
+								<option :value="area.key || ''" :selected="String(area.key || '') === String(mapsSelectedAreaKey)" x-text="area.display || area.key || 'Area'"></option>
 							</template>
 							</select>
 						</div>
@@ -173,7 +173,7 @@ if ( ! function_exists( 'tt_flexicorp_adv_maps_render_stats_panel' ) ) {
 							<label class="flexicorp-inline-label">Boundaries</label>
 							<select class="form-control form-control-sm" style="max-width:20rem;" x-model="mapsBoundaryDatasetKey" x-on:change="setMapsBoundaryDatasetKey($event.target.value)">
 								<template x-for="ds in mapsBoundaryDefinitions()" :key="'boundary-' + ds.key">
-									<option :value="ds.key" x-text="ds.label"></option>
+									<option :value="ds.key" :selected="String(ds.key) === String(mapsBoundaryDatasetKey)" x-text="ds.label"></option>
 								</template>
 							</select>
 						</div>
@@ -181,7 +181,7 @@ if ( ! function_exists( 'tt_flexicorp_adv_maps_render_stats_panel' ) ) {
 							<label class="flexicorp-inline-label">Metric</label>
 							<select class="form-control form-control-sm" style="max-width:14rem;" x-model="mapsRegionMetric" x-on:change="syncMapsViz()">
 								<template x-for="opt in regionMetricOptions()" :key="'metric-' + opt.key">
-									<option :value="opt.key" x-text="opt.label"></option>
+									<option :value="opt.key" :selected="String(opt.key) === String(mapsRegionMetric)" x-text="opt.label"></option>
 								</template>
 							</select>
 						</div>
@@ -189,7 +189,7 @@ if ( ! function_exists( 'tt_flexicorp_adv_maps_render_stats_panel' ) ) {
 							<label class="flexicorp-inline-label">Compare scale</label>
 							<select class="form-control form-control-sm" style="max-width:16rem;" x-model="mapsCompareScaleMode" x-on:change="syncMapsViz()">
 								<template x-for="opt in mapsCompareScaleOptions()" :key="'cmp-scale-' + opt.key">
-									<option :value="opt.key" x-text="opt.label"></option>
+									<option :value="opt.key" :selected="String(opt.key) === String(mapsCompareScaleMode)" x-text="opt.label"></option>
 								</template>
 							</select>
 						</div>
@@ -197,7 +197,7 @@ if ( ! function_exists( 'tt_flexicorp_adv_maps_render_stats_panel' ) ) {
 							<label class="flexicorp-inline-label">Colors</label>
 							<select class="form-control form-control-sm" style="max-width:16rem;" x-model="mapsRegionColorMode" x-on:change="syncMapsViz()">
 								<template x-for="opt in mapsRegionColorModeOptions()" :key="'colormode-' + opt.key">
-									<option :value="opt.key" x-text="opt.label"></option>
+									<option :value="opt.key" :selected="String(opt.key) === String(mapsRegionColorMode)" x-text="opt.label"></option>
 								</template>
 							</select>
 						</div>
@@ -207,7 +207,7 @@ if ( ! function_exists( 'tt_flexicorp_adv_maps_render_stats_panel' ) ) {
 							<option value="__default__">Default view</option>
 							<option value="__fit__">Zoom to fit</option>
 							<template x-for="area in mapsConfiguredAreas()" :key="'area-' + (area.key || area.display || '')">
-								<option :value="area.key || ''" x-text="area.display || area.key || 'Area'"></option>
+								<option :value="area.key || ''" :selected="String(area.key || '') === String(mapsSelectedAreaKey)" x-text="area.display || area.key || 'Area'"></option>
 							</template>
 							</select>
 						</div>

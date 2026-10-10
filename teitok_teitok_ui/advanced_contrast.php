@@ -34,7 +34,7 @@ if ( ! function_exists( 'tt_flexicorp_contrast_render_af_panel' ) ) {
 								<label for="af-contrast-points">Points</label>
 								<select id="af-contrast-points" class="flexicorp-form-control flexicorp-form-control-sm" style="max-width:6rem;" x-model.number="afContrastVolcanoPointLimit">
 									<template x-for="n in afContrastVolcanoPointOptions()" :key="'af-vpt-' + n">
-										<option :value="n" x-text="n"></option>
+										<option :value="n" :selected="String(n) === String(afContrastVolcanoPointLimit)" x-text="n"></option>
 									</template>
 								</select>
 							</div>
@@ -53,7 +53,7 @@ if ( ! function_exists( 'tt_flexicorp_contrast_render_af_panel' ) ) {
 							<span class="flexicorp-inline-label" style="margin-left:0.5rem;">Metric</span>
 							<select class="flexicorp-form-control flexicorp-form-control-sm" style="max-width:12rem;" x-model="afContrastMetric">
 								<template x-for="opt in afContrastMetricOptions()" :key="'af-cm-' + opt.key">
-									<option :value="opt.key" x-text="opt.label"></option>
+									<option :value="opt.key" :selected="String(opt.key) === String(afContrastMetric)" x-text="opt.label"></option>
 								</template>
 							</select>
 						</div>
@@ -148,7 +148,7 @@ if ( ! function_exists( 'tt_flexicorp_contrast_render_stats_panel' ) ) {
 							<label for="fc-stats-contrast-points">Points</label>
 							<select id="fc-stats-contrast-points" class="flexicorp-form-control flexicorp-form-control-sm" style="max-width:6rem;" x-model.number="afContrastVolcanoPointLimit">
 								<template x-for="n in afContrastVolcanoPointOptions()" :key="'st-vpt-' + n">
-									<option :value="n" x-text="n"></option>
+									<option :value="n" :selected="String(n) === String(afContrastVolcanoPointLimit)" x-text="n"></option>
 								</template>
 							</select>
 						</div>
@@ -167,7 +167,7 @@ if ( ! function_exists( 'tt_flexicorp_contrast_render_stats_panel' ) ) {
 						<span class="flexicorp-inline-label" style="margin-left:0.5rem;">Metric</span>
 						<select class="flexicorp-form-control flexicorp-form-control-sm" style="max-width:12rem;" x-model="afContrastMetric">
 							<template x-for="opt in afContrastMetricOptions()" :key="'st-cm-' + opt.key">
-								<option :value="opt.key" x-text="opt.label"></option>
+								<option :value="opt.key" :selected="String(opt.key) === String(afContrastMetric)" x-text="opt.label"></option>
 							</template>
 						</select>
 					</div>
