@@ -148,21 +148,49 @@ window.ttFlexicorpCoreParts.statsrouting = function () {
 		},
 
 		statsSubTabForOperationName(operationName) {
-			const op = operationName == null ? '' : String(operationName).trim().toLowerCase();
-			if (!op) return '';
-			// Built-in panels.
-			if (op === 'freq' || op === 'group') return 'freq';
-			if (op === 'coll') return 'coll';
-			// Module panels.
+			return window.ttFlexicorpPlanner.subtabForOperation(operationName, this.fcPlannerModules());
+		},
+
+		/** Why an answer is not shown where it belongs (statsRouteNote). */
+		fcRouteNoteText(planned, shown) {
+			const labels = { freq: 'Frequency', coll: 'Collocations', other: 'Other', corpus: 'Corpus stats', advanced_dcoll: 'Dependencies', contrast: 'Contrast', maps: 'Maps', queries: 'Queries' };
+			const name = (id) => labels[id] || id;
+			const why = typeof this.statsSearchHasHits === 'function' && !this.statsSearchHasHits() && !this.statsHasResultFor(planned)
+				? 'there are no hits to analyse'
+				: `the ${name(planned)} panel is not available for this corpus or engine`;
+			return `This result belongs in ${name(planned)}, but ${why}; showing ${name(shown)} instead.`;
+		},
+
+		/** The Stats modules as the planner sees them: id and the operations they show. */
+		fcPlannerModules() {
 			const reg = Array.isArray(this.statsModuleRegistry) ? this.statsModuleRegistry : [];
-			for (let i = 0; i < reg.length; i += 1) {
-				const m = reg[i];
-				if (!m || !m.id) continue;
-				const ops = Array.isArray(m.operations) ? m.operations : [];
-				if (ops.includes(op)) return m.id;
-			}
-			// Anything else: raw table under "Other".
-			return 'other';
+			return reg.filter((m) => m && m.id).map((m) => ({ id: m.id, operations: Array.isArray(m.operations) ? m.operations : [] }));
+		},
+
+		/** The planner's input from a server state (see fc_planner.js), and its decision. */
+		fcPlanFromState(state, preserveTab) {
+			const sr = state && state.search && state.search.response && state.search.response.result
+				&& typeof state.search.response.result === 'object' ? state.search.response.result : null;
+			const input = {
+				preserveTab: !!preserveTab,
+				serverTab: state && state.activeTab ? String(state.activeTab) : '',
+				currentTab: this.activeTab,
+				currentSubtab: this.statsSubTab,
+				hint: state && typeof state.statsSubTabHint === 'string' ? state.statsSubTabHint : '',
+				slotOp: this.statsOperationFromState(state),
+				ran: {
+					other: !!(state && state.other && state.other.ran),
+					coll: !!(state && state.collocation && state.collocation.ran),
+					freq: !!(state && state.frequency && state.frequency.ran),
+				},
+				searchRan: !!(state && state.search && state.search.ran),
+				hasHits: typeof this.statsSearchHasHits === 'function' && this.statsSearchHasHits(),
+				searchResult: sr ? { kind: String(sr.kind || ''), operation: String(sr.operation || '') } : null,
+				modules: this.fcPlannerModules(),
+			};
+			const out = window.ttFlexicorpPlanner.plan(input);
+			if (this.debugMode) console.info('[flexicorp][plan]', out.reason, out, input);
+			return out;
 		},
 
 		availableStatsModules() {
@@ -620,38 +648,15 @@ window.ttFlexicorpCoreParts.statsrouting = function () {
 			);
 			this.settingsSelectedComboId = currentCombo && currentCombo.id ? currentCombo.id : '';
 
-			// Pick the Stats subtab from the latest server state.
-			// Order: explicit dedicated action → server-supplied hint (PHP statsSubTabHint,
-			// driven by flexicorp result.operation) → "ran" payloads → soft default after any
-			// base query (Frequency, not Corpus stats, so a Stats click lands on the
-			// query-scoped view). Users who explicitly chose Keyness / Coll / D-coll keep their
-			// pick. The 'other' subtab is reachable only via server hint or its own ran flag —
-			// no dedicated action button posts it directly.
-			if (state.action === 'freq') {
-				this.statsSubTab = 'freq';
-			} else if (state.action === 'coll') {
-				this.statsSubTab = 'coll';
-			} else if (typeof state.statsSubTabHint === 'string' && state.statsSubTabHint !== '') {
-				this.statsSubTab = state.statsSubTabHint;
-			} else if (state.other && state.other.ran) {
-				this.statsSubTab = 'other';
-			} else if (state.collocation && state.collocation.ran) {
-				this.statsSubTab = 'coll';
-			} else if (state.frequency && state.frequency.ran) {
-				this.statsSubTab = 'freq';
-			} else if (
-				state.search && state.search.ran
-				&& typeof this.statsSearchHasHits === 'function'
-				&& this.statsSearchHasHits()
-				&& (this.statsSubTab === 'corpus' || !this.statsSubTab)
-			) {
-				this.statsSubTab = 'freq';
-			}
-
 			// Load Stats subtabs (maps, contrast, …) before validating statsSubTab so isAvailable() sees current backend/corpus.
 			if (typeof this.installFlexicorpStatsModuleExtensions === 'function') {
 				this.installFlexicorpStatsModuleExtensions();
 			}
+			// Where the answer lands: the planner (fc_planner.js) decides tab and subtab once,
+			// with the modules' operations known; the guard below keeps an unavailable subtab out.
+			const plan = this.fcPlanFromState(state, preserveClientTab);
+			if (plan.subtab) this.statsSubTab = plan.subtab;
+			this.statsRouteNote = '';
 			// Let modules ingest routed state payloads (keyness now hydrates from search payload).
 			if (typeof this.afContrastHydrateFromState === 'function') {
 				try {
@@ -672,26 +677,11 @@ window.ttFlexicorpCoreParts.statsrouting = function () {
 			if (typeof this.ensureStatsSubTabAllowed === 'function') {
 				this.ensureStatsSubTabAllowed();
 			}
-			// Operation-driven routing: use backend JSON `operation` to choose the Stats subtab.
-			// Modules declare which operations they can ingest (e.g. Contrast → `keyness`).
-			try {
-				const op = this.statsOperationFromState(state);
-				const desired = this.statsSubTabForOperationName(op);
-				if (desired && desired !== this.statsSubTab) {
-					this.statsSubTab = desired;
-					this.ensureStatsSubTabAllowed();
-				}
-			} catch (_) {}
-			// Query-driven aggregation/association responses should surface in Stats immediately.
-			// If routing picked a stats subtab (freq/coll/other), keep the user out of Search
-			// even when state.activeTab still comes in as "search" from legacy paths.
-			// Skip when preserveClientTab (e.g. corpus-info probe) or the user already navigated away.
-			if (
-				!preserveClientTab
-				&& (state.action === 'query' || state.action === 'kwic')
-				&& this.statsSubTab && this.statsSubTab !== 'corpus'
-			) {
-				this.activeTab = 'frequency';
+			if (plan.tab) this.activeTab = plan.tab;
+			// the guard moved the planned subtab (a module this corpus does not offer, no hits):
+			// say so instead of showing another panel without a word
+			if (plan.subtab && this.statsSubTab !== plan.subtab && !preserveClientTab) {
+				this.statsRouteNote = this.fcRouteNoteText(plan.subtab, this.statsSubTab);
 			}
 			if (initial && !this._userActiveTab) {
 				this._userActiveTab = this.activeTab;

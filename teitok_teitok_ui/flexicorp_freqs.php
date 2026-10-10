@@ -2067,6 +2067,7 @@
 				</template>
 				<button type="button" role="tab" class="flexicorp-tab flexicorp-tab--sub" x-show="statsCapabilityOther()" :class="statsSubTab === 'other' ? 'flexicorp-tab--active' : ''" :aria-selected="statsSubTab === 'other' ? 'true' : 'false'" :disabled="!statsSearchHasHits()" x-on:click.prevent="setStatsSubTab('other')" :title="other && other.operation ? ('{%Aggregation: }' + other.operation) : '{%Other aggregation result}'"><span>{%Other}</span></button>
 			</div>
+			<p class="flexicorp-panel-note flexicorp-stats-route-note" x-show="statsRouteNote" x-text="statsRouteNote"></p>
 			<span id="flexicorp-stats-maps-bootstrap" class="flexicorp-hidden" data-flexicorp-maps-geo-config="__FLEXICORP_STATS_MAPS_GEO_JSON__" style="display:none;" aria-hidden="true"></span>
 
 			<div class="flexicorp-stats-subpanel" x-show="statsSubTab === 'queries'">

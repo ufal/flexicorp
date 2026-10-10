@@ -8483,10 +8483,12 @@ require_once __DIR__ . '/fc_engine.php';
 		'viewstate', 'backend', 'statsrouting', 'kwicview', 'requests', 'highlight', 'querystore', 'documents', 'hitdetail', 'hits',
 		'stats_fields', 'scope', 'stats_corpus', 'stats_freq', 'stats_tabs', 'stats_coll', 'stats_other',
 	);
+	// Libraries the parts use (window.ttFlexicorp*): loaded first.
+	$fcLibs = array( 'planner' );
 	if ( preg_match( '#<script[^>]+src="[^"]*flexicorp\\.js[^"]*"[^>]*></script>#i', $maintext ) ) {
 		$fcPartTags = '';
 		$fcBase = rtrim( (string) $ecscriptsBaseUrl, '/' );
-		foreach ( $fcCoreParts as $fcPart ) {
+		foreach ( array_merge( $fcLibs, $fcCoreParts ) as $fcPart ) {
 			$fcFile = 'fc_' . $fcPart . '.js';
 			if ( strpos( $maintext, $fcFile ) !== false ) continue;
 			$fcVer = tt_flexicorp_asset_version( array(

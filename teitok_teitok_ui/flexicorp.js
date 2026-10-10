@@ -222,6 +222,8 @@ function flexicorpApp() {
 		 * [{qid, text, ql, at}]; null = not loaded, or storage unavailable (then the session lists).
 		 */
 		recentQueriesLocal: null,
+		/** Why the last answer is not in the subtab it belongs to (set by the router in applyState). */
+		statsRouteNote: '',
 		/** Sanitized HTML from getset flexicorp/search_intro_html; intro box (everything after the first <p>). */
 		searchIntroHtml: '',
 		/** Admin-only: heuristic mismatch between xmlfiles/, pando/, xidx/ (from PHP). */
