@@ -807,6 +807,8 @@ function flexicorpApp() {
 					view_mode: this.search && this.search.viewMode ? String(this.search.viewMode) : '',
 					window: this.search && this.search.window != null ? Number(this.search.window) : null,
 					limit: this.search && this.search.limit != null ? Number(this.search.limit) : null,
+					// hits loaded so far ("Show more"): the link loads as many again
+					loaded: typeof this.searchLoadedItemCount === 'function' ? this.searchLoadedItemCount() : null,
 				},
 				scope: {
 					queries: scopeQueries,
@@ -873,7 +875,13 @@ function flexicorpApp() {
 					point_limit: this.mapsPointLimit != null ? Number(this.mapsPointLimit) : null,
 					table_search: String(this.mapsTableSearch || ''),
 					table_sort: this.mapsTableSort && typeof this.mapsTableSort === 'object' ? this.mapsTableSort : null,
+					view: typeof this.mapsCurrentView === 'function' && this.mapsVizMode === 'map' ? this.mapsCurrentView() : null,
 				},
+				documents: this.documentsUi && typeof this.documentsUi === 'object' ? {
+					filter: String(this.documentsUi.filter || ''),
+					per_page: this.documentsUi.perPage != null ? Number(this.documentsUi.perPage) : null,
+					visible: this.documentsUi.visibleCount != null ? Number(this.documentsUi.visibleCount) : null,
+				} : null,
 			};
 		},
 
@@ -922,7 +930,11 @@ function flexicorpApp() {
 					vm: p.search && p.search.view_mode,
 					w: p.search && p.search.window,
 					l: p.search && p.search.limit,
+					n: p.search && p.search.loaded > (p.search.limit || 0) ? p.search.loaded : null,
 				},
+				dc: p.ui && p.ui.active_tab === 'documents' && p.documents ? {
+					f: p.documents.filter, pp: p.documents.per_page, v: p.documents.visible,
+				} : null,
 				sc: {
 					q: Array.isArray(p.scope && p.scope.queries)
 						? p.scope.queries.map((r) => ({
@@ -988,6 +1000,7 @@ function flexicorpApp() {
 					pl: p.maps.point_limit,
 					ts: p.maps.table_search,
 					to: p.maps.table_sort,
+					v: p.maps.view,
 				} : null,
 			};
 			return this._compactPruneValue(compact) || { s: 'fvs1' };
@@ -1019,7 +1032,13 @@ function flexicorpApp() {
 					view_mode: p.q && p.q.vm ? String(p.q.vm) : '',
 					window: p.q && p.q.w != null ? Number(p.q.w) : null,
 					limit: p.q && p.q.l != null ? Number(p.q.l) : null,
+					loaded: p.q && p.q.n != null ? Number(p.q.n) : null,
 				},
+				documents: p.dc && typeof p.dc === 'object' ? {
+					filter: p.dc.f ? String(p.dc.f) : '',
+					per_page: p.dc.pp != null ? Number(p.dc.pp) : null,
+					visible: p.dc.v != null ? Number(p.dc.v) : null,
+				} : null,
 				scope: {
 					queries: Array.isArray(p.sc && p.sc.q)
 						? p.sc.q.map((r, idx) => ({
@@ -1092,6 +1111,7 @@ function flexicorpApp() {
 					point_limit: p.mp.pl != null ? Number(p.mp.pl) : null,
 					table_search: p.mp.ts ? String(p.mp.ts) : '',
 					table_sort: p.mp.to && typeof p.mp.to === 'object' ? p.mp.to : null,
+					view: p.mp.v && typeof p.mp.v === 'object' ? p.mp.v : null,
 				} : null,
 			};
 			return expanded;
@@ -1120,6 +1140,13 @@ function flexicorpApp() {
 				if (search.view_mode != null) this.search.viewMode = String(search.view_mode);
 				if (search.window != null && Number.isFinite(Number(search.window))) this.search.window = Number(search.window);
 				if (search.limit != null && Number.isFinite(Number(search.limit))) this.search.limit = Number(search.limit);
+				this._snapshotWantedLoaded = search.loaded != null && Number.isFinite(Number(search.loaded)) ? Number(search.loaded) : 0;
+			}
+			const docs = p.documents && typeof p.documents === 'object' ? p.documents : null;
+			if (docs && this.documentsUi && typeof this.documentsUi === 'object') {
+				if (docs.filter) this.documentsUi.filter = String(docs.filter);
+				if (docs.per_page != null && Number.isFinite(docs.per_page)) this.documentsUi.perPage = docs.per_page;
+				if (docs.visible != null && Number.isFinite(docs.visible)) this.documentsUi.visibleCount = docs.visible;
 			}
 			const scope = p.scope && typeof p.scope === 'object' ? p.scope : {};
 			if (
@@ -1214,6 +1241,7 @@ function flexicorpApp() {
 				if (maps.table_sort && typeof maps.table_sort === 'object') {
 					this.mapsTableSort = { col: String(maps.table_sort.col || 'count'), asc: !!maps.table_sort.asc };
 				}
+				if (maps.view && Array.isArray(maps.view.center)) this.mapsPendingView = { center: maps.view.center.map(Number), zoom: Number(maps.view.zoom) };
 			}
 			this.ensureStatsSubTabAllowed();
 			// eslint-disable-next-line no-console
@@ -1438,7 +1466,17 @@ function flexicorpApp() {
 			setTimeout(() => {
 				try {
 					if (this.isLoading('search')) return;
-					Promise.resolve(this.submitSearchRequest({ append: false })).then(() => {
+					const loadMore = async () => {
+						// as many hits as were on screen ("Show more" pages), at most 20 extra requests
+						const want = Number(this._snapshotWantedLoaded || 0);
+						this._snapshotWantedLoaded = 0;
+						for (let i = 0; i < 20 && want > this.searchLoadedItemCount(); i += 1) {
+							const before = this.searchLoadedItemCount();
+							await this.submitSearchRequest({ append: true });
+							if (this.searchLoadedItemCount() <= before) break;
+						}
+					};
+					Promise.resolve(this.submitSearchRequest({ append: false })).then(loadMore).then(() => {
 						if (!wantedTab || wantedTab === 'search') return;
 						if (typeof this.setTab === 'function') this.setTab(wantedTab);
 						if (wantedTab !== 'frequency' || !wantedSub) return;

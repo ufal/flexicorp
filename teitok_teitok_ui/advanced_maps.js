@@ -81,6 +81,8 @@
 			mapsPointAutoRequested: false,
 			mapsRegionAutoRequested: false,
 			mapsSelectedAreaKey: '__default__',
+			// map centre/zoom from a share link: applied once the data is drawn (after the auto-fit)
+			mapsPendingView: null,
 
 			_mapsSearchScopeFns() {
 				return (typeof window !== 'undefined' && window.ttFlexicorpFns && window.ttFlexicorpFns.searchScope)
@@ -1495,6 +1497,21 @@
 				if (bounds.length && !this.mapsConfiguredStartView()) {
 					this.mapsLeafletMap.fitBounds(bounds, { padding: [24, 24], maxZoom: 11, animate: false });
 				}
+				if (bounds.length) this.mapsApplyPendingView();
+			},
+			mapsCurrentView() {
+				const m = this.mapsLeafletMap;
+				if (!m || typeof m.getCenter !== 'function') return null;
+				try {
+					const c = m.getCenter();
+					return { center: [Number(c.lat.toFixed(5)), Number(c.lng.toFixed(5))], zoom: m.getZoom() };
+				} catch (_) { return null; }
+			},
+			mapsApplyPendingView() {
+				const v = this.mapsPendingView;
+				if (!v || !this.mapsLeafletMap || !Array.isArray(v.center) || v.center.length !== 2) return;
+				this.mapsPendingView = null;
+				try { this.mapsLeafletMap.setView(v.center, Number.isFinite(Number(v.zoom)) ? Number(v.zoom) : this.mapsLeafletMap.getZoom(), { animate: false }); } catch (_) {}
 			},
 			async renderMapsRegionsChoropleth() {
 				const L = this.ensureLeafletMapBase();
@@ -1623,6 +1640,7 @@
 					const b = this.mapsBoundaryLayer.getBounds();
 					if (b && typeof b.isValid === 'function' && b.isValid()) this.mapsLeafletMap.fitBounds(b, { padding: [18, 18], maxZoom: 9, animate: false });
 				} catch (_) {}
+				this.mapsApplyPendingView();
 			},
 			mapsChartPalette(count) { const n = Math.max(1, Number(count) || 1); return Array.from({ length: n }, (_, i) => `hsla(${Math.round((360 * i) / n)}, 65%, 55%, 0.78)`); },
 			renderMapsChart() {
