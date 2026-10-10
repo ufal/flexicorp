@@ -1682,6 +1682,7 @@ window.flexicorpFreqsExtend = function flexicorpFreqsExtend() {
 
 		setFrequencyChartValueScale(scale) {
 			const next = scale === 'absolute' ? 'absolute' : 'relative';
+			this._frequencyScaleChosen = true;
 			if (next === 'relative' && !this.frequencySupportsRelativeScale()) {
 				this.frequencyChartValueScale = 'absolute';
 			} else {
@@ -2778,8 +2779,9 @@ window.flexicorpFreqsExtend = function flexicorpFreqsExtend() {
 				this.frequencyVizMode = 'vbar';
 			}
 			if (this.frequencySupportsRelativeScale()) {
-				// Default to relative whenever the backend provides relative/subcorpus metrics.
-				this.frequencyChartValueScale = 'relative';
+				// Default to relative whenever the backend provides relative/subcorpus metrics,
+				// unless absolute was chosen (by the user, or by a share link).
+				if (!this._frequencyScaleChosen) this.frequencyChartValueScale = 'relative';
 			} else if (this.frequencyChartValueScale === 'relative') {
 				this.frequencyChartValueScale = 'absolute';
 			}

@@ -1130,6 +1130,10 @@ function flexicorpApp() {
 			const ui = p.ui && typeof p.ui === 'object' ? p.ui : {};
 			if (ui.active_tab) this.activeTab = String(ui.active_tab);
 			if (ui.stats_subtab) this.statsSubTab = String(ui.stats_subtab);
+			// what the link points at, before ensureStatsSubTabAllowed() sends a Stats subtab
+			// back to Corpus stats for lack of hits (the restore reopens it once they are in)
+			this._snapshotWantedTab = ui.active_tab ? String(ui.active_tab) : '';
+			this._snapshotWantedSub = ui.stats_subtab ? String(ui.stats_subtab) : '';
 			const search = p.search && typeof p.search === 'object' ? p.search : {};
 			if (this.search && typeof this.search === 'object') {
 				if (search.query != null) this.search.query = String(search.query);
@@ -1171,7 +1175,10 @@ function flexicorpApp() {
 			}
 			if (freq.viz_mode != null && this.frequencyVizMode != null) this.frequencyVizMode = String(freq.viz_mode);
 			if (freq.chart_type != null && this.frequencyChartType != null) this.frequencyChartType = String(freq.chart_type);
-			if (freq.chart_scale != null && this.frequencyChartValueScale != null) this.frequencyChartValueScale = String(freq.chart_scale);
+			if (freq.chart_scale != null && this.frequencyChartValueScale != null) {
+				this.frequencyChartValueScale = String(freq.chart_scale);
+				this._frequencyScaleChosen = true;
+			}
 			if (freq.chart_order != null && this.frequencyChartOrder != null) this.frequencyChartOrder = String(freq.chart_order);
 			if (freq.table_search != null && this.frequencyTableSearch != null) this.frequencyTableSearch = String(freq.table_search);
 			if (freq.table_sort && typeof freq.table_sort === 'object' && this.frequencyTableSort && typeof this.frequencyTableSort === 'object') {
@@ -1297,15 +1304,8 @@ function flexicorpApp() {
 			}
 			this.visualizationShareUrl = url;
 			this.visualizationShareStatus = '';
-			if (this.activeTab === 'frequency') {
-				this.visualizationShareOpen = true;
-				return;
-			}
-			if (this.canNativeShareVisualization()) {
-				void this.nativeShareVisualization();
-				return;
-			}
-			void this.copyVisualizationShareUrl();
+			// one popup everywhere (Stats and Search): the URL to copy, plus Share… / Email
+			this.visualizationShareOpen = true;
 		},
 
 		closeVisualizationShare() {
@@ -1461,8 +1461,10 @@ function flexicorpApp() {
 			if (!q && !v) return false;
 			// The search answer switches to the Search tab; a link to Stats (Maps, Frequency, …)
 			// goes back there once the hits are in, since Stats subtabs need hits.
-			const wantedTab = String(this.activeTab || '').trim();
-			const wantedSub = String(this.statsSubTab || '').trim();
+			const wantedTab = String(this._snapshotWantedTab || this.activeTab || '').trim();
+			const wantedSub = String(this._snapshotWantedSub || this.statsSubTab || '').trim();
+			this._snapshotWantedTab = '';
+			this._snapshotWantedSub = '';
 			// eslint-disable-next-line no-console
 			const vlog = (...args) => console.log('[flexicorp][viz]', ...args);
 			const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

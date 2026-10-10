@@ -751,7 +751,7 @@
 			<div x-show="search.ran" class="flexicorp-search-results-block">
 				<div class="flexicorp-search-result-title-row">
 					<h3 class="flexicorp-subtitle flexicorp-search-result-heading">{%Search result}</h3>
-					<div class="flexicorp-search-result-actions">
+					<div class="flexicorp-search-result-actions" style="position:relative;">
 						<button
 							type="button"
 							class="btn btn-sm btn-outline-secondary flexicorp-share-btn"
@@ -762,6 +762,17 @@
 						>
 							<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" focusable="false"><path d="M14 3h7v7h-2V6.41l-7.29 7.3-1.42-1.42 7.3-7.29H14V3z" fill="currentColor"></path><path d="M5 5h7v2H7v10h10v-5h2v7H5V5z" fill="currentColor"></path></svg>
 						</button>
+						<div x-show="visualizationShareOpen && activeTab === 'search'" x-on:click.outside="closeVisualizationShare()" style="position:absolute;right:0;top:2.1rem;z-index:40;background:#fff;border:1px solid rgba(0,0,0,0.15);border-radius:0.4rem;padding:0.55rem;min-width:20rem;box-shadow:0 8px 18px rgba(0,0,0,0.12);">
+							<div class="flexicorp-panel-note" style="margin:0 0 0.35rem 0;"><strong>{%Share this search}</strong></div>
+							<input type="text" readonly x-model="visualizationShareUrl" x-on:focus="$event.target.select()" class="flexicorp-form-control flexicorp-form-control-sm" style="width:100%;margin-bottom:0.45rem;">
+							<div style="display:flex;gap:0.35rem;flex-wrap:wrap;">
+								<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="copyVisualizationShareUrl()">{%Copy URL}</button>
+								<button type="button" class="btn btn-sm btn-outline-secondary" x-show="canNativeShareVisualization()" x-on:click="nativeShareVisualization()">{%Share…}</button>
+								<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="emailVisualizationShare()">{%Email}</button>
+								<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="closeVisualizationShare()">{%Close}</button>
+							</div>
+							<p class="flexicorp-panel-note" x-show="visualizationShareStatus" x-text="visualizationShareStatus" style="margin:0.4rem 0 0 0;"></p>
+						</div>
 						<button type="button" class="btn btn-sm btn-outline-secondary" x-show="hasRaw('search')" x-on:click="openResponse('search', 'Search response')">Raw</button>
 						<label for="fc-view-mode-results" class="flexicorp-inline-label">{%Display}</label>
 						<select
