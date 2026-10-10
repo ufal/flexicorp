@@ -750,7 +750,7 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 						...common,
 						indexAxis: 'y',
 						plugins: {
-							legend: { display: false },
+							legend: { display: showSeriesLegend, position: 'top' },
 							title: { display: false },
 							tooltip: barTooltip,
 						},
@@ -793,7 +793,7 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 						...common,
 						indexAxis: 'x',
 						plugins: {
-							legend: { display: false },
+							legend: { display: showSeriesLegend, position: 'top' },
 							title: { display: false },
 							tooltip: barTooltip,
 						},
@@ -830,7 +830,7 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 					options: {
 						...common,
 						plugins: {
-							legend: { display: false },
+							legend: { display: showSeriesLegend, position: 'top' },
 							title: { display: false },
 							tooltip: barTooltip,
 						},
@@ -855,7 +855,7 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 					options: {
 						...common,
 						plugins: {
-							legend: { display: false },
+							legend: { display: showSeriesLegend, position: 'top' },
 							title: { display: false },
 							tooltip: barTooltip,
 						},
@@ -1291,9 +1291,19 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 		frequencyRowQueryRelativeSubcorpusIpmNumber(row, q) {
 			if (!row || !row.queries || !row.queries[q]) return null;
 			const cell = row.queries[q] || {};
-			const raw = cell.q_ipm ?? cell.subcorpus_ipm ?? cell.relative_subcorpus_ipm ?? cell.ipm;
+			// With a subcorpus size per row, pando's `ipm` is per million tokens of that subcorpus;
+			// its `q_ipm` is the query's share of its own hits (pct × 10⁴), not an IPM.
+			const raw = this.frequencyRowHasSubcorpusSize(row) && cell.ipm !== undefined
+				? cell.ipm
+				: (cell.q_ipm ?? cell.subcorpus_ipm ?? cell.relative_subcorpus_ipm ?? cell.ipm);
 			const n = Number(raw);
 			return Number.isFinite(n) ? n : null;
+		},
+
+		/** The row carries the token count of its subcorpus (pando `per_subcorpus_ipm`). */
+		frequencyRowHasSubcorpusSize(row) {
+			const n = Number(row && row.subcorpus_size);
+			return Number.isFinite(n) && n > 0;
 		},
 
 		frequencyCompareTotalsPerQuery() {
@@ -1343,7 +1353,9 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 		frequencyRowQueryRelativeNumber(row, q) {
 			const cell = row && row.queries && row.queries[q] ? row.queries[q] : null;
 			if (!cell) return 0;
-			let v = Number(cell.q_ipm ?? cell.subcorpus_ipm ?? cell.relative_subcorpus_ipm);
+			let v = this.frequencyRowHasSubcorpusSize(row) ? Number(cell.ipm) : NaN;
+			if (Number.isFinite(v)) return v;
+			v = Number(cell.q_ipm ?? cell.subcorpus_ipm ?? cell.relative_subcorpus_ipm);
 			if (Number.isFinite(v)) return v;
 			v = Number(cell.ipm);
 			if (Number.isFinite(v)) return v;
@@ -1818,7 +1830,9 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 					return queries.some((q) => {
 						const cell = row.queries[q];
 						if (!cell || typeof cell !== 'object') return false;
-						const v = cell.q_ipm ?? cell.subcorpus_ipm ?? cell.relative_subcorpus_ipm;
+						const v = this.frequencyRowHasSubcorpusSize(row) && cell.ipm !== undefined
+							? cell.ipm
+							: (cell.q_ipm ?? cell.subcorpus_ipm ?? cell.relative_subcorpus_ipm);
 						return v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
 					});
 				});
