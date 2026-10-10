@@ -38,7 +38,9 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 					id: q && q.id != null ? String(q.id) : '',
 					name: q && q.name != null ? String(q.name) : '',
 					assignId: q && q.assignId != null ? String(q.assignId) : '',
-					query: q && q.query != null ? String(q.query) : '',
+					// store rows hold their query as `text` (older payloads: `query`)
+					query: q && q.text != null ? String(q.text) : (q && q.query != null ? String(q.query) : ''),
+					named: !!(q && q.named),
 					active: !(q && q.active === false),
 				}))
 				: [];
@@ -201,6 +203,7 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 							n: r && r.name,
 							a: r && r.assignId,
 							q: r && r.query,
+							nm: r && r.named ? 1 : undefined,
 							x: r && r.active === false ? 0 : 1,
 						}))
 						: [],
@@ -305,6 +308,7 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 							name: r && r.n ? String(r.n) : '',
 							assignId: r && r.a ? String(r.a) : '',
 							query: r && r.q ? String(r.q) : '',
+							named: !!(r && r.nm),
 							active: !(r && Number(r.x) === 0),
 						}))
 						: [],
@@ -381,6 +385,24 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 		 * Settings of a share link that live inside `frequency` / `collocation`, objects every server
 		 * answer replaces (fields, limit, window, measures).
 		 */
+		/** The compare set's active flags from a share link, matched by name, else by text. */
+		_applySnapshotScopeActive() {
+			const want = Array.isArray(this._snapshotScopeActive) ? this._snapshotScopeActive : null;
+			this._snapshotScopeActive = null;
+			const store = this.statsSearchScopeStore;
+			if (!want || !store || !Array.isArray(store.queries) || typeof store.setActive !== 'function') return;
+			const norm = (t) => String(t || '').replace(/\s+/g, ' ').trim();
+			let changed = false;
+			for (const row of store.queries) {
+				const w = want.find((x) => (x.name && x.name === row.name) || (!x.name && norm(x.text) === norm(row.text)));
+				if (w && (row.active !== false) !== w.active) {
+					store.setActive(row.id, w.active);
+					changed = true;
+				}
+			}
+			if (changed && typeof this.statsSearchScopePersistToSearch === 'function') this.statsSearchScopePersistToSearch();
+		},
+
 		_applySnapshotAnalysisFields(p) {
 			const freq = p && p.frequency && typeof p.frequency === 'object' ? p.frequency : {};
 			if (this.frequency && typeof this.frequency === 'object') {
@@ -447,10 +469,17 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 					id: q && q.id ? String(q.id) : `q${idx + 1}`,
 					name: q && q.name ? String(q.name) : '',
 					assignId: q && q.assignId ? String(q.assignId) : '',
-					query: q && q.query ? String(q.query) : '',
+					text: q && q.query ? String(q.query) : '',
+					named: !!(q && (q.named || (q.name && /^[A-Za-z_][A-Za-z0-9_-]*$/.test(String(q.name))))),
+					source: 'restore',
 					active: !(q && q.active === false),
 				}));
 			}
+			// the restored search rebuilds the compare set from its program: the active flags
+			// (not in the program) are applied again before the analysis reruns
+			this._snapshotScopeActive = scope && Array.isArray(scope.queries)
+				? scope.queries.map((q) => ({ name: String((q && q.name) || ''), text: String((q && q.query) || ''), active: !(q && q.active === false) }))
+				: null;
 			const freq = p.frequency && typeof p.frequency === 'object' ? p.frequency : {};
 			this._applySnapshotAnalysisFields(p);
 			// the search that runs next brings fresh frequency / collocation state: apply again before rerunning
@@ -787,6 +816,7 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 				}
 				if (this._snapshotAnalysisPayload) this._applySnapshotAnalysisFields(this._snapshotAnalysisPayload);
 				this._snapshotAnalysisPayload = null;
+				this._applySnapshotScopeActive();
 				if (wantedSub === 'freq' && typeof this.submitFrequencyFromButton === 'function') this.submitFrequencyFromButton();
 				else if (wantedSub === 'coll' && typeof this.submitCollocationFromButton === 'function') this.submitCollocationFromButton();
 				else if (wantedSub === 'advanced_dcoll' && typeof this.submitDcollAdvRun === 'function') this.submitDcollAdvRun();
@@ -803,7 +833,12 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 						vlog('restore: a search is already running; waiting for it');
 					} else {
 						vlog('restore: running the search');
-						await this.submitSearchRequest({ append: false });
+						this._snapshotRestoring = true;
+						try {
+							await this.submitSearchRequest({ append: false });
+						} finally {
+							this._snapshotRestoring = false;
+						}
 					}
 					const hits = await waitForSearch();
 					vlog('restore: hits', hits, 'loaded', this.searchLoadedItemCount());

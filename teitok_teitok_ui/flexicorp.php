@@ -7075,7 +7075,10 @@ require_once __DIR__ . '/fc_engine.php';
 			$val = str_replace('"', '\\"', $kwicValue);
 			$sessionQuery = '[' . $kwicField . '="' . $val . '"]';
 		}
-		if ( $sessionQuery !== '' && isset($_SESSION) && is_array($_SESSION) ) {
+		// record=0: paging, a share-link restore, or a module's generated program (dcoll,
+		// contrast) — not a query the user ran, so not a recent query
+		$recordQuery = (string) ( $_REQUEST['record'] ?? '1' ) !== '0';
+		if ( $recordQuery && $sessionQuery !== '' && isset($_SESSION) && is_array($_SESSION) ) {
 			$qsid = time();
 			if ( !isset($_SESSION['queries']) || !is_array($_SESSION['queries']) ) $_SESSION['queries'] = array();
 			$_SESSION['queries'][$qsid] = array('query' => $sessionQuery, 'ql' => $teitokQueryDialect);

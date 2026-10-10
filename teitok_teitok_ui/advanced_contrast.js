@@ -633,6 +633,7 @@
 				fd.set('ajax', '1');
 				fd.set('action', this._contrastAjaxActionName());
 				fd.set('run', 'query');
+				fd.set('record', '0');   // a generated program, not a query the user ran
 				fd.set('active_tab', 'frequency');
 				const bo = this.backendOverrides && typeof this.backendOverrides === 'object' ? this.backendOverrides : {};
 				fd.set('backend', String((this.settings && this.settings.backend) || this.backend || '').trim() || 'cqp');

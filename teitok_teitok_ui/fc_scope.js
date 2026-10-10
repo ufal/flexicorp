@@ -312,20 +312,25 @@ window.ttFlexicorpFreqsParts.scope = function () {
 						const text = String(row.text || '').trim();
 						if (!text) continue;
 						const name = String(row.name || '').trim() || `Recent${i + 1}_${j + 1}`;
-						raw.push({ name, query: text, source: 'recent' });
+						raw.push({ name, query: text, source: 'recent', named: row.named === true });
 					}
 				} else {
 					raw.push({ name: `Recent${i + 1}`, query: scopeOnly || q0, source: 'recent' });
 				}
 			}
-			const seen = new Set();
+			// one entry per query text; a name the user gave (A = …) wins over an unnamed run of the same text
+			const byText = new Map();
 			const out = [];
 			for (let i = 0; i < raw.length; i += 1) {
 				const rec = raw[i];
 				const qkey = String(rec.query || '').trim().replace(/\s+/g, ' ');
-				if (!qkey || seen.has(qkey)) continue;
-				const key = qkey;
-				seen.add(key);
+				if (!qkey) continue;
+				if (byText.has(qkey)) {
+					const at = byText.get(qkey);
+					if (rec.named && !out[at].named) out[at] = rec;
+					continue;
+				}
+				byText.set(qkey, out.length);
 				out.push(rec);
 			}
 			return out;

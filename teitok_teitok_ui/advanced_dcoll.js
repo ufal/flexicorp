@@ -385,6 +385,7 @@
 					const fd = this.buildCommonRequestData();
 					fd.set('active_tab', 'frequency');
 					fd.set('run', 'query');
+					fd.set('record', '0');   // a generated program, not a query the user ran
 					fd.set('query', prog);
 					fd.set('coll_min_freq', String(this.dcollAdv && this.dcollAdv.minFreq != null ? this.dcollAdv.minFreq : 1));
 					fd.set('coll_max_items', String(this.dcollAdv && this.dcollAdv.maxItems != null ? this.dcollAdv.maxItems : 50));

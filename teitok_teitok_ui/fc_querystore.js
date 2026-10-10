@@ -6,9 +6,79 @@
 window.ttFlexicorpCoreParts = window.ttFlexicorpCoreParts || {};
 window.ttFlexicorpCoreParts.querystore = function () {
 	return {
-		/** Recent queries for the active query_language (CQL dialect); updates when dialect changes. */
+		/**
+		 * Browser-storage key of this corpus's queries: host + project path, since every TEITOK
+		 * project on a host shares one origin (and the PHP session list is shared by all of them).
+		 */
+		fcQueryStoreKey() {
+			try {
+				const path = String(window.location.pathname || '').replace(/[^/]*$/, '');
+				return 'fc.q.v1:' + window.location.host + path;
+			} catch (_) {
+				return '';
+			}
+		},
+
+		/** Load this corpus's recent queries into recentQueriesLocal (null when storage is unavailable). */
+		fcQueryStoreLoad() {
+			const key = this.fcQueryStoreKey();
+			if (!key) { this.recentQueriesLocal = null; return; }
+			try {
+				const raw = window.localStorage.getItem(key);
+				const parsed = raw ? JSON.parse(raw) : null;
+				const list = parsed && Array.isArray(parsed.recent) ? parsed.recent : [];
+				this.recentQueriesLocal = list.filter((r) => r && typeof r.text === 'string' && r.text.trim());
+			} catch (_) {
+				this.recentQueriesLocal = null;
+			}
+		},
+
+		/** Write recentQueriesLocal back; a full or blocked storage just leaves the list in memory. */
+		fcQueryStoreSave() {
+			const key = this.fcQueryStoreKey();
+			if (!key || !Array.isArray(this.recentQueriesLocal)) return;
+			try {
+				window.localStorage.setItem(key, JSON.stringify({ v: 1, recent: this.recentQueriesLocal }));
+			} catch (_) {}
+		},
+
+		/** A new stable id for a stored query (kept with it; later used to reuse its hits). */
+		fcQueryStoreNewId() {
+			return 'q' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+		},
+
+		/**
+		 * Record a query the user ran (not paging, not a share-link restore, not a module's
+		 * generated program): newest first, one entry per text and query language, at most 50.
+		 */
+		fcQueryStoreRecord(text) {
+			if (!Array.isArray(this.recentQueriesLocal)) return;
+			const t = this.normalizeRecentQueryText(text);
+			if (!t) return;
+			const ql = this.settings && this.settings.queryLanguage ? String(this.settings.queryLanguage) : '';
+			const prev = this.recentQueriesLocal.find((r) => r.ql === ql && this.normalizeRecentQueryText(r.text) === t);
+			const rest = this.recentQueriesLocal.filter((r) => r !== prev);
+			const rec = { qid: prev && prev.qid ? prev.qid : this.fcQueryStoreNewId(), text: t, ql, at: Date.now() };
+			this.recentQueriesLocal = [rec].concat(rest).slice(0, 50);
+			this.fcQueryStoreSave();
+		},
+
+		/** After a reload: the last query of this corpus in the search box (not run), so the compare set is back. */
+		fcQueryStorePrefillLastQuery() {
+			if (!this.search || String(this.search.query || '').trim() || String(this.search.value || '').trim()) return;
+			const list = this.recentQueriesList();
+			if (list.length && Array.isArray(this.recentQueriesLocal)) this.search.query = String(list[0]);
+		},
+
+		/**
+		 * Recent queries for the active query_language (CQL dialect), newest first: this corpus's
+		 * own list from browser storage; the PHP session lists only when storage is unavailable.
+		 */
 		recentQueriesList() {
 			const ql = this.settings && this.settings.queryLanguage ? String(this.settings.queryLanguage) : '';
+			if (Array.isArray(this.recentQueriesLocal)) {
+				return this.recentQueriesLocal.filter((r) => !ql || !r.ql || r.ql === ql).map((r) => r.text);
+			}
 			const m = this.recentQueriesByDialect || {};
 			if (ql && Array.isArray(m[ql]) && m[ql].length) return m[ql];
 			if (Array.isArray(this.recentQueries) && this.recentQueries.length) return this.recentQueries;

@@ -739,7 +739,8 @@ window.ttFlexicorpCoreParts.hits = function () {
 		 */
 		statsSearchHasHits() {
 			if (!this.search || !this.search.ran) return false;
-			if (this.callHasIssues(this.search.response)) return false;
+			// errors only: a warning (e.g. a capped total) still leaves the hits to work with
+			if (this.callHasErrors(this.search.response)) return false;
 			const result = this.search.response && this.search.response.result && typeof this.search.response.result === 'object'
 				? this.search.response.result
 				: null;

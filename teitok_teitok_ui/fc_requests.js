@@ -199,7 +199,16 @@ window.ttFlexicorpCoreParts.requests = function () {
 			});
 			formData.set('start', String(start));
 			formData.set('kwic_limit', String(pageSize));
-			return this.submitAjaxData(formData, 'search', { appendSearch: canAppend });
+			const recordText = !canAppend && !this._snapshotRestoring && typeof this.statsBaseQueryText === 'function'
+				? this.statsBaseQueryText() : '';
+			if (!recordText) formData.set('record', '0');
+			return this.submitAjaxData(formData, 'search', { appendSearch: canAppend }).then((out) => {
+				if (recordText && this.search && this.search.ran && !this.callHasErrors(this.search.response)
+					&& typeof this.fcQueryStoreRecord === 'function') {
+					this.fcQueryStoreRecord(recordText);
+				}
+				return out;
+			});
 		},
 
 		canonicalSearchRequestViewMode() {

@@ -217,6 +217,11 @@ function flexicorpApp() {
 		recentQueriesByDialect: {},
 		/** Stored named TEITOK queries keyed by query language. */
 		storedQueriesByDialect: {},
+		/**
+		 * This corpus's recent queries, newest first, from browser storage (fc_querystore.js):
+		 * [{qid, text, ql, at}]; null = not loaded, or storage unavailable (then the session lists).
+		 */
+		recentQueriesLocal: null,
 		/** Sanitized HTML from getset flexicorp/search_intro_html; intro box (everything after the first <p>). */
 		searchIntroHtml: '',
 		/** Admin-only: heuristic mismatch between xmlfiles/, pando/, xidx/ (from PHP). */
@@ -580,8 +585,10 @@ function flexicorpApp() {
 				const missingIntroKey = !Object.prototype.hasOwnProperty.call(state, 'searchIntroHtml');
 				const missingLeadKey = !Object.prototype.hasOwnProperty.call(state, 'searchIntroLeadHtml');
 				this.applyState(state);
+				this.fcQueryStoreLoad();
 				// URL-based visualization snapshot import (MVP).
-				this.loadVisualizationSnapshotFromLocation();
+				const fromLink = this.loadVisualizationSnapshotFromLocation();
+				if (!fromLink) this.fcQueryStorePrefillLastQuery();
 				// If JSON omitted or cleared intro but PHP rendered HTML into the template, adopt it (stale lang templates, partial AJAX).
 				if (!String(this.searchIntroHtml || '').trim()) {
 					const introBody = document.querySelector('#flexicorp-root .flexicorp-search-intro__body');
