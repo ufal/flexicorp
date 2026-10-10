@@ -1476,11 +1476,28 @@ function flexicorpApp() {
 							if (this.searchLoadedItemCount() <= before) break;
 						}
 					};
-					Promise.resolve(this.submitSearchRequest({ append: false })).then(loadMore).then(() => {
+					// Stats subtabs need hits, and the search answer (or a late Corpus stats answer)
+					// can land after the request promise: wait until the hits are there.
+					const waitForHits = async () => {
+						for (let i = 0; i < 120; i += 1) {
+							if (!this.isLoading('search') && typeof this.statsSearchHasHits === 'function' && this.statsSearchHasHits()) return true;
+							await new Promise((r) => setTimeout(r, 250));
+						}
+						return false;
+					};
+					Promise.resolve(this.submitSearchRequest({ append: false })).then(loadMore).then(waitForHits).then(async () => {
 						if (!wantedTab || wantedTab === 'search') return;
+						// subtab first, so the Stats tab does not open (and load) Corpus stats
+						if (wantedTab === 'frequency' && wantedSub) this.statsSubTab = wantedSub;
 						if (typeof this.setTab === 'function') this.setTab(wantedTab);
 						if (wantedTab !== 'frequency' || !wantedSub) return;
 						if (typeof this.setStatsSubTab === 'function') this.setStatsSubTab(wantedSub);
+						await new Promise((r) => setTimeout(r, 0));
+						if (this.statsSubTab !== wantedSub && typeof this.setStatsSubTab === 'function') this.setStatsSubTab(wantedSub);
+						if (this.statsSubTab !== wantedSub) {
+							// eslint-disable-next-line no-console
+							console.warn('[flexicorp][viz] could not reopen Stats subtab', wantedSub, 'now on', this.statsSubTab);
+						}
 						// the analysis the link was made from, with the restored settings
 						if (wantedSub === 'freq' && typeof this.submitFrequencyFromButton === 'function') this.submitFrequencyFromButton();
 						else if (wantedSub === 'coll' && typeof this.submitCollocationFromButton === 'function') this.submitCollocationFromButton();
