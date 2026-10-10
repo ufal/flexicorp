@@ -8539,6 +8539,17 @@ require_once __DIR__ . '/flexicorp_functions.php';
 		 */
 		function tt_flexicorp_asset_version( $candidates, $fallback = '20260309' ) {
 			if ( !is_array($candidates) ) $candidates = array($candidates);
+			// install-teitok-ui.pl puts the PHP in SHARED/Sources and the scripts in
+			// SHARED/Scripts: next to a Sources/X candidate, try ../Scripts/X as well
+			$extra = array();
+			foreach ( $candidates as $cand ) {
+				$path = trim((string)$cand);
+				if ( $path === '' || preg_match('#^[a-z]+://#i', $path) ) continue;
+				if ( basename(dirname($path)) === 'Sources' ) {
+					$extra[] = dirname(dirname($path)) . DIRECTORY_SEPARATOR . 'Scripts' . DIRECTORY_SEPARATOR . basename($path);
+				}
+			}
+			$candidates = array_merge( $candidates, $extra );
 			foreach ( $candidates as $cand ) {
 				$path = trim((string)$cand);
 				if ( $path === '' ) continue;
