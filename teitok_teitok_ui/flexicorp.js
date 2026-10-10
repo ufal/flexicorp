@@ -1463,54 +1463,73 @@ function flexicorpApp() {
 			// goes back there once the hits are in, since Stats subtabs need hits.
 			const wantedTab = String(this.activeTab || '').trim();
 			const wantedSub = String(this.statsSubTab || '').trim();
-			setTimeout(() => {
+			// eslint-disable-next-line no-console
+			const vlog = (...args) => console.log('[flexicorp][viz]', ...args);
+			const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+			const loadMore = async () => {
+				// as many hits as were on screen ("Show more" pages), at most 20 extra requests
+				const want = Number(this._snapshotWantedLoaded || 0);
+				this._snapshotWantedLoaded = 0;
+				for (let i = 0; i < 20 && want > this.searchLoadedItemCount(); i += 1) {
+					const before = this.searchLoadedItemCount();
+					await this.submitSearchRequest({ append: true });
+					if (this.searchLoadedItemCount() <= before) break;
+				}
+			};
+			// Stats subtabs need hits; any search in flight (also one the page started itself) must
+			// have landed first.
+			const waitForHits = async () => {
+				for (let i = 0; i < 120; i += 1) {
+					if (!this.isLoading('search') && typeof this.statsSearchHasHits === 'function' && this.statsSearchHasHits()) return true;
+					await sleep(250);
+				}
+				return false;
+			};
+			const reopen = async () => {
+				if (!wantedTab || wantedTab === 'search') return;
+				// subtab first, so the Stats tab does not open (and load) Corpus stats
+				if (wantedTab === 'frequency' && wantedSub) this.statsSubTab = wantedSub;
+				if (typeof this.setTab === 'function') this.setTab(wantedTab);
+				if (wantedTab !== 'frequency' || !wantedSub) return;
+				for (let i = 0; i < 3 && this.statsSubTab !== wantedSub; i += 1) {
+					if (typeof this.setStatsSubTab === 'function') this.setStatsSubTab(wantedSub);
+					if (this.statsSubTab !== wantedSub) await sleep(300);
+				}
+				if (typeof this.setStatsSubTab === 'function') this.setStatsSubTab(wantedSub);   // also schedules the subtab's loaders
+				vlog('reopen: tab', this.activeTab, 'subtab', this.statsSubTab, '(wanted', wantedTab, wantedSub + ')');
+				if (this.statsSubTab !== wantedSub) {
+					// eslint-disable-next-line no-console
+					console.warn('[flexicorp][viz] could not reopen Stats subtab', wantedSub, 'now on', this.statsSubTab,
+						'hits:', typeof this.statsSearchHasHits === 'function' ? this.statsSearchHasHits() : '?',
+						'modules:', typeof this.availableStatsModules === 'function' ? this.availableStatsModules().map((m) => m.id) : '?');
+					return;
+				}
+				// the analysis the link was made from, with the restored settings
+				if (wantedSub === 'freq' && typeof this.submitFrequencyFromButton === 'function') this.submitFrequencyFromButton();
+				else if (wantedSub === 'coll' && typeof this.submitCollocationFromButton === 'function') this.submitCollocationFromButton();
+				else if (wantedSub === 'advanced_dcoll' && typeof this.submitDcollAdvRun === 'function') this.submitDcollAdvRun();
+				else if (wantedSub === 'contrast' && typeof this.submitAfKeynessRun === 'function' && !(typeof this.afKeynessRunDisabled === 'function' && this.afKeynessRunDisabled())) this.submitAfKeynessRun();
+				if (wantedSub === 'maps' && typeof this.setMapsVizMode === 'function') {
+					const mapMode = this.mapsMapMode;
+					this.setMapsVizMode(this.mapsVizMode);
+					if (this.mapsVizMode === 'map' && typeof this.setMapsMapMode === 'function') this.setMapsMapMode(mapMode);
+				}
+			};
+			setTimeout(async () => {
 				try {
-					if (this.isLoading('search')) return;
-					const loadMore = async () => {
-						// as many hits as were on screen ("Show more" pages), at most 20 extra requests
-						const want = Number(this._snapshotWantedLoaded || 0);
-						this._snapshotWantedLoaded = 0;
-						for (let i = 0; i < 20 && want > this.searchLoadedItemCount(); i += 1) {
-							const before = this.searchLoadedItemCount();
-							await this.submitSearchRequest({ append: true });
-							if (this.searchLoadedItemCount() <= before) break;
-						}
-					};
-					// Stats subtabs need hits, and the search answer (or a late Corpus stats answer)
-					// can land after the request promise: wait until the hits are there.
-					const waitForHits = async () => {
-						for (let i = 0; i < 120; i += 1) {
-							if (!this.isLoading('search') && typeof this.statsSearchHasHits === 'function' && this.statsSearchHasHits()) return true;
-							await new Promise((r) => setTimeout(r, 250));
-						}
-						return false;
-					};
-					Promise.resolve(this.submitSearchRequest({ append: false })).then(loadMore).then(waitForHits).then(async () => {
-						if (!wantedTab || wantedTab === 'search') return;
-						// subtab first, so the Stats tab does not open (and load) Corpus stats
-						if (wantedTab === 'frequency' && wantedSub) this.statsSubTab = wantedSub;
-						if (typeof this.setTab === 'function') this.setTab(wantedTab);
-						if (wantedTab !== 'frequency' || !wantedSub) return;
-						if (typeof this.setStatsSubTab === 'function') this.setStatsSubTab(wantedSub);
-						await new Promise((r) => setTimeout(r, 0));
-						if (this.statsSubTab !== wantedSub && typeof this.setStatsSubTab === 'function') this.setStatsSubTab(wantedSub);
-						if (this.statsSubTab !== wantedSub) {
-							// eslint-disable-next-line no-console
-							console.warn('[flexicorp][viz] could not reopen Stats subtab', wantedSub, 'now on', this.statsSubTab);
-						}
-						// the analysis the link was made from, with the restored settings
-						if (wantedSub === 'freq' && typeof this.submitFrequencyFromButton === 'function') this.submitFrequencyFromButton();
-						else if (wantedSub === 'coll' && typeof this.submitCollocationFromButton === 'function') this.submitCollocationFromButton();
-						else if (wantedSub === 'advanced_dcoll' && typeof this.submitDcollAdvRun === 'function') this.submitDcollAdvRun();
-						else if (wantedSub === 'contrast' && typeof this.submitAfKeynessRun === 'function' && !(typeof this.afKeynessRunDisabled === 'function' && this.afKeynessRunDisabled())) this.submitAfKeynessRun();
-						if (wantedSub === 'maps' && typeof this.setMapsVizMode === 'function') {
-							const mapMode = this.mapsMapMode;
-							this.setMapsVizMode(this.mapsVizMode);
-							if (this.mapsVizMode === 'map' && typeof this.setMapsMapMode === 'function') this.setMapsMapMode(mapMode);
-						}
-					}).catch(() => { /* the search shows its own error */ });
-				} catch (_) {
-					/* ignore */
+					if (this.isLoading('search')) {
+						vlog('restore: a search is already running; waiting for it');
+					} else {
+						vlog('restore: running the search');
+						await this.submitSearchRequest({ append: false });
+					}
+					const hits = await waitForHits();
+					vlog('restore: hits', hits, 'loaded', this.searchLoadedItemCount());
+					await loadMore();
+					await reopen();
+				} catch (err) {
+					// eslint-disable-next-line no-console
+					console.warn('[flexicorp][viz] restore failed', err);
 				}
 			}, 0);
 			return true;
