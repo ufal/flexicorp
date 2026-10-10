@@ -833,11 +833,46 @@ function flexicorpApp() {
 					stoplist: this.collocation && this.collocation.stoplist != null ? Number(this.collocation.stoplist) : null,
 					measure_keys: this.collocation && Array.isArray(this.collocation.measureKeys) ? this.collocation.measureKeys.map((x) => String(x)) : [],
 					viz_mode: this.collocationVizMode != null ? String(this.collocationVizMode) : '',
+					chart_metric: this.collocationChartMetricKey != null ? String(this.collocationChartMetricKey) : '',
 				},
+				dcoll: this.dcollAdv && typeof this.dcollAdv === 'object' ? {
+					anchor_token: String(this.dcollAdv.anchorToken || ''),
+					relation: String(this.dcollAdv.relation || ''),
+					field: String(this.dcollAdv.field || ''),
+					min_freq: this.dcollAdv.minFreq != null ? Number(this.dcollAdv.minFreq) : null,
+					max_items: this.dcollAdv.maxItems != null ? Number(this.dcollAdv.maxItems) : null,
+					stoplist: this.dcollAdv.stoplist != null ? Number(this.dcollAdv.stoplist) : null,
+					measure_keys: Array.isArray(this.dcollAdv.measureKeys) ? this.dcollAdv.measureKeys.map((x) => String(x)) : [],
+					viz_mode: String(this.dcollAdvVizMode || ''),
+					chart_metric: String(this.dcollAdvChartMetricKey || ''),
+				} : null,
+				contrast: this.afContrastVizMode !== undefined ? {
+					fields: Array.isArray(this.afKeynessFields) ? this.afKeynessFields.map((x) => String(x)) : [],
+					score_field: String(this.afKeynessScoreField || ''),
+					viz_mode: String(this.afContrastVizMode || ''),
+					metric: String(this.afContrastMetric || ''),
+					volcano_limit: this.afContrastVolcanoPointLimit != null ? Number(this.afContrastVolcanoPointLimit) : null,
+				} : null,
 				other: {
 					viz_mode: this.otherVizMode != null ? String(this.otherVizMode) : '',
 					chart_x_column: this.otherChartXColumn != null ? String(this.otherChartXColumn) : '',
 					chart_y_column: this.otherChartYColumn != null ? String(this.otherChartYColumn) : '',
+				},
+				maps: this.mapsVizMode == null ? null : {
+					viz_mode: String(this.mapsVizMode || ''),
+					map_mode: String(this.mapsMapMode || ''),
+					chart_mode: String(this.mapsChartMode || ''),
+					point_viz_mode: String(this.mapsPointVizMode || ''),
+					region_metric: String(this.mapsRegionMetric || ''),
+					color_mode: String(this.mapsRegionColorMode || ''),
+					compare_scale: String(this.mapsCompareScaleMode || ''),
+					dataset: String(this.mapsBoundaryDatasetKey || ''),
+					area: this.mapsSelectedAreaKey && this.mapsSelectedAreaKey !== '__default__' ? String(this.mapsSelectedAreaKey) : '',
+					agg_level: String(this.geoAggLevel || ''),
+					custom_region_field: String(this.geoCustomRegionField || ''),
+					point_limit: this.mapsPointLimit != null ? Number(this.mapsPointLimit) : null,
+					table_search: String(this.mapsTableSearch || ''),
+					table_sort: this.mapsTableSort && typeof this.mapsTableSort === 'object' ? this.mapsTableSort : null,
 				},
 			};
 		},
@@ -920,12 +955,40 @@ function flexicorpApp() {
 					sl: p.collocation && p.collocation.stoplist,
 					mk: p.collocation && p.collocation.measure_keys,
 					vm: p.collocation && p.collocation.viz_mode,
+					cm: p.collocation && p.collocation.chart_metric,
 				},
+				// module states only when the link opens on that module
+				d: p.ui && p.ui.stats_subtab === 'advanced_dcoll' && p.dcoll ? {
+					a: p.dcoll.anchor_token, r: p.dcoll.relation, f: p.dcoll.field,
+					mf: p.dcoll.min_freq, mi: p.dcoll.max_items, sl: p.dcoll.stoplist,
+					mk: p.dcoll.measure_keys, vm: p.dcoll.viz_mode, cm: p.dcoll.chart_metric,
+				} : null,
+				k: p.ui && p.ui.stats_subtab === 'contrast' && p.contrast ? {
+					f: p.contrast.fields, sf: p.contrast.score_field, vm: p.contrast.viz_mode,
+					m: p.contrast.metric, vl: p.contrast.volcano_limit,
+				} : null,
 				o: {
 					vm: p.other && p.other.viz_mode,
 					x: p.other && p.other.chart_x_column,
 					y: p.other && p.other.chart_y_column,
 				},
+				// maps state only when the link opens on Maps (keeps other links short)
+				mp: p.ui && p.ui.stats_subtab === 'maps' && p.maps ? {
+					vm: p.maps.viz_mode,
+					mm: p.maps.map_mode,
+					cm: p.maps.chart_mode,
+					pv: p.maps.point_viz_mode,
+					rm: p.maps.region_metric,
+					co: p.maps.color_mode,
+					cs: p.maps.compare_scale,
+					ds: p.maps.dataset,
+					ar: p.maps.area,
+					al: p.maps.agg_level,
+					cr: p.maps.custom_region_field,
+					pl: p.maps.point_limit,
+					ts: p.maps.table_search,
+					to: p.maps.table_sort,
+				} : null,
 			};
 			return this._compactPruneValue(compact) || { s: 'fvs1' };
 		},
@@ -989,12 +1052,47 @@ function flexicorpApp() {
 					stoplist: p.c && p.c.sl != null ? Number(p.c.sl) : null,
 					measure_keys: Array.isArray(p.c && p.c.mk) ? p.c.mk.map((x) => String(x)) : [],
 					viz_mode: p.c && p.c.vm ? String(p.c.vm) : '',
+					chart_metric: p.c && p.c.cm ? String(p.c.cm) : '',
 				},
+				dcoll: p.d && typeof p.d === 'object' ? {
+					anchor_token: p.d.a ? String(p.d.a) : '',
+					relation: p.d.r ? String(p.d.r) : '',
+					field: p.d.f ? String(p.d.f) : '',
+					min_freq: p.d.mf != null ? Number(p.d.mf) : null,
+					max_items: p.d.mi != null ? Number(p.d.mi) : null,
+					stoplist: p.d.sl != null ? Number(p.d.sl) : null,
+					measure_keys: Array.isArray(p.d.mk) ? p.d.mk.map((x) => String(x)) : [],
+					viz_mode: p.d.vm ? String(p.d.vm) : '',
+					chart_metric: p.d.cm ? String(p.d.cm) : '',
+				} : null,
+				contrast: p.k && typeof p.k === 'object' ? {
+					fields: Array.isArray(p.k.f) ? p.k.f.map((x) => String(x)) : [],
+					score_field: p.k.sf ? String(p.k.sf) : '',
+					viz_mode: p.k.vm ? String(p.k.vm) : '',
+					metric: p.k.m ? String(p.k.m) : '',
+					volcano_limit: p.k.vl != null ? Number(p.k.vl) : null,
+				} : null,
 				other: {
 					viz_mode: p.o && p.o.vm ? String(p.o.vm) : '',
 					chart_x_column: p.o && p.o.x ? String(p.o.x) : '',
 					chart_y_column: p.o && p.o.y ? String(p.o.y) : '',
 				},
+				maps: p.mp && typeof p.mp === 'object' ? {
+					viz_mode: p.mp.vm ? String(p.mp.vm) : '',
+					map_mode: p.mp.mm ? String(p.mp.mm) : '',
+					chart_mode: p.mp.cm ? String(p.mp.cm) : '',
+					point_viz_mode: p.mp.pv ? String(p.mp.pv) : '',
+					region_metric: p.mp.rm ? String(p.mp.rm) : '',
+					color_mode: p.mp.co ? String(p.mp.co) : '',
+					compare_scale: p.mp.cs ? String(p.mp.cs) : '',
+					dataset: p.mp.ds ? String(p.mp.ds) : '',
+					area: p.mp.ar ? String(p.mp.ar) : '',
+					agg_level: p.mp.al ? String(p.mp.al) : '',
+					custom_region_field: p.mp.cr ? String(p.mp.cr) : '',
+					point_limit: p.mp.pl != null ? Number(p.mp.pl) : null,
+					table_search: p.mp.ts ? String(p.mp.ts) : '',
+					table_sort: p.mp.to && typeof p.mp.to === 'object' ? p.mp.to : null,
+				} : null,
 			};
 			return expanded;
 		},
@@ -1070,10 +1168,53 @@ function flexicorpApp() {
 				if (Array.isArray(coll.measure_keys)) this.collocation.measureKeys = coll.measure_keys.map((x) => String(x));
 			}
 			if (coll.viz_mode != null && this.collocationVizMode != null) this.collocationVizMode = String(coll.viz_mode);
+			if (coll.chart_metric && this.collocationChartMetricKey !== undefined) this.collocationChartMetricKey = String(coll.chart_metric);
+			const dcoll = p.dcoll && typeof p.dcoll === 'object' ? p.dcoll : null;
+			if (dcoll && this.dcollAdv && typeof this.dcollAdv === 'object') {
+				if (dcoll.anchor_token) this.dcollAdv.anchorToken = String(dcoll.anchor_token);
+				if (dcoll.relation) this.dcollAdv.relation = String(dcoll.relation);
+				if (dcoll.field) this.dcollAdv.field = String(dcoll.field);
+				if (dcoll.min_freq != null && Number.isFinite(Number(dcoll.min_freq))) this.dcollAdv.minFreq = Number(dcoll.min_freq);
+				if (dcoll.max_items != null && Number.isFinite(Number(dcoll.max_items))) this.dcollAdv.maxItems = Number(dcoll.max_items);
+				if (dcoll.stoplist != null && Number.isFinite(Number(dcoll.stoplist))) this.dcollAdv.stoplist = Number(dcoll.stoplist);
+				if (Array.isArray(dcoll.measure_keys) && dcoll.measure_keys.length) this.dcollAdv.measureKeys = dcoll.measure_keys.map((x) => String(x));
+				if (dcoll.viz_mode) this.dcollAdvVizMode = String(dcoll.viz_mode);
+				if (dcoll.chart_metric) this.dcollAdvChartMetricKey = String(dcoll.chart_metric);
+			}
+			const contrast = p.contrast && typeof p.contrast === 'object' ? p.contrast : null;
+			if (contrast && this.afContrastVizMode !== undefined) {
+				if (Array.isArray(contrast.fields) && contrast.fields.length) {
+					this.afKeynessFields = contrast.fields.map((x) => String(x));
+					this.afKeynessField = this.afKeynessFields[0];
+				}
+				if (contrast.score_field) this.afKeynessScoreField = String(contrast.score_field);
+				if (contrast.viz_mode) this.afContrastVizMode = String(contrast.viz_mode);
+				if (contrast.metric) this.afContrastMetric = String(contrast.metric);
+				if (contrast.volcano_limit != null && Number.isFinite(Number(contrast.volcano_limit))) this.afContrastVolcanoPointLimit = Number(contrast.volcano_limit);
+			}
 			const other = p.other && typeof p.other === 'object' ? p.other : {};
 			if (other.viz_mode != null && this.otherVizMode != null) this.otherVizMode = String(other.viz_mode);
 			if (other.chart_x_column != null && this.otherChartXColumn != null) this.otherChartXColumn = String(other.chart_x_column);
 			if (other.chart_y_column != null && this.otherChartYColumn != null) this.otherChartYColumn = String(other.chart_y_column);
+			const maps = p.maps && typeof p.maps === 'object' ? p.maps : null;
+			if (maps && this.mapsVizMode != null) {
+				if (maps.viz_mode) this.mapsVizMode = String(maps.viz_mode);
+				if (maps.map_mode) this.mapsMapMode = maps.map_mode === 'regions' ? 'regions' : 'points';
+				if (maps.chart_mode) this.mapsChartMode = String(maps.chart_mode);
+				if (maps.point_viz_mode) this.mapsPointVizMode = String(maps.point_viz_mode);
+				if (maps.region_metric) this.mapsRegionMetric = String(maps.region_metric);
+				if (maps.color_mode) this.mapsRegionColorMode = String(maps.color_mode);
+				if (maps.compare_scale) this.mapsCompareScaleMode = String(maps.compare_scale);
+				if (maps.dataset) this.mapsBoundaryDatasetKey = String(maps.dataset);
+				if (maps.area) this.mapsSelectedAreaKey = String(maps.area);
+				if (maps.agg_level) this.geoAggLevel = String(maps.agg_level);
+				if (maps.custom_region_field) this.geoCustomRegionField = String(maps.custom_region_field);
+				if (maps.point_limit != null && Number.isFinite(Number(maps.point_limit))) this.mapsPointLimit = Number(maps.point_limit);
+				if (maps.table_search) this.mapsTableSearch = String(maps.table_search);
+				if (maps.table_sort && typeof maps.table_sort === 'object') {
+					this.mapsTableSort = { col: String(maps.table_sort.col || 'count'), asc: !!maps.table_sort.asc };
+				}
+			}
 			this.ensureStatsSubTabAllowed();
 			// eslint-disable-next-line no-console
 			console.log('[flexicorp][viz] applied snapshot state', {
@@ -1290,9 +1431,29 @@ function flexicorpApp() {
 			const q = this.search && typeof this.search.query === 'string' ? this.search.query.trim() : '';
 			const v = this.search && typeof this.search.value === 'string' ? this.search.value.trim() : '';
 			if (!q && !v) return false;
+			// The search answer switches to the Search tab; a link to Stats (Maps, Frequency, …)
+			// goes back there once the hits are in, since Stats subtabs need hits.
+			const wantedTab = String(this.activeTab || '').trim();
+			const wantedSub = String(this.statsSubTab || '').trim();
 			setTimeout(() => {
 				try {
-					if (!this.isLoading('search')) this.submitSearchRequest({ append: false });
+					if (this.isLoading('search')) return;
+					Promise.resolve(this.submitSearchRequest({ append: false })).then(() => {
+						if (!wantedTab || wantedTab === 'search') return;
+						if (typeof this.setTab === 'function') this.setTab(wantedTab);
+						if (wantedTab !== 'frequency' || !wantedSub) return;
+						if (typeof this.setStatsSubTab === 'function') this.setStatsSubTab(wantedSub);
+						// the analysis the link was made from, with the restored settings
+						if (wantedSub === 'freq' && typeof this.submitFrequencyFromButton === 'function') this.submitFrequencyFromButton();
+						else if (wantedSub === 'coll' && typeof this.submitCollocationFromButton === 'function') this.submitCollocationFromButton();
+						else if (wantedSub === 'advanced_dcoll' && typeof this.submitDcollAdvRun === 'function') this.submitDcollAdvRun();
+						else if (wantedSub === 'contrast' && typeof this.submitAfKeynessRun === 'function' && !(typeof this.afKeynessRunDisabled === 'function' && this.afKeynessRunDisabled())) this.submitAfKeynessRun();
+						if (wantedSub === 'maps' && typeof this.setMapsVizMode === 'function') {
+							const mapMode = this.mapsMapMode;
+							this.setMapsVizMode(this.mapsVizMode);
+							if (this.mapsVizMode === 'map' && typeof this.setMapsMapMode === 'function') this.setMapsMapMode(mapMode);
+						}
+					}).catch(() => { /* the search shows its own error */ });
 				} catch (_) {
 					/* ignore */
 				}
@@ -3747,7 +3908,7 @@ function flexicorpApp() {
 			});
 			formData.set('start', String(start));
 			formData.set('kwic_limit', String(pageSize));
-			this.submitAjaxData(formData, 'search', { appendSearch: canAppend });
+			return this.submitAjaxData(formData, 'search', { appendSearch: canAppend });
 		},
 
 		canonicalSearchRequestViewMode() {
