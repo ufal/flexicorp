@@ -175,7 +175,23 @@ window.ttFlexicorpCoreParts.requests = function () {
 			return hits.length;
 		},
 
+		/**
+		 * A simple search (words, no CQL syntax) as CQL, in the box itself, as TEITOK did: each word a
+		 * token on the word attribute, `*` a wildcard. CQL dialects only; true when it was converted.
+		 */
+		fcExpandSimpleQuery() {
+			const ql = String((this.settings && this.settings.queryLanguage) || '').toLowerCase();
+			if (!this.search || !/cql/.test(ql)) return false;
+			const fns = typeof window !== 'undefined' && window.ttFlexicorpFns ? window.ttFlexicorpFns : null;
+			const cql = fns && typeof fns.simpleQueryToCql === 'function' ? fns.simpleQueryToCql(this.search.query) : '';
+			if (!cql) return false;
+			this.search.query = cql;
+			if (typeof this.scheduleQueryHighlight === 'function') this.scheduleQueryHighlight();
+			return true;
+		},
+
 		submitSearchRequest({ append = false } = {}) {
+			if (!append) this.fcExpandSimpleQuery();
 			const signature = this.searchSignatureFor(this.search || {});
 			const pageSize = this.searchPageSize();
 			const canAppend = append && signature !== '' && signature === this.searchRawSignature;

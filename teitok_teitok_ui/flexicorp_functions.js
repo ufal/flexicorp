@@ -417,3 +417,21 @@ window.ttFlexicorpFns.backendMetaLine = function backendMetaLine(meta) {
 	return parts.length ? parts.join(' · ') : 'backend metadata unavailable';
 };
 
+
+/**
+ * A "simple" search, as in TEITOK's cqp.php: text without CQL syntax is a list of words,
+ * each one token on the word attribute, `*` a wildcard (`un*` → [word="un.*"]); everything
+ * else in a word is literal. Returns '' when the text is CQL (brackets, quotes) or looks
+ * like a program or pattern (; = / < > ( ) { } | & :), so it is sent as written.
+ */
+window.ttFlexicorpFns.simpleQueryToCql = function simpleQueryToCql(text, field) {
+	const t = String(text || '').trim();
+	if (!t || /[\[\]"\/<>;=(){}|&:]/.test(t)) return '';
+	const attr = String(field || 'word');
+	const words = t.split(/\s+/).filter(Boolean);
+	if (!words.length) return '';
+	return words.map((w) => {
+		const parts = w.split('*').map((p) => p.replace(/[.?+^$\\]/g, '\\$&'));
+		return '[' + attr + '="' + parts.join('.*') + '"]';
+	}).join(' ');
+};
