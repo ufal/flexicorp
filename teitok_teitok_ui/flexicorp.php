@@ -6,6 +6,7 @@
 	require_once __DIR__ . '/flexicorp_freqs.php';
 require_once __DIR__ . '/flexicorp_functions.php';
 require_once __DIR__ . '/fc_result.php';
+require_once __DIR__ . '/fc_engine.php';
 
 	if ( !isset($maintext) ) $maintext = "";
 
@@ -7047,6 +7048,19 @@ require_once __DIR__ . '/fc_result.php';
 		$corpusFormat
 	)) : null;
 
+	// How queries reach an engine (FQS /run, /query or local): fc_engine.php decides.
+	$fcEngineCtx = array(
+		'fqs_eligible' => ! empty( $fqsRouteEligible ),
+		'fqs_backend_override' => (string) $fqsBackendOverride,
+		'fqs_probe' => $fqsProbe,
+		'backend' => $backend,
+		'project_root' => $projectRoot,
+		'backend_override_args' => $backendOverrideArgs,
+		'query_engine' => $queryEngine,
+		'query_language' => $queryLanguage,
+		'corpus_format' => $corpusFormat,
+		'pando_exec' => ! empty( $pandoExec ),
+	);
 	$kwicCall = null;
 	$queryTimeMs = null;
 	if ( ($run === 'query' || $run === 'kwic') && ( $kwicQuery !== '' || $kwicValue !== '' ) ) {
@@ -7078,92 +7092,14 @@ require_once __DIR__ . '/fc_result.php';
 			$kwicCall = tt_flexicorp_error_call($backend, 'query', $selectionBlockMessage);
 		} else {
 		$queryStart = microtime(true);
-		if ( $fqsRouteEligible ) {
-			if ( $kwicQuery !== '' ) {
-				$kwicQueryForRun = $kwicQuery;
-				if ( $fqsBackendOverride === 'pando' && function_exists( 'tt_flexicorp_teitok_query_effective_pando_search_query' ) ) {
-					$kwicQueryForRun = tt_flexicorp_teitok_query_effective_pando_search_query( $kwicQuery );
-				}
-			} else {
-				$val = str_replace('"', '\\"', $kwicValue);
-				$kwicQueryForRun = '[' . $kwicField . '="' . $val . '"]';
-			}
-				// A program typed in the search box ("A = …; freq A by x;", coll, count, …) runs on
-				// FQS /run: /query executes only the query statements and silently drops the rest.
-				$kwicIsProgram = false;
-				if ( $fqsBackendOverride === 'pando' ) {
-					foreach ( preg_split( '/\s*;\s*/', (string)$kwicQueryForRun, -1, PREG_SPLIT_NO_EMPTY ) as $kwicPart ) {
-						$kwicPart = trim( $kwicPart );
-						if ( ( function_exists( 'tt_flexicorp_teitok_query_is_aa_statement' ) && tt_flexicorp_teitok_query_is_aa_statement( $kwicPart ) )
-							|| preg_match( '/^(dcoll|keyness|dist)\b/i', $kwicPart ) ) {
-							$kwicIsProgram = true;
-							break;
-						}
-					}
-				}
-				$kwicCall = tt_flexicorp_fqs_query_call(
-				$fqsProbe,
-				$kwicQueryForRun,
-				$queryLanguage,
-				$kwicStart,
-				$kwicLimit,
-					$fqsBackendOverride,
-					array(
-						'program' => $kwicIsProgram,
-						'group_limit' => 1000,   // a typed freq/coll: the KWIC page size is not a group limit
-						'window' => (int)$kwicWindow,
-						'context_scope' => (string)$contextScope,
-						'context_format' => (string)$contextFormat,
-						'flexicorp_fragment_kwic_cpos_span' => (
-							strtolower(trim((string)$contextFormat)) === 'xml'
-							&& in_array(strtolower(trim((string)$contextScope)), array('window', 'tok'), true)
-						),
-						'fragment' => ! empty( $pandoWithoutXml ),
-						'project_root' => (string)$projectRoot,
-					)
-			);
-		} else {
-			$extraArgs = array_merge($backendOverrideArgs, array(
-				'--limit', escapeshellarg((string)$kwicLimit),
-				'--window', escapeshellarg((string)$kwicWindow),
-				'--start', escapeshellarg((string)$kwicStart),
-			));
-			if ( $contextFormat !== '' ) {
-				$extraArgs[] = '--context-format';
-				$extraArgs[] = escapeshellarg($contextFormat);
-			}
-			if ( $contextScope !== '' ) {
-				$extraArgs[] = '--context-scope';
-				$extraArgs[] = escapeshellarg($contextScope);
-			}
-			// KWIC token-window XML span (first..last displayed token byte range) is the only
-			// way to get a real ±N-token context for dtok-bearing TEITOK corpora; without this
-			// flag the CQP backend falls back to extract_teitok_fragment_xml(scope="window"),
-			// which has no <window> element to anchor on and degrades to the parent <tok> of
-			// the matched dtok — losing all left/right context. Mirror the FQS-route behaviour
-			// at lines 6010-6013 so the local flexicorp CLI fallback path stays in sync.
-			if (
-				strtolower(trim((string)$contextFormat)) === 'xml'
-				&& in_array(strtolower(trim((string)$contextScope)), array('window', 'tok'), true)
-			) {
-				$extraArgs[] = '--flexicorp-fragment-kwic-cpos-span';
-			}
-			if ( $kwicQuery !== '' ) {
-				$kwicQueryForRun = $kwicQuery;
-				if ( $pandoExec && function_exists( 'tt_flexicorp_teitok_query_effective_pando_search_query' ) ) {
-					$kwicQueryForRun = tt_flexicorp_teitok_query_effective_pando_search_query( $kwicQuery );
-				}
-				$kwicCall = tt_flexicorp_run(array('query', $kwicQueryForRun), $backend, $projectRoot, $extraArgs, $queryEngine, $queryLanguage, $corpusFormat);
-			} else {
-				if ( $kwicField !== '' ) {
-					$extraArgs[] = '--field';
-					$extraArgs[] = escapeshellarg($kwicField);
-				}
-				$extraArgs[] = '--value';
-				$extraArgs[] = escapeshellarg($kwicValue);
-				$kwicCall = tt_flexicorp_run(array('query'), $backend, $projectRoot, $extraArgs, $queryEngine, $queryLanguage, $corpusFormat);
-			}
-		}
+		$kwicCall = tt_fc_engine_search( $fcEngineCtx, $kwicQuery, $kwicField, $kwicValue, array(
+			'start' => $kwicStart,
+			'limit' => $kwicLimit,
+			'window' => (int) $kwicWindow,
+			'context_scope' => (string) $contextScope,
+			'context_format' => (string) $contextFormat,
+			'fragment' => ! empty( $pandoWithoutXml ),
+		) );
 		$queryTimeMs = (int) round((microtime(true) - $queryStart) * 1000);
 		}
 	}
@@ -7178,51 +7114,8 @@ require_once __DIR__ . '/fc_result.php';
 			}
 		} elseif ( $selectionBlockMessage !== '' ) {
 			$freqCall = tt_flexicorp_error_call($backend, 'freq', $selectionBlockMessage);
-		} elseif ( $fqsRouteEligible && $fqsBackendOverride === 'pando' ) {
-			$freqBaseQuery = trim((string)($_REQUEST['query'] ?? ''));
-			if ( $freqBaseQuery === '' && $kwicValue !== '' ) {
-				$freqEscValue = str_replace(array('\\', '"'), array('\\\\', '\\"'), $kwicValue);
-				$freqEscField = preg_replace('/[^A-Za-z0-9_:\\.-]/', '', (string)$kwicField);
-				if ( $freqEscField === '' ) $freqEscField = 'lemma';
-				$freqBaseQuery = '[' . $freqEscField . '="' . $freqEscValue . '"]';
-			}
-			$freqQueryNames = '';
-			if ( function_exists('tt_flexicorp_teitok_parse_freq_query_names_from_query') ) {
-				$freqQueryNames = tt_flexicorp_teitok_parse_freq_query_names_from_query($freqBaseQuery);
-			}
-			if ( function_exists('tt_flexicorp_teitok_sanitize_query_aggregations') ) {
-				$freqBaseQuery = tt_flexicorp_teitok_sanitize_query_aggregations($freqBaseQuery);
-			}
-			$freqBaseQuery = trim((string)$freqBaseQuery);
-			if ( $freqBaseQuery === '' ) {
-				$freqCall = tt_flexicorp_error_call('fqs', 'freq', 'Empty query not allowed for frequency operation.');
-			} else {
-				$freqQuery = rtrim($freqBaseQuery);
-				if ( substr($freqQuery, -1) !== ';' ) $freqQuery .= ';';
-				if ( $freqQueryNames !== '' ) {
-					$freqQuery .= ' freq ' . $freqQueryNames . ' by ' . $freqField . ';';
-				} else {
-					$freqQuery .= ' freq by ' . $freqField . ';';
-				}
-				$freqCall = tt_flexicorp_fqs_query_call(
-					$fqsProbe,
-					$freqQuery,
-					$queryLanguage,
-					0,
-					$freqLimit,
-					$fqsBackendOverride,
-					array( 'program' => true )
-				);
-			}
 		} else {
-		$freqCall = tt_flexicorp_run_freq(
-			$backend,
-			$projectRoot,
-			array_merge($backendOverrideArgs, array('--field', escapeshellarg($freqField), '--limit', escapeshellarg((string)$freqLimit))),
-			$queryEngine,
-			$queryLanguage,
-			$corpusFormat
-		);
+			$freqCall = tt_fc_engine_freq( $fcEngineCtx, trim( (string) ( $_REQUEST['query'] ?? '' ) ), $freqField, $freqLimit, $kwicField, $kwicValue );
 		}
 	}
 
@@ -7237,14 +7130,7 @@ require_once __DIR__ . '/fc_result.php';
 		} elseif ( $selectionBlockMessage !== '' ) {
 			$collCall = tt_flexicorp_error_call($backend, 'coll', $selectionBlockMessage);
 		} else {
-			$collCall = tt_flexicorp_run_coll(
-				$backend,
-				$projectRoot,
-				$backendOverrideArgs,
-				$queryEngine,
-				$queryLanguage,
-				$corpusFormat
-			);
+			$collCall = tt_fc_engine_coll( $fcEngineCtx );
 		}
 	}
 
