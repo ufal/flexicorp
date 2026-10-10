@@ -375,6 +375,30 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 			return expanded;
 		},
 
+		/**
+		 * Settings of a share link that live inside `frequency` / `collocation`, objects every server
+		 * answer replaces (fields, limit, window, measures).
+		 */
+		_applySnapshotAnalysisFields(p) {
+			const freq = p && p.frequency && typeof p.frequency === 'object' ? p.frequency : {};
+			if (this.frequency && typeof this.frequency === 'object') {
+				if (freq.field != null) this.frequency.field = String(freq.field);
+				if (Array.isArray(freq.form_fields)) this.frequency.formFields = freq.form_fields.map((x) => String(x));
+				if (freq.limit != null && Number.isFinite(Number(freq.limit))) this.frequency.limit = Number(freq.limit);
+			}
+			const coll = p && p.collocation && typeof p.collocation === 'object' ? p.collocation : {};
+			if (this.collocation && typeof this.collocation === 'object') {
+				if (coll.field != null) this.collocation.field = String(coll.field);
+				if (coll.anchor_token != null) this.collocation.anchorToken = String(coll.anchor_token);
+				if (coll.left != null && Number.isFinite(Number(coll.left))) this.collocation.left = Number(coll.left);
+				if (coll.right != null && Number.isFinite(Number(coll.right))) this.collocation.right = Number(coll.right);
+				if (coll.min_freq != null && Number.isFinite(Number(coll.min_freq))) this.collocation.minFreq = Number(coll.min_freq);
+				if (coll.max_items != null && Number.isFinite(Number(coll.max_items))) this.collocation.maxItems = Number(coll.max_items);
+				if (coll.stoplist != null && Number.isFinite(Number(coll.stoplist))) this.collocation.stoplist = Number(coll.stoplist);
+				if (Array.isArray(coll.measure_keys)) this.collocation.measureKeys = coll.measure_keys.map((x) => String(x));
+			}
+		},
+
 		applyVisualizationSnapshotPayload(payload) {
 			const p = payload && typeof payload === 'object' ? payload : null;
 			if (!p) return false;
@@ -426,11 +450,9 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 				}));
 			}
 			const freq = p.frequency && typeof p.frequency === 'object' ? p.frequency : {};
-			if (this.frequency && typeof this.frequency === 'object') {
-				if (freq.field != null) this.frequency.field = String(freq.field);
-				if (Array.isArray(freq.form_fields)) this.frequency.formFields = freq.form_fields.map((x) => String(x));
-				if (freq.limit != null && Number.isFinite(Number(freq.limit))) this.frequency.limit = Number(freq.limit);
-			}
+			this._applySnapshotAnalysisFields(p);
+			// the search that runs next brings fresh frequency / collocation state: apply again before rerunning
+			this._snapshotAnalysisPayload = p;
 			if (freq.viz_mode != null && this.frequencyVizMode != null) this.frequencyVizMode = String(freq.viz_mode);
 			if (freq.chart_type != null && this.frequencyChartType != null) this.frequencyChartType = String(freq.chart_type);
 			if (freq.chart_scale != null && this.frequencyChartValueScale != null) {
@@ -449,16 +471,6 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 				this.frequencyCompareMetricCols = freq.compare_metric_cols.map((x) => String(x));
 			}
 			const coll = p.collocation && typeof p.collocation === 'object' ? p.collocation : {};
-			if (this.collocation && typeof this.collocation === 'object') {
-				if (coll.field != null) this.collocation.field = String(coll.field);
-				if (coll.anchor_token != null) this.collocation.anchorToken = String(coll.anchor_token);
-				if (coll.left != null && Number.isFinite(Number(coll.left))) this.collocation.left = Number(coll.left);
-				if (coll.right != null && Number.isFinite(Number(coll.right))) this.collocation.right = Number(coll.right);
-				if (coll.min_freq != null && Number.isFinite(Number(coll.min_freq))) this.collocation.minFreq = Number(coll.min_freq);
-				if (coll.max_items != null && Number.isFinite(Number(coll.max_items))) this.collocation.maxItems = Number(coll.max_items);
-				if (coll.stoplist != null && Number.isFinite(Number(coll.stoplist))) this.collocation.stoplist = Number(coll.stoplist);
-				if (Array.isArray(coll.measure_keys)) this.collocation.measureKeys = coll.measure_keys.map((x) => String(x));
-			}
 			if (coll.viz_mode != null && this.collocationVizMode != null) this.collocationVizMode = String(coll.viz_mode);
 			if (coll.chart_metric && this.collocationChartMetricKey !== undefined) this.collocationChartMetricKey = String(coll.chart_metric);
 			const dcoll = p.dcoll && typeof p.dcoll === 'object' ? p.dcoll : null;
@@ -770,6 +782,8 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 					vlog('reopen: the search answer is the', wantedSub, 'result; not rerunning it');
 					return;
 				}
+				if (this._snapshotAnalysisPayload) this._applySnapshotAnalysisFields(this._snapshotAnalysisPayload);
+				this._snapshotAnalysisPayload = null;
 				if (wantedSub === 'freq' && typeof this.submitFrequencyFromButton === 'function') this.submitFrequencyFromButton();
 				else if (wantedSub === 'coll' && typeof this.submitCollocationFromButton === 'function') this.submitCollocationFromButton();
 				else if (wantedSub === 'advanced_dcoll' && typeof this.submitDcollAdvRun === 'function') this.submitDcollAdvRun();
