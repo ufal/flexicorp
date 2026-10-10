@@ -99,6 +99,7 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 					anchor_token: String(this.dcollAdv.anchorToken || ''),
 					relation: String(this.dcollAdv.relation || ''),
 					field: String(this.dcollAdv.field || ''),
+					breakdown: String(this.dcollAdv.breakdown || ''),
 					min_freq: this.dcollAdv.minFreq != null ? Number(this.dcollAdv.minFreq) : null,
 					max_items: this.dcollAdv.maxItems != null ? Number(this.dcollAdv.maxItems) : null,
 					stoplist: this.dcollAdv.stoplist != null ? Number(this.dcollAdv.stoplist) : null,
@@ -229,7 +230,7 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 				},
 				// module states only when the link opens on that module
 				d: p.ui && p.ui.stats_subtab === 'advanced_dcoll' && p.dcoll ? {
-					a: p.dcoll.anchor_token, r: p.dcoll.relation, f: p.dcoll.field,
+					a: p.dcoll.anchor_token, r: p.dcoll.relation, f: p.dcoll.field, bd: p.dcoll.breakdown,
 					mf: p.dcoll.min_freq, mi: p.dcoll.max_items, sl: p.dcoll.stoplist,
 					mk: p.dcoll.measure_keys, vm: p.dcoll.viz_mode, cm: p.dcoll.chart_metric,
 				} : null,
@@ -335,6 +336,7 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 					anchor_token: p.d.a ? String(p.d.a) : '',
 					relation: p.d.r ? String(p.d.r) : '',
 					field: p.d.f ? String(p.d.f) : '',
+					breakdown: p.d.bd ? String(p.d.bd) : '',
 					min_freq: p.d.mf != null ? Number(p.d.mf) : null,
 					max_items: p.d.mi != null ? Number(p.d.mi) : null,
 					stoplist: p.d.sl != null ? Number(p.d.sl) : null,
@@ -478,6 +480,7 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 				if (dcoll.anchor_token) this.dcollAdv.anchorToken = String(dcoll.anchor_token);
 				if (dcoll.relation) this.dcollAdv.relation = String(dcoll.relation);
 				if (dcoll.field) this.dcollAdv.field = String(dcoll.field);
+				if (dcoll.breakdown) this.dcollAdv.breakdown = String(dcoll.breakdown);
 				if (dcoll.min_freq != null && Number.isFinite(Number(dcoll.min_freq))) this.dcollAdv.minFreq = Number(dcoll.min_freq);
 				if (dcoll.max_items != null && Number.isFinite(Number(dcoll.max_items))) this.dcollAdv.maxItems = Number(dcoll.max_items);
 				if (dcoll.stoplist != null && Number.isFinite(Number(dcoll.stoplist))) this.dcollAdv.stoplist = Number(dcoll.stoplist);

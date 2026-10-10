@@ -24,6 +24,8 @@
 				anchorToken: '',
 				relation: 'children',
 				field: 'lemma',
+				/** second `by` attribute tallied per collocate (`dcoll … by lemma, deprel`); 'none' = off */
+				breakdown: 'deprel',
 				minFreq: 1,
 				maxItems: 50,
 				stoplist: 0,
@@ -91,6 +93,41 @@
 				return out;
 			},
 
+			/** "Show also" choices: none, deprel and upos first, then the other fields. */
+			dcollAdvBreakdownOptions() {
+				const out = [{ key: 'none', label: '(nothing)' }];
+				const seen = new Set(['none']);
+				const fields = this.dcollAdvFieldOptions();
+				const label = (k) => {
+					const f = fields.find((o) => o.key === k);
+					return f ? f.label : k;
+				};
+				for (const k of ['deprel', 'upos']) {
+					if (fields.some((o) => o.key === k)) { out.push({ key: k, label: label(k) }); seen.add(k); }
+				}
+				for (const o of fields) if (!seen.has(o.key) && !/^text_|^s_/.test(o.key)) { out.push(o); seen.add(o.key); }
+				const cur = String((this.dcollAdv && this.dcollAdv.breakdown) || '').trim();
+				if (cur && !seen.has(cur)) out.push({ key: cur, label: cur });
+				return out;
+			},
+
+			/** The breakdown attribute of the rows on screen ('' = none). */
+			dcollAdvBreakdownShown() {
+				const r = this.dcollAdv && this.dcollAdv.response;
+				return r && r.breakdown_attribute ? String(r.breakdown_attribute) : '';
+			},
+
+			/** `case 360 · nmod 5` for one collocate: the values most frequent first, at most 4. */
+			dcollAdvBreakdownText(row) {
+				const b = row && row.breakdown && typeof row.breakdown === 'object' ? row.breakdown : null;
+				if (!b) return '';
+				const parts = Object.keys(b).map((k) => [k, Number(b[k]) || 0]).filter((p) => p[1] > 0);
+				parts.sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1));
+				const shown = parts.slice(0, 4).map(([k, n]) => `${k} ${n}`);
+				if (parts.length > 4) shown.push(`+${parts.length - 4}`);
+				return shown.join(' · ');
+			},
+
 			dcollAdvMeasureOptions() {
 				const order = typeof this.collocationMeasureOrder === 'function'
 					? this.collocationMeasureOrder()
@@ -131,8 +168,8 @@
 					? this.dcollAdv.rows[0]
 					: null;
 				if (!row || typeof row !== 'object') return [];
-				const skip = new Set(['word', 'obs', 'freq']);
-				return Object.keys(row).filter((k) => !skip.has(k));
+				const skip = new Set(['word', 'obs', 'freq', 'breakdown']);
+				return Object.keys(row).filter((k) => !skip.has(k) && (row[k] === null || typeof row[k] !== 'object'));
 			},
 
 			dcollAdvResult() {
@@ -307,6 +344,8 @@
 				const relation = String((this.dcollAdv && this.dcollAdv.relation) || 'children').trim() || 'children';
 				const field = String((this.dcollAdv && this.dcollAdv.field) || 'lemma').trim() || 'lemma';
 				const anchor = String((this.dcollAdv && this.dcollAdv.anchorToken) || '').trim();
+				const bd = String((this.dcollAdv && this.dcollAdv.breakdown) || '').trim();
+				const by = bd && bd !== 'none' && bd !== field ? `${field}, ${bd}` : field;
 				if (!base) return '';
 				// Pando-CQL ambiguity: `dcoll iobj by lemma` is parsed on some builds as
 				// query_name=iobj (empty relations → all children). Builtins (head/children/
@@ -316,11 +355,11 @@
 				const builtins = new Set(['head', 'children', 'descendants']);
 				let dcollHead = 'dcoll ';
 				if (anchor) {
-					dcollHead += `${anchor}.${relation} by ${field}`;
+					dcollHead += `${anchor}.${relation} by ${by}`;
 				} else if (builtins.has(relation.toLowerCase())) {
-					dcollHead += `${relation} by ${field}`;
+					dcollHead += `${relation} by ${by}`;
 				} else {
-					dcollHead += `${relation}, by ${field}`;
+					dcollHead += `${relation}, by ${by}`;
 				}
 				return `${base}; ${dcollHead}`;
 			},
@@ -395,6 +434,7 @@
 				this.dcollAdv.response = payload;
 				this.dcollAdv.rows = Array.isArray(rows) ? rows : [];
 				if (payload && payload.attribute != null) this.dcollAdv.field = String(payload.attribute || '').trim() || this.dcollAdv.field;
+				if (payload && payload.breakdown_attribute) this.dcollAdv.breakdown = String(payload.breakdown_attribute);
 				if (payload && Array.isArray(payload.relations) && payload.relations.length) {
 					const rel = String(payload.relations[0] || '').trim();
 					if (rel) this.dcollAdv.relation = rel;

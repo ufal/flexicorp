@@ -38,6 +38,14 @@ if ( ! function_exists( 'tt_flexicorp_adv_dcoll_render_stats_panel' ) ) {
 						</select>
 					</div>
 					<div class="flexicorp-form-row">
+						<label for="fc-dcoll-breakdown" title="For each collocate, how often it came with each value of this attribute (e.g. its dependency relation or word class)">Show also</label>
+						<select id="fc-dcoll-breakdown" class="flexicorp-form-control flexicorp-form-control-sm" x-model="dcollAdv.breakdown">
+							<template x-for="opt in dcollAdvBreakdownOptions()" :key="'dcoll-bd-' + opt.key">
+								<option :value="opt.key" :selected="String(opt.key) === String(dcollAdv.breakdown)" x-text="opt.label"></option>
+							</template>
+						</select>
+					</div>
+					<div class="flexicorp-form-row">
 						<label for="fc-dcoll-minfreq">Min. frequency</label>
 						<input id="fc-dcoll-minfreq" type="number" min="1" step="1" class="flexicorp-form-control flexicorp-form-control-sm" x-model.number="dcollAdv.minFreq">
 					</div>
@@ -95,6 +103,7 @@ if ( ! function_exists( 'tt_flexicorp_adv_dcoll_render_stats_panel' ) ) {
 							<template x-for="mk in dcollAdvMeasureKeys()" :key="'dcoll-h-' + mk">
 								<th x-text="mk"></th>
 							</template>
+							<th x-show="dcollAdvBreakdownShown()" x-text="(dcollAdvBreakdownOptions().find((o) => o.key === dcollAdvBreakdownShown()) || { label: dcollAdvBreakdownShown() }).label"></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -106,6 +115,7 @@ if ( ! function_exists( 'tt_flexicorp_adv_dcoll_render_stats_panel' ) ) {
 								<template x-for="mk in dcollAdvMeasureKeys()" :key="'dcoll-c-' + idx + '-' + mk">
 									<td x-text="row[mk] != null ? row[mk] : ''"></td>
 								</template>
+								<td x-show="dcollAdvBreakdownShown()" class="flexicorp-dcoll-breakdown" x-text="dcollAdvBreakdownText(row)"></td>
 							</tr>
 						</template>
 					</tbody>
