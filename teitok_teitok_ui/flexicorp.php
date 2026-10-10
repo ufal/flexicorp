@@ -3303,7 +3303,7 @@ require_once __DIR__ . '/flexicorp_functions.php';
 					'cql' => (string)$queryText,
 					'offset' => (int)$start,
 					'limit' => (int)$size,
-					'group_limit' => max(1, (int)$size),
+					'group_limit' => isset($qopts['group_limit']) ? max(1, (int)$qopts['group_limit']) : max(1, (int)$size),
 					'request_role' => (string)($probe['request_role'] ?? 'visitor'),
 					'user' => tt_flexicorp_request_user(),
 				);
@@ -7271,6 +7271,19 @@ require_once __DIR__ . '/flexicorp_functions.php';
 				$val = str_replace('"', '\\"', $kwicValue);
 				$kwicQueryForRun = '[' . $kwicField . '="' . $val . '"]';
 			}
+				// A program typed in the search box ("A = …; freq A by x;", coll, count, …) runs on
+				// FQS /run: /query executes only the query statements and silently drops the rest.
+				$kwicIsProgram = false;
+				if ( $fqsBackendOverride === 'pando' ) {
+					foreach ( preg_split( '/\s*;\s*/', (string)$kwicQueryForRun, -1, PREG_SPLIT_NO_EMPTY ) as $kwicPart ) {
+						$kwicPart = trim( $kwicPart );
+						if ( ( function_exists( 'tt_flexicorp_teitok_query_is_aa_statement' ) && tt_flexicorp_teitok_query_is_aa_statement( $kwicPart ) )
+							|| preg_match( '/^(dcoll|keyness|dist)\b/i', $kwicPart ) ) {
+							$kwicIsProgram = true;
+							break;
+						}
+					}
+				}
 				$kwicCall = tt_flexicorp_fqs_query_call(
 				$fqsProbe,
 				$kwicQueryForRun,
@@ -7279,6 +7292,8 @@ require_once __DIR__ . '/flexicorp_functions.php';
 				$kwicLimit,
 					$fqsBackendOverride,
 					array(
+						'program' => $kwicIsProgram,
+						'group_limit' => 1000,   // a typed freq/coll: the KWIC page size is not a group limit
 						'window' => (int)$kwicWindow,
 						'context_scope' => (string)$contextScope,
 						'context_format' => (string)$contextFormat,
