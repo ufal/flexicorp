@@ -1153,7 +1153,9 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 				// Default to relative whenever the backend provides relative/subcorpus metrics,
 				// unless absolute was chosen (by the user, or by a share link).
 				if (!this._frequencyScaleChosen) this.frequencyChartValueScale = 'relative';
-			} else if (this.frequencyChartValueScale === 'relative') {
+			} else if (this.frequencyChartValueScale === 'relative' && this.frequencyRows().length) {
+				// only a result without relative metrics; before any result (page load, a share link
+				// being restored) the chosen scale stays
 				this.frequencyChartValueScale = 'absolute';
 			}
 			this.normalizeFrequencyCompareMetricCols();
@@ -1470,11 +1472,22 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 			}
 			
 			return {
-				rows: Array.from(rowKeys).sort(),
-				cols: Array.from(colKeys).sort(),
+				rows: this.frequencyPivotSortKeys(Array.from(rowKeys)),
+				cols: this.frequencyPivotSortKeys(Array.from(colKeys)),
 				cells,
 				maxVal
 			};
+		},
+
+		/** Pivot headers in reading order: numbers and Roman numerals (centuries) by value, else alphabetically. */
+		frequencyPivotSortKeys(keys) {
+			const num = (k) => {
+				const n = Number(String(k).trim());
+				if (String(k).trim() !== '' && Number.isFinite(n)) return n;
+				return this.frequencyRomanNumeralToInt(k);
+			};
+			if (keys.length && keys.every((k) => num(k) !== null)) return keys.slice().sort((a, b) => num(a) - num(b));
+			return keys.slice().sort();
 		},
 
 		frequencyPivotColumns() {

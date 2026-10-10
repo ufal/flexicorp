@@ -736,14 +736,14 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 					if (this.searchLoadedItemCount() <= before) break;
 				}
 			};
-			// Stats subtabs need hits; any search in flight (also one the page started itself) must
-			// have landed first.
-			const waitForHits = async () => {
+			// Any search in flight (also one the page started itself) must have landed first. An
+			// aggregation program (`A = …; freq A by …`) lands with a table and no hits: done as well.
+			const waitForSearch = async () => {
 				for (let i = 0; i < 120; i += 1) {
-					if (!this.isLoading('search') && typeof this.statsSearchHasHits === 'function' && this.statsSearchHasHits()) return true;
+					if (!this.isLoading('search') && this.search && this.search.ran) break;
 					await sleep(250);
 				}
-				return false;
+				return typeof this.statsSearchHasHits === 'function' && this.statsSearchHasHits();
 			};
 			const reopen = async () => {
 				if (!wantedTab || wantedTab === 'search') return;
@@ -764,7 +764,12 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 						'modules:', typeof this.availableStatsModules === 'function' ? this.availableStatsModules().map((m) => m.id) : '?');
 					return;
 				}
-				// the analysis the link was made from, with the restored settings
+				// the analysis the link was made from, with the restored settings; not when the search
+				// answer already is that result (a typed program): rerunning would replace it
+				if (typeof this.statsHasResultFor === 'function' && this.statsHasResultFor(wantedSub)) {
+					vlog('reopen: the search answer is the', wantedSub, 'result; not rerunning it');
+					return;
+				}
 				if (wantedSub === 'freq' && typeof this.submitFrequencyFromButton === 'function') this.submitFrequencyFromButton();
 				else if (wantedSub === 'coll' && typeof this.submitCollocationFromButton === 'function') this.submitCollocationFromButton();
 				else if (wantedSub === 'advanced_dcoll' && typeof this.submitDcollAdvRun === 'function') this.submitDcollAdvRun();
@@ -783,9 +788,9 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 						vlog('restore: running the search');
 						await this.submitSearchRequest({ append: false });
 					}
-					const hits = await waitForHits();
+					const hits = await waitForSearch();
 					vlog('restore: hits', hits, 'loaded', this.searchLoadedItemCount());
-					await loadMore();
+					if (hits) await loadMore();
 					await reopen();
 				} catch (err) {
 					// eslint-disable-next-line no-console
