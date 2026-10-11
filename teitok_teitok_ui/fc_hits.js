@@ -1418,16 +1418,30 @@ window.ttFlexicorpCoreParts.hits = function () {
 			return hits.some((hit) => this.isHitDiscontinuous(hit));
 		},
 
-		/** In KWIC, group highlights are only useful when hits are discontinuous. */
+		/**
+		 * In KWIC, group highlights are only useful when hits are discontinuous — or carry a named
+		 * region or dependency subtree (`:: np:dep_subtree(n)`), whose brackets the same pass draws.
+		 */
 		kwicUsesHighlighting() {
 			if (!this.isSearchViewMode('kwic') && !this.isSearchViewMode('anchor_kwic')) return true;
-			return this.searchHasDiscontinuousHits();
+			if (this.searchHasDiscontinuousHits()) return true;
+			const hits = this.search && Array.isArray(this.search.hits) ? this.search.hits.slice(0, 20) : [];
+			return hits.some((h) => this.hitHasRegionGroups(h));
 		},
 
 		/** Per-hit variant used while building XML KWIC fragments. */
 		kwicHitUsesHighlighting(hit) {
 			if (!this.isSearchViewMode('kwic') && !this.isSearchViewMode('anchor_kwic')) return true;
-			return this.isHitDiscontinuous(hit);
+			return this.isHitDiscontinuous(hit) || this.hitHasRegionGroups(hit);
+		},
+
+		hitHasRegionGroups(hit) {
+			if (!hit || typeof hit !== 'object' || !hit.highlight_map) return false;
+			try {
+				return this.getHighlightMapGroups(hit).some((g) => g && g.region);
+			} catch (_) {
+				return false;
+			}
 		},
 
 		searchShouldShowHighlightLegend() {

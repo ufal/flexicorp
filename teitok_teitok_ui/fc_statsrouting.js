@@ -493,14 +493,12 @@ window.ttFlexicorpCoreParts.statsrouting = function () {
 				if (pendingUiMode) {
 					nextSearch.viewMode = pendingUiMode;
 				}
-				const scope = this.normalizeContextScopeValue(nextSearch.contextScope);
-				const vm = this.normalizeSearchViewMode(nextSearch.viewMode);
-				// token-window scope defaults to KWIC, unless the view was chosen (by the user or a
-				// share link): a fresh page load starts with searchViewModeAuto = true anyway
-				if (this.searchViewModeAuto && (scope === 'window' || scope === 'tok') && (vm === 'grouped' || vm === 'table')) {
-					nextSearch.viewMode = 'kwic';
-				}
+				// the user's Display choice is client state; the server's answer does not change it
+				nextSearch.viewChoice = this.search && this.search.viewChoice ? this.search.viewChoice : 'auto';
 				this.search = nextSearch;
+				// Auto picks the view for these hits (regions → Table, token window → KWIC, …);
+				// an explicit choice is shown as chosen
+				this.applySearchViewChoice();
 				this.logAbiendoloSearchPayload(this.search, 'applyState:merged-search');
 				this.debugViewModeLog('applyState:after-merge', {
 					initial: !!initial,

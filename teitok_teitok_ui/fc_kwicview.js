@@ -309,7 +309,7 @@ window.ttFlexicorpCoreParts.kwicview = function () {
 			}
 			this.search.contextScope = this.preferredContextScopeValue();
 			const after = this.normalizeContextScopeValue(this.search.contextScope);
-			if (before !== after) {
+			if (before !== after && this.searchViewIsAuto()) {
 				const vm = this.normalizeSearchViewMode(this.search.viewMode);
 				const preferred = this.preferredSearchViewModeForCurrentScope();
 				if ((preferred === 'kwic' && (vm === 'grouped' || vm === 'table')) || (preferred === 'table' && vm === 'kwic')) {
@@ -332,6 +332,8 @@ window.ttFlexicorpCoreParts.kwicview = function () {
 		 */
 		_syncSearchViewWhenNoContextScope() {
 			if (!this.search || typeof this.search !== 'object') return;
+			// a view the user (or a share link) chose stays: Table is offered for token windows too
+			if (!this.searchViewIsAuto()) return;
 			const opts = this.contextScopeOptions();
 			const hasStructuralScope = opts.some((o) => o && o.value !== 'window' && o.value !== 'tok');
 			if (hasStructuralScope) return;
@@ -359,11 +361,56 @@ window.ttFlexicorpCoreParts.kwicview = function () {
 			return options;
 		},
 
+		/**
+		 * The view Auto picks: aligned hits → Grouped; hits with a named region or dependency
+		 * subtree → Table (brackets over a whole sentence read better than a centred match);
+		 * a token-window context → KWIC; otherwise Table.
+		 */
 		preferredSearchViewModeForCurrentScope() {
 			if (this.shouldAutoPreferGroupedAlignedView()) return 'grouped';
+			const hits = this.search && Array.isArray(this.search.hits) ? this.search.hits.slice(0, 20) : [];
+			if (typeof this.hitHasRegionGroups === 'function' && hits.some((h) => this.hitHasRegionGroups(h))) return 'table';
 			const scope = this.normalizeContextScopeValue(this.search && this.search.contextScope);
 			if (scope === 'window' || scope === 'tok') return 'kwic';
 			return 'table';
+		},
+
+		/** Display is on Auto (the default): flexicorp decides the view. */
+		searchViewIsAuto() {
+			const c = this.search && this.search.viewChoice ? String(this.search.viewChoice) : 'auto';
+			return c === 'auto';
+		},
+
+		/** Display options: Auto (showing what it picked) and the explicit views. */
+		searchViewChoiceOptions() {
+			const opts = this.searchViewModeOptions();
+			const eff = this.normalizeSearchViewMode(this.search && this.search.viewMode);
+			const effOpt = opts.find((o) => o.value === eff);
+			const autoLabel = this.searchViewIsAuto() && effOpt ? 'Auto (' + effOpt.label + ')' : 'Auto';
+			return [{ value: 'auto', label: autoLabel }].concat(opts);
+		},
+
+		/**
+		 * The one place that turns the choice into the shown view: Auto → the preferred view;
+		 * an explicit choice is used as long as it is available, even when not the best view.
+		 */
+		applySearchViewChoice() {
+			if (!this.search || typeof this.search !== 'object') return;
+			const options = this.searchViewModeOptions();
+			const has = (v) => options.some((o) => o.value === v);
+			const choice = this.normalizeSearchViewMode(this.search.viewChoice);
+			if (!this.searchViewIsAuto() && has(choice)) {
+				this.search.viewMode = choice;
+				return;
+			}
+			const preferred = this.preferredSearchViewModeForCurrentScope();
+			this.search.viewMode = has(preferred) ? preferred : 'table';
+		},
+
+		onSearchViewChoiceChanged() {
+			this.applySearchViewChoice();
+			this.updateSearchShareButtonVisibility();
+			this.scheduleAlignedTableHeightSync();
 		},
 
 		shouldAutoPreferGroupedAlignedView() {
@@ -390,16 +437,16 @@ window.ttFlexicorpCoreParts.kwicview = function () {
 			const vm = this.normalizeSearchViewMode(this.search.viewMode);
 			const preferred = this.preferredSearchViewModeForCurrentScope();
 			// Scope switch defaults: token-window -> KWIC; structural region -> Table; many aligned -> Grouped.
-			if (vm !== preferred) {
+			// a new scope can change what Auto picks; an explicit choice stays
+			if (this.searchViewIsAuto() && vm !== preferred) {
 				this.search.viewMode = preferred;
 			}
-			// Scope change should re-enable sensible defaults for that scope.
-			this.searchViewModeAuto = true;
 			this.debugViewModeLog('onContextScopeChanged:after');
 		},
 
 		onSearchViewModeChanged(event) {
-			this.searchViewModeAuto = false;
+			// (kept for callers that set viewMode directly: that is an explicit choice)
+			if (this.search) this.search.viewChoice = this.normalizeSearchViewMode(this.search.viewMode) || 'auto';
 			this.debugViewModeLog('onSearchViewModeChanged:user', {
 				eventTrusted: event && Object.prototype.hasOwnProperty.call(event, 'isTrusted') ? !!event.isTrusted : null,
 				value: this.normalizeSearchViewMode(this.search && this.search.viewMode),
@@ -415,7 +462,7 @@ window.ttFlexicorpCoreParts.kwicview = function () {
 			const options = this.searchViewModeOptions();
 			if (options.some((opt) => opt.value === normalized)) {
 				this.search.viewMode = normalized;
-				if (this.searchViewModeAuto) {
+				if (this.searchViewIsAuto()) {
 					const preferred = this.preferredSearchViewModeForCurrentScope();
 					if (options.some((opt) => opt.value === preferred) && normalized !== preferred) {
 						this.search.viewMode = preferred;

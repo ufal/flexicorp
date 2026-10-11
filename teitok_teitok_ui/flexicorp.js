@@ -126,6 +126,8 @@ function flexicorpApp() {
 			contextFormat: 'xml',
 			contextScope: 's',
 			viewMode: 'table',
+			// what Display says: 'auto' (flexicorp picks viewMode) or an explicit view the user chose
+			viewChoice: 'auto',
 			window: 10,
 			limit: 100,
 			start: 0,
@@ -158,7 +160,6 @@ function flexicorpApp() {
 		/** Display mode selected by the user while the current search request is in flight. */
 		_pendingSearchUiViewMode: '',
 		/** True until user explicitly changes display mode; allows scope-based defaults. */
-		searchViewModeAuto: true,
 		/** Keep default hit limit adaptive to viewport until user picks one manually. */
 		searchLimitAuto: true,
 		_autoSearchLimitLast: 0,

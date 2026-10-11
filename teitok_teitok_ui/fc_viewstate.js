@@ -64,7 +64,8 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 					value: this.search && this.search.value ? String(this.search.value) : '',
 					context_format: this.search && this.search.contextFormat ? String(this.search.contextFormat) : '',
 					context_scope: this.search && this.search.contextScope ? String(this.search.contextScope) : '',
-					view_mode: this.search && this.search.viewMode ? String(this.search.viewMode) : '',
+					// the Display choice ('auto' or an explicit view), not the view Auto happened to pick
+					view_mode: this.search && this.search.viewChoice ? String(this.search.viewChoice) : (this.search && this.search.viewMode ? String(this.search.viewMode) : ''),
 					window: this.search && this.search.window != null ? Number(this.search.window) : null,
 					limit: this.search && this.search.limit != null ? Number(this.search.limit) : null,
 					// hits loaded so far ("Show more"): the link loads as many again
@@ -449,10 +450,11 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 				if (search.value != null) this.search.value = String(search.value);
 				if (search.context_format != null) this.search.contextFormat = String(search.context_format);
 				if (search.context_scope != null) this.search.contextScope = String(search.context_scope);
-				if (search.view_mode != null) {
-					this.search.viewMode = String(search.view_mode);
-					// the link's view is a choice, not a default: scope-based defaults must not replace it
-					this.searchViewModeAuto = false;
+				if (search.view_mode != null && String(search.view_mode)) {
+					// 'auto' stays Auto; any other view was chosen and is shown as such
+					const vm = String(search.view_mode);
+					this.search.viewChoice = vm;
+					if (vm !== 'auto') this.search.viewMode = vm;
 				}
 				if (search.window != null && Number.isFinite(Number(search.window))) this.search.window = Number(search.window);
 				if (search.limit != null && Number.isFinite(Number(search.limit))) this.search.limit = Number(search.limit);

@@ -293,19 +293,19 @@
 						class="flexicorp-toolbar-display"
 						x-show="activeTab === 'search' && !search.ran"
 						style="display:inline-flex;align-items:center;gap:0.35rem;"
-						title="Default view for the next run. After a search, use Display on the Search result line to switch without rerunning."
+						title="Auto lets flexicorp pick the view for the results; choose a view to always use that one. After a search, Display on the result line switches without rerunning."
 					>
 						<label for="fc-view-mode-toolbar" class="flexicorp-inline-label">{%Display}</label>
 						<select
 							id="fc-view-mode-toolbar"
 							class="form-control form-control-sm flexicorp-inline-select"
-							x-model="search.viewMode"
-							x-on:change="onSearchViewModeChanged($event)"
-							x-init="$nextTick(() => { if ($el.value !== search.viewMode) $el.value = search.viewMode; })"
-							x-effect="(() => { const v = search.viewMode; $nextTick(() => { if ($el.value !== v) $el.value = v; }); })()"
+							x-model="search.viewChoice"
+							x-on:change="onSearchViewChoiceChanged()"
+							x-init="$nextTick(() => { if ($el.value !== search.viewChoice) $el.value = search.viewChoice; })"
+							x-effect="(() => { const v = search.viewChoice; $nextTick(() => { if ($el.value !== v) $el.value = v; }); })()"
 						>
-							<template x-for="opt in searchViewModeOptions()" :key="'view-mode-tb:' + opt.value">
-								<option :value="opt.value" :selected="opt.value === search.viewMode" x-text="opt.label"></option>
+							<template x-for="opt in searchViewChoiceOptions()" :key="'view-mode-tb:' + opt.value">
+								<option :value="opt.value" :selected="opt.value === search.viewChoice" x-text="opt.label"></option>
 							</template>
 						</select>
 					</div>
@@ -778,14 +778,14 @@
 						<select
 							id="fc-view-mode-results"
 							class="form-control form-control-sm flexicorp-inline-select"
-							x-model="search.viewMode"
-							x-on:change="onSearchViewModeChanged($event)"
-							x-init="$nextTick(() => { if ($el.value !== search.viewMode) $el.value = search.viewMode; })"
-							x-effect="(() => { const v = search.viewMode; $nextTick(() => { if ($el.value !== v) $el.value = v; }); })()"
+							x-model="search.viewChoice"
+							x-on:change="onSearchViewChoiceChanged()"
+							x-init="$nextTick(() => { if ($el.value !== search.viewChoice) $el.value = search.viewChoice; })"
+							x-effect="(() => { const v = search.viewChoice; $nextTick(() => { if ($el.value !== v) $el.value = v; }); })()"
 							title="{%Switch view without rerunning the query}"
 						>
-							<template x-for="opt in searchViewModeOptions()" :key="'view-mode-rs:' + opt.value">
-								<option :value="opt.value" :selected="opt.value === search.viewMode" x-text="opt.label"></option>
+							<template x-for="opt in searchViewChoiceOptions()" :key="'view-mode-rs:' + opt.value">
+								<option :value="opt.value" :selected="opt.value === search.viewChoice" x-text="opt.label"></option>
 							</template>
 						</select>
 					</div>
