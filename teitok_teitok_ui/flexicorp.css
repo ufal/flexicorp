@@ -1175,6 +1175,28 @@ button.flexicorp-search-change-link {
 	cursor: help;
 	user-select: none;
 }
+.flexicorp-hit-xml .flexicorp-region-hover {
+	text-decoration: underline;
+	text-decoration-color: var(--fc-region-color, currentColor);
+	text-decoration-thickness: 2px;
+	text-underline-offset: 3px;
+}
+.flexicorp-region-bracket.flexicorp-region-hover {
+	text-decoration: none;
+	font-size: 1.3em;
+}
+.flexicorp-region-tooltip {
+	position: fixed;
+	z-index: 10000;
+	display: none;
+	padding: 0.2rem 0.45rem;
+	border-radius: 3px;
+	background: #212529;
+	color: #fff;
+	font: 12px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	pointer-events: none;
+	white-space: nowrap;
+}
 .flexicorp-highlight-legend-chip.flexicorp-highlight-legend-chip--region {
 	background: transparent;
 	border: 1px solid currentColor;

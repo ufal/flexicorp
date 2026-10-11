@@ -577,7 +577,7 @@ window.ttFlexicorpCoreParts.highlight = function () {
 		 */
 		_highlightRegionInfo(hit, name, entry) {
 			if (entry && typeof entry === 'object' && entry.region) {
-				return { region: String(entry.region), regionId: String(entry.region_id || entry.regionId || '') };
+				return { region: String(entry.region), regionId: String(entry.region_id || entry.regionId || ''), regionHover: String(entry.hover || '') };
 			}
 			const groups = hit && Array.isArray(hit.groups) ? hit.groups : [];
 			const g = groups.find((x) => x && typeof x === 'object' && x.region && String(x.id || x.name || '') === String(name));
@@ -608,7 +608,8 @@ window.ttFlexicorpCoreParts.highlight = function () {
 		/**
 		 * Named regions as brackets in the group's colour around the span (first to last token
 		 * in document order); nested regions starting or ending on one token put the longer one
-		 * outside. Hover shows name · region id · region type.
+		 * outside. Hover shows name · the values of the structure's `hover` setting (resolved
+		 * server-side, see tt_flexicorp_region_hover_text), else name · region id · structure.
 		 */
 		_applyRegionBrackets(container, regions) {
 			container.querySelectorAll('.flexicorp-region-bracket').forEach((n) => n.remove());
@@ -623,17 +624,24 @@ window.ttFlexicorpCoreParts.highlight = function () {
 				const anchor = (el) => (el.localName === 'tok' || el.localName === 'mtok' ? el : (el.closest('tok, mtok') || el));
 				const first = anchor(hitToks[0]);
 				const last = anchor(hitToks[hitToks.length - 1]);
-				spans.push({ g, first, last, size: hitToks.length });
+				spans.push({ g, first, last, size: hitToks.length, toks: hitToks.map(anchor) });
 			});
 			spans.sort((a, b) => b.size - a.size);
-			spans.forEach(({ g, first, last }) => {
+			container.querySelectorAll('[data-fc-regions]').forEach((n) => n.removeAttribute('data-fc-regions'));
+			spans.forEach(({ g, first, last, toks: regionToks }) => {
+				// the region's tokens, so hovering a bracket can underline the whole region
+				regionToks.forEach((t) => {
+					const cur = (t.getAttribute('data-fc-regions') || '').split(' ').filter(Boolean);
+					if (!cur.includes(String(g.name))) cur.push(String(g.name));
+					t.setAttribute('data-fc-regions', cur.join(' '));
+				});
 				const color = g.color || this.paletteColorForClass(g.paletteClass);
-				const title = [g.name, g.regionId, g.region].filter(Boolean).join(' · ');
+				const title = (g.regionHover ? [g.name, g.regionHover] : [g.name, g.regionId, g.region]).filter(Boolean).join(' · ');
 				const mk = (ch, side) => {
 					const b = document.createElement('span');
 					b.className = 'flexicorp-region-bracket flexicorp-region-bracket--' + side;
 					b.setAttribute('style', 'color:' + color);
-					b.setAttribute('title', title);
+					b.setAttribute('data-fc-title', title);
 					b.setAttribute('data-region', String(g.name));
 					b.textContent = ch;
 					return b;
@@ -980,3 +988,46 @@ window.ttFlexicorpCoreParts.highlight = function () {
 		},
 	};
 };
+
+/**
+ * Hover over a region bracket: underline the region's tokens in its colour and show its
+ * rollover text. Delegated on the document, outside Alpine: hit rows are re-rendered through
+ * x-html (which also keeps a native title tooltip from ever appearing).
+ */
+(function () {
+	if (typeof document === 'undefined' || !document.addEventListener || window.__fcRegionHover) return;
+	window.__fcRegionHover = true;
+	let tip = null;
+	const clear = () => {
+		document.querySelectorAll('.flexicorp-region-hover').forEach((n) => {
+			n.classList.remove('flexicorp-region-hover');
+			n.style.removeProperty('--fc-region-color');
+		});
+		if (tip) tip.style.display = 'none';
+	};
+	document.addEventListener('mouseover', (ev) => {
+		const b = ev.target && ev.target.closest ? ev.target.closest('.flexicorp-region-bracket') : null;
+		clear();
+		if (!b) return;
+		const name = b.getAttribute('data-region') || '';
+		const color = b.style.color || '';
+		const scope = b.closest('.flexicorp-hit-xml') || b.parentNode;
+		const mark = (n) => { n.classList.add('flexicorp-region-hover'); if (color) n.style.setProperty('--fc-region-color', color); };
+		scope.querySelectorAll('[data-fc-regions]').forEach((t) => {
+			if ((t.getAttribute('data-fc-regions') || '').split(' ').includes(name)) mark(t);
+		});
+		scope.querySelectorAll('.flexicorp-region-bracket').forEach((x) => { if (x.getAttribute('data-region') === name) mark(x); });
+		const text = b.getAttribute('data-fc-title') || name;
+		if (!tip) {
+			tip = document.createElement('div');
+			tip.className = 'flexicorp-region-tooltip';
+			document.body.appendChild(tip);
+		}
+		tip.textContent = text;
+		tip.style.display = 'block';
+		const r = b.getBoundingClientRect();
+		tip.style.left = Math.max(4, Math.min(r.left, window.innerWidth - tip.offsetWidth - 4)) + 'px';
+		tip.style.top = (r.bottom + 4) + 'px';
+	});
+	window.addEventListener('scroll', clear, true);
+})();

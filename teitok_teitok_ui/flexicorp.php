@@ -4496,6 +4496,8 @@ require_once __DIR__ . '/fc_engine.php';
 					}
 					if ( isset($g['region']) && trim((string)$g['region']) !== '' ) {
 						$regionOf[$name] = array( 'region' => (string)$g['region'], 'region_id' => (string)($g['region_id'] ?? '') );
+						$hover = tt_flexicorp_region_hover_text( (string)$g['region'], isset($g['attrs']) && is_array($g['attrs']) ? $g['attrs'] : array() );
+						if ( $hover !== '' ) $regionOf[$name]['hover'] = $hover;
 					}
 				}
 				// no hit groups (an older engine): the tokens' query-token index still says which
@@ -4552,6 +4554,32 @@ require_once __DIR__ . '/fc_engine.php';
 			}
 			unset($hit);
 			return $result;
+		}
+	}
+
+	/**
+	 * Rollover text of a named region in the hits: the values of the attributes listed in the
+	 * structure's `hover` setting, in that order, e.g.
+	 *   <cqp><sattributes><item key="node" level="node" hover="label"> → "NP-SBJ"
+	 * No setting (or no values): '' and the UI shows name · id · structure. Regions are anything
+	 * (entities, errors, clauses, tree nodes, …), so nothing is assumed about their attributes.
+	 */
+	if ( !function_exists('tt_flexicorp_region_hover_text') ) {
+		function tt_flexicorp_region_hover_text( $struct, $attrs ) {
+			static $keysByStruct = array();
+			if ( !isset($keysByStruct[$struct]) ) {
+				$keys = array();
+				$def = function_exists('getset') && preg_match('/^[A-Za-z0-9_-]+$/', $struct) ? getset('cqp/sattributes/' . $struct, null) : null;
+				if ( is_array($def) && isset($def['hover']) && is_string($def['hover']) ) {
+					$keys = array_values(array_filter(array_map('trim', explode(',', $def['hover'])), 'strlen'));
+				}
+				$keysByStruct[$struct] = $keys;
+			}
+			$vals = array();
+			foreach ( $keysByStruct[$struct] as $k ) {
+				if ( isset($attrs[$k]) && trim((string)$attrs[$k]) !== '' ) $vals[] = (string)$attrs[$k];
+			}
+			return implode(' · ', $vals);
 		}
 	}
 
