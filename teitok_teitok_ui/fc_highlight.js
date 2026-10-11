@@ -615,16 +615,27 @@ window.ttFlexicorpCoreParts.highlight = function () {
 			container.querySelectorAll('.flexicorp-region-bracket').forEach((n) => n.remove());
 			if (!regions.length) return;
 			const toks = Array.from(container.querySelectorAll('tok, dtok, mtok'));
+			// a dtok inside a contraction: the bracket goes around the whole token
+			const anchor = (el) => (el.localName === 'tok' || el.localName === 'mtok' ? el : (el.closest('tok, mtok') || el));
+			const anchors = [];
+			toks.forEach((t) => { const a = anchor(t); if (anchors[anchors.length - 1] !== a) anchors.push(a); });
+			const anchorIdx = new Map(anchors.map((a, i) => [a, i]));
 			const spans = [];
 			regions.forEach((g) => {
 				const want = this._expandHighlightIdLookup(Object.fromEntries((g.ids || []).filter(Boolean).map((id) => [id, [1]])));
 				const hitToks = toks.filter((node) => this.xmlElementStableIds(node).some((a) => want[a]));
 				if (!hitToks.length) return;
-				// a dtok inside a contraction: the bracket goes around the whole token
-				const anchor = (el) => (el.localName === 'tok' || el.localName === 'mtok' ? el : (el.closest('tok, mtok') || el));
-				const first = anchor(hitToks[0]);
-				const last = anchor(hitToks[hitToks.length - 1]);
-				spans.push({ g, first, last, size: hitToks.length, toks: hitToks.map(anchor) });
+				const regionToks = Array.from(new Set(hitToks.map(anchor)));
+				// a discontinuous binding (a dependency subtree, a token group) gets a pair of
+				// brackets around each contiguous piece; a token between pieces breaks the run
+				const idx = regionToks.map((a) => anchorIdx.get(a)).filter((i) => i !== undefined).sort((a, b) => a - b);
+				let runStart = 0;
+				for (let k = 1; k <= idx.length; k++) {
+					if (k === idx.length || idx[k] !== idx[k - 1] + 1) {
+						spans.push({ g, first: anchors[idx[runStart]], last: anchors[idx[k - 1]], size: k - runStart, toks: regionToks });
+						runStart = k;
+					}
+				}
 			});
 			spans.sort((a, b) => b.size - a.size);
 			container.querySelectorAll('[data-fc-regions]').forEach((n) => n.removeAttribute('data-fc-regions'));
