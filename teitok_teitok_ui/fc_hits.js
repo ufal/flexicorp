@@ -1440,7 +1440,10 @@ window.ttFlexicorpCoreParts.hits = function () {
 		},
 
 		getAnchorGroup(hit) {
-			const groups = this.getHighlightMapGroups(hit).filter((group) => group && Array.isArray(group.ids) && group.ids.length);
+			const all = this.getHighlightMapGroups(hit).filter((group) => group && Array.isArray(group.ids) && group.ids.length);
+			// a named region spans many tokens: anchor on a query token when there is one
+			const tokenGroups = all.filter((group) => !group.region);
+			const groups = tokenGroups.length ? tokenGroups : all;
 			if (!groups.length) return null;
 			const specialNames = new Set(['target', 'head', 'focus', 'keyword', 'root']);
 			const special = groups.find((group) => specialNames.has(String(group.name || '').toLowerCase()));

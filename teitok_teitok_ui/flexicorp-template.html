@@ -830,12 +830,14 @@
 						<span class="flexicorp-highlight-legend-item">
 							<span
 								class="flexicorp-highlight-legend-chip"
-								:class="entry.paletteClass ? 'flexicorp-highlight-chip--' + entry.paletteClass : ''"
-								:style="(entry.color ? 'background:' + entry.color + ';' : '') + (entry.textColor ? 'color:' + entry.textColor + ';' : '')"
+								:class="entry.isRegion ? 'flexicorp-highlight-legend-chip--region' : (entry.paletteClass ? 'flexicorp-highlight-chip--' + entry.paletteClass : '')"
+								:style="entry.isRegion
+									? (entry.color ? 'color:' + entry.color + ';border-color:' + entry.color + ';' : '')
+									: (entry.color ? 'background:' + entry.color + ';' : '') + (entry.textColor ? 'color:' + entry.textColor + ';' : '')"
 								x-on:mouseenter="_showLegendTooltip(entry, $event)"
 								x-on:mousemove="_moveLegendTooltip($event)"
 								x-on:mouseleave="_hideLegendTooltip()"
-								x-text="entry.label || entry.name"></span>
+								x-text="entry.isRegion ? '[ ' + (entry.label || entry.name) + ' ]' : (entry.label || entry.name)"></span>
 						</span>
 					</template>
 					<div

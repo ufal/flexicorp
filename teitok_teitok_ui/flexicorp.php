@@ -4481,6 +4481,7 @@ require_once __DIR__ . '/fc_engine.php';
 				$matchIds = array();
 				$groupNamesByIdx = array();
 				$groupTokIds = array();
+				$regionOf = array();
 				foreach ( $groups as $g ) {
 					if ( !is_array($g) ) continue;
 					$idx = isset($g['index']) ? intval($g['index']) : null;
@@ -4488,9 +4489,13 @@ require_once __DIR__ . '/fc_engine.php';
 					if ( $name === '' ) $name = 't1';
 					if ( $idx !== null ) $groupNamesByIdx[$idx] = $name;
 					if ( !isset($groupTokIds[$name]) ) $groupTokIds[$name] = array();
-					// a named region (`np:<node …>`): pando gives the token ids of its whole span
+					// a named region (`np:<node …>`): pando gives the token ids of its whole span;
+					// the UI draws it as brackets around the span, not as highlighted tokens
 					if ( isset($g['tok_ids']) && is_array($g['tok_ids']) ) {
 						foreach ( $g['tok_ids'] as $rid ) $groupTokIds[$name][] = (string)$rid;
+					}
+					if ( isset($g['region']) && trim((string)$g['region']) !== '' ) {
+						$regionOf[$name] = array( 'region' => (string)$g['region'], 'region_id' => (string)($g['region_id'] ?? '') );
 					}
 				}
 				// no hit groups (an older engine): the tokens' query-token index still says which
@@ -4540,6 +4545,7 @@ require_once __DIR__ . '/fc_engine.php';
 						'tok_ids' => $ids,
 						'range' => null,
 					);
+					if ( isset($regionOf[$gname]) ) $hm[$gname] += $regionOf[$gname];
 					$hm['groups'][] = $gname;
 				}
 				$hit['highlight_map'] = $hm;

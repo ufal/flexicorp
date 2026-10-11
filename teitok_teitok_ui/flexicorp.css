@@ -1167,6 +1167,20 @@ button.flexicorp-search-change-link {
 	padding: 0.05rem 0.2rem;
 }
 
+/* Named regions (`np:<node …>`): coloured brackets around the span; the name is in the legend and on hover */
+.flexicorp-region-bracket {
+	font-weight: 700;
+	font-size: 1.1em;
+	padding: 0 0.05rem;
+	cursor: help;
+	user-select: none;
+}
+.flexicorp-highlight-legend-chip.flexicorp-highlight-legend-chip--region {
+	background: transparent;
+	border: 1px solid currentColor;
+	font-weight: 700;
+}
+
 /* Named query groups (highlight_map keys other than match) */
 .flexicorp-hit-xml .flexicorp-hit-token--group-A {
 	background: #ff6b6b !important;

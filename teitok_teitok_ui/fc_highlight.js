@@ -523,6 +523,7 @@ window.ttFlexicorpCoreParts.highlight = function () {
 						paletteColor: palette.chipColor,
 						paletteTextColor: palette.chipTextColor,
 						order: idx,
+						...this._highlightRegionInfo(hit, groupKey, group),
 					});
 				});
 				if (out.length) {
@@ -546,7 +547,7 @@ window.ttFlexicorpCoreParts.highlight = function () {
 				const palette = this.getGroupPalette(idx);
 				const paletteClass = this.resolveGroupPaletteClass(String(key).trim(), idx, hit, paletteByGroup, nonMatchGroupCount, sideHint);
 				if (Array.isArray(val) && val.length) out.push({ name: key, ids: val, paletteClass, paletteColor: palette.chipColor, paletteTextColor: palette.chipTextColor, order: idx });
-				else if (val && typeof val === 'object' && Array.isArray(val.tok_ids)) out.push({ name: key, ids: val.tok_ids, querySpan: typeof val.query_span === 'string' ? val.query_span : '', color: val.color || null, paletteClass, paletteColor: palette.chipColor, paletteTextColor: palette.chipTextColor, order: idx });
+				else if (val && typeof val === 'object' && Array.isArray(val.tok_ids)) out.push({ name: key, ids: val.tok_ids, querySpan: typeof val.query_span === 'string' ? val.query_span : '', color: val.color || null, paletteClass, paletteColor: palette.chipColor, paletteTextColor: palette.chipTextColor, order: idx, ...this._highlightRegionInfo(hit, key, val) });
 			});
 			return out;
 		},
@@ -570,6 +571,77 @@ window.ttFlexicorpCoreParts.highlight = function () {
 			return copy;
 		},
 
+		/**
+		 * A named region (`np:<node …>`): {region, regionId} when the group is one, else {}.
+		 * Known from the highlight map entry, or from the hit's groups (pando: `region` set).
+		 */
+		_highlightRegionInfo(hit, name, entry) {
+			if (entry && typeof entry === 'object' && entry.region) {
+				return { region: String(entry.region), regionId: String(entry.region_id || entry.regionId || '') };
+			}
+			const groups = hit && Array.isArray(hit.groups) ? hit.groups : [];
+			const g = groups.find((x) => x && typeof x === 'object' && x.region && String(x.id || x.name || '') === String(name));
+			return g ? { region: String(g.region), regionId: String(g.region_id || '') } : {};
+		},
+		/** Names of the query's named regions, from the result's groups/legend (pando marks them with `region`). */
+		searchRegionGroupNames() {
+			const result = this.search && this.search.response ? this.search.response.result : null;
+			const out = new Set();
+			[result && result.legend, result && result.groups].forEach((list) => {
+				(Array.isArray(list) ? list : []).forEach((e) => {
+					if (e && typeof e === 'object' && e.region) out.add(String(e.name || e.key || e.id || ''));
+				});
+			});
+			const hits = this.search && Array.isArray(this.search.hits) ? this.search.hits.slice(0, 5) : [];
+			hits.forEach((h) => this.getHighlightMapGroups(h).forEach((g) => { if (g.region) out.add(String(g.name)); }));
+			out.delete('');
+			return out;
+		},
+		/** Chip colour of a palette class (A–E), for things drawn in the group's colour (region brackets). */
+		paletteColorForClass(cls) {
+			for (let i = 0; i < 5; i++) {
+				const p = this.getGroupPalette(i);
+				if (p.className === cls) return p.chipColor;
+			}
+			return '#495057';
+		},
+		/**
+		 * Named regions as brackets in the group's colour around the span (first to last token
+		 * in document order); nested regions starting or ending on one token put the longer one
+		 * outside. Hover shows name · region id · region type.
+		 */
+		_applyRegionBrackets(container, regions) {
+			container.querySelectorAll('.flexicorp-region-bracket').forEach((n) => n.remove());
+			if (!regions.length) return;
+			const toks = Array.from(container.querySelectorAll('tok, dtok, mtok'));
+			const spans = [];
+			regions.forEach((g) => {
+				const want = this._expandHighlightIdLookup(Object.fromEntries((g.ids || []).filter(Boolean).map((id) => [id, [1]])));
+				const hitToks = toks.filter((node) => this.xmlElementStableIds(node).some((a) => want[a]));
+				if (!hitToks.length) return;
+				// a dtok inside a contraction: the bracket goes around the whole token
+				const anchor = (el) => (el.localName === 'tok' || el.localName === 'mtok' ? el : (el.closest('tok, mtok') || el));
+				const first = anchor(hitToks[0]);
+				const last = anchor(hitToks[hitToks.length - 1]);
+				spans.push({ g, first, last, size: hitToks.length });
+			});
+			spans.sort((a, b) => b.size - a.size);
+			spans.forEach(({ g, first, last }) => {
+				const color = g.color || this.paletteColorForClass(g.paletteClass);
+				const title = [g.name, g.regionId, g.region].filter(Boolean).join(' · ');
+				const mk = (ch, side) => {
+					const b = document.createElement('span');
+					b.className = 'flexicorp-region-bracket flexicorp-region-bracket--' + side;
+					b.setAttribute('style', 'color:' + color);
+					b.setAttribute('title', title);
+					b.setAttribute('data-region', String(g.name));
+					b.textContent = ch;
+					return b;
+				};
+				first.parentNode.insertBefore(mk('[', 'open'), first);
+				last.parentNode.insertBefore(mk(']', 'close'), last.nextSibling);
+			});
+		},
 		getGroupPalette(index) {
 			const palette = [
 				{ className: 'A', chipColor: '#ff6b6b', chipTextColor: '#ffffff' },
@@ -698,8 +770,10 @@ window.ttFlexicorpCoreParts.highlight = function () {
 				if (fromAlias) return fromAlias.trim();
 				return '';
 			};
+			const regionNames = this.searchRegionGroupNames();
 			const addSafe = (entry) => ({
 				...entry,
+				isRegion: regionNames.has(String(entry.name || entry.key || entry.id || '')),
 				safeClass: this.sanitizeGroupClass(entry.name || entry.key || entry.id),
 			});
 			if (result && Array.isArray(result.legend) && result.legend.length) {
@@ -856,7 +930,8 @@ window.ttFlexicorpCoreParts.highlight = function () {
 				// Keep it unhighlighted to avoid misleading token/sentence emphasis.
 				return;
 			}
-			const groups = this.getHighlightMapGroups(hit, sideHint);
+			const allGroups = this.getHighlightMapGroups(hit, sideHint);
+			const groups = allGroups.filter((g) => !g.region);
 			const idToClasses = {};
 			const resultGroupValues = new Set();
 			groups.forEach(({ resultGroup }) => {
@@ -901,6 +976,7 @@ window.ttFlexicorpCoreParts.highlight = function () {
 				}
 				classSet.forEach((c) => node.classList.add(c));
 			});
+			this._applyRegionBrackets(container, allGroups.filter((g) => g.region));
 		},
 	};
 };
