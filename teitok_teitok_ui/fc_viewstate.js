@@ -449,7 +449,11 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 				if (search.value != null) this.search.value = String(search.value);
 				if (search.context_format != null) this.search.contextFormat = String(search.context_format);
 				if (search.context_scope != null) this.search.contextScope = String(search.context_scope);
-				if (search.view_mode != null) this.search.viewMode = String(search.view_mode);
+				if (search.view_mode != null) {
+					this.search.viewMode = String(search.view_mode);
+					// the link's view is a choice, not a default: scope-based defaults must not replace it
+					this.searchViewModeAuto = false;
+				}
 				if (search.window != null && Number.isFinite(Number(search.window))) this.search.window = Number(search.window);
 				if (search.limit != null && Number.isFinite(Number(search.limit))) this.search.limit = Number(search.limit);
 				this._snapshotWantedLoaded = search.loaded != null && Number.isFinite(Number(search.loaded)) ? Number(search.loaded) : 0;

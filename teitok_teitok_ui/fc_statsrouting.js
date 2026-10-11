@@ -495,7 +495,9 @@ window.ttFlexicorpCoreParts.statsrouting = function () {
 				}
 				const scope = this.normalizeContextScopeValue(nextSearch.contextScope);
 				const vm = this.normalizeSearchViewMode(nextSearch.viewMode);
-				if ((initial || this.searchViewModeAuto) && (scope === 'window' || scope === 'tok') && (vm === 'grouped' || vm === 'table')) {
+				// token-window scope defaults to KWIC, unless the view was chosen (by the user or a
+				// share link): a fresh page load starts with searchViewModeAuto = true anyway
+				if (this.searchViewModeAuto && (scope === 'window' || scope === 'tok') && (vm === 'grouped' || vm === 'table')) {
 					nextSearch.viewMode = 'kwic';
 				}
 				this.search = nextSearch;
