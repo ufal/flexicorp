@@ -436,7 +436,7 @@
 					</div>
 					<p class="wrong" x-show="queryBuilderState.warning" x-text="queryBuilderState.warning"></p>
 					<p class="flexicorp-panel-note" x-show="!queryBuilderSupportsCurrentLanguage()">
-						Current query language is not yet supported by the builder. Use text query mode.
+						For this query language, type the query in the text field.
 					</p>
 
 					<div class="fc-qb__strip" aria-label="Tokens of the query">
@@ -1373,7 +1373,7 @@
 						>
 					</div>
 {{STATS_SETTINGS_FREQ_ROW_HTML}}
-					<p class="flexicorp-panel-note">This popup currently controls the module UI/request defaults. It does not yet save corpus-wide backend configuration.</p>
+					<p class="flexicorp-panel-note">These settings apply to how this page shows and requests results; they do not change the corpus.</p>
 					<div class="flexicorp-dialog-actions">
 						<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="closeSettings()">Cancel</button>
 						<button type="submit" class="btn btn-sm btn-primary">Apply</button>

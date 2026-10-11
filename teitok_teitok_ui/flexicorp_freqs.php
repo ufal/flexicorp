@@ -2608,9 +2608,7 @@
 						</h3>
 					</div>
 					<p class="flexicorp-panel-note" x-show="isAdmin">
-						Raw result table for an aggregation operation that does not yet have a dedicated panel.
-						Routed here to avoid silently relabelling it as a frequency. We expect this to
-						progressively shrink as count and dist gain first-class views.
+						Admin: operations without a panel of their own (such as <code>tabulate</code>) show their result table here.
 					</p>
 					<p class="flexicorp-panel-note" x-show="!(other && other.ran)">No aggregation result for the current query. Run a query that ends with <code>count</code> or <code>dist</code> to populate this view.</p>
 					<div class="flexicorp-freq-viz-toolbar flexicorp-freq-viz-toolbar--inline" x-show="other && other.ran && Array.isArray(other.rows) && other.rows.length > 0" style="margin-bottom:0.5rem;">
