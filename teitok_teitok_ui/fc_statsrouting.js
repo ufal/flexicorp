@@ -530,6 +530,7 @@ window.ttFlexicorpCoreParts.statsrouting = function () {
 				// without a first-class panel (count, dist, dcoll, keyness). The PHP routing
 				// guarantees only one of frequency / collocation / other is "ran" per query.
 				this.other = Object.assign({}, this.other || { ran: false }, state.other || {});
+				this.otherOpenRows = {};   // a new table: no row's sentence open
 				const c = this.collocation;
 				if (c) {
 					let nextKeys = null;
@@ -574,6 +575,7 @@ window.ttFlexicorpCoreParts.statsrouting = function () {
 			// the server hint (`statsSubTabHint: other`) back to Frequency.
 			if (state.other && typeof state.other === 'object') {
 				this.other = Object.assign({}, this.other || { ran: false }, state.other);
+				this.otherOpenRows = {};   // a new table: no row's sentence open
 			}
 			const nextResponses = Object.assign({}, this.responses || {});
 			const responseMap = state.responses && typeof state.responses === 'object' ? state.responses : {};

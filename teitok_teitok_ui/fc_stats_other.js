@@ -25,6 +25,39 @@ window.ttFlexicorpFreqsParts.stats_other = function () {
 			return Array.isArray(other.rows) ? other.rows : [];
 		},
 
+		/** The sentence of table row `ri` (pando tabulate row_contexts), or null. */
+		otherRowContext(ri) {
+			const other = this.other && typeof this.other === 'object' ? this.other : {};
+			const list = Array.isArray(other.row_contexts) ? other.row_contexts : [];
+			const c = list[ri];
+			return c && Array.isArray(c.tokens) && c.tokens.length ? c : null;
+		},
+
+		otherHasRowContexts() {
+			const other = this.other && typeof this.other === 'object' ? this.other : {};
+			return Array.isArray(other.row_contexts) && other.row_contexts.some((c) => c && Array.isArray(c.tokens));
+		},
+
+		/** Sentence tokens as {text, hit}: the hit's own tokens marked (a subtree's gaps stay plain). */
+		otherRowContextTokens(ri) {
+			const c = this.otherRowContext(ri);
+			if (!c) return [];
+			const hit = new Set(Array.isArray(c.hit) ? c.hit.map(Number) : []);
+			return c.tokens.map((t, i) => ({ text: String(t), hit: hit.has(i) }));
+		},
+
+		otherRowDocUrl(ri) {
+			const c = this.otherRowContext(ri);
+			if (!c || !c.doc_id) return '';
+			return this.getHitDocUrl({ doc_id: c.doc_id, toks: c.tok_id ? [c.tok_id] : [], tokens: c.tok_id ? [{ id: c.tok_id }] : [] });
+		},
+
+		toggleOtherRowContext(ri) {
+			const open = Object.assign({}, this.otherOpenRows || {});
+			open[ri] = !open[ri];
+			this.otherOpenRows = open;
+		},
+
 		otherCellValue(row, col, colIndex) {
 			if (Array.isArray(row)) return row[colIndex];
 			if (row && typeof row === 'object') return row[col];

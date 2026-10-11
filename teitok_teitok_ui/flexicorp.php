@@ -8053,6 +8053,10 @@ require_once __DIR__ . '/fc_engine.php';
 			'total' => ( $promoteQueryFreqToStats && $opSlot === 'other' )
 				? ( isset($kwicDone['result']['total']) ? intval($kwicDone['result']['total']) : null )
 				: null,
+			// per row, the example in its sentence (pando tabulate: tokens, hit indices, doc, token id)
+			'row_contexts' => ( $promoteQueryFreqToStats && $opSlot === 'other' && isset($kwicDone['result']['row_contexts']) && is_array($kwicDone['result']['row_contexts']) )
+				? array_values($kwicDone['result']['row_contexts'])
+				: array(),
 			'response' => ( $promoteQueryFreqToStats && $opSlot === 'other' )
 				? (
 					( $isAjax && $activeTab !== 'debug' && function_exists('tt_flexicorp_compact_response_payload') )

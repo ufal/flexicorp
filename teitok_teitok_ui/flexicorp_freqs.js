@@ -29,6 +29,7 @@ window.flexicorpFreqsExtend = function flexicorpFreqsExtend() {
 		_collocationMeasureRerunTimer: null,
 		/** Generic "Other" table visualizations. */
 		otherVizMode: 'table',
+		otherOpenRows: {},   // Stats Other table: rows whose sentence is shown
 		otherChartXColumn: '',
 		otherChartYColumn: '',
 		otherChartInstance: null,

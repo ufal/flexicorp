@@ -2641,20 +2641,34 @@
 						<table class="flexicorp-table flexicorp-table--freq" x-show="otherVizMode === 'table'">
 							<thead>
 								<tr>
+									<th x-show="otherHasRowContexts()" style="width:1.5rem" title="Show the example in its sentence"></th>
 									<template x-for="(col, ci) in (Array.isArray(other.columns) && other.columns.length ? other.columns : (other.rows[0] && typeof other.rows[0] === 'object' ? Object.keys(other.rows[0]) : []))" :key="'oc-' + ci + '-' + col">
 										<th x-text="String(col)"></th>
 									</template>
 								</tr>
 							</thead>
-							<tbody>
+							<!-- one <tbody> per row: the row and, opened, its sentence -->
 								<template x-for="(row, ri) in other.rows" :key="'or-' + ri">
+									<tbody>
 									<tr>
+										<td x-show="otherHasRowContexts()" style="width:1.5rem;padding-right:0">
+											<button type="button" class="btn btn-link btn-sm p-0" x-show="otherRowContext(ri)" x-on:click="toggleOtherRowContext(ri)" :title="(otherOpenRows && otherOpenRows[ri]) ? 'Hide the sentence' : 'Show the example in its sentence'" x-text="(otherOpenRows && otherOpenRows[ri]) ? '▾' : '▸'"></button>
+										</td>
 										<template x-for="(col, ci) in (Array.isArray(other.columns) && other.columns.length ? other.columns : (other.rows[0] && typeof other.rows[0] === 'object' ? Object.keys(other.rows[0]) : []))" :key="'oc-' + ri + '-' + ci + '-' + col">
 											<td x-text="(() => { const v = Array.isArray(row) ? row[ci] : (row && typeof row === 'object' ? row[col] : row); if (v === null || v === undefined) return ''; if (typeof v === 'object') { try { return JSON.stringify(v); } catch (e) { return String(v); } } return String(v); })()"></td>
 										</template>
 									</tr>
+									<tr x-show="otherOpenRows && otherOpenRows[ri] && otherRowContext(ri)" class="flexicorp-other-row-context">
+										<td></td>
+										<td :colspan="Math.max(1, (Array.isArray(other.columns) && other.columns.length ? other.columns.length : (Array.isArray(other.rows[0]) ? other.rows[0].length : 1)))">
+											<template x-for="(t, ti) in otherRowContextTokens(ri)" :key="'ot-' + ri + '-' + ti">
+												<span><span :class="t.hit ? 'flexicorp-other-context-hit' : ''" x-text="t.text"></span><span x-text="' '"></span></span>
+											</template>
+											<a x-show="otherRowDocUrl(ri)" :href="otherRowDocUrl(ri)" target="_blank" rel="noopener" style="margin-left:0.5rem">{%document}</a>
+										</td>
+									</tr>
+									</tbody>
 								</template>
-							</tbody>
 						</table>
 						<div class="flexicorp-freq-chart-wrap" x-show="otherVizMode !== 'table' && frequencyChartLibraryAvailable()">
 							<canvas id="flexicorp-other-chart-canvas" aria-label="Other chart"></canvas>
