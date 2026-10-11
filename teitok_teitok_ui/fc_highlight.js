@@ -939,7 +939,11 @@ window.ttFlexicorpCoreParts.highlight = function () {
 				return;
 			}
 			const allGroups = this.getHighlightMapGroups(hit, sideHint);
-			const groups = allGroups.filter((g) => !g.region);
+			const tokenGroups = allGroups.filter((g) => !g.region);
+			// named regions only (`np:<node …> :: …`): the match is the region itself, already
+			// bracketed; no query token to colour
+			const regionOnly = tokenGroups.length < allGroups.length && !tokenGroups.some((g) => g.name !== 'match');
+			const groups = regionOnly ? [] : tokenGroups;
 			const idToClasses = {};
 			const resultGroupValues = new Set();
 			groups.forEach(({ resultGroup }) => {
