@@ -4488,6 +4488,10 @@ require_once __DIR__ . '/fc_engine.php';
 					if ( $name === '' ) $name = 't1';
 					if ( $idx !== null ) $groupNamesByIdx[$idx] = $name;
 					if ( !isset($groupTokIds[$name]) ) $groupTokIds[$name] = array();
+					// a named region (`np:<node …>`): pando gives the token ids of its whole span
+					if ( isset($g['tok_ids']) && is_array($g['tok_ids']) ) {
+						foreach ( $g['tok_ids'] as $rid ) $groupTokIds[$name][] = (string)$rid;
+					}
 				}
 				// no hit groups (an older engine): the tokens' query-token index still says which
 				// query token each one matched, as t1, t2, … (only worth it for several)
