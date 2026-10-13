@@ -5,6 +5,9 @@
  */
 window.ttFlexicorpFreqsParts = window.ttFlexicorpFreqsParts || {};
 window.ttFlexicorpFreqsParts.stats_freq = function () {
+	// frequencyPivotData() per result and view settings: the pivot template asks for it once per cell
+	// (a 200-row, 3-field frequency froze the page for ~30 s recomputing it 14 000 times)
+	const pivotCache = new WeakMap();
 	return {
 		truncateFrequencyChartLabel(val, maxLen) {
 			const max = typeof maxLen === 'number' && maxLen > 8 ? maxLen : 48;
@@ -1453,6 +1456,18 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 		},
 
 		frequencyPivotData() {
+			const src = this.frequency && Array.isArray(this.frequency.rows) ? this.frequency.rows : null;
+			const key = src && typeof Alpine !== 'undefined' && Alpine.raw ? Alpine.raw(src) : src;
+			const sig = JSON.stringify([this.frequencyChartValueScale, this.frequencyTableSearch, this.frequencyTableSort,
+				this.frequencyCompareQueries(), this.frequency && this.frequency.fields]);
+			const hit = key && pivotCache.get(key);
+			if (hit && hit.sig === sig) return hit.data;
+			const data = this.frequencyPivotDataCompute();
+			if (key) pivotCache.set(key, { sig, data });
+			return data;
+		},
+
+		frequencyPivotDataCompute() {
 			const rows = this.frequencyDisplayRows();
 			const rowKeys = new Set();
 			const colKeys = new Set();

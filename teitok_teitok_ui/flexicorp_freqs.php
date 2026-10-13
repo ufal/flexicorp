@@ -2407,7 +2407,8 @@
 							</tr>
 						</tbody>
 					</table>
-					<table class="flexicorp-table" x-show="frequency.rows.length && frequencyVizMode === 'pivot'">
+					<template x-if="frequency.rows.length && frequencyVizMode === 'pivot'">
+					<table class="flexicorp-table">
 						<thead>
 							<tr>
 								<th x-text="$data.frequencyFieldsArray()[0]"></th>
@@ -2427,6 +2428,7 @@
 							</template>
 						</tbody>
 					</table>
+					</template>
 					<div class="flexicorp-freq-chart-wrap" x-show="frequency.rows.length && frequencyVizMode !== 'table' && frequencyVizMode !== 'pivot' && !frequencyVizSvgMode() && !callHasErrors(frequency.response)">
 						<canvas id="flexicorp-freq-chart-canvas" aria-label="Frequency chart"></canvas>
 					</div>
