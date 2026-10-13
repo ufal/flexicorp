@@ -29,7 +29,10 @@ window.ttFlexicorpFreqsParts.stats_freqviz = function () {
 		frequencyWordTreeAvailable() {
 			return !this.frequencyHasCompareQueries() && this.frequencyFieldsArray().length >= 1 && !!charts().wordtree;
 		},
+		/** Whether a view fits the results; before there are results (a share link restoring its view) any view may stay. */
 		frequencyVizModeAvailable(mode) {
+			const f = this.frequency;
+			if (!f || !f.ran || !Array.isArray(f.rows) || !f.rows.length) return true;
 			if (mode === 'scatter') return this.frequencyScatterAvailable();
 			if (mode === 'sankey') return this.frequencySankeyAvailable();
 			if (mode === 'wordtree') return this.frequencyWordTreeAvailable();
@@ -106,6 +109,7 @@ window.ttFlexicorpFreqsParts.stats_freqviz = function () {
 					responsive: true,
 					maintainAspectRatio: false,
 					animation: false,
+					layout: { padding: { right: 40, top: 12 } },   // room for the labels of points at the edges
 					plugins: {
 						legend: { display: false },
 						tooltip: {
@@ -129,9 +133,11 @@ window.ttFlexicorpFreqsParts.stats_freqviz = function () {
 			if (this.frequencyVizMode !== 'scatter') return '';
 			const { skipped, percent } = this.frequencyScatterData();
 			const qs = this.frequencyCompareQueries();
+			const unit = String(this.frequencyFieldsArray()[0] || 'value');
+			const one = unit.charAt(0).toLowerCase() + unit.slice(1);
 			const how = percent
-				? `Each point is one ${this.frequencyFieldsArray()[0] || 'value'}: across, the share of ${qs[0]} against ${qs[1]}; up, the share of ${qs[2]} against ${qs[3]}.`
-				: `Each point is one ${this.frequencyFieldsArray()[0] || 'value'}: ${qs[0]} across, ${qs[1]} up.`;
+				? `Each point is one ${one}: across, the share of ${qs[0]} against ${qs[1]}; up, the share of ${qs[2]} against ${qs[3]}.`
+				: `Each point is one ${one}: ${qs[0]} across, ${qs[1]} up.`;
 			const few = percent ? `fewer than ${SCATTER_MIN_PAIR} hits in a pair` : 'no hits';
 			const left = skipped ? ` ${skipped} ${skipped === 1 ? 'value' : 'values'} with ${few} ${skipped === 1 ? 'is' : 'are'} not shown.` : '';
 			return how + left;
