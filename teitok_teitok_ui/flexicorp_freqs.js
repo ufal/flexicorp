@@ -3,12 +3,14 @@
  * Merged into flexicorpApp via flexicorpFreqsExtend (see flexicorp.js). This file holds the Stats state;
  * the methods are in fc_<id>.js (FLEXICORP_FREQS_PARTS), loaded before flexicorp.js.
  */
-const FLEXICORP_FREQS_PARTS = ['stats_fields', 'scope', 'stats_corpus', 'stats_freq', 'stats_tabs', 'stats_coll', 'stats_other'];
+const FLEXICORP_FREQS_PARTS = ['stats_fields', 'scope', 'stats_corpus', 'stats_freq', 'stats_tabs', 'stats_coll', 'stats_other', 'stats_values'];
 
 window.flexicorpFreqsExtend = function flexicorpFreqsExtend() {
 	const _freqsState = {
 		/** 'table' | 'bar' | 'vbar' | 'vbar-error' | 'stacked-bar' | 'stacked-vbar' | 'line' | 'radar' | 'polar' | 'pie' | 'doughnut' */
 		frequencyVizMode: 'table',
+		/** Corpus overview: the open value list of an attribute (fc_stats_values.js); region '' = token attribute. */
+		corpusValues: { attr: '', label: '', region: '', vocab: null, rows: [], total: null, limit: 100, loading: false, error: '', filter: '', serverFilter: '' },
 		frequencyTableSearch: '',
 		frequencyTableSort: { col: null, asc: true },
 		/** Compare-table metric columns (multi-select, keep at least one): count|pct|nipm|ripm */

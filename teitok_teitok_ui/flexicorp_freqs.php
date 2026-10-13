@@ -1991,6 +1991,9 @@
 					$stats_dcoll_module_panel = tt_flexicorp_adv_dcoll_render_stats_panel();
 				}
 			}
+			require_once __DIR__ . '/fc_values_panel.php';
+			$corpus_values_panel_tokens = tt_flexicorp_corpus_values_panel( "''" );
+			$corpus_values_panel_region = tt_flexicorp_corpus_values_panel( 'grp.raw' );
 			$html = <<<'HTML'
 		<section class="flexicorp-panel" x-show="activeTab === 'frequency'">
 			<div class="flexicorp-panel-title-row">
@@ -2721,12 +2724,13 @@
 										<tr>
 											<td><code x-text="row.raw"></code></td>
 											<td x-text="row.display"></td>
-											<td x-text="row.vocab"></td>
+											<td><button type="button" class="btn btn-link btn-sm p-0" x-on:click="corpusValuesToggle(row.raw, row.display, '', row.vocab)" :aria-expanded="corpusValuesIsOpen(row.raw) ? 'true' : 'false'" title="Show the values" x-text="row.vocab === '—' ? 'values' : row.vocab"></button></td>
 											<td x-text="row.type"></td>
 										</tr>
 									</template>
 								</tbody>
 							</table>
+							__CORPUS_VALUES_PANEL_TOKENS__
 						</div>
 						<div class="flexicorp-corpus-overview__section" x-show="corpusStatsRegionGroups().length">
 							<h4 class="flexicorp-corpus-overview__h">Regions &amp; structural metadata</h4>
@@ -2766,12 +2770,13 @@
 												<tr>
 													<td><code x-text="a.raw"></code></td>
 													<td x-text="a.display"></td>
-													<td x-text="a.vocab"></td>
+													<td><button type="button" class="btn btn-link btn-sm p-0" x-on:click="corpusValuesToggle(a.raw, a.display, grp.raw, a.vocab)" :aria-expanded="corpusValuesIsOpen(a.raw) ? 'true' : 'false'" title="Show the values" x-text="a.vocab === '—' ? 'values' : a.vocab"></button></td>
 													<td x-text="a.type"></td>
 												</tr>
 											</template>
 										</tbody>
 									</table>
+									__CORPUS_VALUES_PANEL_REGION__
 									<p class="flexicorp-panel-note" x-show="!(grp.attrs && grp.attrs.length)">No region attributes listed.</p>
 								</div>
 							</template>
@@ -2798,6 +2803,8 @@ HTML;
 					'__STATS_MAPS_MODULE_PANEL__' => $stats_maps_module_panel,
 					'__STATS_CONTRAST_MODULE_PANEL__' => $stats_contrast_module_panel,
 					'__STATS_DCOLL_MODULE_PANEL__' => $stats_dcoll_module_panel,
+					'__CORPUS_VALUES_PANEL_TOKENS__' => $corpus_values_panel_tokens,
+					'__CORPUS_VALUES_PANEL_REGION__' => $corpus_values_panel_region,
 				)
 			);
 		}

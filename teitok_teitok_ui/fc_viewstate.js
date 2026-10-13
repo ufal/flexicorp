@@ -765,10 +765,25 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 			}
 		},
 
+		/** A link without a query: open the view it names when that view needs no hits (Stats → Corpus overview, Documents). */
+		_openSnapshotViewWithoutQuery() {
+			const tab = String(this._snapshotWantedTab || '').trim();
+			const sub = String(this._snapshotWantedSub || '').trim();
+			this._snapshotWantedTab = '';
+			this._snapshotWantedSub = '';
+			if (!tab || tab === 'search') return;
+			if (tab === 'frequency' && sub && sub !== 'corpus') return;   // other Stats views need hits
+			if (typeof this.setTab === 'function') this.setTab(tab);
+			if (tab === 'frequency' && typeof this.setStatsSubTab === 'function') this.setStatsSubTab('corpus');
+		},
+
 		runVisualizationSnapshotQuery() {
 			const q = this.search && typeof this.search.query === 'string' ? this.search.query.trim() : '';
 			const v = this.search && typeof this.search.value === 'string' ? this.search.value.trim() : '';
-			if (!q && !v) return false;
+			if (!q && !v) {
+				this._openSnapshotViewWithoutQuery();
+				return false;
+			}
 			// The search answer switches to the Search tab; a link to Stats (Maps, Frequency, …)
 			// goes back there once the hits are in, since Stats subtabs need hits.
 			const wantedTab = String(this._snapshotWantedTab || this.activeTab || '').trim();
