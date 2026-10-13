@@ -821,11 +821,20 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 				return;
 			}
 			if (mode === 'radar') {
+				// one translucent filled polygon per series, so overlapping shapes stay readable
+				const radarDatasets = chartDatasets.map((ds) => ({
+					...ds,
+					fill: true,
+					backgroundColor: typeof ds.backgroundColor === 'string' ? ds.backgroundColor.replace(/[\d.]+\)$/, '0.15)') : ds.backgroundColor,
+					borderWidth: 2,
+					pointRadius: 3,
+					pointBackgroundColor: ds.borderColor,
+				}));
 				this.frequencyChartInstance = new Chart(ctx, {
 					type: 'radar',
 					data: {
 						labels,
-						datasets: chartDatasets,
+						datasets: radarDatasets,
 					},
 					options: {
 						...common,
@@ -837,7 +846,8 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 						scales: {
 							r: {
 								beginAtZero: true,
-								ticks: { precision: scale === 'absolute' ? 0 : 2 },
+								ticks: { precision: scale === 'absolute' ? 0 : 2, maxTicksLimit: 5, showLabelBackdrop: true, font: { size: 10 } },
+								pointLabels: { font: { size: 13 } },
 							},
 						},
 					},
