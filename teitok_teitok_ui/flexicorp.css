@@ -840,6 +840,22 @@ button.flexicorp-search-change-link {
 	margin: 0.5rem 0 0.75rem 0;
 }
 
+/* Sankey / word tree (SVG, fc_chart_*.js): as high as they need, scroll sideways on narrow screens */
+.flexicorp-freq-svg-wrap {
+	width: 100%;
+	overflow-x: auto;
+	margin-top: 0.5rem;
+}
+.flexicorp-freq-svg-wrap svg {
+	display: block;
+	max-width: none;
+}
+.flexicorp-sankey text,
+.flexicorp-wordtree text {
+	paint-order: stroke;
+	stroke: #fff;
+	stroke-width: 3px;
+}
 .flexicorp-freq-chart-wrap canvas {
 	display: block;
 	width: 100% !important;

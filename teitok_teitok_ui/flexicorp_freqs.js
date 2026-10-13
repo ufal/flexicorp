@@ -3,11 +3,11 @@
  * Merged into flexicorpApp via flexicorpFreqsExtend (see flexicorp.js). This file holds the Stats state;
  * the methods are in fc_<id>.js (FLEXICORP_FREQS_PARTS), loaded before flexicorp.js.
  */
-const FLEXICORP_FREQS_PARTS = ['stats_fields', 'scope', 'stats_corpus', 'stats_freq', 'stats_tabs', 'stats_coll', 'stats_other', 'stats_values'];
+const FLEXICORP_FREQS_PARTS = ['stats_fields', 'scope', 'stats_corpus', 'stats_freq', 'stats_tabs', 'stats_coll', 'stats_other', 'stats_values', 'stats_freqviz'];
 
 window.flexicorpFreqsExtend = function flexicorpFreqsExtend() {
 	const _freqsState = {
-		/** 'table' | 'bar' | 'vbar' | 'vbar-error' | 'stacked-bar' | 'stacked-vbar' | 'line' | 'radar' | 'polar' | 'pie' | 'doughnut' */
+		/** 'table' | 'pivot' | 'bar' | 'vbar' | 'vbar-error' | 'stacked-bar' | 'stacked-vbar' | 'line' | 'radar' | 'polar' | 'pie' | 'doughnut' | 'scatter' | 'sankey' | 'wordtree' (fc_stats_freqviz.js) */
 		frequencyVizMode: 'table',
 		/** Corpus overview: the open value list of an attribute (fc_stats_values.js); region '' = token attribute. */
 		corpusValues: { attr: '', label: '', region: '', vocab: null, rows: [], total: null, limit: 100, loading: false, error: '', filter: '', serverFilter: '' },
@@ -20,6 +20,8 @@ window.flexicorpFreqsExtend = function flexicorpFreqsExtend() {
 		/** Charts only: ordering of category slices/bars. */
 		frequencyChartOrder: 'size',
 		frequencyChartInstance: null,
+		/** Sankey / word tree: what the SVG view drew ({shown, total} links or {leaves}). */
+		frequencySvgInfo: null,
 		/** Bumped on destroy so pending rAF (resize / scheduled render) never touches a torn-down Chart. */
 		_frequencyChartEpoch: 0,
 

@@ -2190,8 +2190,15 @@
 										<button type="button" class="flexicorp-seg-btn" :class="{ 'flexicorp-seg-btn--active': frequencyVizMode === 'polar' }" :aria-pressed="frequencyVizMode === 'polar' ? 'true' : 'false'" x-show="!$data.frequencyHasCompareQueries()" x-on:click="setFrequencyVizMode('polar')" title="Polar area chart (Chart.js)">Polar</button>
 										<button type="button" class="flexicorp-seg-btn" :class="{ 'flexicorp-seg-btn--active': frequencyVizMode === 'pie' }" :aria-pressed="frequencyVizMode === 'pie' ? 'true' : 'false'" x-show="!$data.frequencyHasCompareQueries()" x-on:click="setFrequencyVizMode('pie')" title="Pie chart (Chart.js)">Pie</button>
 										<button type="button" class="flexicorp-seg-btn" :class="{ 'flexicorp-seg-btn--active': frequencyVizMode === 'doughnut' }" :aria-pressed="frequencyVizMode === 'doughnut' ? 'true' : 'false'" x-show="!$data.frequencyHasCompareQueries()" x-on:click="setFrequencyVizMode('doughnut')" title="Donut chart (Chart.js)">Donut</button>
+										<button type="button" class="flexicorp-seg-btn" :class="{ 'flexicorp-seg-btn--active': frequencyVizMode === 'scatter' }" :aria-pressed="frequencyVizMode === 'scatter' ? 'true' : 'false'" x-show="$data.frequencyScatterAvailable()" x-on:click="setFrequencyVizMode('scatter')" title="Scatter plot: one point per row (2 queries: their frequencies; 4 queries: the share of the 1st in the 1st pair against the share of the 3rd in the 2nd pair)">Scatter</button>
+										<button type="button" class="flexicorp-seg-btn" :class="{ 'flexicorp-seg-btn--active': frequencyVizMode === 'sankey' }" :aria-pressed="frequencyVizMode === 'sankey' ? 'true' : 'false'" x-show="$data.frequencySankeyAvailable()" x-on:click="setFrequencyVizMode('sankey')" title="Flows from the values of the first field to those of the second">Sankey</button>
+										<button type="button" class="flexicorp-seg-btn" :class="{ 'flexicorp-seg-btn--active': frequencyVizMode === 'wordtree' }" :aria-pressed="frequencyVizMode === 'wordtree' ? 'true' : 'false'" x-show="$data.frequencyWordTreeAvailable()" x-on:click="setFrequencyVizMode('wordtree')" title="Word tree: the fields as a sequence of continuations">Word tree</button>
 									</div>
-									<div class="flexicorp-freq-viz-toolbar flexicorp-freq-export-toolbar flexicorp-freq-viz-toolbar--inline" x-show="frequencyVizMode !== 'table' && frequencyChartLibraryAvailable()">
+									<div class="flexicorp-freq-viz-toolbar flexicorp-freq-export-toolbar flexicorp-freq-viz-toolbar--inline" x-show="frequencyVizSvgMode()">
+										<span class="flexicorp-inline-label">Export</span>
+										<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="downloadFrequencySvg()" title="Download the diagram as SVG">SVG</button>
+									</div>
+									<div class="flexicorp-freq-viz-toolbar flexicorp-freq-export-toolbar flexicorp-freq-viz-toolbar--inline" x-show="frequencyVizMode !== 'table' && !frequencyVizSvgMode() && frequencyChartLibraryAvailable()">
 										<span class="flexicorp-inline-label">Export</span>
 										<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="downloadFrequencyChartPNG()" title="Download chart as PNG">PNG</button>
 										<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="downloadFrequencyChartJPEG()" title="Download chart as JPEG">JPEG</button>
@@ -2420,8 +2427,13 @@
 							</template>
 						</tbody>
 					</table>
-					<div class="flexicorp-freq-chart-wrap" x-show="frequency.rows.length && frequencyVizMode !== 'table' && frequencyVizMode !== 'pivot' && !callHasErrors(frequency.response)">
+					<div class="flexicorp-freq-chart-wrap" x-show="frequency.rows.length && frequencyVizMode !== 'table' && frequencyVizMode !== 'pivot' && !frequencyVizSvgMode() && !callHasErrors(frequency.response)">
 						<canvas id="flexicorp-freq-chart-canvas" aria-label="Frequency chart"></canvas>
+					</div>
+					<p class="flexicorp-panel-note" x-show="frequencyVizMode === 'scatter'" x-text="frequencyScatterNote()"></p>
+					<div class="flexicorp-freq-svg-wrap" x-show="frequency.rows.length && frequencyVizSvgMode() && !callHasErrors(frequency.response)">
+						<div id="flexicorp-freq-svg" aria-label="Frequency diagram"></div>
+						<p class="flexicorp-panel-note" x-text="frequencySvgNote()"></p>
 					</div>
 					<p class="flexicorp-panel-note" x-show="!frequency.rows.length && !callHasIssues(frequency.response)">No rows returned.</p>
 					<!-- Frequency pagination control intentionally hidden: backends usually return the complete set for the configured limit. -->

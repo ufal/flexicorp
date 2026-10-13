@@ -8526,10 +8526,10 @@ require_once __DIR__ . '/fc_engine.php';
 	// flexicorp_freqs.js): load before flexicorp.js.
 	$fcCoreParts = array(
 		'viewstate', 'backend', 'statsrouting', 'kwicview', 'requests', 'highlight', 'querystore', 'documents', 'hitdetail', 'hits',
-		'stats_fields', 'scope', 'stats_corpus', 'stats_freq', 'stats_tabs', 'stats_coll', 'stats_other', 'stats_values',
+		'stats_fields', 'scope', 'stats_corpus', 'stats_freq', 'stats_tabs', 'stats_coll', 'stats_other', 'stats_values', 'stats_freqviz',
 	);
 	// Libraries the parts use (window.ttFlexicorp*): loaded first.
-	$fcLibs = array( 'planner' );
+	$fcLibs = array( 'planner', 'chart_sankey', 'chart_wordtree' );
 	if ( preg_match( '#<script[^>]+src="[^"]*flexicorp\\.js[^"]*"[^>]*></script>#i', $maintext ) ) {
 		$fcPartTags = '';
 		$fcBase = rtrim( (string) $ecscriptsBaseUrl, '/' );

@@ -580,9 +580,14 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 		},
 
 		renderFrequencyChart() {
+			const mode = this.frequencyVizMode;
+			if (mode === 'sankey' || mode === 'wordtree') {
+				this.destroyFrequencyChart();
+				this.renderFrequencySvgChart();
+				return;
+			}
 			const Chart = typeof window !== 'undefined' ? window.Chart : null;
 			if (!Chart || !this.frequencyChartLibraryAvailable()) return;
-			const mode = this.frequencyVizMode;
 			if (mode === 'table') return;
 			const canvas = document.getElementById('flexicorp-freq-chart-canvas');
 			if (!canvas || !canvas.getContext || !canvas.isConnected) return;
@@ -597,6 +602,11 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 			if (!canvasLive || !canvasLive.getContext || !canvasLive.isConnected) return;
 			const ctx = canvasLive.getContext('2d');
 			if (!ctx) return;
+			if (mode === 'scatter') {
+				this.renderFrequencyScatter(ctx);
+				this._resizeFrequencyChartAfterLayout();
+				return;
+			}
 			const palette = this.frequencyChartPalette(labels.length);
 			const scale = this.frequencyChartValueScale || 'relative';
 			const yLabel = this.frequencyChartYLabel();
@@ -1135,15 +1145,17 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 		},
 
 		setFrequencyVizMode(mode) {
-			const allowed = new Set(['table', 'bar', 'vbar', 'vbar-error', 'stacked-bar', 'stacked-vbar', 'line', 'radar', 'polar', 'pie', 'doughnut', 'pivot']);
+			const allowed = new Set(['table', 'bar', 'vbar', 'vbar-error', 'stacked-bar', 'stacked-vbar', 'line', 'radar', 'polar', 'pie', 'doughnut', 'pivot', 'scatter', 'sankey', 'wordtree']);
 			let next = allowed.has(mode) ? mode : 'table';
+			if (!this.frequencyVizModeAvailable(next)) next = 'table';
 			if (this.frequencyHasCompareQueries() && (next === 'polar' || next === 'pie' || next === 'doughnut')) {
 				next = 'bar';
 			}
 			if (next === 'vbar-error' && !this.frequencySupportsErrorBars()) {
 				next = 'vbar';
 			}
-			if (next !== 'table' && next !== 'pivot' && !this.frequencyChartLibraryAvailable()) return;
+			const svgView = next === 'sankey' || next === 'wordtree';
+			if (next !== 'table' && next !== 'pivot' && !svgView && !this.frequencyChartLibraryAvailable()) return;
 			this.frequencyVizMode = next;
 			if (next === 'table' || next === 'pivot') {
 				this.destroyFrequencyChart();
@@ -1153,6 +1165,7 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 		},
 
 		onFrequencyStateApplied() {
+			if (!this.frequencyVizModeAvailable(this.frequencyVizMode)) this.frequencyVizMode = 'table';
 			if (this.frequencyHasCompareQueries() && (this.frequencyVizMode === 'polar' || this.frequencyVizMode === 'pie' || this.frequencyVizMode === 'doughnut')) {
 				this.frequencyVizMode = 'bar';
 			}
