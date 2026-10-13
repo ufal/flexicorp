@@ -103,7 +103,7 @@ if ( ! function_exists( 'tt_flexicorp_contrast_render_af_panel' ) ) {
 								<text x="318" y="272" font-size="12" fill="#334155">log ratio (A &lt; B)</text>
 								<text x="410" y="272" font-size="12" fill="#334155">log ratio (A &gt; B)</text>
 							</svg>
-							<div x-show="afContrastTooltip && afContrastTooltip.visible" :style="'position:absolute;left:' + Number((afContrastTooltip && afContrastTooltip.left) || 0).toFixed(1) + 'px;top:' + Number((afContrastTooltip && afContrastTooltip.top) || 0).toFixed(1) + 'px;z-index:4;pointer-events:none;background:#0f172a;color:#fff;padding:0.3rem 0.45rem;border-radius:0.35rem;font-size:12px;line-height:1.25;max-width:240px;'" style="display:none;">
+							<div x-show="afContrastTooltip && afContrastTooltip.visible" :style="{ left: Number((afContrastTooltip && afContrastTooltip.left) || 0).toFixed(1) + 'px', top: Number((afContrastTooltip && afContrastTooltip.top) || 0).toFixed(1) + 'px' }" style="display:none;position:absolute;z-index:4;pointer-events:none;background:#0f172a;color:#fff;padding:0.3rem 0.45rem;border-radius:0.35rem;font-size:12px;line-height:1.25;max-width:240px;">
 								<div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" x-text="afContrastTooltip.label"></div>
 								<div><span>log ratio:</span> <span x-text="Number(afContrastTooltip.logRatio || 0).toFixed(3)"></span></div>
 								<div><span x-text="afContrastMetricLabel() + ':'"></span> <span x-text="Number(afContrastTooltip.metric || 0).toFixed(3)"></span></div>
@@ -217,7 +217,7 @@ if ( ! function_exists( 'tt_flexicorp_contrast_render_stats_panel' ) ) {
 							<text x="318" y="272" font-size="12" fill="#334155">log ratio (A &lt; B)</text>
 							<text x="410" y="272" font-size="12" fill="#334155">log ratio (A &gt; B)</text>
 						</svg>
-						<div x-show="afContrastTooltip && afContrastTooltip.visible" :style="'position:absolute;left:' + Number((afContrastTooltip && afContrastTooltip.left) || 0).toFixed(1) + 'px;top:' + Number((afContrastTooltip && afContrastTooltip.top) || 0).toFixed(1) + 'px;z-index:4;pointer-events:none;background:#0f172a;color:#fff;padding:0.3rem 0.45rem;border-radius:0.35rem;font-size:12px;line-height:1.25;max-width:240px;'" style="display:none;">
+						<div x-show="afContrastTooltip && afContrastTooltip.visible" :style="{ left: Number((afContrastTooltip && afContrastTooltip.left) || 0).toFixed(1) + 'px', top: Number((afContrastTooltip && afContrastTooltip.top) || 0).toFixed(1) + 'px' }" style="display:none;position:absolute;z-index:4;pointer-events:none;background:#0f172a;color:#fff;padding:0.3rem 0.45rem;border-radius:0.35rem;font-size:12px;line-height:1.25;max-width:240px;">
 							<div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" x-text="afContrastTooltip.label"></div>
 							<div><span>log ratio:</span> <span x-text="Number(afContrastTooltip.logRatio || 0).toFixed(3)"></span></div>
 							<div><span x-text="afContrastMetricLabel() + ':'"></span> <span x-text="Number(afContrastTooltip.metric || 0).toFixed(3)"></span></div>

@@ -577,10 +577,11 @@
 
 			afContrastOnVolcanoMouseMove(event) {
 				const e = event && typeof event === 'object' ? event : null;
-				const svg = e && e.currentTarget && typeof e.currentTarget.getBoundingClientRect === 'function'
+				const svg = e && e.currentTarget && typeof e.currentTarget.getScreenCTM === 'function'
 					? e.currentTarget
 					: null;
-				if (!svg) {
+				const ctm = svg ? svg.getScreenCTM() : null;
+				if (!svg || !ctm) {
 					this.afContrastHideTooltip();
 					return;
 				}
@@ -589,12 +590,11 @@
 					this.afContrastHideTooltip();
 					return;
 				}
-				const rect = svg.getBoundingClientRect();
-				const viewBox = svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal : { x: 0, y: 0, width: 760, height: 280 };
-				const sx = rect.width > 0 ? (viewBox.width / rect.width) : 1;
-				const sy = rect.height > 0 ? (viewBox.height / rect.height) : 1;
-				const mx = (Number(e.clientX) - rect.left) * sx + viewBox.x;
-				const my = (Number(e.clientY) - rect.top) * sy + viewBox.y;
+				// screen ↔ viewBox through the SVG's own transform: it includes the scaling and the
+				// centring of preserveAspectRatio (the plot is drawn at 100% width, 280 px high)
+				const toView = ctm.inverse();
+				const mx = toView.a * e.clientX + toView.c * e.clientY + toView.e;
+				const my = toView.b * e.clientX + toView.d * e.clientY + toView.f;
 				let best = null;
 				let bestD2 = Infinity;
 				for (let i = 0; i < pts.length; i += 1) {
@@ -610,13 +610,17 @@
 						best = p;
 					}
 				}
-				// ~11 px snap radius in viewBox coords.
+				// snap radius ~11 viewBox units
 				if (!best || bestD2 > 130) {
 					this.afContrastHideTooltip();
 					return;
 				}
-				const left = Math.max(8, Math.min(viewBox.width - 220, Number(best.x) + 10));
-				const top = Math.max(8, Math.min(viewBox.height - 70, Number(best.y) - 40));
+				// the dot in screen pixels, then relative to the box the tooltip is positioned in
+				const sx = ctm.a * best.x + ctm.c * best.y + ctm.e;
+				const sy = ctm.b * best.x + ctm.d * best.y + ctm.f;
+				const box = svg.parentElement ? svg.parentElement.getBoundingClientRect() : svg.getBoundingClientRect();
+				const left = Math.max(4, Math.min(box.width - 230, sx - box.left + 10));
+				const top = Math.max(4, sy - box.top - 48);
 				this.afContrastTooltip = {
 					visible: true,
 					left,
