@@ -807,8 +807,8 @@
 							<a
 								class="btn btn-link btn-sm flexicorp-search-classify-link"
 								x-show="Array.isArray(search.hits) && search.hits.length && !searchHasTableResults()"
-								x-bind:href="'index.php?action=classify&query=' + encodeURIComponent(search.query)"
-								title="Give these lines labels of your own (senses, patterns, …) in a classification layer"
+								x-bind:href="'index.php?action=custom_layers&query=' + encodeURIComponent(search.query)"
+								title="Classify these lines with attributes of your own (senses, transitivity, …) in a custom layer"
 							>Classify</a>
 						</span>
 					</template>

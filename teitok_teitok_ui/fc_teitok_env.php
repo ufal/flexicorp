@@ -19,7 +19,19 @@ if ( ! function_exists( 'tt_fc_env_user' ) ) {
 				}
 			}
 		}
+		// a login through an external identity (Shibboleth, other SSO): TEITOK's $_SESSION['extid']
+		if ( isset( $_SESSION['extid'] ) && is_array( $_SESSION['extid'] ) ) {
+			foreach ( $_SESSION['extid'] as $id ) {
+				if ( is_string( $id ) && trim( $id ) !== '' ) return trim( $id );
+			}
+		}
 		return '';
+	}
+
+	/** The user's own folder name under the project's Users/ (as TEITOK's query manager names it); '' for visitors. */
+	function tt_fc_env_user_folder( $user = null ) {
+		$u = $user === null ? tt_fc_env_user() : (string) $user;
+		return preg_replace( '/[^a-z0-9]/', '', strtolower( $u ) );
 	}
 
 	/** A TEITOK admin (the one permission TEITOK treats specially). */

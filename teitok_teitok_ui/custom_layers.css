@@ -1,0 +1,55 @@
+/* TEITOK action `custom_layers` (custom_layers.php / custom_layers.js) */
+[x-cloak] { display: none !important; }
+.tt-cl { max-width: 90rem; }
+.tt-cl-lead { max-width: 52rem; }
+.tt-cl-note { color: #57606a; }
+.tt-cl-error { color: #a40e26; margin: 0.4rem 0; }
+.tt-cl-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9em; }
+
+.tt-cl-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin: 0.6rem 0; }
+.tt-cl-bar select { min-width: 14rem; }
+.tt-cl-bar__actions { display: inline-flex; gap: 0.4rem; }
+
+.tt-cl-editor { border: 1px solid #d7dce1; border-radius: 4px; padding: 0.75rem; margin: 0.6rem 0; background: #f6f8fa; }
+.tt-cl-editor h3 { margin-top: 0; font-size: 1.1rem; }
+.tt-cl-editor h4 { font-size: 1rem; margin: 0.8rem 0 0.3rem; }
+.tt-cl-editor label { display: block; margin: 0.3rem 0; }
+.tt-cl-editor small { color: #57606a; display: block; }
+.tt-cl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 0.4rem 1rem; }
+.tt-cl-attrlist { list-style: none; padding: 0; margin: 0.3rem 0; }
+.tt-cl-attrlist li { display: flex; align-items: center; gap: 0.4rem; }
+.tt-cl-values { color: #57606a; font-size: 0.9em; }
+.tt-cl-check { display: flex !important; align-items: center; gap: 0.4rem; }
+.tt-cl-shared { margin-top: 0.4rem; }
+.tt-cl-valtable { margin: 0.5rem 0; max-width: 56rem; }
+.tt-cl-valtable td:first-child { width: 2.5rem; text-align: center; color: #57606a; }
+.tt-cl-prefill { border: 1px solid #d7dce1; border-radius: 4px; padding: 0.4rem 0.6rem; margin: 0.6rem 0; }
+.tt-cl-prefill legend { font-size: 0.95rem; width: auto; padding: 0 0.3rem; margin: 0; }
+.tt-cl-editor__buttons { margin-top: 0.5rem; display: flex; gap: 0.5rem; }
+
+.tt-cl-legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; margin: 0.4rem 0; }
+.tt-cl-legend__attr { display: inline-flex; flex-wrap: wrap; gap: 0.2rem 0.6rem; padding: 0.15rem 0.4rem; border-radius: 3px; }
+.tt-cl-legend__attr--active { background: #eef3fc; }
+.tt-cl-legend kbd { font-size: 0.8em; padding: 0 0.3em; border: 1px solid #c8ced5; border-radius: 3px; background: #fff; }
+.tt-cl-legend__keys { color: #57606a; }
+.tt-cl-status { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin: 0.5rem 0; }
+
+.tt-cl-lines { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.tt-cl-lines td { padding: 0.25rem 0.4rem; vertical-align: middle; }
+.tt-cl-left { text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; width: 30%; }
+.tt-cl-left span { direction: ltr; unicode-bidi: embed; }
+.tt-cl-match { font-weight: 600; white-space: nowrap; text-align: center; width: 8%; }
+.tt-cl-right { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 27%; }
+.tt-cl-buttons { width: 35%; }
+.tt-cl-current { outline: 2px solid #2346a0; outline-offset: -2px; }
+.tt-cl-group { display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem; padding: 0.1rem 0.2rem; border-radius: 3px; }
+.tt-cl-group--active { background: #e3ebfa; }
+.tt-cl-group__name { color: #57606a; font-size: 0.8em; min-width: 6rem; }
+.tt-cl-btn { border: 1px solid #c8ced5; background: #fff; border-radius: 3px; padding: 0 0.4em; font-size: 0.85em; cursor: pointer; }
+.tt-cl-btn--on { background: #2346a0; border-color: #2346a0; color: #fff; }
+.tt-cl-btn--suggested { border: 1px dashed #2346a0; color: #2346a0; }
+.tt-cl-others { color: #57606a; font-size: 0.8em; margin-top: 0.1rem; }
+
+@media (max-width: 760px) {
+	.tt-cl-lines, .tt-cl-lines tbody, .tt-cl-lines tr, .tt-cl-lines td { display: block; width: 100%; text-align: left; direction: ltr; white-space: normal; }
+}
