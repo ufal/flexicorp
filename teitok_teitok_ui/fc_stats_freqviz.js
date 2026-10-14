@@ -26,8 +26,31 @@ window.ttFlexicorpFreqsParts.stats_freqviz = function () {
 		frequencySankeyAvailable() {
 			return !this.frequencyHasCompareQueries() && this.frequencyFieldsArray().length === 2 && !!charts().sankey;
 		},
+		/** The word tree reads its fields as the following words, so only token attributes qualify. */
 		frequencyWordTreeAvailable() {
-			return !this.frequencyHasCompareQueries() && this.frequencyFieldsArray().length >= 1 && !!charts().wordtree;
+			if (this.frequencyHasCompareQueries() || !charts().wordtree) return false;
+			const raw = this.frequency && Array.isArray(this.frequency.fields) && this.frequency.fields.length
+				? this.frequency.fields
+				: String((this.frequency && this.frequency.field) || '').split(/\s*,\s*/).filter(Boolean);
+			return raw.length >= 1 && raw.every((f) => this.frequencyFieldIsTokenAttr(f));
+		},
+		/**
+		 * A frequency field names a token attribute (form, lemma, b.form, match.upos, feats.Number) rather
+		 * than metadata (text_lang, b.u_speaker): checked against the corpus's token attributes when the
+		 * corpus information is loaded, else by the region_attribute naming of metadata fields.
+		 */
+		frequencyFieldIsTokenAttr(field) {
+			const f = String(field || '').trim();
+			if (!f) return false;
+			const r = typeof this.corpusStatsInfoResult === 'function' ? this.corpusStatsInfoResult() : null;
+			const list = r && (Array.isArray(r.attributes) ? r.attributes.map((a) => a && a.name) : r.pattributes);
+			const tokenAttrs = new Set((Array.isArray(list) ? list : Object.values(list || {})).filter(Boolean).map(String));
+			const base = (s) => s.split(/[./]/)[0];
+			const isToken = (s) => (tokenAttrs.size ? tokenAttrs.has(base(s)) : !base(s).includes('_'));
+			const dot = f.indexOf('.');
+			if (dot < 0) return isToken(f);                                  // form; not text_lang
+			if (tokenAttrs.has(f.slice(0, dot))) return true;                // feats.Number
+			return isToken(f.slice(dot + 1));                                // b.form, match.lemma; not b.text_lang
 		},
 		/** Whether a view fits the results; before there are results (a share link restoring its view) any view may stay. */
 		frequencyVizModeAvailable(mode) {

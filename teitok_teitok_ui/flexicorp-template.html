@@ -804,6 +804,12 @@
 								class="btn btn-link btn-sm flexicorp-search-change-link"
 								x-on:click.prevent="search.showQueryForm = true"
 							>Change</a>
+							<a
+								class="btn btn-link btn-sm flexicorp-search-classify-link"
+								x-show="Array.isArray(search.hits) && search.hits.length && !searchHasTableResults()"
+								x-bind:href="'index.php?action=classify&query=' + encodeURIComponent(search.query)"
+								title="Give these lines labels of your own (senses, patterns, …) in a classification layer"
+							>Classify</a>
 						</span>
 					</template>
 					<template x-if="search.query && !search.showQueryForm && searchResultPrimaryLine()">
