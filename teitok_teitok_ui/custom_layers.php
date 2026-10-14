@@ -102,7 +102,10 @@ if ( $ttClOp !== '' ) {
 
 // The page: the interface boots from custom_layers.js (Alpine).
 $ttClScripts = tt_fc_env_scripts_url( 'custom_layers' );
-$ttClVer = (string) @filemtime( __DIR__ . '/custom_layers.js' );
+// cache buster: the module's newest file here (the installer puts the JS in Scripts/, not next to
+// this file, and copies the whole module on every deploy)
+$ttClVer = (string) max( array_map( function ( $f ) { return (int) @filemtime( $f ); },
+	array_merge( array( __FILE__ ), glob( __DIR__ . '/custom_layers*' ) ?: array() ) ) );
 $ttClBoot = htmlspecialchars( json_encode( array(
 	'token' => $ttClToken,
 	'user' => $ttClFolder,
@@ -112,7 +115,7 @@ $ttClBoot = htmlspecialchars( json_encode( array(
 $h = function ( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); };
 $ttClCss = $h( $ttClScripts . '/custom_layers.css?v=' . $ttClVer );
 $ttClJs = $h( $ttClScripts . '/custom_layers.js?v=' . $ttClVer );
-$ttClUseJs = $h( $ttClScripts . '/custom_layers_use.js?v=' . (string) @filemtime( __DIR__ . '/custom_layers_use.js' ) );
+$ttClUseJs = $h( $ttClScripts . '/custom_layers_use.js?v=' . $ttClVer );
 
 $maintext .= <<<HTML
 <link rel="stylesheet" href="{$ttClCss}">
