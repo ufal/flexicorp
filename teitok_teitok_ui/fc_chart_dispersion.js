@@ -48,7 +48,7 @@
 			const x = x0 + f * plotW;
 			el('line', { x1: x, x2: x, y1: top - 4, y2: height - 6, stroke: '#eef0f3' }, svg);
 			const t = el('text', { x, y: top - 8, 'text-anchor': f === 0 ? 'start' : (f === 1 ? 'end' : 'middle'), class: 'flexicorp-dispersion__axis' }, svg);
-			t.textContent = f === 0 ? 'start of the text' : (f === 1 ? 'end' : pct(f));
+			t.textContent = f === 0 ? 'start' : (f === 1 ? 'end' : pct(f));
 		}
 		// all texts together
 		const b = bins(list);

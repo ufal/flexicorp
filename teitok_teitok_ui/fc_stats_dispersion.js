@@ -27,7 +27,7 @@ window.ttFlexicorpFreqsParts.stats_dispersion = function () {
 			if (this.frequencyHasCompareQueries() || !charts().dispersion) return false;
 			const be = String((this.settings && this.settings.backend) || '').toLowerCase();
 			if (be !== 'pando' && be !== 'flexicorp-pando') return false;
-			const fields = this.frequencyFieldsArray();
+			const fields = this.frequencyRawFields();
 			return fields.length === 1 && cposField(fields[0]) !== '';
 		},
 
@@ -55,7 +55,11 @@ window.ttFlexicorpFreqsParts.stats_dispersion = function () {
 			const resp = f.response || {};
 			const errs = [].concat(resp.error || [], Array.isArray(resp.errors) ? resp.errors : []).filter((e) => e && String(e).trim());
 			if (errs.length) throw new Error(String(errs[0]).split('\n')[0]);
-			return (Array.isArray(f.rows) ? f.rows : []).map((r) => this.frequencyRowValuesArray(r));
+			// the row's own values (frequencyRowValuesArray reads them by the table's fields, not these);
+			// several fields come back joined by tabs in one value ("id\tstart\tlength")
+			return (Array.isArray(f.rows) ? f.rows : []).map((r) => (Array.isArray(r.values)
+				? r.values.map(String)
+				: String(r.value != null ? r.value : (r.key != null ? r.key : '')).split('\t')));
 		},
 
 		/**
@@ -64,7 +68,7 @@ window.ttFlexicorpFreqsParts.stats_dispersion = function () {
 		 * texts by range. Cached per query and field.
 		 */
 		async frequencyDispersionData() {
-			const field = this.frequencyFieldsArray()[0];
+			const field = this.frequencyRawFields()[0];
 			const query = typeof this.statsBaseQueryText === 'function' ? String(this.statsBaseQueryText() || '').trim() : '';
 			const key = `${query}\u0001${field}`;
 			const cur = this.frequencyDispersion;

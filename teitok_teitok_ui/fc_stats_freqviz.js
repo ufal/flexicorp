@@ -30,10 +30,14 @@ window.ttFlexicorpFreqsParts.stats_freqviz = function () {
 		/** The word tree reads its fields as the following words, so only token attributes qualify. */
 		frequencyWordTreeAvailable() {
 			if (this.frequencyHasCompareQueries() || !charts().wordtree) return false;
-			const raw = this.frequency && Array.isArray(this.frequency.fields) && this.frequency.fields.length
-				? this.frequency.fields
-				: String((this.frequency && this.frequency.field) || '').split(/\s*,\s*/).filter(Boolean);
+			const raw = this.frequencyRawFields();
 			return raw.length >= 1 && raw.every((f) => this.frequencyFieldIsTokenAttr(f));
+		},
+		/** The frequency fields as the engine names them (text_id), not as displayed (frequencyFieldsArray: "text · id"). */
+		frequencyRawFields() {
+			return this.frequency && Array.isArray(this.frequency.fields) && this.frequency.fields.length
+				? this.frequency.fields.map(String)
+				: String((this.frequency && this.frequency.field) || '').split(/\s*,\s*/).filter(Boolean);
 		},
 		/**
 		 * A frequency field names a token attribute (form, lemma, b.form, match.upos, feats.Number) rather
