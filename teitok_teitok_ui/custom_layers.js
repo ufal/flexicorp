@@ -177,6 +177,7 @@
 				this.shared = j.shared || [];
 				this.sharedTasks = j.shared_tasks || [];
 				if (j.layer) this.layer = j.layer;
+				if ('public' in j) { this.publicName = j.public || ''; this.publicSuggestions = j.public_suggestions || []; }
 			},
 
 			async loadState() {
@@ -218,6 +219,10 @@
 					values: a.values.map((v) => ({ ...v })), prefill: { if: '', then: '', else: '', ...(a.prefill || {}) } };
 				this.view = 'attribute';
 			},
+			/** The query name suggested by the attribute's name: its first word in letters a-z (as the server). */
+			attrKeySuggestion() {
+				return (String((this.attrEd && this.attrEd.display) || '').toLowerCase().split(/[^a-z]+/).filter(Boolean)[0] || '').slice(0, 24);
+			},
 			async saveAttribute() {
 				// a value's key: kept once given, else from its name (as custom_layers_store.php does)
 				const keyOf = (v) => (v.key || String(v.display || '').trim()).replace(/[\s"<>&]+/g, '_').slice(0, 40);
@@ -225,7 +230,8 @@
 				const toKey = (x) => { const v = this.attrEd.values.find((y) => y.key === x || y.display === x); return v ? keyOf(v) : x; };
 				const p = this.attrEd.prefill || {};
 				const prefill = { if: p.if || '', then: p.then ? toKey(p.then) : '', else: p.else ? toKey(p.else) : '' };
-				await this.write('save_attribute', { ...this.attrEd, values, prefill });
+				const key = String(this.attrEd.key || '').trim().toLowerCase() || this.attrKeySuggestion();
+				await this.write('save_attribute', { ...this.attrEd, key, values, prefill });
 				if (!this.error) this.view = this.taskEd ? 'task' : 'work';
 			},
 			async addReference(s) {

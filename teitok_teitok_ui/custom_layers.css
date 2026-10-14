@@ -63,3 +63,7 @@
 .tt-cl-use__list li { margin: 0.2rem 0; }
 .tt-cl-use__value { margin-right: 0.5rem; }
 .tt-cl-use__name { color: #57606a; margin-left: 0.6rem; overflow-wrap: anywhere; }
+.tt-cl-publish { border-top: 1px solid #eef0f3; margin-top: 0.4rem; padding-top: 0.2rem; }
+.tt-cl-publish .btn { margin: 0 0.2rem 0.2rem 0; }
+.tt-cl-publish__own { display: inline-block; width: 9rem; vertical-align: middle; }
+.tt-cl-keyinput { display: inline-block; width: 10rem; }

@@ -7,6 +7,11 @@
 require_once __DIR__ . '/flexicorp_functions.php';
 require_once __DIR__ . '/fc_result.php';
 require_once __DIR__ . '/fc_engine.php';
+// custom layers: `my-<attribute>` in queries and fields is the user's own labels (custom_layers_names.php)
+if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
+	require_once __DIR__ . '/custom_layers_names.php';
+	tt_cl_names_apply();
+}
 
 	if ( !isset($maintext) ) $maintext = "";
 
@@ -7882,7 +7887,9 @@ require_once __DIR__ . '/fc_engine.php';
 			'editUrl' => 'index.php?action=fqsadmin',
 		) : null,
 		'noshowFields' => function_exists('tt_flexicorp_noshow_fields') ? tt_flexicorp_noshow_fields() : array(),
-		'attributeCatalog' => function_exists('tt_flexicorp_fn_attribute_catalog') ? tt_flexicorp_fn_attribute_catalog( $isAdmin ) : array(),
+		'attributeCatalog' => function_exists('tt_cl_catalog_add_labels')   // + custom layers (custom_layers_publish.php)
+			? tt_cl_catalog_add_labels( function_exists('tt_flexicorp_fn_attribute_catalog') ? tt_flexicorp_fn_attribute_catalog( $isAdmin ) : array(), $projectRoot )
+			: ( function_exists('tt_flexicorp_fn_attribute_catalog') ? tt_flexicorp_fn_attribute_catalog( $isAdmin ) : array() ),
 		'debugMode' => $debugMode,
 		'backendOverrides' => $backendOverrides,
 		'flexicorpDocsUrl' => $flexicorpDocsUrl,

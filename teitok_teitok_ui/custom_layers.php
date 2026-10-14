@@ -6,7 +6,7 @@
  * Rollout and design: flexicorp dev/OVERLAY-CLASSIFICATION-ROLLOUT.md.
  *
  *   index.php?action=custom_layers[&query=…][&task=id]                 the page
- *   POST op=state | save_attribute | add_reference | save_task | join_task | label | others | build_layer
+ *   POST op=state | save_attribute | add_reference | save_task | join_task | label | others | build_layer | publish
  *        (JSON; writes need a
  *        login and the page's token, sent in the X-Custom-Layers-Token header)
  *   GET  op=export&task=id                                             CSV of your values for a task
@@ -17,6 +17,7 @@ require_once __DIR__ . '/fc_teitok_env.php';
 require_once __DIR__ . '/custom_layers_store.php';
 require_once __DIR__ . '/custom_layers_panel.php';
 require_once __DIR__ . '/custom_layers_overlay.php';
+require_once __DIR__ . '/custom_layers_publish.php';
 
 if ( ! isset( $maintext ) ) $maintext = '';
 
@@ -50,7 +51,7 @@ if ( $ttClOp !== '' ) {
 	if ( ! is_array( $in ) ) $in = $_POST;
 	if ( ! is_dir( $ttClRoot . '/Resources' ) ) $reply( array( 'ok' => false, 'error' => 'not a corpus folder' ) );
 	if ( $ttClFolder === '' ) $reply( array( 'ok' => false, 'error' => 'log in to use custom layers' ) );
-	if ( in_array( $ttClOp, array( 'save_attribute', 'add_reference', 'save_task', 'join_task', 'label', 'build_layer' ), true ) ) {
+	if ( in_array( $ttClOp, array( 'save_attribute', 'add_reference', 'save_task', 'join_task', 'label', 'build_layer', 'publish' ), true ) ) {
 		if ( ( $_SERVER['REQUEST_METHOD'] ?? '' ) !== 'POST' ) $reply( array( 'ok' => false, 'error' => 'POST only' ) );
 		if ( ! hash_equals( $ttClToken, (string) ( $_SERVER['HTTP_X_CUSTOM_LAYERS_TOKEN'] ?? '' ) ) ) {
 			$reply( array( 'ok' => false, 'error' => 'the page has expired; reload it' ) );
@@ -62,7 +63,9 @@ if ( $ttClOp !== '' ) {
 			'tasks' => array_values( tt_cl_resolved_tasks( $ttClRoot, $data ) ), 'docs' => (object) $data['docs'],
 			'shared' => tt_cl_shared_attributes( $ttClRoot, $ttClFolder ),
 			'shared_tasks' => tt_cl_shared_tasks( $ttClRoot, $ttClFolder ), 'user' => $ttClFolder,
-			'layer' => tt_cl_overlay_status( $ttClRoot, $ttClFolder ) );
+			'layer' => tt_cl_overlay_status( $ttClRoot, $ttClFolder ),
+			'public' => (string) ( $data['public'] ?? '' ),
+			'public_suggestions' => tt_cl_public_suggestions( $ttClRoot, $ttClFolder, tt_fc_env_user() ) );
 	};
 	$done = function ( $r ) use ( $reply, $state ) {
 		if ( is_string( $r ) ) $reply( array( 'ok' => false, 'error' => $r ) );
@@ -87,6 +90,8 @@ if ( $ttClOp !== '' ) {
 			$r = tt_cl_overlay_build( $ttClRoot, $ttClFolder );
 			if ( is_string( $r ) ) $reply( array( 'ok' => false, 'error' => $r ) );
 			$reply( array_merge( $r, array( 'layer' => tt_cl_overlay_status( $ttClRoot, $ttClFolder ) ) ) );
+		case 'publish':
+			$done( tt_cl_set_public( $ttClRoot, $ttClUser, (string) ( $in['name'] ?? '' ) ) );
 		case 'others':
 			$data = tt_cl_load( $ttClRoot, $ttClFolder );
 			$task = tt_cl_resolved_tasks( $ttClRoot, $data )[ (string) ( $in['task'] ?? '' ) ] ?? null;

@@ -1742,7 +1742,7 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 			if (rest <= 0) return '';
 			const total = this.frequencyEffectiveTotal();
 			if (total !== null && total > 0) {
-				return ((rest / total) * 100).toFixed(2);
+				return window.ttFlexicorpFns.formatPct((rest / total) * 100, total);
 			}
 			return '';
 		},
@@ -1809,13 +1809,14 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 
 		frequencyRowPercent(row) {
 			const raw = row && (row.pct ?? row.percent ?? row.percentage);
-			let n = Number(raw);
-			if (Number.isFinite(n)) return n.toFixed(2);
 			const base = this.frequencyRelativeBase();
+			const fmt = window.ttFlexicorpFns.formatPct;   // decimals as the total supports
+			let n = Number(raw);
+			if (Number.isFinite(n)) return fmt(n, base !== null ? base : this.frequencyEffectiveTotal());
 			const count = row && (row.count ?? row.freq ?? row.n);
 			const c = Number(count);
 			if (base !== null && base > 0 && Number.isFinite(c) && c >= 0) {
-				return ((c / base) * 100).toFixed(2);
+				return fmt((c / base) * 100, base);
 			}
 			return '';
 		},

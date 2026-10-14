@@ -87,6 +87,8 @@ intransitive, literal or figurative — several at once, and use the labelled li
 	<h3 x-text="attrEd.create ? 'New attribute' : 'Edit attribute'"></h3>
 	<div class="tt-cl-grid">
 		<label>Name <input type="text" class="form-control form-control-sm" x-model="attrEd.display" required maxlength="120"></label>
+		<label>Name in queries <span class="tt-cl-mono">my-</span><input type="text" class="form-control form-control-sm tt-cl-mono tt-cl-keyinput" x-model="attrEd.key" :disabled="!attrEd.create" maxlength="24" pattern="[a-z]+" :placeholder="attrKeySuggestion()" title="Lowercase letters a-z">
+			<small>lowercase letters a-z only; fixed once created</small></label>
 		<label>Description <input type="text" class="form-control form-control-sm" x-model="attrEd.description" placeholder="What is classified, and how to decide"></label>
 	</div>
 	<table class="flexicorp-table tt-cl-valtable">
@@ -173,6 +175,21 @@ intransitive, literal or figurative — several at once, and use the labelled li
 					<p class="tt-cl-note">In flexicorp your labels are attributes of the labelled tokens: combine them with any query, and count by them under Stats → Frequency.</p>
 				</div>
 			</template>
+			<div class="tt-cl-publish">
+				<template x-if="publicName">
+					<p>Published as <b x-text="publicName"></b>: others search <code class="tt-cl-mono" x-text="publishedNames().join(', ')"></code>
+						<button type="button" class="btn btn-sm btn-link" :disabled="busy" x-on:click="publish('')">stop publishing</button></p>
+				</template>
+				<template x-if="!publicName">
+					<p>Let others search your shared labels, under a name:
+						<template x-for="n in publicSuggestions" :key="'pub' + n">
+							<button type="button" class="btn btn-sm btn-outline-secondary" :disabled="busy || !sharedKeys().length" x-on:click="publish(n)" x-text="n"></button>
+						</template>
+						<input type="text" class="form-control form-control-sm tt-cl-publish__own" x-model="publishOwn" maxlength="16" pattern="[a-z]+" placeholder="another name (a-z)">
+						<button type="button" class="btn btn-sm btn-outline-primary" :disabled="busy || !publishOwn || !sharedKeys().length" x-on:click="publish(publishOwn)">Publish</button>
+						<small class="tt-cl-note" x-show="!sharedKeys().length">Only shared attributes are published: edit an attribute and tick Shared first.</small></p>
+				</template>
+			</div>
 		</details>
 		<table class="flexicorp-table tt-cl-agreement" x-show="hasOthers()">
 			<thead><tr><th>Attribute</th><th title="Lines labelled by two or more people">Lines compared</th><th title="Share of pairs of labels on the same line that agree">Agreement</th><th title="Krippendorff's alpha (nominal): 1 = perfect, 0 = chance level">α</th><th>Lines per annotator</th></tr></thead>

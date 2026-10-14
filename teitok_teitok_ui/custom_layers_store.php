@@ -31,19 +31,27 @@ if ( ! function_exists( 'tt_cl_path' ) ) {
 		return array( 'corresp', 'when', 'id', 'type', 'xml', 'doc', 'gid' );   // gid: the overlay's group column
 	}
 
+	/**
+	 * An attribute or task key: lowercase letters a–z only. In queries an attribute follows the one
+	 * hyphen: `my-feelwsd` (own labels), `maarten-feelwsd` (published).
+	 */
 	function tt_cl_valid_key( $k ) {
-		return is_string( $k ) && preg_match( '/^[a-z][a-z0-9_]{0,31}$/', $k ) && ! in_array( $k, tt_cl_reserved(), true );
+		return is_string( $k ) && preg_match( '/^[a-z]{1,24}$/', $k ) && ! in_array( $k, tt_cl_reserved(), true );
+	}
+
+	/** A key of an older file (feel_wsd) as keys are now (feelwsd). */
+	function tt_cl_compact_key( $k ) {
+		return preg_replace( '/[^a-z]/', '', strtolower( (string) $k ) );
 	}
 
 	function tt_cl_valid_folder( $f ) {
 		return is_string( $f ) && preg_match( '/^[a-z0-9]{1,128}$/', $f );
 	}
 
-	/** A key from a display name: lowercase letters, digits and underscores. */
+	/** A key suggested by a name: its first word in lowercase letters a–z (Sense of feel → sense). */
 	function tt_cl_slug( $name ) {
-		$s = trim( (string) preg_replace( '/[^a-z0-9]+/', '_', strtolower( trim( (string) $name ) ) ), '_' );
-		if ( $s !== '' && ! preg_match( '/^[a-z]/', $s ) ) $s = 'a_' . $s;
-		return substr( $s, 0, 32 );
+		$words = preg_split( '/[^a-z]+/', strtolower( trim( (string) $name ) ), -1, PREG_SPLIT_NO_EMPTY );
+		return substr( $words ? $words[0] : '', 0, 24 );
 	}
 
 	function tt_cl_path( $root, $folder ) {
@@ -51,7 +59,7 @@ if ( ! function_exists( 'tt_cl_path' ) ) {
 	}
 
 	function tt_cl_empty() {
-		return array( 'attributes' => array(), 'tasks' => array(), 'docs' => array(), 'updated' => '' );
+		return array( 'attributes' => array(), 'tasks' => array(), 'docs' => array(), 'updated' => '', 'public' => '' );
 	}
 
 	/** A user's file as an array (empty when missing). docs: doc id → corresp → [attr → value, 'when' → …]. */
@@ -63,6 +71,7 @@ if ( ! function_exists( 'tt_cl_path' ) ) {
 		if ( ! $xml ) return $data;
 		$a = function ( $n, $k, $d = '' ) { return isset( $n[ $k ] ) ? (string) $n[ $k ] : $d; };
 		$data['updated'] = $a( $xml, 'updated' );
+		$data['public'] = $a( $xml, 'public' );   // published under this name (custom_layers_publish.php)
 		foreach ( $xml->attribute ?? array() as $at ) {
 			$def = array( 'key' => $a( $at, 'key' ), 'display' => $a( $at, 'display' ), 'owner' => $a( $at, 'owner' ),
 				'shared' => $a( $at, 'shared' ) === '1', 'description' => isset( $at->desc ) ? (string) $at->desc : '',
@@ -73,21 +82,25 @@ if ( ! function_exists( 'tt_cl_path' ) ) {
 			if ( isset( $at->prefill ) ) {
 				$def['prefill'] = array( 'if' => $a( $at->prefill, 'if' ), 'then' => $a( $at->prefill, 'then' ), 'else' => $a( $at->prefill, 'else' ) );
 			}
+			$def['key'] = tt_cl_compact_key( $def['key'] );   // older files: feel_wsd
 			if ( tt_cl_valid_key( $def['key'] ) ) $data['attributes'][ $def['key'] ] = $def;
 		}
 		foreach ( $xml->task ?? array() as $t ) {
-			$id = $a( $t, 'id' );
+			$id = tt_cl_compact_key( $a( $t, 'id' ) );
 			if ( ! tt_cl_valid_key( $id ) ) continue;
 			$data['tasks'][ $id ] = array( 'id' => $id, 'owner' => $a( $t, 'owner' ), 'shared' => $a( $t, 'shared' ) === '1',
 				'display' => $a( $t, 'display', $id ), 'query' => $a( $t, 'query' ), 'unit' => $a( $t, 'unit' ),
-				'attributes' => array_values( array_filter( explode( ' ', $a( $t, 'attributes' ) ) ) ),
+				'attributes' => array_values( array_filter( array_map( 'tt_cl_compact_key', explode( ' ', $a( $t, 'attributes' ) ) ) ) ),
 				'sample' => (int) $a( $t, 'sample', '0' ), 'seed' => (int) $a( $t, 'seed', '0' ) );
 		}
 		foreach ( $xml->doc ?? array() as $d ) {
 			$doc = $a( $d, 'id' );
 			foreach ( $d->span ?? array() as $sp ) {
 				$vals = array();
-				foreach ( $sp->attributes() as $k => $v ) $vals[ (string) $k ] = (string) $v;
+				foreach ( $sp->attributes() as $k => $v ) {
+					$k = (string) $k;
+					$vals[ $k === 'corresp' || $k === 'when' ? $k : tt_cl_compact_key( $k ) ] = (string) $v;
+				}
 				$corresp = $vals['corresp'] ?? '';
 				unset( $vals['corresp'] );
 				if ( $doc !== '' && $corresp !== '' ) $data['docs'][ $doc ][ $corresp ] = $vals;
@@ -102,6 +115,7 @@ if ( ! function_exists( 'tt_cl_path' ) ) {
 		$r = $d->appendChild( $d->createElement( 'customLayers' ) );
 		$r->setAttribute( 'user', (string) $user );
 		$r->setAttribute( 'updated', gmdate( 'Y-m-d\TH:i:s\Z' ) );
+		if ( ( $data['public'] ?? '' ) !== '' ) $r->setAttribute( 'public', (string) $data['public'] );
 		foreach ( $data['attributes'] as $at ) {
 			$e = $r->appendChild( $d->createElement( 'attribute' ) );
 			$e->setAttribute( 'key', $at['key'] );
@@ -236,7 +250,7 @@ if ( ! function_exists( 'tt_cl_path' ) ) {
 	function tt_cl_save_attribute( $root, $user, array $in ) {
 		$key = trim( (string) ( $in['key'] ?? '' ) );
 		if ( $key === '' ) $key = tt_cl_slug( $in['display'] ?? '' );
-		if ( ! tt_cl_valid_key( $key ) ) return 'give the attribute a name (letters first)';
+		if ( ! tt_cl_valid_key( $key ) ) return 'the name in queries is lowercase letters a-z only (no digits, spaces, hyphens or underscores)';
 		$values = tt_cl_clean_values( $in['values'] ?? array() );
 		if ( ! $values ) return 'an attribute needs at least one value';
 		$codes = array_column( $values, 'key' );
@@ -277,7 +291,7 @@ if ( ! function_exists( 'tt_cl_path' ) ) {
 	function tt_cl_save_task( $root, $user, array $in ) {
 		$id = trim( (string) ( $in['id'] ?? '' ) );
 		if ( $id === '' ) $id = tt_cl_slug( $in['display'] ?? '' );
-		if ( ! tt_cl_valid_key( $id ) ) return 'give the task a name (letters first)';
+		if ( ! tt_cl_valid_key( $id ) ) return 'give the task a name (lowercase letters a-z)';
 		$query = mb_substr( trim( (string) ( $in['query'] ?? '' ) ), 0, 4000 );
 		if ( $query === '' ) return 'a task needs a query';
 		$attrs = array_values( array_unique( array_filter( array_map( 'strval', (array) ( $in['attributes'] ?? array() ) ), 'tt_cl_valid_key' ) ) );

@@ -10,6 +10,21 @@ window.ttFlexicorpFns = window.ttFlexicorpFns || {};
 /**
  * Normalize operation id from backend payloads.
  */
+/**
+ * A percentage with no more decimals than the count behind it supports: with n hits one hit is 100/n
+ * percent, so under 100 whole percentages, under 1,000 one decimal, from 1,000 on two (54 %, not
+ * 53.8462 % for 7 of 13). n unknown: one decimal.
+ */
+window.ttFlexicorpFns.pctDecimals = function pctDecimals(n) {
+	const t = Number(n);
+	if (!Number.isFinite(t) || t <= 0) return 1;
+	return t < 100 ? 0 : (t < 1000 ? 1 : 2);
+};
+window.ttFlexicorpFns.formatPct = function formatPct(value, n) {
+	const v = Number(value);
+	return Number.isFinite(v) ? v.toFixed(window.ttFlexicorpFns.pctDecimals(n)) : '';
+};
+
 window.ttFlexicorpFns.normalizeOperation = function normalizeOperation(op) {
 	const v = String(op || '').trim().toLowerCase();
 	const allowed = new Set(['query', 'freq', 'count', 'dist', 'coll', 'dcoll', 'keyness', 'info', 'status', 'list-docs', 'reindex']);

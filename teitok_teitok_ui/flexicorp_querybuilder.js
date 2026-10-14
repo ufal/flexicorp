@@ -320,6 +320,13 @@ window.flexicorpQuerybuilderExtend = function flexicorpQuerybuilderExtend() {
 			});
 			const groups = [];
 			if (tokenOptions.length) groups.push({ id: 'token', region: '', label: 'Token attributes', options: tokenOptions });
+			// custom layers: the user's own labels (my-…) and those others published (custom_layers_publish.php)
+			const cat = this.attributeCatalog && typeof this.attributeCatalog === 'object' ? this.attributeCatalog : {};
+			const labels = Array.isArray(cat.custom_labels) ? cat.custom_labels : [];
+			for (const [g, label] of [['mine', 'My labels'], ['published', 'Published labels']]) {
+				const opts = labels.filter((l) => l && l.group === g).map((l) => ({ value: String(l.value), label: String(l.label || l.value), admin: false, type: '' }));
+				if (opts.length) groups.push({ id: `labels:${g}`, region: '', label, options: opts });
+			}
 			if (documentOptions.length) groups.push({ id: 'documents', region: 'text', label: 'Documents', options: documentOptions });
 			regionOrder.forEach((region) => {
 				if (region === 'text') return;

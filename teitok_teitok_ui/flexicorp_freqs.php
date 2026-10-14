@@ -1529,9 +1529,13 @@
 			}
 			// custom layers (labels of your own, and those others share), once searchable with pando
 			if ( $isPandoBackend && is_file( __DIR__ . '/custom_layers_overlay.php' ) ) {
-				require_once __DIR__ . '/custom_layers_overlay.php';
+				require_once __DIR__ . '/custom_layers_publish.php';
 				$clRoot = $project_root ? (string) $project_root : tt_fc_env_project_root();
-				$rows = array_merge( $rows, tt_cl_overlay_field_rows( $clRoot, tt_fc_env_user_folder() ) );
+				$clMe = tt_fc_env_user_folder();
+				$rows = array_merge( $rows, tt_cl_overlay_field_rows( $clRoot, $clMe ) );
+				foreach ( tt_cl_public_map( $clRoot, $clMe ) as $qname => $pub ) {   // published by others
+					$rows[] = array( 'name' => $qname, 'label' => $pub[1] . ' (' . $pub[2] . ')' );
+				}
 			}
 			if ( ! count( $rows ) ) {
 				$nc = is_array( $candidates ) ? count( $candidates ) : 0;

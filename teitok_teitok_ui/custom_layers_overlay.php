@@ -3,11 +3,11 @@
  * Custom layers made searchable: a user's Users/<folder>/custom_layers.xml becomes a pando overlay
  * index in <pando index>/overlays/<folder>/ (pando-index --overlay-index). pando-server and FQS merge
  * every overlay there when they open the corpus, so the labels can be searched and counted like
- * token attributes:
+ * token attributes. Users write `my-…`, which flexicorp rewrites to these stored names
+ * (custom_layers_names.php):
  *
- *   [overlay-ann-cl-transitivity="TRANS"]            a token ann labelled TRANS
- *   <overlay-ann-cl transitivity="TRANS">            the same as a labelled span (several tokens)
- *   count by match.overlay-ann-cl-sense-of-feel      counted by ann's labels
+ *   [my-trans="TRANS"]    → [overlay-ann-cl-trans="TRANS"]   a token ann labelled TRANS
+ *   count by my-sense     → count by overlay-ann-cl-sense
  *
  * The file stays the source (document + token ids, stable across reindexing); the overlay holds
  * corpus positions and is rebuilt from it. pando leaves out an overlay that is older than the main
@@ -18,9 +18,14 @@ require_once __DIR__ . '/fc_teitok_env.php';
 require_once __DIR__ . '/custom_layers_store.php';
 
 if ( ! function_exists( 'tt_cl_overlay_name' ) ) {
-	/** The query name of a user's attribute: overlay-<folder>-cl-<key, _ → ->. */
+	/** The stored-name prefix of a user's labels in the merged corpus: overlay-<folder>-cl-. */
+	function tt_cl_overlay_prefix( $folder ) {
+		return 'overlay-' . $folder . '-cl-';
+	}
+
+	/** The stored name of a user's attribute: overlay-<folder>-cl-<key, _ → ->. */
 	function tt_cl_overlay_name( $folder, $key ) {
-		return 'overlay-' . $folder . '-cl-' . str_replace( '_', '-', $key );
+		return tt_cl_overlay_prefix( $folder ) . str_replace( '_', '-', $key );
 	}
 
 	/** The span query name of a user's layer (all their labels as spans). */
@@ -140,6 +145,17 @@ if ( ! function_exists( 'tt_cl_overlay_name' ) ) {
 		@rmdir( $dir );
 	}
 
+	/** The built overlay has a column for each attribute (not so after keys changed: feel_wsd → feelwsd). */
+	function tt_cl_overlay_has_columns( $indexDir, $folder, array $keys ) {
+		$info = @file_get_contents( tt_cl_overlay_dir( $indexDir, $folder ) . '/corpus.info' );
+		if ( $info === false || ! preg_match( '/^positional=(.*)$/m', $info, $m ) ) return false;
+		$cols = array_map( 'trim', explode( ',', $m[1] ) );
+		foreach ( $keys as $k ) {
+			if ( ! in_array( 'cl_' . $k, $cols, true ) ) return false;
+		}
+		return true;
+	}
+
 	/** Index size from corpus.info (size=). */
 	function tt_cl_overlay_main_size( $indexDir ) {
 		$info = @file_get_contents( rtrim( $indexDir, '/' ) . '/corpus.info' );
@@ -161,6 +177,7 @@ if ( ! function_exists( 'tt_cl_overlay_name' ) ) {
 		elseif ( ! $built ) $st['reason'] = 'not built';
 		elseif ( $built < $main ) $st['reason'] = 'corpus reindexed';
 		elseif ( $file !== false && $built < $file ) $st['reason'] = 'labels changed';
+		elseif ( ! tt_cl_overlay_has_columns( $index, $folder, array_keys( tt_cl_load( $root, $folder )['attributes'] ) ) ) $st['reason'] = 'labels changed';
 		else $st['current'] = true;
 		$st['struct'] = tt_cl_overlay_struct( $folder );
 		return $st;
@@ -222,24 +239,18 @@ if ( ! function_exists( 'tt_cl_overlay_name' ) ) {
 	}
 
 	/**
-	 * Custom-layer attributes the current user can count and search by in flexicorp: all of their own
-	 * (with a built, current overlay) and the shared ones of others. Rows: name (the query name) and
-	 * label ("Transitivity (my labels)", "Sense of feel (ann)").
+	 * Custom-layer attributes the current user can count and search by in flexicorp: their own, once
+	 * searchable, as `my-<attribute>` (custom_layers_names.php). Rows: name and label
+	 * ("Transitivity (my labels)").
+	 * Other people's labels follow when they publish them under a public name.
 	 */
 	function tt_cl_overlay_field_rows( $root, $meFolder ) {
 		$rows = array();
-		$main = @filemtime( rtrim( tt_fc_env_pando_index_dir( $root ), '/' ) . '/corpus.info' );
-		if ( $main === false ) return $rows;
-		$index = tt_fc_env_pando_index_dir( $root );
-		foreach ( tt_cl_all( $root ) as $folder => $data ) {
-			$built = @filemtime( tt_cl_overlay_dir( $index, $folder ) . '/corpus.info' );
-			if ( ! $built || $built < $main ) continue;   // not searchable (pando leaves a stale overlay out)
-			$mine = $meFolder !== '' && $folder === $meFolder;
-			foreach ( tt_cl_resolved_attributes( $root, $data ) as $key => $at ) {
-				if ( ! $mine && empty( $at['shared'] ) ) continue;
-				$rows[] = array( 'name' => tt_cl_overlay_name( $folder, $key ),
-					'label' => ( $at['display'] !== '' ? $at['display'] : $key ) . ( $mine ? ' (my labels)' : ' (' . $folder . ')' ) );
-			}
+		if ( $meFolder === '' ) return $rows;
+		$st = tt_cl_overlay_status( $root, $meFolder );
+		if ( empty( $st['built'] ) || $st['reason'] === 'corpus reindexed' ) return $rows;
+		foreach ( tt_cl_resolved_attributes( $root, tt_cl_load( $root, $meFolder ) ) as $key => $at ) {
+			$rows[] = array( 'name' => 'my-' . $key, 'label' => ( $at['display'] !== '' ? $at['display'] : $key ) . ' (my labels)' );
 		}
 		return $rows;
 	}

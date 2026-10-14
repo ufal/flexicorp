@@ -780,8 +780,12 @@ window.ttFlexicorpCoreParts.hits = function () {
 			return false;
 		},
 
-		formatSearchTableCell(value) {
+		formatSearchTableCell(value, column) {
 			if (value == null) return '';
+			// percentages (pando's pct, pct_of_parent, …): no more decimals than the hits support
+			if (typeof value === 'number' && /(^|_)(pct|percent|percentage)(_|$)|^%$/.test(String(column || ''))) {
+				return window.ttFlexicorpFns.formatPct(value, this.searchTableHitCount());
+			}
 			if (typeof value === 'string') return value;
 			if (typeof value === 'number' || typeof value === 'boolean') return String(value);
 			try {
@@ -789,6 +793,14 @@ window.ttFlexicorpCoreParts.hits = function () {
 			} catch (_) {
 				return String(value);
 			}
+		},
+
+		/** Hits behind the table's percentages: the result's total, else the sum of its count column. */
+		searchTableHitCount() {
+			const result = this.search && this.search.response ? this.search.response.result : null;
+			const t = Number(result && (result.total_matches ?? result.total));
+			if (Number.isFinite(t) && t > 0) return t;
+			return this.getSearchTableRows().reduce((sum, r) => sum + (Number(r && r.count) || 0), 0);
 		},
 
 		isSearchViewMode(mode) {

@@ -6,9 +6,14 @@
 (function () {
 	const PANDO = { b: 'pando', e: 'pando', l: 'pando-cql', f: 'pando' };
 
-	/** The query name of a label attribute: overlay-<folder>-cl-<key, _ → ->. */
-	function overlayName(folder, key) {
-		return `overlay-${folder}-cl-${String(key).replace(/_/g, '-')}`;
+	/** The query name of one of the user's own label attributes: my-<key> (flexicorp rewrites it). */
+	function overlayName(key) {
+		return `my-${key}`;
+	}
+
+	/** The name others type for an attribute of a layer published as `pub` (as custom_layers_publish.php). */
+	function publicQueryName(pub, key) {
+		return `${pub}-${key}`;
 	}
 
 	/** URL-safe base64 of UTF-8 text, without padding (flexicorp's viz= share state). */
@@ -50,10 +55,13 @@
 		return {
 			layer: null,         // {current, built, reason, struct} from the server
 			layerNote: '',
+			publicName: '',      // published under this name ('' = private)
+			publicSuggestions: [],
+			publishOwn: '',
 
-			/** The layer's query name of an attribute. */
+			/** The query name of one of the user's attributes (my-<attribute>). */
 			layerName(key) {
-				return overlayName(this.boot.user, key);
+				return overlayName(key);
 			},
 			layerCounts(key) {
 				return valueCounts(this.docs, key);
@@ -98,6 +106,19 @@
 				else window.location.href = a.href;
 			},
 
+			/** The user's own attributes that are shared (only those are published). */
+			sharedKeys() {
+				return this.attributes.filter((a) => !a.owner && a.shared).map((a) => a.key);
+			},
+			/** What others type for the published attributes. */
+			publishedNames() {
+				return this.publicName ? this.sharedKeys().map((k) => publicQueryName(this.publicName, k)) : [];
+			},
+			async publish(name) {
+				await this.write('publish', { name: String(name || '').trim() });
+				if (!this.error) this.publishOwn = '';
+			},
+
 			searchLink(key, value) {
 				return flexicorpLink(`[${this.layerName(key)}="${value}"]`);
 			},
@@ -113,5 +134,5 @@
 	};
 
 	// for tests (node)
-	window.ttCustomLayersUseLib = { overlayName, base64url, flexicorpLink, valueCounts };
+	window.ttCustomLayersUseLib = { overlayName, publicQueryName, base64url, flexicorpLink, valueCounts };
 })();

@@ -901,7 +901,7 @@
 						<template x-for="(row, idx) in getSearchTableRows()" :key="'search-table-row:' + idx">
 							<tr>
 								<template x-for="column in getSearchTableColumns()" :key="'search-table-cell:' + idx + ':' + column">
-									<td x-text="formatSearchTableCell(row[column])"></td>
+									<td x-text="formatSearchTableCell(row[column], column)"></td>
 								</template>
 							</tr>
 						</template>
