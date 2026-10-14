@@ -90,7 +90,7 @@ literal or figurative use, correct or wrong annotation — and use the labelled 
 				<template x-for="l in layer.labels" :key="'f-' + l.code"><option :value="'l:' + l.code" x-text="'only ' + l.code"></option></template>
 			</select></label>
 		</div>
-		<table class="flexicorp-table rollovertable tt-classify-lines" x-show="hits.length">
+		<table id="rollovertable" class="flexicorp-table tt-classify-lines" x-show="hits.length">
 			<tbody>
 				<template x-for="row in visibleRows()" :key="row.key">
 					<tr :class="{ 'tt-classify-current': row.idx === cursor }" x-on:click="cursor = row.idx">
