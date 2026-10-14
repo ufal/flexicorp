@@ -6,6 +6,7 @@
  *  - sankey: frequencies by two fields as flows from the first field's values to the second's
  *    (fc_chart_sankey.js), e.g. an English word → its aligned Czech lemmas.
  *  - wordtree: frequencies by the following tokens as a tree of continuations (fc_chart_wordtree.js).
+ *  - dispersion: frequencies by text as where the hits fall within each text (fc_stats_dispersion.js).
  * Methods of the flexicorpRoot Alpine component, mixed in by flexicorpFreqsExtend() (flexicorp_freqs.js)
  * through window.ttFlexicorpFreqsParts; `this` is the component.
  */
@@ -16,8 +17,8 @@ window.ttFlexicorpFreqsParts.stats_freqviz = function () {
 	const charts = () => (typeof window !== 'undefined' && window.ttFlexicorpCharts) || {};
 	return {
 		/** Views drawn as SVG (not Chart.js): no PNG/PDF export, an SVG download instead. */
-		frequencyVizSvgMode() {
-			return this.frequencyVizMode === 'sankey' || this.frequencyVizMode === 'wordtree';
+		frequencyVizSvgMode(mode) {
+			return ['sankey', 'wordtree', 'dispersion'].includes(mode === undefined ? this.frequencyVizMode : mode);
 		},
 		frequencyScatterAvailable() {
 			const n = this.frequencyCompareQueries().length;
@@ -59,6 +60,7 @@ window.ttFlexicorpFreqsParts.stats_freqviz = function () {
 			if (mode === 'scatter') return this.frequencyScatterAvailable();
 			if (mode === 'sankey') return this.frequencySankeyAvailable();
 			if (mode === 'wordtree') return this.frequencyWordTreeAvailable();
+			if (mode === 'dispersion') return this.frequencyDispersionAvailable();
 			return true;
 		},
 
@@ -188,6 +190,8 @@ window.ttFlexicorpFreqsParts.stats_freqviz = function () {
 				this.frequencySvgInfo = c.sankey(box, links, { leftTitle: fields[0], rightTitle: fields[1], maxLinks: 40, width });
 			} else if (this.frequencyVizMode === 'wordtree' && c.wordtree) {
 				this.frequencySvgInfo = c.wordtree(box, this.frequencyPathRows(), { root: this.frequencyWordTreeRootLabel(), width });
+			} else if (this.frequencyVizMode === 'dispersion' && c.dispersion) {
+				this.renderFrequencyDispersion(box);
 			}
 		},
 		frequencySvgNote() {
@@ -197,6 +201,7 @@ window.ttFlexicorpFreqsParts.stats_freqviz = function () {
 				return `Hover over a word to follow its flows.${more}`;
 			}
 			if (this.frequencyVizMode === 'wordtree') return 'The most frequent continuations; a larger word occurs more often. Hover over a word for its count.';
+			if (this.frequencyVizMode === 'dispersion') return this.frequencyDispersionNote();
 			return '';
 		},
 		downloadFrequencySvg() {

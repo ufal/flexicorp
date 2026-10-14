@@ -244,8 +244,30 @@
 
 			setDcollAdvVizMode(mode) {
 				const m = String(mode || '').trim().toLowerCase();
-				this.dcollAdvVizMode = ['table', 'bar', 'line', 'pie', 'polar', 'doughnut'].includes(m) ? m : 'table';
+				this.dcollAdvVizMode = ['table', 'bar', 'line', 'pie', 'polar', 'doughnut', 'sunburst'].includes(m) ? m : 'table';
 				this.scheduleDcollAdvChartRender();
+			},
+
+			/** The word in the middle of the sunburst: the anchor token, else the query's first literal value. */
+			dcollAdvCenterLabel() {
+				const q = typeof this.statsSearchOnlyQueryText === 'function' ? String(this.statsSearchOnlyQueryText() || '') : '';
+				const m = q.match(/(?:lemma|form|word)\s*=\s*"([^"]{1,40})"/);
+				if (m && !/[.*+?|()[\]\\]/.test(m[1])) return m[1];
+				const anchor = String((this.dcollAdv && this.dcollAdv.anchorToken) || '').trim();
+				return anchor || 'search';
+			},
+			dcollAdvSunburstNote() {
+				const rel = String((this.dcollAdv && this.dcollAdv.relation) || 'children');
+				return `Inner ring: ${this.dcollAdvBreakdownShown() || 'relation'} of the ${rel === 'head' ? 'head' : rel}; outer ring: `
+					+ `the collocates (${String((this.dcollAdv && this.dcollAdv.field) || 'lemma')}) per relation, by frequency. `
+					+ 'Punctuation is left out. Hover for counts.';
+			},
+			renderDcollAdvSunburst() {
+				const box = document.getElementById('flexicorp-dcoll-adv-sunburst');
+				const charts = typeof window !== 'undefined' ? window.ttFlexicorpCharts : null;
+				if (!box || !charts || typeof charts.sunburst !== 'function') return;
+				const rows = this.dcollAdv && Array.isArray(this.dcollAdv.rows) ? this.dcollAdv.rows : [];
+				charts.sunburst(box, rows, { center: this.dcollAdvCenterLabel(), width: box.clientWidth || 640 });
 			},
 
 			onDcollAdvChartMetricChanged() {
@@ -314,8 +336,9 @@
 			},
 
 			scheduleDcollAdvChartRender() {
-				if (this.dcollAdvVizMode === 'table') {
+				if (this.dcollAdvVizMode === 'table' || this.dcollAdvVizMode === 'sunburst') {
 					this.destroyDcollAdvChart();
+					if (this.dcollAdvVizMode === 'sunburst') requestAnimationFrame(() => this.renderDcollAdvSunburst());
 					return;
 				}
 				const epoch = this._dcollAdvChartEpoch;

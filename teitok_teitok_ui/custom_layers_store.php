@@ -28,7 +28,7 @@
 if ( ! function_exists( 'tt_cl_path' ) ) {
 	/** Span attributes that are not custom attributes. */
 	function tt_cl_reserved() {
-		return array( 'corresp', 'when', 'id', 'type', 'xml', 'doc' );
+		return array( 'corresp', 'when', 'id', 'type', 'xml', 'doc', 'gid' );   // gid: the overlay's group column
 	}
 
 	function tt_cl_valid_key( $k ) {
@@ -78,7 +78,8 @@ if ( ! function_exists( 'tt_cl_path' ) ) {
 		foreach ( $xml->task ?? array() as $t ) {
 			$id = $a( $t, 'id' );
 			if ( ! tt_cl_valid_key( $id ) ) continue;
-			$data['tasks'][ $id ] = array( 'id' => $id, 'display' => $a( $t, 'display', $id ), 'query' => $a( $t, 'query' ), 'unit' => $a( $t, 'unit' ),
+			$data['tasks'][ $id ] = array( 'id' => $id, 'owner' => $a( $t, 'owner' ), 'shared' => $a( $t, 'shared' ) === '1',
+				'display' => $a( $t, 'display', $id ), 'query' => $a( $t, 'query' ), 'unit' => $a( $t, 'unit' ),
 				'attributes' => array_values( array_filter( explode( ' ', $a( $t, 'attributes' ) ) ) ),
 				'sample' => (int) $a( $t, 'sample', '0' ), 'seed' => (int) $a( $t, 'seed', '0' ) );
 		}
@@ -121,7 +122,10 @@ if ( ! function_exists( 'tt_cl_path' ) ) {
 		}
 		foreach ( $data['tasks'] as $t ) {
 			$e = $r->appendChild( $d->createElement( 'task' ) );
-			foreach ( array( 'id', 'display', 'query', 'unit' ) as $k ) $e->setAttribute( $k, (string) $t[ $k ] );
+			$e->setAttribute( 'id', (string) $t['id'] );
+			if ( ( $t['owner'] ?? '' ) !== '' ) { $e->setAttribute( 'owner', $t['owner'] ); continue; }   // a joined task
+			if ( ! empty( $t['shared'] ) ) $e->setAttribute( 'shared', '1' );
+			foreach ( array( 'display', 'query', 'unit' ) as $k ) $e->setAttribute( $k, (string) $t[ $k ] );
 			$e->setAttribute( 'attributes', implode( ' ', $t['attributes'] ) );
 			if ( $t['sample'] > 0 ) { $e->setAttribute( 'sample', (string) $t['sample'] ); $e->setAttribute( 'seed', (string) $t['seed'] ); }
 		}
@@ -281,13 +285,77 @@ if ( ! function_exists( 'tt_cl_path' ) ) {
 		$unit = preg_match( '/^[A-Za-z_][A-Za-z0-9_]{0,31}$/', (string) ( $in['unit'] ?? '' ) ) ? (string) $in['unit'] : '';
 		$size = max( 0, min( 5000, (int) ( $in['sample'] ?? 0 ) ) );
 		$create = ! empty( $in['create'] );
-		return tt_cl_update( $root, $user, function ( $data ) use ( $id, $in, $query, $attrs, $unit, $size, $create ) {
+		$shared = ! empty( $in['shared'] );
+		return tt_cl_update( $root, $user, function ( $data ) use ( $id, $in, $query, $attrs, $unit, $size, $create, $shared ) {
 			if ( isset( $data['tasks'][ $id ] ) && $create ) return 'you have a task with this name already';
-			foreach ( $attrs as $a ) if ( ! isset( $data['attributes'][ $a ] ) ) return "no attribute '$a'";
+			if ( ( $data['tasks'][ $id ]['owner'] ?? '' ) !== '' ) return "'$id' is another user's task here";
+			foreach ( $attrs as $a ) {
+				if ( ! isset( $data['attributes'][ $a ] ) ) return "no attribute '$a'";
+				$at = $data['attributes'][ $a ];
+				// others who join a shared task label its attributes: each must be shared (or someone else's shared one)
+				if ( $shared && $at['owner'] === '' && empty( $at['shared'] ) ) return "share the attribute '{$at['display']}' to share this task";
+			}
 			$old = $data['tasks'][ $id ] ?? null;
 			$seed = $old && $old['seed'] ? $old['seed'] : random_int( 1, 999999999 );
-			$data['tasks'][ $id ] = array( 'id' => $id, 'display' => mb_substr( trim( (string) ( $in['display'] ?? '' ) ), 0, 120 ) ?: $id,
+			$data['tasks'][ $id ] = array( 'id' => $id, 'owner' => '', 'shared' => $shared,
+				'display' => mb_substr( trim( (string) ( $in['display'] ?? '' ) ), 0, 120 ) ?: $id,
 				'query' => $query, 'unit' => $unit, 'attributes' => $attrs, 'sample' => $size, 'seed' => $size ? $seed : 0 );
+			return $data;
+		} );
+	}
+
+	/** Shared tasks of other users: [ {owner, id, display, query, unit, attributes, sample} ]. */
+	function tt_cl_shared_tasks( $root, $exceptFolder ) {
+		$out = array();
+		foreach ( tt_cl_all( $root ) as $folder => $data ) {
+			if ( $folder === $exceptFolder ) continue;
+			foreach ( $data['tasks'] as $t ) {
+				if ( $t['owner'] === '' && ! empty( $t['shared'] ) ) $out[] = array_merge( $t, array( 'owner' => $folder ) );
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * The user's tasks with joined ones resolved to their owner's current definition (same query, unit
+	 * and sample seed: everyone gets the same lines); a task no longer shared is dropped.
+	 */
+	function tt_cl_resolved_tasks( $root, array $data ) {
+		$out = array();
+		foreach ( $data['tasks'] as $id => $t ) {
+			if ( $t['owner'] === '' ) { $out[ $id ] = $t; continue; }
+			$def = tt_cl_all( $root )[ $t['owner'] ]['tasks'][ $id ] ?? null;
+			if ( $def && $def['owner'] === '' && ! empty( $def['shared'] ) ) $out[ $id ] = array_merge( $def, array( 'owner' => $t['owner'] ) );
+		}
+		return $out;
+	}
+
+	/**
+	 * Join another user's shared task: a reference to it, and references to its attributes (to their
+	 * owners), so the values can be stored in the user's own file.
+	 */
+	function tt_cl_join_task( $root, $user, $owner, $id ) {
+		if ( ! tt_cl_valid_folder( $owner ) || ! tt_cl_valid_key( $id ) ) return 'which task?';
+		$me = tt_cl_user_folder( $user );
+		if ( $owner === $me ) return 'this is your own task';
+		$odata = tt_cl_load( $root, $owner );
+		$t = $odata['tasks'][ $id ] ?? null;
+		if ( ! $t || $t['owner'] !== '' || empty( $t['shared'] ) ) return 'this task is not shared';
+		$need = array();   // attribute key → its owner
+		foreach ( $t['attributes'] as $k ) {
+			$at = $odata['attributes'][ $k ] ?? null;
+			if ( ! $at ) return "the task's attribute '$k' is missing";
+			$need[ $k ] = $at['owner'] !== '' ? $at['owner'] : $owner;
+		}
+		return tt_cl_update( $root, $user, function ( $data ) use ( $owner, $id, $need, $me ) {
+			if ( isset( $data['tasks'][ $id ] ) ) return "you have a task '$id' already";
+			foreach ( $need as $k => $ko ) {
+				$cur = $data['attributes'][ $k ] ?? null;
+				if ( $ko === $me ) { if ( ! $cur || $cur['owner'] !== '' ) return "your attribute '$k' is missing"; continue; }
+				if ( $cur && $cur['owner'] !== $ko ) return "you have another attribute '$k' already";
+				if ( ! $cur ) $data['attributes'][ $k ] = array( 'key' => $k, 'owner' => $ko, 'display' => '', 'description' => '', 'shared' => false, 'values' => array(), 'prefill' => null );
+			}
+			$data['tasks'][ $id ] = array( 'id' => $id, 'owner' => $owner, 'shared' => false, 'display' => '', 'query' => '', 'unit' => '', 'attributes' => array(), 'sample' => 0, 'seed' => 0 );
 			return $data;
 		} );
 	}

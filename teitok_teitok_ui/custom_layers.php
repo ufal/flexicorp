@@ -6,7 +6,8 @@
  * Rollout and design: flexicorp dev/OVERLAY-CLASSIFICATION-ROLLOUT.md.
  *
  *   index.php?action=custom_layers[&query=…][&task=id]                 the page
- *   POST op=state | save_attribute | add_reference | save_task | label | others   (JSON; writes need a
+ *   POST op=state | save_attribute | add_reference | save_task | join_task | label | others | build_layer
+ *        (JSON; writes need a
  *        login and the page's token, sent in the X-Custom-Layers-Token header)
  *   GET  op=export&task=id                                             CSV of your values for a task
  */
@@ -15,6 +16,7 @@ global $maintext;
 require_once __DIR__ . '/fc_teitok_env.php';
 require_once __DIR__ . '/custom_layers_store.php';
 require_once __DIR__ . '/custom_layers_panel.php';
+require_once __DIR__ . '/custom_layers_overlay.php';
 
 if ( ! isset( $maintext ) ) $maintext = '';
 
@@ -26,7 +28,7 @@ $ttClOp = (string) ( $_REQUEST['op'] ?? '' );
 
 if ( $ttClOp === 'export' ) {
 	$data = tt_cl_load( $ttClRoot, $ttClFolder );
-	$task = $data['tasks'][ (string) ( $_GET['task'] ?? '' ) ] ?? null;
+	$task = tt_cl_resolved_tasks( $ttClRoot, $data )[ (string) ( $_GET['task'] ?? '' ) ] ?? null;
 	if ( $ttClFolder === '' || ! $task ) {
 		http_response_code( 404 );
 		print 'No such task';
@@ -48,7 +50,7 @@ if ( $ttClOp !== '' ) {
 	if ( ! is_array( $in ) ) $in = $_POST;
 	if ( ! is_dir( $ttClRoot . '/Resources' ) ) $reply( array( 'ok' => false, 'error' => 'not a corpus folder' ) );
 	if ( $ttClFolder === '' ) $reply( array( 'ok' => false, 'error' => 'log in to use custom layers' ) );
-	if ( in_array( $ttClOp, array( 'save_attribute', 'add_reference', 'save_task', 'label' ), true ) ) {
+	if ( in_array( $ttClOp, array( 'save_attribute', 'add_reference', 'save_task', 'join_task', 'label', 'build_layer' ), true ) ) {
 		if ( ( $_SERVER['REQUEST_METHOD'] ?? '' ) !== 'POST' ) $reply( array( 'ok' => false, 'error' => 'POST only' ) );
 		if ( ! hash_equals( $ttClToken, (string) ( $_SERVER['HTTP_X_CUSTOM_LAYERS_TOKEN'] ?? '' ) ) ) {
 			$reply( array( 'ok' => false, 'error' => 'the page has expired; reload it' ) );
@@ -57,8 +59,10 @@ if ( $ttClOp !== '' ) {
 	$state = function () use ( $ttClRoot, $ttClFolder ) {
 		$data = tt_cl_load( $ttClRoot, $ttClFolder );
 		return array( 'ok' => true, 'attributes' => array_values( tt_cl_resolved_attributes( $ttClRoot, $data ) ),
-			'tasks' => array_values( $data['tasks'] ), 'docs' => (object) $data['docs'],
-			'shared' => tt_cl_shared_attributes( $ttClRoot, $ttClFolder ), 'user' => $ttClFolder );
+			'tasks' => array_values( tt_cl_resolved_tasks( $ttClRoot, $data ) ), 'docs' => (object) $data['docs'],
+			'shared' => tt_cl_shared_attributes( $ttClRoot, $ttClFolder ),
+			'shared_tasks' => tt_cl_shared_tasks( $ttClRoot, $ttClFolder ), 'user' => $ttClFolder,
+			'layer' => tt_cl_overlay_status( $ttClRoot, $ttClFolder ) );
 	};
 	$done = function ( $r ) use ( $reply, $state ) {
 		if ( is_string( $r ) ) $reply( array( 'ok' => false, 'error' => $r ) );
@@ -73,13 +77,19 @@ if ( $ttClOp !== '' ) {
 			$done( tt_cl_add_reference( $ttClRoot, $ttClUser, (string) ( $in['owner'] ?? '' ), (string) ( $in['key'] ?? '' ) ) );
 		case 'save_task':
 			$done( tt_cl_save_task( $ttClRoot, $ttClUser, $in ) );
+		case 'join_task':
+			$done( tt_cl_join_task( $ttClRoot, $ttClUser, (string) ( $in['owner'] ?? '' ), (string) ( $in['id'] ?? '' ) ) );
 		case 'label':
 			$r = tt_cl_set_values( $ttClRoot, $ttClUser, $in );
 			if ( is_string( $r ) ) $reply( array( 'ok' => false, 'error' => $r ) );
 			$reply( array( 'ok' => true ) );
+		case 'build_layer':
+			$r = tt_cl_overlay_build( $ttClRoot, $ttClFolder );
+			if ( is_string( $r ) ) $reply( array( 'ok' => false, 'error' => $r ) );
+			$reply( array_merge( $r, array( 'layer' => tt_cl_overlay_status( $ttClRoot, $ttClFolder ) ) ) );
 		case 'others':
 			$data = tt_cl_load( $ttClRoot, $ttClFolder );
-			$task = $data['tasks'][ (string) ( $in['task'] ?? '' ) ] ?? null;
+			$task = tt_cl_resolved_tasks( $ttClRoot, $data )[ (string) ( $in['task'] ?? '' ) ] ?? null;
 			if ( ! $task ) $reply( array( 'ok' => false, 'error' => 'no such task' ) );
 			$owners = array();
 			foreach ( tt_cl_resolved_attributes( $ttClRoot, $data ) as $k => $at ) {
@@ -102,9 +112,11 @@ $ttClBoot = htmlspecialchars( json_encode( array(
 $h = function ( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); };
 $ttClCss = $h( $ttClScripts . '/custom_layers.css?v=' . $ttClVer );
 $ttClJs = $h( $ttClScripts . '/custom_layers.js?v=' . $ttClVer );
+$ttClUseJs = $h( $ttClScripts . '/custom_layers_use.js?v=' . (string) @filemtime( __DIR__ . '/custom_layers_use.js' ) );
 
 $maintext .= <<<HTML
 <link rel="stylesheet" href="{$ttClCss}">
+<script src="{$ttClUseJs}" defer></script>
 <script src="{$ttClJs}" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.11/dist/cdn.min.js" defer></script>
 <h1>Custom layers</h1>

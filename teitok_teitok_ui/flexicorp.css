@@ -850,6 +850,13 @@ button.flexicorp-search-change-link {
 	display: block;
 	max-width: none;
 }
+.flexicorp-dispersion__label { font-size: 11px; fill: #1f2328; }
+.flexicorp-dispersion__axis { font-size: 11px; fill: #57606a; }
+.flexicorp-dispersion__count { font-size: 11px; fill: #57606a; font-variant-numeric: tabular-nums; }
+.flexicorp-sunburst__rel { font-size: 12px; font-weight: 600; fill: #fff; }
+.flexicorp-sunburst__word { font-size: 11px; fill: #1f2328; }
+.flexicorp-sunburst__center { font-size: 15px; font-weight: 600; fill: #1f2328; }
+.flexicorp-sunburst__item:hover { fill-opacity: 0.85; }
 .flexicorp-sankey text,
 .flexicorp-wordtree text {
 	paint-order: stroke;

@@ -84,8 +84,9 @@ if ( ! function_exists( 'tt_flexicorp_adv_dcoll_render_stats_panel' ) ) {
 					<button type="button" class="flexicorp-seg-btn" :class="{ 'flexicorp-seg-btn--active': dcollAdvVizMode === 'polar' }" x-on:click="setDcollAdvVizMode('polar')">Polar</button>
 					<button type="button" class="flexicorp-seg-btn" :class="{ 'flexicorp-seg-btn--active': dcollAdvVizMode === 'pie' }" x-on:click="setDcollAdvVizMode('pie')">Pie</button>
 					<button type="button" class="flexicorp-seg-btn" :class="{ 'flexicorp-seg-btn--active': dcollAdvVizMode === 'doughnut' }" x-on:click="setDcollAdvVizMode('doughnut')">Donut</button>
+					<button type="button" class="flexicorp-seg-btn" :class="{ 'flexicorp-seg-btn--active': dcollAdvVizMode === 'sunburst' }" x-on:click="setDcollAdvVizMode('sunburst')" x-show="dcollAdvBreakdownShown()" title="Relations in the inner ring, their collocates in the outer ring">Sunburst</button>
 				</div>
-				<div class="flexicorp-freq-viz-toolbar flexicorp-freq-export-toolbar flexicorp-freq-viz-toolbar--inline" x-show="dcollAdvVizMode !== 'table' && frequencyChartLibraryAvailable()" style="margin-bottom:0.5rem;">
+				<div class="flexicorp-freq-viz-toolbar flexicorp-freq-export-toolbar flexicorp-freq-viz-toolbar--inline" x-show="dcollAdvVizMode !== 'table' && dcollAdvVizMode !== 'sunburst' && frequencyChartLibraryAvailable()" style="margin-bottom:0.5rem;">
 					<span class="flexicorp-inline-label">Metric</span>
 					<select class="flexicorp-form-control flexicorp-form-control-sm" x-model="dcollAdvChartMetricKey" x-on:change="onDcollAdvChartMetricChanged()">
 						<template x-for="opt in dcollAdvChartMetricOptions()" :key="'dcoll-metric-' + opt.key">
@@ -120,8 +121,12 @@ if ( ! function_exists( 'tt_flexicorp_adv_dcoll_render_stats_panel' ) ) {
 						</template>
 					</tbody>
 				</table>
-				<div class="flexicorp-freq-chart-wrap" x-show="dcollAdvVizMode !== 'table' && frequencyChartLibraryAvailable()">
+				<div class="flexicorp-freq-chart-wrap" x-show="dcollAdvVizMode !== 'table' && dcollAdvVizMode !== 'sunburst' && frequencyChartLibraryAvailable()">
 					<canvas id="flexicorp-dcoll-adv-chart-canvas" aria-label="Dependency collocation chart"></canvas>
+				</div>
+				<div x-show="dcollAdvVizMode === 'sunburst'">
+					<p class="flexicorp-panel-note" x-text="dcollAdvSunburstNote()"></p>
+					<div id="flexicorp-dcoll-adv-sunburst" class="flexicorp-freq-svg-wrap"></div>
 				</div>
 			</div>
 			<p class="flexicorp-panel-note" x-show="dcollAdv.ran && (!Array.isArray(dcollAdv.rows) || !dcollAdv.rows.length)">No dependency collocates returned.</p>

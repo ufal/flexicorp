@@ -3,7 +3,8 @@
  * Attributes (each with its values) and tasks (a query, the attributes to classify its lines with,
  * optionally a sample) are kept in the user's Users/<user>/custom_layers.xml; values are stored per
  * item (document + token ids of the labelled unit: the whole match, or one named query token).
- * Hits come from flexicorp's search request (index.php?action=flexicorp, run=query).
+ * Hits come from flexicorp's search request (index.php?action=flexicorp, run=query). Making the labels
+ * searchable and using them: custom_layers_use.js.
  */
 (function () {
 	const MAX_LINES = 2000;   // lines loaded per task (a sample is drawn from these)
@@ -95,15 +96,48 @@
 		return '';
 	}
 
+	/**
+	 * Krippendorff's alpha for nominal values: units = [[value, …], …] (one array per item, one value
+	 * per annotator who labelled it; units with fewer than 2 values do not count). null when undefined.
+	 */
+	function alphaNominal(units) {
+		const o = {};
+		for (const u of units) {
+			if (u.length < 2) continue;
+			for (let i = 0; i < u.length; i += 1) {
+				for (let j = 0; j < u.length; j += 1) {
+					if (i === j) continue;
+					const k = `${u[i]}\u0001${u[j]}`;
+					o[k] = (o[k] || 0) + 1 / (u.length - 1);
+				}
+			}
+		}
+		const nc = {};
+		let n = 0, dis = 0;
+		for (const [k, v] of Object.entries(o)) {
+			const [c, d] = k.split('\u0001');
+			nc[c] = (nc[c] || 0) + v;
+			n += v;
+			if (c !== d) dis += v;
+		}
+		if (n <= 1) return null;
+		let exp = 0;
+		const cs = Object.keys(nc);
+		for (const c of cs) for (const d of cs) if (c !== d) exp += nc[c] * nc[d];
+		if (exp === 0) return dis === 0 ? 1 : null;   // one value used throughout
+		return 1 - ((n - 1) * dis) / exp;
+	}
+
 	const itemKey = (doc, corresp) => `${doc}\u0001${corresp}`;
 
 	window.ttCustomLayersApp = function (boot) {
-		return {
+		const app = {
 			boot: boot || {},
 			attributes: [],
 			tasks: [],
 			docs: {},
 			shared: [],
+			sharedTasks: [],
 			view: 'work',        // work | attribute | task
 			attrEd: null,
 			taskEd: null,
@@ -141,6 +175,8 @@
 				this.tasks = j.tasks || [];
 				this.docs = j.docs || {};
 				this.shared = j.shared || [];
+				this.sharedTasks = j.shared_tasks || [];
+				if (j.layer) this.layer = j.layer;
 			},
 
 			async loadState() {
@@ -158,6 +194,13 @@
 			taskAttributes() {
 				const t = this.task;
 				return t ? t.attributes.map((k) => this.attribute(k)).filter(Boolean) : [];
+			},
+			tasksToJoin() {
+				return this.sharedTasks.filter((s) => !this.tasks.some((t) => t.id === s.id));
+			},
+			async joinTask(s) {
+				await this.write('join_task', { owner: s.owner, id: s.id });
+				if (!this.error) await this.openTask(s.id);
 			},
 			sharedToAdd() {
 				return this.shared.filter((s) => !this.attributes.some((a) => a.key === s.key));
@@ -191,12 +234,12 @@
 
 			// ── tasks ──
 			newTask(query) {
-				this.taskEd = { create: true, id: '', display: '', query: query || '', unit: '', attributes: [], sample: null };
+				this.taskEd = { create: true, id: '', display: '', query: query || '', unit: '', attributes: [], sample: null, shared: false };
 				this.view = 'task';
 			},
 			editTask() {
 				const t = this.task;
-				this.taskEd = { create: false, id: t.id, display: t.display, query: t.query, unit: t.unit, attributes: t.attributes.slice(), sample: t.sample || null };
+				this.taskEd = { create: false, id: t.id, display: t.display, query: t.query, unit: t.unit, attributes: t.attributes.slice(), sample: t.sample || null, shared: !!t.shared };
 				this.view = 'task';
 			},
 			async saveTask() {
@@ -333,6 +376,7 @@
 				this.docs = { ...this.docs, [row.doc]: doc };
 				try {
 					await this.api('label', { doc: row.doc, tokens: row.tokens, values }, true);
+					if (this.layerChanged) this.layerChanged();
 				} catch (e) {
 					this.docs = { ...this.docs, [row.doc]: { ...doc, [row.corresp]: prev } };
 					this.error = `Not saved: ${e.message}`;
@@ -351,7 +395,48 @@
 				return Object.keys(vals).length ? this.setValues(row, vals) : null;
 			},
 
+			/** Everyone's values on a line for one attribute: annotator → value (yours under your own name). */
+			valuesBy(row, key) {
+				const out = {};
+				for (const o of this.others[row.key] || []) if (o.attr === key) out[o.user] = o.value;
+				const mine = this.value(row, key);
+				if (mine) out[this.boot.user || 'me'] = mine;
+				return out;
+			},
+			disagrees(row) {
+				return this.taskAttributes().some((a) => new Set(Object.values(this.valuesBy(row, a.key))).size > 1);
+			},
+			hasOthers() {
+				return this.rows.some((r) => (this.others[r.key] || []).length);
+			},
+			/** Per attribute, over the task's lines: lines labelled by 2+ annotators, observed agreement, alpha, lines per annotator. */
+			agreement() {
+				return this.taskAttributes().map((a) => {
+					const units = [];
+					const per = {};
+					let pairs = 0, same = 0;
+					for (const r of this.rows) {
+						const by = this.valuesBy(r, a.key);
+						for (const u of Object.keys(by)) per[u] = (per[u] || 0) + 1;
+						const vals = Object.values(by);
+						if (vals.length < 2) continue;
+						units.push(vals);
+						for (let i = 0; i < vals.length; i += 1) for (let j = i + 1; j < vals.length; j += 1) { pairs += 1; if (vals[i] === vals[j]) same += 1; }
+					}
+					const alpha = alphaNominal(units);
+					return { key: a.key, display: a.display, lines: units.length, observed: pairs ? same / pairs : null, alpha,
+						annotators: Object.entries(per).sort((x, y) => y[1] - x[1]).map(([u, c]) => `${u} ${c}`).join(' · ') };
+				});
+			},
+			pct(x) {
+				return x === null || x === undefined ? '—' : `${Math.round(x * 100)}%`;
+			},
+			num(x) {
+				return x === null || x === undefined ? '—' : x.toFixed(2);
+			},
+
 			visibleRows() {
+				if (this.show === 'disagree') return this.rows.filter((r) => this.disagrees(r));
 				if (this.show === 'open') return this.rows.filter((r) => !this.complete(r));
 				if (this.show === 'done') return this.rows.filter((r) => this.complete(r));
 				return this.rows;
@@ -407,8 +492,10 @@
 				return this.task ? `index.php?action=custom_layers&op=export&task=${encodeURIComponent(this.task.id)}` : '#';
 			},
 		};
+		// making labels searchable and links to use them (custom_layers_use.js)
+		return Object.assign(app, window.ttCustomLayersUseMixin ? window.ttCustomLayersUseMixin() : {});
 	};
 
 	// for tests (node)
-	window.ttCustomLayersLib = { sample, unitTokens, queryTokenNames, addCondition, rng };
+	window.ttCustomLayersLib = { sample, unitTokens, queryTokenNames, addCondition, alphaNominal, rng };
 })();

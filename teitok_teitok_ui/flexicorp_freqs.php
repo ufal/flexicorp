@@ -1521,6 +1521,18 @@
 				}
 			}
 			$rows = tt_flexicorp_freq_field_add_pando_time_expr_variants( $rows, $backend );
+			$isPandoBackend = in_array( strtolower( trim( (string) $backend ) ), array( 'pando', 'flexicorp-pando' ), true );
+			// the document (text_id: usually not searchable, so not in the settings' list): counts per
+			// document, and the dispersion view (where the hits fall within each text)
+			if ( $isPandoBackend && ! in_array( 'text_id', array_column( $rows, 'name' ), true ) ) {
+				$rows[] = array( 'name' => 'text_id', 'label' => 'Document' );
+			}
+			// custom layers (labels of your own, and those others share), once searchable with pando
+			if ( $isPandoBackend && is_file( __DIR__ . '/custom_layers_overlay.php' ) ) {
+				require_once __DIR__ . '/custom_layers_overlay.php';
+				$clRoot = $project_root ? (string) $project_root : tt_fc_env_project_root();
+				$rows = array_merge( $rows, tt_cl_overlay_field_rows( $clRoot, tt_fc_env_user_folder() ) );
+			}
 			if ( ! count( $rows ) ) {
 				$nc = is_array( $candidates ) ? count( $candidates ) : 0;
 				$nd = count( $displayMap );
@@ -2193,6 +2205,7 @@
 										<button type="button" class="flexicorp-seg-btn" :class="{ 'flexicorp-seg-btn--active': frequencyVizMode === 'scatter' }" :aria-pressed="frequencyVizMode === 'scatter' ? 'true' : 'false'" x-show="$data.frequencyScatterAvailable()" x-on:click="setFrequencyVizMode('scatter')" title="Scatter plot: one point per row (2 queries: their frequencies; 4 queries: the share of the 1st in the 1st pair against the share of the 3rd in the 2nd pair)">Scatter</button>
 										<button type="button" class="flexicorp-seg-btn" :class="{ 'flexicorp-seg-btn--active': frequencyVizMode === 'sankey' }" :aria-pressed="frequencyVizMode === 'sankey' ? 'true' : 'false'" x-show="$data.frequencySankeyAvailable()" x-on:click="setFrequencyVizMode('sankey')" title="Flows from the values of the first field to those of the second">Sankey</button>
 										<button type="button" class="flexicorp-seg-btn" :class="{ 'flexicorp-seg-btn--active': frequencyVizMode === 'wordtree' }" :aria-pressed="frequencyVizMode === 'wordtree' ? 'true' : 'false'" x-show="$data.frequencyWordTreeAvailable()" x-on:click="setFrequencyVizMode('wordtree')" title="Word tree: the fields as a sequence of continuations">Word tree</button>
+										<button type="button" class="flexicorp-seg-btn" :class="{ 'flexicorp-seg-btn--active': frequencyVizMode === 'dispersion' }" :aria-pressed="frequencyVizMode === 'dispersion' ? 'true' : 'false'" x-show="$data.frequencyDispersionAvailable()" x-on:click="setFrequencyVizMode('dispersion')" title="Where the hits fall within each text">Dispersion</button>
 									</div>
 									<div class="flexicorp-freq-viz-toolbar flexicorp-freq-export-toolbar flexicorp-freq-viz-toolbar--inline" x-show="frequencyVizSvgMode()">
 										<span class="flexicorp-inline-label">Export</span>

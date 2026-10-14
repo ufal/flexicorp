@@ -16,17 +16,25 @@ intransitive, literal or figurative — several at once, and use the labelled li
 	<label>Task
 		<select x-model="taskId" x-on:change="openTask(taskId)">
 			<option value="">—</option>
-			<template x-for="t in tasks" :key="t.id"><option :value="t.id" x-text="t.display"></option></template>
+			<template x-for="t in tasks" :key="t.id"><option :value="t.id" x-text="t.display + (t.owner ? ' (by ' + t.owner + ')' : (t.shared ? ' (shared)' : ''))"></option></template>
 		</select>
 	</label>
 	<button type="button" class="btn btn-sm btn-outline-primary" x-on:click="newTask('')">New task</button>
 	<template x-if="task && view === 'work'">
 		<span class="tt-cl-bar__actions">
-			<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="editTask()">Edit task</button>
+			<button type="button" class="btn btn-sm btn-outline-secondary" x-show="!task.owner" x-on:click="editTask()">Edit task</button>
 			<a class="btn btn-sm btn-outline-secondary" :href="exportUrl()">Export CSV</a>
 		</span>
 	</template>
 </div>
+<template x-if="boot.user && tasksToJoin().length">
+	<div class="tt-cl-shared">
+		<span>Shared tasks you can join (same lines for everyone, so you can compare):</span>
+		<template x-for="s in tasksToJoin()" :key="s.owner + s.id">
+			<button type="button" class="btn btn-sm btn-link" x-on:click="joinTask(s)" :title="'Join: ' + s.query" x-text="s.display + ' (' + s.owner + ')'"></button>
+		</template>
+	</div>
+</template>
 <div class="tt-cl-error" x-show="error" x-text="error"></div>
 
 <!-- task: query, attributes, sample -->
@@ -65,6 +73,7 @@ intransitive, literal or figurative — several at once, and use the labelled li
 			</template>
 		</div>
 	</template>
+	<label class="tt-cl-check"><input type="checkbox" x-model="taskEd.shared"> Shared: others logged in to this corpus can join it and classify the same lines (its attributes must be shared too)</label>
 	<div class="tt-cl-editor__buttons">
 		<button type="submit" class="btn btn-sm btn-primary" :disabled="busy || !taskEd.attributes.length">Save task</button>
 		<button type="button" class="btn btn-sm btn-link" x-on:click="taskEd = null; view = 'work'">Cancel</button>
@@ -132,8 +141,47 @@ intransitive, literal or figurative — several at once, and use the labelled li
 				<option value="all">all lines</option>
 				<option value="open">lines not done</option>
 				<option value="done">lines done</option>
+				<option value="disagree" x-show="hasOthers()">lines with disagreement</option>
 			</select></label>
 		</div>
+		<details class="tt-cl-use" x-show="layer && layer.available">
+			<summary>Search and count by your labels <span class="tt-cl-note" x-text="layerStatus()"></span></summary>
+			<p>
+				<button type="button" class="btn btn-sm" :class="layer && layer.current ? 'btn-outline-secondary' : 'btn-primary'" :disabled="busy" x-on:click="buildLayer()"
+					x-text="layer && layer.built ? 'Update searchable labels' : 'Make my labels searchable'"></button>
+				<span x-show="layerNote" x-text="layerNote"></span>
+			</p>
+			<template x-if="layer && layer.built && layer.reason !== 'corpus reindexed'">
+				<div x-on:click="openLayerLink($event)">
+					<ul class="tt-cl-use__list">
+						<template x-for="a in taskAttributes()" :key="'use' + a.key">
+							<li>
+								<b x-text="a.display"></b>:
+								<template x-for="v in a.values" :key="'use' + a.key + v.key">
+									<a class="tt-cl-use__value" :href="searchLink(a.key, v.key)" target="_blank" :title="'Search the lines you labelled ' + v.display"
+										x-text="v.display + ' (' + (layerCounts(a.key)[v.key] || 0) + ')'"></a>
+								</template>
+								· <a :href="countLink(a.key)" target="_blank">count</a>
+								<code class="tt-cl-mono tt-cl-use__name" x-text="layerName(a.key)" title="Use this name in your own queries, e.g. [lemma=&quot;feel&quot; &amp; NAME=&quot;…&quot;]"></code>
+							</li>
+						</template>
+					</ul>
+					<template x-if="taskAttributes().length > 1">
+						<p><a :href="crossLink(taskAttributes()[0].key, taskAttributes()[1].key)" target="_blank"
+							x-text="taskAttributes()[0].display + ' against ' + taskAttributes()[1].display + ' (Sankey)'"></a></p>
+					</template>
+					<p class="tt-cl-note">In flexicorp your labels are attributes of the labelled tokens: combine them with any query, and count by them under Stats → Frequency.</p>
+				</div>
+			</template>
+		</details>
+		<table class="flexicorp-table tt-cl-agreement" x-show="hasOthers()">
+			<thead><tr><th>Attribute</th><th title="Lines labelled by two or more people">Lines compared</th><th title="Share of pairs of labels on the same line that agree">Agreement</th><th title="Krippendorff's alpha (nominal): 1 = perfect, 0 = chance level">α</th><th>Lines per annotator</th></tr></thead>
+			<tbody>
+				<template x-for="g in agreement()" :key="g.key">
+					<tr><td x-text="g.display"></td><td x-text="g.lines"></td><td x-text="pct(g.observed)"></td><td x-text="num(g.alpha)"></td><td x-text="g.annotators"></td></tr>
+				</template>
+			</tbody>
+		</table>
 		<table id="rollovertable" class="tt-cl-lines" x-show="rows.length">
 			<tbody>
 				<template x-for="row in visibleRows()" :key="row.key">

@@ -3,7 +3,7 @@
  * Merged into flexicorpApp via flexicorpFreqsExtend (see flexicorp.js). This file holds the Stats state;
  * the methods are in fc_<id>.js (FLEXICORP_FREQS_PARTS), loaded before flexicorp.js.
  */
-const FLEXICORP_FREQS_PARTS = ['stats_fields', 'scope', 'stats_corpus', 'stats_freq', 'stats_tabs', 'stats_coll', 'stats_other', 'stats_values', 'stats_freqviz'];
+const FLEXICORP_FREQS_PARTS = ['stats_fields', 'scope', 'stats_corpus', 'stats_freq', 'stats_tabs', 'stats_coll', 'stats_other', 'stats_values', 'stats_freqviz', 'stats_dispersion'];
 
 window.flexicorpFreqsExtend = function flexicorpFreqsExtend() {
 	const _freqsState = {
@@ -22,6 +22,7 @@ window.flexicorpFreqsExtend = function flexicorpFreqsExtend() {
 		frequencyChartInstance: null,
 		/** Sankey / word tree: what the SVG view drew ({shown, total} links or {leaves}). */
 		frequencySvgInfo: null,
+		frequencyDispersion: null,   // positions for the dispersion view (fc_stats_dispersion.js)
 		/** Bumped on destroy so pending rAF (resize / scheduled render) never touches a torn-down Chart. */
 		_frequencyChartEpoch: 0,
 

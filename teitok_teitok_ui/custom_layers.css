@@ -34,6 +34,7 @@
 .tt-cl-legend__keys { color: #57606a; }
 .tt-cl-status { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin: 0.5rem 0; }
 
+.tt-cl-agreement { max-width: 60rem; margin: 0.4rem 0 0.8rem; display: block; overflow-x: auto; }
 .tt-cl-lines { width: 100%; table-layout: fixed; border-collapse: collapse; }
 .tt-cl-lines td { padding: 0.25rem 0.4rem; vertical-align: middle; }
 .tt-cl-left { text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; width: 30%; }
@@ -53,3 +54,12 @@
 @media (max-width: 760px) {
 	.tt-cl-lines, .tt-cl-lines tbody, .tt-cl-lines tr, .tt-cl-lines td { display: block; width: 100%; text-align: left; direction: ltr; white-space: normal; }
 }
+
+.tt-cl-use { border: 1px solid #d7dce1; border-radius: 4px; padding: 0.3rem 0.6rem; margin: 0.4rem 0 0.6rem; }
+.tt-cl-use summary { cursor: pointer; font-weight: 600; }
+.tt-cl-use summary .tt-cl-note { font-weight: normal; margin-left: 0.4rem; }
+.tt-cl-use p { margin: 0.4rem 0; }
+.tt-cl-use__list { list-style: none; padding: 0; margin: 0.3rem 0; }
+.tt-cl-use__list li { margin: 0.2rem 0; }
+.tt-cl-use__value { margin-right: 0.5rem; }
+.tt-cl-use__name { color: #57606a; margin-left: 0.6rem; overflow-wrap: anywhere; }

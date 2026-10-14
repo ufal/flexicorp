@@ -584,7 +584,7 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 
 		renderFrequencyChart() {
 			const mode = this.frequencyVizMode;
-			if (mode === 'sankey' || mode === 'wordtree') {
+			if (this.frequencyVizSvgMode(mode)) {
 				this.destroyFrequencyChart();
 				this.renderFrequencySvgChart();
 				return;
@@ -1148,7 +1148,7 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 		},
 
 		setFrequencyVizMode(mode) {
-			const allowed = new Set(['table', 'bar', 'vbar', 'vbar-error', 'stacked-bar', 'stacked-vbar', 'line', 'radar', 'polar', 'pie', 'doughnut', 'pivot', 'scatter', 'sankey', 'wordtree']);
+			const allowed = new Set(['table', 'bar', 'vbar', 'vbar-error', 'stacked-bar', 'stacked-vbar', 'line', 'radar', 'polar', 'pie', 'doughnut', 'pivot', 'scatter', 'sankey', 'wordtree', 'dispersion']);
 			let next = allowed.has(mode) ? mode : 'table';
 			if (!this.frequencyVizModeAvailable(next)) next = 'table';
 			if (this.frequencyHasCompareQueries() && (next === 'polar' || next === 'pie' || next === 'doughnut')) {
@@ -1157,7 +1157,7 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 			if (next === 'vbar-error' && !this.frequencySupportsErrorBars()) {
 				next = 'vbar';
 			}
-			const svgView = next === 'sankey' || next === 'wordtree';
+			const svgView = this.frequencyVizSvgMode(next);
 			if (next !== 'table' && next !== 'pivot' && !svgView && !this.frequencyChartLibraryAvailable()) return;
 			this.frequencyVizMode = next;
 			if (next === 'table' || next === 'pivot') {

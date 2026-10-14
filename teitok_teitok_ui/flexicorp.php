@@ -6923,7 +6923,9 @@ require_once __DIR__ . '/fc_engine.php';
 	$defaultKwicWindow = tt_flexicorp_default_kwic_window();
 	$kwicWindow = tt_flexicorp_clamp_int( $_REQUEST['window'] ?? $defaultKwicWindow, $defaultKwicWindow, 1, 50 );
 	$kwicStart = max(0, intval($_REQUEST['start'] ?? 0));
-	$freqLimit = tt_flexicorp_clamp_int($_REQUEST['freq_limit'] ?? 100, 100, 1, 200);
+	// a dispersion plot (fc_stats_dispersion.js) asks for the hits' positions: one row per hit
+	$freqLimitMax = ( ( $_REQUEST['freq_rows'] ?? '' ) === 'positions' ) ? 20000 : 200;
+	$freqLimit = tt_flexicorp_clamp_int($_REQUEST['freq_limit'] ?? 100, 100, 1, $freqLimitMax);
 	$kwicQuery = trim((string)($_REQUEST['query'] ?? ''));
 	// Prevent visitors from sneaking expensive CQP aggregations into the base query.
 	// Pando program scripts (e.g. "…; freq A,B by attr") must stay intact — stripping the trailing
@@ -8526,10 +8528,10 @@ require_once __DIR__ . '/fc_engine.php';
 	// flexicorp_freqs.js): load before flexicorp.js.
 	$fcCoreParts = array(
 		'viewstate', 'backend', 'statsrouting', 'kwicview', 'requests', 'highlight', 'querystore', 'documents', 'hitdetail', 'hits',
-		'stats_fields', 'scope', 'stats_corpus', 'stats_freq', 'stats_tabs', 'stats_coll', 'stats_other', 'stats_values', 'stats_freqviz',
+		'stats_fields', 'scope', 'stats_corpus', 'stats_freq', 'stats_tabs', 'stats_coll', 'stats_other', 'stats_values', 'stats_freqviz', 'stats_dispersion',
 	);
 	// Libraries the parts use (window.ttFlexicorp*): loaded first.
-	$fcLibs = array( 'planner', 'chart_sankey', 'chart_wordtree' );
+	$fcLibs = array( 'planner', 'chart_sankey', 'chart_wordtree', 'chart_sunburst', 'chart_dispersion' );
 	if ( preg_match( '#<script[^>]+src="[^"]*flexicorp\\.js[^"]*"[^>]*></script>#i', $maintext ) ) {
 		$fcPartTags = '';
 		$fcBase = rtrim( (string) $ecscriptsBaseUrl, '/' );
