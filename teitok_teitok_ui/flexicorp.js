@@ -257,7 +257,7 @@ function flexicorpApp() {
 			},
 			'flexicorp-pando': {
 				label: 'flexicorp-pando',
-				description: 'Direct flexicorp-pando adapter backend (daemon/API path).',
+				description: 'Direct flexicorp-pando adapter backend.',
 			},
 			blacklab: {
 				label: 'BlackLab (BCQL)',

@@ -8,6 +8,7 @@ require_once __DIR__ . '/flexicorp_functions.php';
 require_once __DIR__ . '/fc_result.php';
 require_once __DIR__ . '/fc_engine.php';
 require_once __DIR__ . '/fc_fqs_warm.php';
+require_once __DIR__ . '/fc_fqs_catalog.php';
 // custom layers: `my-<attribute>` in queries and fields is the user's own labels (custom_layers_names.php)
 if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	require_once __DIR__ . '/custom_layers_names.php';
@@ -971,6 +972,10 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		function tt_flexicorp_cqp_status_resolved( $projectRoot ) {
 			global $debug;
 			$isDebug = isset($debug) && !empty($debug);
+			// a search-only view of a CWB corpus that FQS serves: no local cqp or registry needed
+			if ( function_exists('tt_flexicorp_fqs_serves_engine') && tt_flexicorp_fqs_serves_engine($projectRoot, 'cqp') ) {
+				return array( 'available' => true, 'reason' => 'Served by FQS (no local index).' );
+			}
 			$cqpBin = tt_flexicorp_cqp_bin();
 			if ( !tt_flexicorp_command_exists($cqpBin) ) {
 				return array(
@@ -1533,6 +1538,11 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			} elseif ( $pandoDir[0] !== '/' ) {
 				$pandoDir = rtrim($projectRoot, '/') . '/' . $pandoDir;
 			}
+			if ( !is_dir($pandoDir) && function_exists('tt_flexicorp_fqs_serves_engine') && tt_flexicorp_fqs_serves_engine($projectRoot, 'pando') ) {
+				$out = array( 'available' => true, 'reason' => 'Served by FQS (no local index).' );
+				$memo[ $rootKey ] = $out;
+				return $out;
+			}
 			if ( !is_dir($pandoDir) ) {
 				$out = array( 'available' => false, 'reason' => 'Pando folder not found: ' . basename($pandoDir) . '.' );
 				$memo[ $rootKey ] = $out;
@@ -1579,7 +1589,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	if ( !function_exists('tt_flexicorp_pando_index_dir') ) {
 		/**
 		 * Resolved Pando index directory (same rules as tt_flexicorp_pando_status).
-		 * Daemon queries must use this path so corpus open matches configured pando/path.
+		 * Queries must use this path so corpus open matches configured pando/path.
 		 */
 		function tt_flexicorp_pando_index_dir( $projectRoot ) {
 			$pandoDir = function_exists('getset') ? trim((string)getset('pando/path', '')) : '';
@@ -2155,16 +2165,8 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				}
 				if ( ! empty( $fqsProbe['ready_for_queries'] ) ) {
 					$pandoComboReason = 'Pando index available. Queries for this engine are sent through FQS (the HTTP query/catalog service).';
-				} elseif ( function_exists( 'tt_flexicorp_pando_runtime_info' ) ) {
-					$pri = tt_flexicorp_pando_runtime_info( $projectRoot );
-					$daemonUp = ! empty( $pri['daemon_pid'] );
-					if ( $daemonUp ) {
-						$pandoComboReason = 'Pando index available. FQS is not ready for query routing' . $fqsWhy . ', so queries use the local flexicorp-pando daemon (Unix socket).';
-					} else {
-						$pandoComboReason = 'Pando index available. FQS is not ready for query routing' . $fqsWhy . ', so queries use the flexicorp-pando CLI.';
-					}
 				} else {
-					$pandoComboReason = 'Pando index available. FQS is not ready for query routing' . $fqsWhy . '; queries use flexicorp-pando on this server instead of FQS.';
+					$pandoComboReason = 'Pando index available. FQS is not ready for query routing' . $fqsWhy . ', so queries use the flexicorp-pando CLI.';
 				}
 			}
 
@@ -3087,7 +3089,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		function tt_flexicorp_fqs_probe_uncached( $projectRoot, $isAdmin ) {
 			$url = tt_flexicorp_fqs_url();
 			$bin = tt_flexicorp_fqs_bin();
-			$corpusId = tt_flexicorp_corpus_id_from_root($projectRoot);
+			$corpusId = tt_flexicorp_fqs_corpus_id_for($projectRoot);   // flexicorp/fqs_corpus_id, else the folder
 			// FQS tiers: corpus admin > logged-in user > visitor
 			$role = $isAdmin ? 'admin' : ( tt_flexicorp_request_user() !== '' ? 'user' : 'visitor' );
 
@@ -3210,6 +3212,16 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 					$probe['corpus_registered'] = true;
 				}
 			}
+			// FQS on another machine (the normal set-up): its catalogue over HTTP (fc_fqs_catalog.php),
+			// which also says the engine FQS serves the corpus with
+			if ( !$probe['corpus_registered'] ) {
+				$fqsRow = tt_flexicorp_fqs_http_corpus_row($probe, $corpusId);
+				if ( $fqsRow !== null ) {
+					$probe['corpus_registered'] = true;
+					$probe['registered_via'] = 'http';
+					$probe['remote_engine'] = tt_flexicorp_fqs_row_engine($fqsRow);
+				}
+			}
 
 			$secret = tt_flexicorp_fqs_secret();
 			$probe['jwt_configured'] = $secret !== '';
@@ -3226,14 +3238,14 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				$probe['jwt_preview'] = $jwt !== '' ? substr($jwt, 0, 20) . '...' : '';
 			}
 
-			if ( !$probe['cli_installed'] ) {
-				$probe['reason'] = 'fqs CLI not found';
-			} elseif ( !$probe['corpus_registered'] ) {
-				$probe['reason'] = 'corpus not registered in FQS catalog';
-			} elseif ( $probe['http_url'] === '' ) {
+			// the fqs program is needed here only to register and reindex (FQS on this machine);
+			// queries need a reachable FQS that has the corpus in its catalogue
+			if ( $probe['http_url'] === '' ) {
 				$probe['reason'] = 'fqs_url not configured';
 			} elseif ( !$probe['http_running'] ) {
 				$probe['reason'] = 'FQS HTTP server not reachable';
+			} elseif ( !$probe['corpus_registered'] ) {
+				$probe['reason'] = 'corpus not registered in FQS catalog';
 			} else {
 				$probe['ready_for_queries'] = true;
 				$probe['reason'] = 'ready';
@@ -4827,65 +4839,9 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		}
 	}
 
-	if ( !function_exists('tt_flexicorp_pando_socket') ) {
-		function tt_flexicorp_pando_socket($projectRoot) {
-			$root = rtrim((string)$projectRoot, '/');
-			$cfg = function_exists('getset') ? trim((string)getset('pando/socket', '')) : '';
-			$env = trim((string)(getenv('FLEXICORP_PANDO_SOCKET') ?: ''));
-			$candidates = array();
-			if ( $cfg !== '' ) $candidates[] = $cfg;
-			if ( $env !== '' ) $candidates[] = $env;
-			$candidates[] = $root . '/tmp/flexicorp-pando.sock';
-			$candidates[] = '/tmp/flexicorp-pando.sock';
-			$normalized = array();
-			foreach ( $candidates as $cand ) {
-				$cand = trim((string)$cand);
-				if ( $cand === '' ) continue;
-				if ( $cand[0] !== '/' ) $cand = $root . '/' . $cand;
-				if ( !in_array($cand, $normalized, true) ) $normalized[] = $cand;
-			}
-			foreach ( $normalized as $cand ) {
-				if ( is_string($cand) && $cand !== '' && file_exists($cand) ) return $cand;
-			}
-			return count($normalized) ? $normalized[0] : '/tmp/flexicorp-pando.sock';
-		}
-	}
-
-	if ( !function_exists('tt_flexicorp_pando_daemon_call') ) {
-		function tt_flexicorp_pando_daemon_call($socketPath, $wire) {
-			$fp = @stream_socket_client('unix://' . $socketPath, $errno, $errstr, 1.5);
-			if ( !$fp ) return array('ok' => false, 'error' => 'daemon socket connect failed: ' . $errstr, 'socket_errno' => $errno);
-			stream_set_timeout($fp, 10);
-			$payload = json_encode($wire, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-			if ( @fwrite($fp, $payload . "\n") === false ) {
-				fclose($fp);
-				return array('ok' => false, 'error' => 'daemon socket write failed');
-			}
-			$raw = '';
-			$start = microtime(true);
-			while ( !feof($fp) ) {
-				$line = fgets($fp);
-				if ( $line === false ) {
-					$meta = stream_get_meta_data($fp);
-					if ( !empty($meta['timed_out']) || (microtime(true) - $start) > 10.0 ) break;
-					usleep(10000);
-					continue;
-				}
-				$raw .= $line;
-				$data = json_decode($raw, true);
-				if ( is_array($data) ) {
-					fclose($fp);
-					return array('ok' => true, 'data' => $data, 'raw' => $raw);
-				}
-			}
-			fclose($fp);
-			return array('ok' => false, 'error' => 'daemon returned non-JSON', 'raw' => $raw);
-		}
-	}
-
 	if ( ! function_exists( 'tt_flexicorp_pando_json_error_message' ) ) {
 		/**
-		 * flexicorp-pando may signal failure as top-level "error", daemon { ok:false, error }, or
+		 * flexicorp-pando may signal failure as top-level "error", { ok:false, error }, or
 		 * flexicorp envelope { success:false, done:{ errors:[...] } }. Collect the first message.
 		 */
 		function tt_flexicorp_pando_json_error_message( $data ) {
@@ -5259,10 +5215,9 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	if ( !function_exists('tt_flexicorp_pando_runtime_info') ) {
 		/**
 		 * Best-effort runtime diagnostics for pando/flexicorp-pando resolution.
-		 * Exposed in UI state (debug-friendly) to show exact binaries/daemon process.
+		 * Exposed in UI state (debug-friendly) to show exact binaries.
 		 */
 		function tt_flexicorp_pando_runtime_info( $projectRoot ) {
-			$socket = tt_flexicorp_pando_socket($projectRoot);
 			$cliBin = tt_flexicorp_pando_cli_bin($projectRoot);
 			$sysPando = trim((string)shell_exec('command -v pando 2>/dev/null'));
 			$sysFlexicorpPando = trim((string)shell_exec('command -v flexicorp-pando 2>/dev/null'));
@@ -5276,55 +5231,13 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				$pandoVersion = tt_flexicorp_first_line((string)shell_exec(escapeshellarg($sysPando) . ' --version 2>&1'));
 			}
 
-			$daemonPid = '';
-			$daemonCmd = '';
-			if ( is_string($socket) && $socket !== '' && file_exists($socket) ) {
-				$lsofRaw = (string) shell_exec('lsof -Fp -Fc -- ' . escapeshellarg($socket) . ' 2>/dev/null');
-				if ( $lsofRaw !== '' ) {
-					$lines = preg_split('/\r\n|\r|\n/', $lsofRaw);
-					if ( is_array($lines) ) {
-						foreach ( $lines as $line ) {
-							$line = trim((string)$line);
-							if ( $line === '' ) continue;
-							if ( $daemonPid === '' && strlen($line) > 1 && $line[0] === 'p' ) {
-								$daemonPid = substr($line, 1);
-							}
-						}
-					}
-				}
-				if ( $daemonPid !== '' ) {
-					$daemonCmd = trim((string)shell_exec('ps -p ' . escapeshellarg($daemonPid) . ' -o command= 2>/dev/null'));
-					$daemonCmd = tt_flexicorp_first_line($daemonCmd);
-				}
-			}
-
 			return array(
-				'socket' => (string)$socket,
-				'socket_exists' => ( is_string($socket) && $socket !== '' && file_exists($socket) ) ? true : false,
 				'flexicorp_pando_bin' => (string)$cliBin,
 				'flexicorp_pando_version' => (string)$cliVersion,
 				'which_flexicorp_pando' => (string)$sysFlexicorpPando,
 				'which_pando' => (string)$sysPando,
 				'pando_version' => (string)$pandoVersion,
-				'daemon_pid' => (string)$daemonPid,
-				'daemon_command' => (string)$daemonCmd,
 			);
-		}
-	}
-
-	if ( !function_exists('tt_flexicorp_pando_daemon_has_strict_quoted_strings') ) {
-		/**
-		 * Detect whether the currently running daemon was started with
-		 * --strict-quoted-strings (changes query semantics for quoted patterns).
-		 */
-		function tt_flexicorp_pando_daemon_has_strict_quoted_strings( $projectRoot ) {
-			static $cache = array();
-			$socket = (string) tt_flexicorp_pando_socket($projectRoot);
-			if ( isset($cache[$socket]) ) return $cache[$socket];
-			$info = tt_flexicorp_pando_runtime_info($projectRoot);
-			$cmd = strtolower((string)($info['daemon_command'] ?? ''));
-			$cache[$socket] = ( strpos($cmd, '--strict-quoted-strings') !== false );
-			return $cache[$socket];
 		}
 	}
 
@@ -5468,7 +5381,6 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		function tt_flexicorp_pando_run($subcommandParts, $projectRoot) {
 			if ( !is_array($subcommandParts) ) $subcommandParts = array($subcommandParts);
 			$op = isset($subcommandParts[0]) ? (string)$subcommandParts[0] : '';
-			$socket = tt_flexicorp_pando_socket($projectRoot);
 			$indexDir = tt_flexicorp_pando_index_dir($projectRoot);
 			$query = isset($subcommandParts[1]) ? (string)$subcommandParts[1] : trim((string)($_REQUEST['query'] ?? ''));
 			$offset = intval($_REQUEST['start'] ?? 0);
@@ -5505,7 +5417,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 					tt_flexicorp_pando_merge_corpus_info_into_result( $projectRoot, $doneResult );
 				}
 				$data = array('success' => true, 'done' => array('backend' => 'flexicorp-pando', 'operation' => $op, 'result' => $doneResult));
-				return array('ok' => true, 'command' => 'flexicorp-pando-daemon:' . $op, 'raw' => json_encode($data), 'data' => $data, 'error' => '');
+				return array('ok' => true, 'command' => 'flexicorp-pando:' . $op, 'raw' => json_encode($data), 'data' => $data, 'error' => '');
 			}
 
 			if ( $op === 'reindex' ) {
@@ -5609,7 +5521,6 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				} else {
 					$ok = ( $exitCode === 0 ) && $hasPandoLine;
 				}
-				// Legacy daemon invalidation removed: runtime path is CLI/FQS-oriented.
 				if ( $ok && isset( $_SESSION['flexicorp_teitok'] ) && is_array( $_SESSION['flexicorp_teitok'] ) ) {
 					unset( $_SESSION['flexicorp_teitok']['pando_freshness_hint_v1'] );
 				}
@@ -5666,11 +5577,11 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 
 			if ( $op !== 'query' && $op !== 'highlight' && $op !== 'freq' && $op !== 'coll' && $op !== 'reindex' ) {
 				$data = array('success' => false, 'done' => array('errors' => array('Unsupported flexicorp-pando operation: ' . $op), 'result' => null));
-				return array('ok' => false, 'command' => 'flexicorp-pando-daemon:' . $op, 'raw' => json_encode($data), 'data' => $data, 'error' => 'Unsupported operation');
+				return array('ok' => false, 'command' => 'flexicorp-pando:' . $op, 'raw' => json_encode($data), 'data' => $data, 'error' => 'Unsupported operation');
 			}
 			if ( $op !== 'query' && $op !== 'freq' && $op !== 'coll' ) {
 				$data = array('success' => false, 'done' => array('errors' => array('Operation not yet implemented for flexicorp-pando in flexicorp.php: ' . $op), 'result' => null));
-				return array('ok' => false, 'command' => 'flexicorp-pando-daemon:' . $op, 'raw' => json_encode($data), 'data' => $data, 'error' => 'Operation not implemented');
+				return array('ok' => false, 'command' => 'flexicorp-pando:' . $op, 'raw' => json_encode($data), 'data' => $data, 'error' => 'Operation not implemented');
 			}
 
 			$runQuery = trim((string)$query);
@@ -5698,7 +5609,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				}
 				if ( $base === '' ) {
 					$data = array('success' => false, 'done' => array('errors' => array('Empty query not allowed for frequency operation.'), 'result' => null));
-					return array('ok' => false, 'command' => 'flexicorp-pando-daemon:query', 'raw' => json_encode($data), 'data' => $data, 'error' => 'Empty query not allowed');
+					return array('ok' => false, 'command' => 'flexicorp-pando:query', 'raw' => json_encode($data), 'data' => $data, 'error' => 'Empty query not allowed');
 				}
 				$runQuery = rtrim($base);
 				if ( substr($runQuery, -1) !== ';' ) $runQuery .= ';';
@@ -5725,7 +5636,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				}
 				if ( $base === '' ) {
 					$data = array('success' => false, 'done' => array('errors' => array('Empty query not allowed for collocation operation.'), 'result' => null));
-					return array('ok' => false, 'command' => 'flexicorp-pando-daemon:query', 'raw' => json_encode($data), 'data' => $data, 'error' => 'Empty query not allowed');
+					return array('ok' => false, 'command' => 'flexicorp-pando:query', 'raw' => json_encode($data), 'data' => $data, 'error' => 'Empty query not allowed');
 				}
 				$runQuery = rtrim($base);
 				if ( substr($runQuery, -1) !== ';' ) {
@@ -5742,7 +5653,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			}
 			if ( $runQuery === '' ) {
 				$data = array('success' => false, 'done' => array('errors' => array('Empty query not allowed.'), 'result' => null));
-				return array('ok' => false, 'command' => 'flexicorp-pando-daemon:query', 'raw' => json_encode($data), 'data' => $data, 'error' => 'Empty query not allowed');
+				return array('ok' => false, 'command' => 'flexicorp-pando:query', 'raw' => json_encode($data), 'data' => $data, 'error' => 'Empty query not allowed');
 			}
 			// For coll, put program options before `query` so flexicorp-pando’s minimal JSON parser
 			// sees \"measures\" first (long CQL strings can confuse naive key scanning).
@@ -5789,10 +5700,8 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				)
 			);
 			$call = tt_flexicorp_pando_cli_call($projectRoot, $runQuery, $offset, $limit, $context, '', (string)($wire['context_scope'] ?? 'tok'));
-			$viaDaemon = false;
-			$daemonError = '';
 			if ( isset($call['raw']) ) {
-				$call['raw'] = "[flexicorp] flexicorp-pando CLI route (daemon disabled; FQS path preferred)\n" . (string)$call['raw'];
+				$call['raw'] = "[flexicorp] flexicorp-pando CLI route (FQS path preferred)\n" . (string)$call['raw'];
 			}
 			if ( empty($call['ok']) || !isset($call['data']) || !is_array($call['data']) ) {
 				$mergedErr = trim( (string) ( $call['error'] ?? '' ) );
@@ -5807,7 +5716,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			}
 
 			$resp = $call['data'];
-			// The result body under whatever envelope the CLI / daemon answered with: the flexicorp
+			// The result body under whatever envelope the CLI answered with: the flexicorp
 			// envelope, a pando program answer {ok, operation, result{…}}, native program JSON at
 			// the top level, a toolchain's `data` wrapper (fc_result.php, as on the FQS route).
 			$result = tt_fc_result_unwrap( $resp, true );
@@ -5818,9 +5727,8 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				$result['groups'] = $result['query_groups'];
 			}
 			if ( !isset($result['engine']) || $result['engine'] === '' ) {
-				$result['engine'] = $viaDaemon ? 'flexicorp-pando-daemon' : 'flexicorp-pando';
+				$result['engine'] = 'flexicorp-pando';
 			}
-			if ( isset($result['daemon_socket']) ) unset($result['daemon_socket']);
 			tt_flexicorp_pando_normalize_aligned_pairs( $result );
 			// Multi-query freq scripts return a distribution table (rows / compare_queries), not KWIC hits.
 			if ( $op === 'query' && is_array( $result ) ) {
@@ -5834,38 +5742,6 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				tt_fc_result_finish_table( $result );
 			}
 			$result['kind'] = tt_fc_result_kind( $result );
-			// Compatibility bridge: some daemon builds can under-handle slash-regex queries
-			// that flexicorp-pando CLI already supports. If daemon returns 0/0 on a slash-regex,
-			// retry once through CLI and promote that result when it yields hits.
-			if (
-				$op === 'query'
-				&& $viaDaemon
-				&& isset($result['returned'], $result['total'])
-				&& (int)$result['returned'] === 0
-				&& (int)$result['total'] === 0
-				&& preg_match('#^/(?:[^/\\\\]|\\\\.)+/$#', $runQuery)
-			) {
-					$cliProbe = tt_flexicorp_pando_cli_call($projectRoot, $runQuery, $offset, $limit, $context, '', (string)($wire['context_scope'] ?? 'tok'));
-				if ( !empty($cliProbe['ok']) && isset($cliProbe['data']) && is_array($cliProbe['data']) ) {
-					$cliResp = $cliProbe['data'];
-					$cliResult = array();
-					if ( isset($cliResp['done']['result']) && is_array($cliResp['done']['result']) ) {
-						$cliResult = $cliResp['done']['result'];
-					} elseif ( isset($cliResp['result']) && is_array($cliResp['result']) ) {
-						$cliResult = $cliResp['result'];
-					}
-					$cliTotal = (int)($cliResult['total'] ?? 0);
-					$cliReturned = (int)($cliResult['returned'] ?? 0);
-					if ( $cliTotal > 0 || $cliReturned > 0 ) {
-						$result = $cliResult;
-						$result['engine'] = 'flexicorp-pando-cli-fallback';
-						if ( !isset($resp['done']) || !is_array($resp['done']) ) $resp['done'] = array();
-						if ( !isset($resp['done']['warnings']) || !is_array($resp['done']['warnings']) ) $resp['done']['warnings'] = array();
-						$resp['done']['warnings'][] = 'Daemon returned 0/0 for slash-regex query; used flexicorp-pando CLI compatibility fallback.';
-					}
-				}
-			}
-
 			// Query-token order for legends/highlights: sort by match index only. Do not sort group
 			// labels by name — a named second token (e.g. "noun") sorts before "t1" lexically and
 			// would swap palette colours in UIs that order legend entries by name.
@@ -5907,7 +5783,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				}
 				unset($hit);
 
-				// Fragment/doc enrichment now comes from flexicorp-pando (daemon/FFI),
+				// Fragment/doc enrichment now comes from flexicorp-pando,
 				// to keep heavy lifting out of PHP request handling.
 			}
 
@@ -5936,7 +5812,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 					$doneOp = $effectiveOp;
 				}
 			}
-			// Compatibility bridge: older flexicorp-pando daemon builds may return hit
+			// Compatibility bridge: older flexicorp-pando builds may return hit
 			// payloads even for "freq by ..." queries. Derive table rows from hits so
 			// Stats still shows usable values instead of empty placeholder rows.
 			if ( $op === 'freq' ) {
@@ -6031,40 +5907,6 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				}
 			}
 			$warnings = isset($resp['done']['warnings']) && is_array($resp['done']['warnings']) ? $resp['done']['warnings'] : array();
-			// When no daemon socket is present, TEITOK uses flexicorp-pando CLI per request (supported path).
-			// Keep this out of search/freq warning banners; surface in Debug via tt_flexicorp_debug_log + debugAppend.
-			if ( !$viaDaemon && $daemonError !== '' ) {
-				$note = 'flexicorp-pando CLI (' . $daemonError . ')';
-				$cmdLine = trim( (string) ( $call['command'] ?? '' ) );
-				if ( $cmdLine === '' ) {
-					$cmdLine = '(cli path; command string missing from adapter)';
-				}
-				$rawOut = (string) ( $call['raw'] ?? '' );
-				if ( strlen( $rawOut ) > 65536 ) {
-					$rawOut = substr( $rawOut, 0, 65536 ) . "\n… [truncated at 64KiB for Debug panel]";
-				}
-				$diagEntry = array(
-					'time' => date('H:i:s'),
-					'backend' => 'flexicorp-pando',
-					'operation' => 'query',
-					'ok' => true,
-					'command' => $cmdLine,
-					'raw' => $rawOut,
-					'errors' => array(),
-					'warnings' => array($note),
-					'result' => null,
-				);
-				tt_flexicorp_debug_log($diagEntry);
-				$stripDebug = !empty($_REQUEST['ajax'])
-					&& trim((string)($_REQUEST['active_tab'] ?? '')) !== 'debug'
-					&& !(isset($_GET['debug']) && (string)$_GET['debug'] === '1');
-				if ( $stripDebug ) {
-					if ( !isset($GLOBALS['tt_flexicorp_debug_append']) || !is_array($GLOBALS['tt_flexicorp_debug_append']) ) {
-						$GLOBALS['tt_flexicorp_debug_append'] = array();
-					}
-					$GLOBALS['tt_flexicorp_debug_append'][] = $diagEntry;
-				}
-			}
 			$done = array(
 				'backend' => 'flexicorp-pando',
 				'operation' => $doneOp,

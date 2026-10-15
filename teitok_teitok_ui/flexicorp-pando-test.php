@@ -383,56 +383,6 @@ function enrich_fragments_done(array &$done, string $projectRoot, string $scope,
     unset($hit);
 }
 
-function daemon_try(string $daemonSocket, array $req): array {
-    $sockPath = "unix://" . $daemonSocket;
-    $errno = 0;
-    $errstr = "";
-    $fp = @stream_socket_client($sockPath, $errno, $errstr, 1.0);
-    if (!$fp) {
-        return ["ok" => false, "error" => "daemon socket connect failed", "daemon_socket" => $daemonSocket, "socket_error" => $errstr, "socket_errno" => $errno, "_engine" => "daemon"];
-    }
-    stream_set_timeout($fp, 5);
-    $wire = [
-        "action" => "query",
-        "corpus" => ($req["index_dir"] ?? "") !== "" ? $req["index_dir"] : (rtrim((string)($req["project_root"] ?? ""), "/") . "/pando"),
-        "query" => (string)($req["query"] ?? ""),
-        "offset" => (int)($req["offset"] ?? 0),
-        "limit" => (int)($req["limit"] ?? 20),
-        "max_total" => (int)($req["max_total"] ?? 10000),
-        "context" => (int)($req["context"] ?? 5),
-        "attrs" => (string)($req["attrs"] ?? ""),
-        "client_ip" => (string)($req["client_ip"] ?? ""),
-        "request_time" => (string)($req["request_time"] ?? ""),
-        "request_id" => (string)($req["request_id"] ?? ""),
-        "user_agent" => (string)($req["user_agent"] ?? ""),
-    ];
-    if (@fwrite($fp, json_encode($wire, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n") === false) {
-        fclose($fp);
-        return ["ok" => false, "error" => "daemon socket write failed", "daemon_socket" => $daemonSocket, "_engine" => "daemon"];
-    }
-    $resp = "";
-    $started = microtime(true);
-    while (!feof($fp)) {
-        $line = fgets($fp);
-        if ($line === false) {
-            $meta = stream_get_meta_data($fp);
-            if (!empty($meta["timed_out"])) break;
-            usleep(10000);
-            if ((microtime(true) - $started) > 5.0) break;
-            continue;
-        }
-        $resp .= $line;
-        $probe = json_decode($resp, true);
-        if (is_array($probe)) {
-            fclose($fp);
-            $probe["_engine"] = "daemon";
-            return $probe;
-        }
-    }
-    fclose($fp);
-    return ["ok" => false, "error" => "daemon returned non-JSON", "daemon_socket" => $daemonSocket, "raw" => $resp, "_engine" => "daemon"];
-}
-
 function ffi_try(string $ffiHeader, string $ffiLib, string $projectRoot, string $indexDir, string $query, int $offset, int $limit, int $maxTotal, int $context, string $attrs): array {
     if (!class_exists("FFI")) return ["ok" => false, "error" => "PHP FFI extension/class not available", "_engine" => "ffi"];
     if (!is_file($ffiHeader)) return ["ok" => false, "error" => "FFI header not found", "ffi_header" => $ffiHeader, "_engine" => "ffi"];
@@ -483,11 +433,10 @@ $limit = req_int(["limit", "max"], 20);
 $context = req_int(["context", "window"], 5);
 $maxTotal = req_int(["max_total", "maxtotal"], 10000);
 $attrs = req_str(["attrs"], "");
-$mode = strtolower(req_str(["mode"], "daemon")); // daemon|ffi|cli|auto
+$mode = strtolower(req_str(["mode"], "ffi")); // ffi|cli|auto
 // Defaults are relative to this flexicorp checkout (this test page is not installed into TEITOK).
 $flexicorpRoot = dirname(__DIR__);
 $libExt = (PHP_OS_FAMILY === "Darwin") ? "dylib" : "so";
-$daemonSocket = req_str(["daemon_socket", "socket"], $flexicorpRoot . "/tmp/flexicorp-pando.sock");
 $allowCliFallback = req_str(["allow_cli_fallback", "cli_fallback"], "0") === "1";
 // the adapter: in flexicorp (older checkouts) or in its own repository next to it
 $adapterDir = is_dir($flexicorpRoot . "/flexicorp_pando") ? $flexicorpRoot . "/flexicorp_pando" : dirname($flexicorpRoot) . "/flexencoder/flexicorp_pando";
@@ -525,12 +474,7 @@ $req = [
 
 $result = null;
 $attempts = [];
-if ($mode === "daemon" || $mode === "auto") {
-    $r = daemon_try($daemonSocket, $req);
-    $attempts[] = $r;
-    if (($r["ok"] ?? false) || $mode === "daemon") $result = $r;
-}
-if ($result === null && ($mode === "ffi" || $mode === "auto")) {
+if ($mode === "ffi" || $mode === "auto") {
     $r = ffi_try($ffiHeader, $ffiLib, $projectRoot, $indexDir, $query, $offset, $limit, $maxTotal, $context, $attrs);
     $attempts[] = $r;
     if (($r["ok"] ?? false) || $mode === "ffi") $result = $r;
@@ -555,8 +499,8 @@ if (is_array($result) && ($result["ok"] ?? false) && $extractFragments && $proje
 
 $resultPayload = is_array($result) ? $result : [
     "ok" => false,
-    "error" => "No usable execution mode. Tried daemon/ffi; CLI fallback disabled or unavailable.",
-    "hint" => "Use mode=daemon, mode=ffi, or mode=auto&allow_cli_fallback=1.",
+    "error" => "No usable execution mode. Tried ffi; CLI fallback disabled or unavailable.",
+    "hint" => "Use mode=ffi, mode=cli, or mode=auto&allow_cli_fallback=1.",
     "_attempts" => $attempts,
 ];
 $resultPayload["_xidx_debug"] = $xidxDebug;
@@ -587,11 +531,9 @@ if (!headers_sent()) header("Content-Type: text/html; charset=utf-8");
   <div class="row"><label>Query</label><br /><input id="q" type="text" value="<?php echo fcpt_h($query); ?>" /></div>
   <div class="row"><label>Project root (needed for XML fragments)</label><br /><input id="project_root" type="text" value="<?php echo fcpt_h($projectRoot); ?>" /></div>
   <div class="row"><label>Index dir</label><br /><input id="index_dir" type="text" value="<?php echo fcpt_h($indexDir); ?>" /></div>
-  <div class="row"><label>Daemon socket</label><br /><input id="daemon_socket" type="text" value="<?php echo fcpt_h($daemonSocket); ?>" /></div>
   <div class="row">
     <label>Mode:
       <select id="mode">
-        <option value="daemon">daemon</option>
         <option value="ffi">ffi</option>
         <option value="cli">cli</option>
         <option value="auto">auto</option>
@@ -613,7 +555,6 @@ if (!headers_sent()) header("Content-Type: text/html; charset=utf-8");
         p.set('q', document.getElementById('q').value);
         p.set('project_root', document.getElementById('project_root').value);
         p.set('index_dir', document.getElementById('index_dir').value);
-        p.set('daemon_socket', document.getElementById('daemon_socket').value);
         p.set('extract_fragments', document.getElementById('extract_fragments').checked ? '1' : '0');
         p.set('context_scope', 's');
         p.set('context_format', 'xml');

@@ -2,8 +2,8 @@
 /**
  * flexicorp TEITOK UI: one shape for engine answers.
  *
- * Every route that runs a query or a program (FQS /run and /query, the local pando
- * CLI or daemon) hands its parsed answer to tt_fc_result_unwrap(); the array it
+ * Every route that runs a query or a program (FQS /run and /query, the local
+ * flexicorp-pando CLI) hands its parsed answer to tt_fc_result_unwrap(); the array it
  * returns is the `done.result` the browser receives. Before, each route peeled the
  * envelopes itself and lifted only tables and collocates out of
  * `{operation, result: {…}}`, so the hits of a named-query program
@@ -14,7 +14,7 @@ if ( !function_exists('tt_flexicorp_pando_top_level_looks_like_query_result') ) 
 	/**
 	 * True when flexicorp-pando returned native program JSON from run_program_json (multi-statement
 	 * scripts with ';') rather than the flexicorp envelope { success, done: { result } }.
-	 * Without this, daemon/CLI treat the call as failed (no top-level ok/success) and PHP
+	 * Without this, the CLI route treats the call as failed (no top-level ok/success) and PHP
 	 * leaves result empty so Stats (e.g. freq A, B, C by …) breaks.
 	 */
 	function tt_flexicorp_pando_top_level_looks_like_query_result( $a ) {

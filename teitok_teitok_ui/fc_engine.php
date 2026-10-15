@@ -4,7 +4,7 @@
  *
  * tt_fc_engine_route() picks the route — FQS /run (a program with an aggregation,
  * collocation, keyness or a frequency request), FQS /query (a plain query) or the local
- * engine (pando CLI/daemon, the flexicorp CLI for the other backends) — and
+ * engine (the flexicorp-pando CLI, the flexicorp CLI for the other backends) — and
  * tt_fc_engine_search() / tt_fc_engine_freq() / tt_fc_engine_coll() run it. Before, the
  * search and frequency branches of flexicorp.php each decided on their own, so a fix to
  * one route missed the other. The calls return the usual call envelope; its done.result
