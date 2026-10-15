@@ -892,6 +892,12 @@ sub fqs_jobs_running {
 	my $n = () = $j =~ /"job_id"/g;
 	return $n;
 }
+# the running FQS's process id ('' when none), to tell a restart from an FQS that kept running
+sub fqs_pid {
+	if ( $INIT eq 'systemd' ) { my $p = capture('systemctl show -p MainPID --value fqs'); return $p && $p ne '0' ? $p : ''; }
+	if ($MAC) { my ($p) = capture('launchctl print system/org.teitok.fqs') =~ /\bpid = (\d+)/; return $p // ''; }
+	return ( split /\n/, capture('pgrep -xo fqs') )[0] // '';
+}
 sub fqs_wait_health {
 	for ( 1 .. 30 ) { return 1 if capture('curl -sf -m 2 http://127.0.0.1:8787/health') ne ''; sleep 1; }
 	return 0;
@@ -910,15 +916,30 @@ sub fqs_restart {
 		}
 	}
 	step("Restart FQS ($why)");
-	my $done = 1;
-	if ( $INIT eq 'systemd' ) { run( 'systemctl restart fqs', 'systemctl daemon-reload && systemctl restart fqs', soft => 1 ); }
-	elsif ($MAC) { run( 'launchctl kickstart -k system/org.teitok.fqs', 'launchctl kickstart -k system/org.teitok.fqs', soft => 1 ); }
-	elsif ( -x "$PREFIX/sbin/teitok-fqs" ) { run( "$PREFIX/sbin/teitok-fqs restart", [ "$PREFIX/sbin/teitok-fqs", 'restart' ], soft => 1 ); }
+	my $before = fqs_pid();
+	my $done;
+	if ( $INIT eq 'systemd' ) { $done = run( 'systemctl restart fqs', 'systemctl daemon-reload && systemctl restart fqs', soft => 1 ); }
+	elsif ($MAC) { $done = run( 'launchctl kickstart -k system/org.teitok.fqs', 'launchctl kickstart -k system/org.teitok.fqs', soft => 1 ); }
+	elsif ( -x "$PREFIX/sbin/teitok-fqs" ) { $done = run( "$PREFIX/sbin/teitok-fqs restart", [ "$PREFIX/sbin/teitok-fqs", 'restart' ], soft => 1 ); }
 	else { warn_('FQS runs, but not through a start script this installer knows: restart it yourself'); $done = 0; }
+	my $up = $done && fqs_wait_health();
+	my $after = fqs_pid();
+	# a restart that did not happen (the command failed, or the old process kept running) must not
+	# look like one: the new files would only be loaded at the next restart
+	if ( $done && $before ne '' && $after eq $before ) {
+		warn_("FQS was not restarted (still process $before): restart it by hand (" . ( $INIT eq 'systemd' ? 'sudo systemctl restart fqs' : 'the FQS start script' ) . "); until then it runs the old files");
+		$done = 0;
+	} elsif ( !$done ) {
+		warn_("restarting FQS failed (see the log): restart it by hand; until then it runs the old files") if $INIT ne '' && ( $INIT eq 'systemd' || $MAC || -x "$PREFIX/sbin/teitok-fqs" );
+	} else {
+		$up ? say_("  FQS is up again (process $after)\n") : warn_("FQS did not answer on 127.0.0.1:8787 within 30 s (see /var/log/fqs/)");
+	}
 	if ($done) {
-		fqs_wait_health() ? say_("  FQS is up again\n") : warn_("FQS did not answer on 127.0.0.1:8787 within 30 s (see /var/log/fqs/)");
 		unlink $RESTART_PENDING;
 		$RESTARTED = 1;
+	} elsif ( open my $fh, '>', $RESTART_PENDING ) {   # the next run tries again
+		print $fh "$why\n";
+		close $fh;
 	}
 	return $done;
 }

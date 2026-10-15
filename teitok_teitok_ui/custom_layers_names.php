@@ -109,15 +109,17 @@ if ( ! function_exists( 'tt_cl_names_rewrite' ) ) {
 			uksort( $back, function ( $a, $b ) { return strlen( $b ) - strlen( $a ); } );   // one may extend another
 			$out = strtr( $out, $back );
 		}
-		if ( strpos( $out, "Unknown attribute 'my-" ) !== false ) {
+		// the error as pando wrote it; in flexicorp's JSON the quotes may be escaped (\u0027)
+		$q = "(?:'|\\\\u0027)";
+		if ( preg_match( "/Unknown attribute {$q}my-/", $out ) ) {
 			$hint = $folder === ''
 				? ' (log in to search your own labels)'
 				: ( $mine ? ' (your labels: ' . implode( ', ', array_keys( $mine ) ) . ')' : ' (you have no searchable labels yet: Custom layers, Make my labels searchable)' );
-			$out = preg_replace( "/(Unknown attribute 'my-[A-Za-z0-9\\-]*')/", '$1' . addcslashes( $hint, '\\$' ), $out );
+			$out = preg_replace( "/(Unknown attribute {$q}my-[A-Za-z0-9\\-]*{$q})/", '$1' . addcslashes( $hint, '\\$' ), $out );
 		}
-		if ( strpos( $out, "Unknown attribute 'private-" ) !== false ) {
-			$out = preg_replace( "/Unknown attribute 'private-([A-Za-z0-9\\-]*)'/",
-				"Unknown attribute: the labels of other users can be searched once they publish them", $out );
+		if ( preg_match( "/Unknown attribute {$q}private-/", $out ) ) {
+			$out = preg_replace( "/Unknown attribute {$q}private-[A-Za-z0-9\\-]*{$q}/",
+				'Unknown attribute: the labels of other users can be searched once they publish them', $out );
 		}
 		return $out;
 	}
@@ -148,7 +150,7 @@ if ( ! function_exists( 'tt_cl_names_rewrite' ) ) {
 		$used = tt_cl_names_used( $names, $texts );
 		tt_cl_names_apply_to_request( $folder, $names );
 		ob_start( function ( $out ) use ( $folder, $root, $used ) {
-			$mine = ( $folder !== '' && ( strpos( $out, tt_cl_overlay_prefix( $folder ) ) !== false || strpos( $out, "Unknown attribute '" ) !== false ) )
+			$mine = ( $folder !== '' && ( strpos( $out, tt_cl_overlay_prefix( $folder ) ) !== false || strpos( $out, 'Unknown attribute ' ) !== false ) )
 				? tt_cl_names_mine( $root, $folder ) : array();
 			return tt_cl_names_present( $out, $folder, $mine, $used );
 		} );

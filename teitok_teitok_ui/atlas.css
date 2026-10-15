@@ -1,0 +1,32 @@
+/* TEITOK action `atlas` (atlas.php / atlas.js) */
+[x-cloak] { display: none !important; }
+.tt-at-lead { max-width: 56rem; }
+.tt-at-note { color: #57606a; font-size: 0.9em; }
+.tt-at-error { color: #a40e26; margin: 0.4rem 0; }
+.tt-at-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9em; }
+.tt-at-grid { display: grid; grid-template-columns: minmax(18rem, 26rem) 1fr; gap: 1rem; align-items: start; }
+.tt-at-side label { display: block; margin: 0.3rem 0; }
+.tt-at-side h3 { font-size: 1rem; margin: 0.9rem 0 0.3rem; }
+.tt-at-side h3 small { color: #57606a; font-weight: normal; }
+.tt-at-values { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+.tt-at-values td { padding: 0.1rem 0.3rem; border-bottom: 1px solid #eef0f3; }
+.tt-at-values td.n, .tt-at-legend td.n, .leaflet-popup-content td.n { text-align: right; }
+.tt-at-values select { max-width: 11rem; }
+.tt-at-variant { display: flex; align-items: center; gap: 0.3rem; margin: 0.2rem 0; }
+.tt-at-variant input:first-of-type { width: 6.5rem; flex: none; }
+.tt-at-sw { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; flex: none; }
+.tt-at-row { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 0.6rem 0 0.3rem; }
+.tt-at-small { display: inline-block; width: auto; max-width: 11rem; }
+.tt-at-actions { margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.tt-at-mapwrap { position: sticky; top: 0.5rem; }
+.tt-at-map { height: 72vh; min-height: 22rem; border: 1px solid #d7dce1; border-radius: 4px; }
+.tt-at-legend { background: #fff; padding: 5px 8px; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,.3); font-size: 12px; line-height: 1.5; max-width: 45vw; }
+@media (max-width: 760px) {
+	.tt-at-grid { grid-template-columns: 1fr; }
+	.tt-at-mapwrap { position: static; }
+	.tt-at-map { height: 60vh; }
+}
+.tt-at-pie { background: none; border: 0; }
+.tt-at-pie svg { display: block; }
+.tt-at-share { margin-top: 4px; }
+.tt-at-share input { width: 100%; }
