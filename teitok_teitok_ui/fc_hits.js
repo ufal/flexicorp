@@ -738,6 +738,10 @@ window.ttFlexicorpCoreParts.hits = function () {
 		 * hit/row (query-scoped frequency, collocations, dcoll, etc. need a non-empty match set).
 		 */
 		statsSearchHasHits() {
+			// a program (named queries + freq, as a share link opening on a comparison) answers with its
+			// frequency table, not a hit list: rows there mean there were hits
+			const f = this.frequency;
+			if (f && f.ran && Array.isArray(f.rows) && f.rows.length > 0 && !this.callHasErrors(f.response)) return true;
 			if (!this.search || !this.search.ran) return false;
 			// errors only: a warning (e.g. a capped total) still leaves the hits to work with
 			if (this.callHasErrors(this.search.response)) return false;

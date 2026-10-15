@@ -7,6 +7,7 @@
 require_once __DIR__ . '/flexicorp_functions.php';
 require_once __DIR__ . '/fc_result.php';
 require_once __DIR__ . '/fc_engine.php';
+require_once __DIR__ . '/fc_fqs_warm.php';
 // custom layers: `my-<attribute>` in queries and fields is the user's own labels (custom_layers_names.php)
 if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	require_once __DIR__ . '/custom_layers_names.php';
@@ -6636,6 +6637,10 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				? 'current backend/query engine is not FQS-routed'
 				: (string)($fqsProbe['reason'] ?? 'FQS not ready')
 		);
+	// run=warm: the search page opened; FQS reads this corpus into its file cache (fc_fqs_warm.php)
+	if ( (string) ( $_REQUEST['run'] ?? '' ) === 'warm' ) {
+		tt_flexicorp_fqs_warm_reply( $fqsProbe, $fqsRouteEligible );
+	}
 	if ( !isset($GLOBALS['tt_flexicorp_debug_append']) || !is_array($GLOBALS['tt_flexicorp_debug_append']) ) {
 		$GLOBALS['tt_flexicorp_debug_append'] = array();
 	}
@@ -8534,7 +8539,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	// Parts of the root component (fc_<id>.js: FLEXICORP_CORE_PARTS in flexicorp.js, FLEXICORP_FREQS_PARTS in
 	// flexicorp_freqs.js): load before flexicorp.js.
 	$fcCoreParts = array(
-		'viewstate', 'backend', 'statsrouting', 'kwicview', 'requests', 'highlight', 'querystore', 'documents', 'hitdetail', 'hits',
+		'viewstate', 'backend', 'statsrouting', 'kwicview', 'requests', 'highlight', 'querystore', 'documents', 'hitdetail', 'hits', 'fqswarm',
 		'stats_fields', 'scope', 'stats_corpus', 'stats_freq', 'stats_tabs', 'stats_coll', 'stats_other', 'stats_values', 'stats_freqviz', 'stats_dispersion', 'stats_freqhits',
 	);
 	// Libraries the parts use (window.ttFlexicorp*): loaded first.

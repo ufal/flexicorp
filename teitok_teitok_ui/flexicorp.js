@@ -11,7 +11,7 @@ function flexicorpSplitSearchIntroHtml(html) {
 }
 
 /** Parts of the root component in fc_<id>.js, in mixing order (flexicorp.php loads them before this file). */
-const FLEXICORP_CORE_PARTS = ['viewstate', 'backend', 'statsrouting', 'kwicview', 'requests', 'highlight', 'querystore', 'documents', 'hitdetail', 'hits'];
+const FLEXICORP_CORE_PARTS = ['viewstate', 'backend', 'statsrouting', 'kwicview', 'requests', 'highlight', 'querystore', 'documents', 'hitdetail', 'hits', 'fqswarm'];
 
 function flexicorpApp() {
 	/** Mirrors tt_flexicorp_default_search_intro_html() when #flexicorp-initial-state omits searchIntroHtml (legacy shell / failed encode fallback). */
@@ -624,6 +624,7 @@ function flexicorpApp() {
 			this.updateSearchShareButtonVisibility();
 			this.syncFullscreenState();
 			this.initTeitokTokEditClicks();
+			this.fqsWarmCorpus();   // FQS reads the corpus while the user types (fc_fqswarm.js)
 			if (typeof document !== 'undefined' && !this._fullscreenListenerBound) {
 				const onFs = () => this.syncFullscreenState();
 				document.addEventListener('fullscreenchange', onFs);
