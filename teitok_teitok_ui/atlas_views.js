@@ -39,17 +39,25 @@
 
 	/** Per region: the counts of the places inside it (all places, also those under the minimum), for regions with enough hits. */
 	function regionRows(app, regions) {
-		const acc = regions.map(() => ({ counts: {}, places: [] }));
+		const acc = regions.map(() => ({ counts: {}, places: [], values: [] }));
 		for (const r of LIB().aggregate(app.counts, app.places, app.v.variants, 1)) {
 			const i = regions.findIndex((g) => G().inPolygons(g.polygons, r.lat, r.lon));
 			if (i < 0) continue;
 			acc[i].places.push(r.place);
+			acc[i].values.push(...r.values);
 			for (const [v, n] of Object.entries(r.counts)) acc[i].counts[v] = (acc[i].counts[v] || 0) + n;
 		}
 		return acc.map((a, i) => {
 			const s = LIB().summarize(a.counts);
-			return s.n >= app.minN ? { place: regions[i].name, places: a.places, ...s, index: i } : null;
+			return s.n >= app.minN ? { place: regions[i].name, places: a.places, values: a.values, ...s, index: i } : null;
 		});
+	}
+
+	/** A dialect area as one row: its places' counts summed, named after its variant. */
+	function areaRow(g) {
+		const counts = {};
+		for (const r of g.places) for (const [v, k] of Object.entries(r.counts)) counts[v] = (counts[v] || 0) + k;
+		return { place: `${g.variant} (${g.places.length} places)`, values: g.places.flatMap((r) => r.values || [r.place]), ...LIB().summarize(counts) };
 	}
 
 	const VIEWS = {
@@ -112,7 +120,7 @@
 			layers(app) {
 				const layers = this.groups(app).filter((g) => g.shape.length).map((g) => L.polygon(g.shape, {
 					color: '#222', weight: 2, fillColor: app.colour(g.variant), fillOpacity: 0.5,
-				}).bindPopup(`<b>${app.esc(g.variant)}</b>: most frequent in ${g.places.length} places<br><small>${g.places.map((r) => app.esc(r.place)).join(', ')}</small>`));
+				}).bindPopup(app.popup(areaRow(g)) + `<small>${g.places.map((r) => app.esc(r.place)).join(', ')}</small>`));
 				return { layers: layers.concat(dots(app)), note: placeNote(app) };
 			},
 			features(app) {

@@ -43,6 +43,7 @@ fqs/.env.local
 fqs/teitok-fqs-secret.env
 fqs/fqs.db
 fqs/*.db
+fqs/*.db.bak*
 fqs/limits.local.json
 # Runtime sidecar written by `fqs serve` (local db_path + url)
 fqs/fqs-http.json

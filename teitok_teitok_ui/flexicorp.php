@@ -8535,7 +8535,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	// flexicorp_freqs.js): load before flexicorp.js.
 	$fcCoreParts = array(
 		'viewstate', 'backend', 'statsrouting', 'kwicview', 'requests', 'highlight', 'querystore', 'documents', 'hitdetail', 'hits',
-		'stats_fields', 'scope', 'stats_corpus', 'stats_freq', 'stats_tabs', 'stats_coll', 'stats_other', 'stats_values', 'stats_freqviz', 'stats_dispersion',
+		'stats_fields', 'scope', 'stats_corpus', 'stats_freq', 'stats_tabs', 'stats_coll', 'stats_other', 'stats_values', 'stats_freqviz', 'stats_dispersion', 'stats_freqhits',
 	);
 	// Libraries the parts use (window.ttFlexicorp*): loaded first.
 	$fcLibs = array( 'planner', 'chart_sankey', 'chart_wordtree', 'chart_sunburst', 'chart_dispersion' );

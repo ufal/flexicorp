@@ -27,11 +27,18 @@ window.ttFlexicorpFreqsParts.stats_freqviz = function () {
 		frequencySankeyAvailable() {
 			return !this.frequencyHasCompareQueries() && this.frequencyFieldsArray().length === 2 && !!charts().sankey;
 		},
-		/** The word tree reads its fields as the following words, so only token attributes qualify. */
+		/**
+		 * The word tree reads its fields as the following words, so only token attributes qualify; and
+		 * one field only when it names another token (b.form: the words after the hit), not the hit's
+		 * own (form, match.lemma: its spellings, a list with no continuations).
+		 */
 		frequencyWordTreeAvailable() {
 			if (this.frequencyHasCompareQueries() || !charts().wordtree) return false;
 			const raw = this.frequencyRawFields();
-			return raw.length >= 1 && raw.every((f) => this.frequencyFieldIsTokenAttr(f));
+			if (!raw.length || !raw.every((f) => this.frequencyFieldIsTokenAttr(f))) return false;
+			if (raw.length > 1) return true;
+			const owner = raw[0].includes('.') ? raw[0].split('.')[0] : '';
+			return owner !== '' && owner !== 'match' && owner !== 'feats';
 		},
 		/** The frequency fields as the engine names them (text_id), not as displayed (frequencyFieldsArray: "text · id"). */
 		frequencyRawFields() {

@@ -47,7 +47,7 @@
 				c[v] = (c[v] || 0) + Number(n);
 			}
 			const s = summarize(c);
-			if (s.n >= minN) out.push({ place, lat: loc[0], lon: loc[1], ...s });
+			if (s.n >= minN) out.push({ place, lat: loc[0], lon: loc[1], values: loc[3] || [place], ...s });
 		}
 		return out.sort((a, b) => (a.place < b.place ? -1 : 1));
 	}
@@ -276,10 +276,26 @@
 				}
 				return { fillColor: this.colour(r.dominant), fillOpacity: solid || 0.15 + 0.55 * Math.max(0, (r.share - 0.3) / 0.7) };
 			},
+			/**
+			 * A place's or region's counts, with links into flexicorp: its name opens the query's own
+			 * distribution there (by the attribute that varies), each count that variant's hits there.
+			 */
 			popup(r) {
-				return `<b>${escapeHtml(r.place)}</b> (${r.n.toLocaleString()} hits)<table>` + this.v.variants.map((vv) => vv[0]).concat(['other']).map((v) =>
-					`<tr><td><span class="tt-at-sw" style="background:${this.colour(v)}"></span>${escapeHtml(v)}</td><td class="n">${r.counts[v] || 0}</td>`
-					+ `<td class="n">${Math.round(100 * (r.counts[v] || 0) / r.n)}%</td></tr>`).join('') + '</table>';
+				const S = window.ttAtlasShare, field = this.v.field || 'form', attr = this.settings.place;
+				const variants = this.v.variants.filter((vv) => vv[1]);
+				const link = (q, text, title) => (q ? `<a href="${escapeHtml(q)}" target="_blank" rel="noopener" title="${escapeHtml(title)}">${text}</a>` : text);
+				const all = S.areaQuery(this.v.query, attr, r.values, field);
+				const head = link(all && S.distributionLink(all, field), `<b>${escapeHtml(r.place)}</b>`, `the ${field} values of these hits, in Search`);
+				const row = (v) => {
+					const n = r.counts[v] || 0;
+					const vv = variants.find((x) => x[0] === v);
+					const q = n && S.areaQuery(this.v.query, attr, r.values, field, vv ? { pattern: vv[1] } : { not: variants.map((x) => x[1]) });
+					return `<tr><td><span class="tt-at-sw" style="background:${this.colour(v)}"></span>${escapeHtml(v)}</td>`
+						+ `<td class="n">${link(q && S.searchLink(q), String(n), `these ${n} hits, in Search`)}</td>`
+						+ `<td class="n">${Math.round(100 * n / r.n)}%</td></tr>`;
+				};
+				return `${head} (${link(all && S.searchLink(all), `${r.n.toLocaleString()} hits`, 'all these hits, in Search')})<table>`
+					+ this.v.variants.map((vv) => vv[0]).concat(['other']).map(row).join('') + '</table>';
 			},
 			viewOptions() { return window.ttAtlasViews ? window.ttAtlasViews.options(this.settings) : []; },
 			current() { return window.ttAtlasViews.view(this.view); },

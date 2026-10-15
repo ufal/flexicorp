@@ -81,8 +81,9 @@ if ( ! function_exists( 'tt_atlas_run' ) ) {
 			foreach ( tt_atlas_count_rows( $j['result'] ?? array() ) as $r ) {
 				if ( count( $r ) < 2 || ! isset( $table[ $r[0] ] ) ) continue;
 				list( $name, $lat, $lon ) = $table[ $r[0] ];
-				if ( ! isset( $out[ $name ] ) ) $out[ $name ] = array( $lat, $lon, 0 );
+				if ( ! isset( $out[ $name ] ) ) $out[ $name ] = array( $lat, $lon, 0, array() );
 				$out[ $name ][2] += $r[1];
+				$out[ $name ][3][] = $r[0];   // the attribute's values for this place (for links to its hits)
 			}
 			ksort( $out );
 			return $out;
@@ -94,7 +95,7 @@ if ( ! function_exists( 'tt_atlas_run' ) ) {
 			list( $place, $geo, $n ) = $r;
 			$p = tt_atlas_parse_geo( $geo );
 			if ( ! $p || $place === '' || $place === '_' ) continue;
-			if ( ! isset( $out[ $place ] ) ) $out[ $place ] = array( $p[0], $p[1], 0 );
+			if ( ! isset( $out[ $place ] ) ) $out[ $place ] = array( $p[0], $p[1], 0, array( $place ) );
 			$out[ $place ][2] += $n;
 		}
 		ksort( $out );

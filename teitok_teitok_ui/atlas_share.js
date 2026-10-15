@@ -2,7 +2,7 @@
  * atlas.php's share links (the page: atlas.js): a map's whole state (query, attribute, variants, view,
  * colour, minimum, cut at the border, and where the map is: centre and zoom) as one URL-safe string,
  * index.php?action=atlas&s=…, and back, checked, so a damaged or hand-made link cannot put anything odd
- * into the page.
+ * into the page. And links from the map to its hits in flexicorp's search (hitsLink).
  */
 (function () {
 	const MAX_VARIANTS = 30;
@@ -51,5 +51,46 @@
 		return { lat, lon, zoom };
 	}
 
-	window.ttAtlasShare = { encodeState, decodeState };
+	const PANDO = { b: 'pando', e: 'pando', l: 'pando-cql', f: 'pando' };
+	/** A value as a regular expression matching just itself, inside a CQL string. */
+	const regexLiteral = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/"/g, '\\"');
+
+	/**
+	 * The map's query restricted to an area: where the place attribute `attr` has one of `values` (a
+	 * place's values, or all those of a region), `query :: attr="(v1|v2|…)"` (with & when the query
+	 * has a :: part already). With `variant`, also to the hits whose `field` is that variant:
+	 * { pattern } (its whole-value pattern) or { not: [patterns] } ("other": none of them). That needs
+	 * the query's first token named (a: is added to a query starting with [); null when it cannot be.
+	 */
+	function areaQuery(query, attr, values, field, variant) {
+		const vals = [...new Set(values || [])].filter((v) => v !== '');
+		let q = String(query).trim();
+		const conds = [`${attr}="${vals.length === 1 ? regexLiteral(vals[0]) : `(${vals.map(regexLiteral).join('|')})`}"`];
+		if (variant) {
+			let name = (q.match(/^([A-Za-z_]\w*):\[/) || [])[1];
+			if (!name && q.startsWith('[')) { name = 'a'; q = `a:${q}`; }
+			if (!name) return null;
+			const pat = (p) => String(p).replace(/"/g, '\\"');
+			if (variant.not) {
+				const ps = variant.not.filter((p) => p);
+				if (ps.length) conds.push(`${name}.${field}!="(${ps.map(pat).join('|')})"`);
+			} else {
+				conds.push(`${name}.${field}="${pat(variant.pattern)}"`);
+			}
+		}
+		return /::/.test(q) ? `${q} & ${conds.join(' & ')}` : `${q} :: ${conds.join(' & ')}`;
+	}
+
+	/** flexicorp links in its own share format (viz=, as fc_viewstate.js): the hits of a query … */
+	function searchLink(query) {
+		return `index.php?action=flexicorp&viz=${toBase64Url(JSON.stringify({ s: 'fvs1', b: PANDO, q: { q: query }, u: { t: 'search' } }))}`;
+	}
+	/** … and its frequency distribution by `field`, as a table. */
+	function distributionLink(query, field) {
+		const st = { s: 'fvs1', b: PANDO, q: { q: query }, u: { t: 'frequency', s: 'freq' },
+			f: { f: field, ff: [field], l: 100, vm: 'table', cs: 'absolute', co: 'size', to: { asc: true }, m: ['count'] } };
+		return `index.php?action=flexicorp&viz=${toBase64Url(JSON.stringify(st))}`;
+	}
+
+	window.ttAtlasShare = { encodeState, decodeState, areaQuery, searchLink, distributionLink };
 })();

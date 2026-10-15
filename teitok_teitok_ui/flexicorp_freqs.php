@@ -2371,7 +2371,10 @@
 							<template x-for="(row, idx) in frequencyDisplayRows()" :key="idx">
 								<tr>
 									<template x-for="(colVal, cIdx) in $data.frequencyRowValuesArray(row)" :key="'fc-' + idx + '-' + cIdx">
-										<td x-text="colVal"></td>
+										<td>
+											<a x-show="$data.frequencyRowHitsUrl(row)" :href="$data.frequencyRowHitsUrl(row)" target="_blank" rel="noopener" title="{%Show these hits}" x-text="colVal"></a>
+											<span x-show="!$data.frequencyRowHitsUrl(row)" x-text="colVal"></span>
+										</td>
 									</template>
 									
 									<template x-if="!$data.frequencyHasCompareQueries()">
