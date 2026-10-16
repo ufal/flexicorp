@@ -14,6 +14,10 @@ pronouns, case and gender systems, inflection), as in the World Atlas of Languag
 Languages with similar profiles end up close together. Click a language for its nearest languages and
 what sets it apart; click a cell in the table for the examples behind it.</p>
 <div class="tt-ty-error" x-show="error" x-text="error"></div>
+<div class="tt-ty-warning" x-show="cannotCount">
+	<strong>The features cannot be counted on this server:</strong> <span x-text="cannotCount"></span>.
+	<span x-show="Object.values(features).some((f) => f.kept)">Features counted before are shown.</span>
+</div>
 <div x-show="loading">Loading…</div>
 <div class="tt-ty-layout" x-show="!loading && !error">
 	<aside class="tt-ty-side">

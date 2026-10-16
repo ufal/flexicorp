@@ -53,10 +53,13 @@ if ( $ttTyOp !== '' ) {
 	switch ( $ttTyOp ) {
 		case 'state':
 			$reply( array( 'ok' => true, 'settings' => $ttTyCfg, 'admin' => $ttTyAdmin,
+				'cannot_count' => tt_typology_cannot_count( $ttTyRoot ), 'via' => tt_fc_pando_route( $ttTyRoot )['via'],
 				'features' => tt_typology_catalogue( $ttTyRoot, $ttTyCfg['lang'] ) ) );
 		case 'feature':
 		case 'recompute':
 			if ( $ttTyOp === 'recompute' && ! $ttTyAdmin ) $fail( "only the corpus's administrators can count a feature again" );
+			$cannot = tt_typology_cannot_count( $ttTyRoot );
+			if ( $cannot !== '' && ( $ttTyOp === 'recompute' || ! is_file( tt_typology_cache_path( $ttTyRoot, $id, $ttTyCfg['lang'] ) ) ) ) $fail( $cannot );
 			$r = tt_typology_feature( $ttTyRoot, $id, $ttTyCfg['lang'], $ttTyOp === 'recompute' );
 			if ( is_string( $r ) ) $fail( $r );
 			$reply( array( 'ok' => true, 'id' => $id ) + $r );

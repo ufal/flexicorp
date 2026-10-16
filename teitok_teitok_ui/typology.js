@@ -28,6 +28,7 @@
 			boot,
 			loading: true,
 			error: '',
+			cannotCount: '',
 			settings: { lang: 'text_langcode', min_n: 30 },
 			admin: !!boot.admin,
 			features: {},
@@ -53,6 +54,7 @@
 				try {
 					const r = await this.post('state', {});
 					this.settings = r.settings;
+					this.cannotCount = r.cannot_count || '';
 					this.features = r.features;
 					this.minN = r.settings.min_n || 30;
 					const ids = Object.keys(this.features);
@@ -88,6 +90,8 @@
 			async loadSelected(force) {
 				for (const id of this.selected) {
 					if (data[id] && !force) continue;
+					// this server cannot count: only what was counted before (said once, above the views)
+					if (this.cannotCount && !(this.features[id] && this.features[id].kept)) continue;
 					this.status[id] = 'counting';
 					try {
 						const r = await this.post(force ? 'recompute' : 'feature', { id });

@@ -1,12 +1,13 @@
 <?php
 /**
- * typology.php's counting: a feature's program (typology_features.php) on the corpus's pando index
- * (the atlas's runner, atlas_engine.php), its answer as language → value → count, kept in the
- * project's tmp/typology/ (a profile changes only with the corpus; admins recompute it).
+ * typology.php's counting: a feature's program (typology_features.php) through FQS where it serves
+ * the corpus, else on the project's own pando index (fc_pando_run.php); its answer as language →
+ * value → count, kept in the project's tmp/typology/ (a profile changes only with the corpus; admins
+ * recompute it).
  */
 
 require_once __DIR__ . '/fc_teitok_env.php';
-require_once __DIR__ . '/atlas_engine.php';
+require_once __DIR__ . '/fc_pando_run.php';
 require_once __DIR__ . '/typology_features.php';
 
 if ( ! function_exists( 'tt_typology_counts' ) ) {
@@ -40,6 +41,11 @@ if ( ! function_exists( 'tt_typology_counts' ) ) {
 		return $out;
 	}
 
+	/** Why the features cannot be counted for the project ('' when they can: through FQS or locally). */
+	function tt_typology_cannot_count( $root ) {
+		return tt_fc_pando_route( $root )['why'];
+	}
+
 	/** Where a feature's counts are kept. */
 	function tt_typology_cache_path( $root, $id, $lang ) {
 		return rtrim( $root, '/' ) . "/tmp/typology/$lang-$id.json";
@@ -57,7 +63,7 @@ if ( ! function_exists( 'tt_typology_counts' ) ) {
 			$kept = json_decode( (string) file_get_contents( $path ), true );
 			if ( is_array( $kept ) && isset( $kept['counts'] ) ) return $kept;
 		}
-		$run = $run ?: function ( $program ) use ( $root ) { return tt_atlas_run( $root, $program ); };
+		$run = $run ?: function ( $program ) use ( $root ) { return tt_fc_pando_run( $root, $program ); };
 		if ( function_exists( 'set_time_limit' ) ) @set_time_limit( 600 );
 		if ( ! is_dir( dirname( $path ) ) ) @mkdir( dirname( $path ), 0775, true );
 		// one count at a time per feature: a second request waits and then reads the first one's result
