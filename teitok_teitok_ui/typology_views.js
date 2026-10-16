@@ -9,6 +9,34 @@
 	const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 	// group colours (colour-blind safe, Okabe–Ito), then grey
 	const COLOURS = ['#0072B2', '#E69F00', '#009E73', '#D55E00', '#CC79A7', '#56B4E9', '#F0E442', '#000000'];
+	/**
+	 * A standalone SVG: the caption lines on top (what it shows, how it was measured), the drawing below,
+	 * <title> / <desc> for the same text (for screen readers and for anyone who gets the file), a font
+	 * family so that the file renders the same elsewhere. Text stays text: labels are easy to correct.
+	 */
+	function frame(width, height, body, opts) {
+		// caption lines wrapped to the drawing's width (about 6 px per character at 11 px, 7.5 at 13 px)
+		const wrap = (line, size) => {
+			const max = Math.max(30, Math.floor((width - 16) / (size > 11 ? 7.5 : 6)));
+			const out = [];
+			let cur = '';
+			for (const w of String(line).split(' ')) {
+				if (cur && (cur + ' ' + w).length > max) { out.push(cur); cur = w; } else cur = cur ? cur + ' ' + w : w;
+			}
+			if (cur) out.push(cur);
+			return out;
+		};
+		const given = (opts && opts.caption) || [];
+		const lines = [];
+		const first = [];
+		given.forEach((l, i) => wrap(l, i ? 11 : 13).forEach((w, k) => { lines.push(w); first.push(i === 0); }));
+		const capH = lines.length ? lines.length * 16 + 10 : 0;
+		const cap = lines.map((l, i) => `<text x="8" y="${16 + i * 16}" font-size="${first[i] ? 13 : 11}" font-weight="${first[i] ? 700 : 400}" fill="${first[i] ? '#121a24' : '#3a4654'}" class="tt-ty-caption">${esc(l)}</text>`).join('');
+		const title = given[0] ? `<title>${esc(given[0])}</title>` : '';
+		const desc = given.length > 1 ? `<desc>${esc(given.slice(1).join('\n'))}</desc>` : '';
+		return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height + capH}" width="${opts && opts.fixedWidth ? width : '100%'}" font-family="Helvetica, Arial, sans-serif" class="tt-ty-svg">${title}${desc}<rect width="${width}" height="${height + capH}" fill="#fff"/>${cap}<g transform="translate(0,${capH})">${body}</g></svg>`;
+	}
+
 	const colour = (g) => (g === undefined || g === null || g < 0 ? '#888888' : COLOURS[g % COLOURS.length]);
 
 	/**
@@ -38,11 +66,12 @@
 		order.forEach((leaf) => {
 			parts.push(`<text x="${x(0) + 6}" y="${yOf[leaf] + 4}" fill="${colour(opts.groups && opts.groups[leaf])}" data-lang="${esc(opts.codes[leaf])}" class="tt-ty-lang">${esc(opts.labels[leaf])}</text>`);
 		});
-		// the distance scale
+		// the distance scale, with its title
 		const axisY = height - 12;
 		parts.push(`<line x1="${x(maxH)}" y1="${axisY}" x2="${x(0)}" y2="${axisY}" stroke="#999"/>`);
 		[0, 0.5, 1].forEach((f) => parts.push(`<text x="${x(maxH * f)}" y="${axisY + 11}" font-size="10" fill="#666" text-anchor="middle">${(maxH * f * 2).toFixed(2)}</text>`));
-		return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="100%" class="tt-ty-svg">${parts.join('')}</svg>`;
+		parts.push(`<text x="${(x(maxH) + x(0)) / 2}" y="${axisY + 24}" font-size="11" fill="#3a4654" text-anchor="middle" class="tt-ty-axis">${esc(opts.axis || 'distance between the groups joined')}</text>`);
+		return frame(width, height + 16, parts.join(''), opts);
 	}
 
 	/** Languages as points in 2D (the MDS coordinates), labelled and coloured by group. */
@@ -60,7 +89,9 @@
 			parts.push(`<circle cx="${sx(c[0]).toFixed(1)}" cy="${sy(c[1]).toFixed(1)}" r="${hl ? 6 : 4}" fill="${col}" fill-opacity="0.8"/>`);
 			parts.push(`<text x="${(sx(c[0]) + 6).toFixed(1)}" y="${(sy(c[1]) + 4).toFixed(1)}" font-size="${hl ? 13 : 11}" font-weight="${hl ? 700 : 400}" fill="${col}" data-lang="${esc(opts.codes[i])}" class="tt-ty-lang">${esc(opts.labels[i])}</text>`);
 		});
-		return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" class="tt-ty-svg">${parts.join('')}</svg>`;
+		parts.push(`<text x="${W / 2}" y="${H - 8}" font-size="11" fill="#3a4654" text-anchor="middle" class="tt-ty-axis">${esc(opts.axis || 'dimension 1')}</text>`);
+		parts.push(`<text transform="translate(14,${H / 2}) rotate(-90)" font-size="11" fill="#3a4654" text-anchor="middle" class="tt-ty-axis">${esc(opts.axis2 || 'dimension 2')}</text>`);
+		return frame(W, H, parts.join(''), opts);
 	}
 
 	/** The similarity matrix in tree order: darker = more similar; hover shows the pair and the distance. */
@@ -83,8 +114,13 @@
 			});
 			if (cell >= 8) parts.push(`<text transform="translate(${labelW + r * cell + cell - 2},${labelW - 4}) rotate(-90)" font-size="${Math.min(11, cell)}">${esc(opts.labels[i])}</text>`);
 		});
-		return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${Math.min(size, opts.width || 760)}" class="tt-ty-svg">${parts.join('')}</svg>`;
+		// the colour scale, with its title
+		const lg = 160, ly = size + 14;
+		for (let k = 0; k <= 10; k += 1) parts.push(`<rect x="${labelW + k * (lg / 11)}" y="${ly}" width="${lg / 11 + 0.5}" height="10" fill="rgba(0, 114, 178, ${(1 - k / 10).toFixed(2)})"/>`);
+		parts.push(`<text x="${labelW}" y="${ly + 22}" font-size="10" fill="#666">0</text><text x="${labelW + lg}" y="${ly + 22}" font-size="10" fill="#666" text-anchor="end">${max.toFixed(2)}</text>`);
+		parts.push(`<text x="${labelW + lg + 10}" y="${ly + 9}" font-size="11" fill="#3a4654" class="tt-ty-axis">${esc(opts.axis || 'distance (darker = more similar)')}</text>`);
+		return frame(size, size + 40, parts.join(''), Object.assign({}, opts, { fixedWidth: false }));
 	}
 
-	window.ttTypologyViews = { dendrogram, space, matrix, colour };
+	window.ttTypologyViews = { dendrogram, space, matrix, colour, frame };
 })();

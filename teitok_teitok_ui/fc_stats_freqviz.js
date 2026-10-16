@@ -218,7 +218,9 @@ window.ttFlexicorpFreqsParts.stats_freqviz = function () {
 		downloadFrequencySvg() {
 			const svg = document.querySelector('#flexicorp-freq-svg svg');
 			if (!svg) return;
-			const blob = new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' });
+			// with a caption saying what it shows (fc_stats_svgexport.js)
+			const text = typeof this.frequencySvgWithCaption === 'function' ? this.frequencySvgWithCaption(svg) : new XMLSerializer().serializeToString(svg);
+			const blob = new Blob([text], { type: 'image/svg+xml' });
 			const a = document.createElement('a');
 			a.href = URL.createObjectURL(blob);
 			a.download = `${typeof this.frequencyChartExportBasename === 'function' ? this.frequencyChartExportBasename() : 'frequency'}.svg`;

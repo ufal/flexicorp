@@ -7,7 +7,7 @@
  * visitor's, so the call to FQS is signed as admin (no visitor limits on a whole-corpus count); the
  * result is cached by the caller.
  *
- *   tt_fc_pando_run( $root, $program ) → pando's JSON answer (array) or an error message (string)
+ *   tt_fc_pando_run( $root, $program[, $timeout, $role] ) → pando's JSON answer (array) or an error message
  *   tt_fc_pando_route( $root )         → array( 'via' => 'fqs' | 'local' | '', 'why' => …, … )
  */
 
@@ -44,7 +44,9 @@ if ( ! function_exists( 'tt_fc_pando_route' ) ) {
 				'content' => (string) $payload, 'timeout' => $timeout, 'ignore_errors' => true ) ) );
 			$raw = @file_get_contents( $url, false, $ctx );
 			$status = 0;
-			foreach ( $http_response_header ?? array() as $h ) if ( preg_match( '#^HTTP/\S+\s+(\d+)#', $h, $m ) ) $status = (int) $m[1];
+			// PHP 8.4+: http_get_last_response_headers(); before: the local $http_response_header
+			$hdrs = function_exists( 'http_get_last_response_headers' ) ? ( http_get_last_response_headers() ?? array() ) : ( $http_response_header ?? array() );
+			foreach ( $hdrs as $h ) if ( preg_match( '#^HTTP/\S+\s+(\d+)#', $h, $m ) ) $status = (int) $m[1];
 		}
 		return array( 'status' => $raw === false ? 0 : $status, 'data' => is_string( $raw ) ? json_decode( $raw, true ) : null );
 	}
@@ -71,12 +73,15 @@ if ( ! function_exists( 'tt_fc_pando_route' ) ) {
 		return $memo[ $key ] = array( 'via' => '', 'why' => "$fqsWhy, and $localWhy" );
 	}
 
-	/** Run a pando program for the project: its JSON answer, or an error message. */
-	function tt_fc_pando_run( $root, $program, $timeout = 600 ) {
+	/**
+	 * Run a pando program for the project: its JSON answer, or an error message. $role: whose limits
+	 * FQS applies (admin for fixed, server-side programs; the user's role for queries a user wrote).
+	 */
+	function tt_fc_pando_run( $root, $program, $timeout = 600, $role = 'admin' ) {
 		$route = tt_fc_pando_route( $root );
 		if ( $route['via'] === 'fqs' ) {
 			$r = tt_fc_http_json( 'POST', $route['url'] . '/run', array( 'corpus' => $route['corpus'], 'cql' => $program ),
-				tt_fqs_bearer_headers( 'admin', 'teitok-lens', 120 ), $timeout );
+				tt_fqs_bearer_headers( $role, 'teitok-lens', 120 ), $timeout );
 			$j = $r['data'];
 			if ( ! is_array( $j ) ) return 'FQS gave no answer (HTTP ' . $r['status'] . ')';
 			if ( ( $j['ok'] ?? true ) === false || $r['status'] >= 400 ) {

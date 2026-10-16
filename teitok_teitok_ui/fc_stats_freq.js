@@ -1114,6 +1114,9 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 				if (epoch !== this._frequencyChartEpoch || this.frequencyChartInstance !== ch) return;
 				try {
 					ch.resize();
+					// axis titles saying what is counted (fc_stats_svgexport.js): after the first layout, not
+					// at creation (an update before it breaks the chart)
+					if (typeof this.frequencyChartApplyAxisTitles === 'function') this.frequencyChartApplyAxisTitles();
 				} catch (_) {
 					/* ignore */
 				}

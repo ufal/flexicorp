@@ -2,13 +2,15 @@
 /**
  * typology.php's counting: a feature's program (typology_features.php) through FQS where it serves
  * the corpus, else on the project's own pando index (fc_pando_run.php); its answer as language →
- * value → count, kept in the project's tmp/typology/ (a profile changes only with the corpus; admins
- * recompute it).
+ * value → count, kept in the project's tmp/typology/ under the feature's id and a fingerprint of its
+ * program (a feature edited, or other attribute names, is counted afresh; admins can recount).
+ * Features: the built-in ones, the corpus's and a user's own (typology_store.php).
  */
 
 require_once __DIR__ . '/fc_teitok_env.php';
 require_once __DIR__ . '/fc_pando_run.php';
 require_once __DIR__ . '/typology_features.php';
+require_once __DIR__ . '/typology_store.php';
 
 if ( ! function_exists( 'tt_typology_counts' ) ) {
 	/**
@@ -46,64 +48,92 @@ if ( ! function_exists( 'tt_typology_counts' ) ) {
 		return tt_fc_pando_route( $root )['why'];
 	}
 
-	/** Where a feature's counts are kept. */
-	function tt_typology_cache_path( $root, $id, $lang ) {
-		return rtrim( $root, '/' ) . "/tmp/typology/$lang-$id.json";
+	/** Where a feature's counts are kept: its id and a fingerprint of its program. */
+	function tt_typology_cache_path( $root, $id, array $feat, $lang ) {
+		$fp = substr( sha1( tt_typology_program( $feat, $lang ) ), 0, 10 );
+		return rtrim( $root, '/' ) . "/tmp/typology/$lang-$id-$fp.json";
 	}
 
 	/**
 	 * A feature's counts: kept ones, or counted now ($force: count again). array('counts', 'computed',
-	 * 'seconds') or an error message. $run: the program runner (tests pass their own).
+	 * 'seconds', 'missing'?) or an error message. $role: whose limits apply at FQS (admin for the
+	 * built-in and the corpus's features, the user's own role for their features). $run: the program
+	 * runner (tests pass their own).
 	 */
-	function tt_typology_feature( $root, $id, $lang, $force = false, $run = null ) {
-		$feats = tt_typology_features();
-		if ( ! isset( $feats[ $id ] ) ) return 'unknown feature';
-		$path = tt_typology_cache_path( $root, $id, $lang );
+	function tt_typology_count( $root, $id, array $feat, $lang, $force = false, $run = null, $role = 'admin' ) {
+		$path = tt_typology_cache_path( $root, $id, $feat, $lang );
 		if ( ! $force && is_file( $path ) ) {
 			$kept = json_decode( (string) file_get_contents( $path ), true );
 			if ( is_array( $kept ) && isset( $kept['counts'] ) ) return $kept;
 		}
-		$run = $run ?: function ( $program ) use ( $root ) { return tt_fc_pando_run( $root, $program ); };
+		$run = $run ?: function ( $program ) use ( $root, $role ) { return tt_fc_pando_run( $root, $program, 600, $role ); };
 		if ( function_exists( 'set_time_limit' ) ) @set_time_limit( 600 );
 		if ( ! is_dir( dirname( $path ) ) ) @mkdir( dirname( $path ), 0775, true );
 		// one count at a time per feature: a second request waits and then reads the first one's result
 		$lock = @fopen( $path . '.lock', 'c' );
 		if ( $lock ) flock( $lock, LOCK_EX );
+		$unlock = function () use ( $lock ) { if ( $lock ) { flock( $lock, LOCK_UN ); fclose( $lock ); } };
 		clearstatcache();
 		if ( ! $force && is_file( $path ) ) {
 			$kept = json_decode( (string) file_get_contents( $path ), true );
-			if ( is_array( $kept ) && isset( $kept['counts'] ) ) {
-				if ( $lock ) { flock( $lock, LOCK_UN ); fclose( $lock ); }
-				return $kept;
-			}
+			if ( is_array( $kept ) && isset( $kept['counts'] ) ) { $unlock(); return $kept; }
 		}
 		$t0 = microtime( true );
-		$answer = $run( tt_typology_program( $feats[ $id ], $lang ) );
-		// an attribute the corpus does not have (no feats layer): the feature is not annotated here
+		$answer = $run( tt_typology_program( $feat, $lang ) );
+		// an attribute the corpus does not have (no feats layer): not annotated here — kept as such, so it
+		// is not asked again on every visit
+		$missing = '';
 		if ( is_string( $answer ) && preg_match( "/field '([^']+)': unknown token or region attribute/", $answer, $m ) ) {
-			$answer = "not annotated in this corpus (no {$m[1]})";
+			$missing = "not annotated in this corpus (no {$m[1]})";
+			$answer = array( 'result' => array( 'rows' => array() ) );
 		}
-		if ( is_string( $answer ) ) {
-			if ( $lock ) { flock( $lock, LOCK_UN ); fclose( $lock ); }
-			return $answer;
-		}
-		$out = array( 'counts' => (object) tt_typology_counts( $feats[ $id ], $answer ), 'computed' => date( 'c' ),
-			'seconds' => round( microtime( true ) - $t0, 1 ) );
+		if ( is_string( $answer ) ) { $unlock(); return $answer; }
+		$counts = tt_typology_counts( $feat, $answer );
+		// the queries ran but matched nothing: they need annotation this corpus lacks (PronType, VerbForm, …)
+		if ( $missing === '' && ! $counts ) $missing = 'nothing to count in this corpus' . ( ! empty( $feat['note'] ) ? ' (' . rtrim( $feat['note'], '.' ) . ')' : '' );
+		$out = array( 'counts' => (object) $counts, 'computed' => date( 'c' ), 'seconds' => round( microtime( true ) - $t0, 1 ) );
+		if ( $missing !== '' ) $out['missing'] = $missing;
 		@file_put_contents( $path . '.tmp', json_encode( $out, JSON_UNESCAPED_UNICODE ) );
 		@rename( $path . '.tmp', $path );
-		if ( $lock ) { flock( $lock, LOCK_UN ); fclose( $lock ); }
+		$unlock();
 		return $out;
 	}
 
-	/** The catalogue as the page needs it: id → wals, title, group, kind, variants' names and queries, note. */
-	function tt_typology_catalogue( $root, $lang ) {
+	/** A built-in feature's counts (no attribute names, no own features): as tt_typology_count. */
+	function tt_typology_feature( $root, $id, $lang, $force = false, $run = null ) {
+		$feats = tt_typology_features();
+		if ( ! isset( $feats[ $id ] ) ) return 'unknown feature';
+		return tt_typology_count( $root, $id, $feats[ $id ], $lang, $force, $run );
+	}
+
+	/** The kept counts of several features at once (only reads; features not counted yet are left out). */
+	function tt_typology_kept( $root, array $features, array $ids, $lang ) {
 		$out = array();
-		foreach ( tt_typology_features() as $id => $f ) {
+		foreach ( $ids as $id ) {
+			if ( ! is_string( $id ) || ! isset( $features[ $id ] ) ) continue;
+			$path = tt_typology_cache_path( $root, $id, $features[ $id ], $lang );
+			if ( ! is_file( $path ) ) continue;
+			$kept = json_decode( (string) file_get_contents( $path ), true );
+			if ( is_array( $kept ) && isset( $kept['counts'] ) ) $out[ $id ] = $kept;
+		}
+		return $out;
+	}
+
+	/**
+	 * The catalogue as the page needs it: id → wals, title, group, kind, variants (name, query), pos,
+	 * feat, note, origin (builtin | corpus | mine), the program, and whether its counts are kept.
+	 * $features: from tt_typology_merged() (default: the built-in ones).
+	 */
+	function tt_typology_catalogue( $root, $lang, ?array $features = null ) {
+		$features = $features ?? tt_typology_features();
+		$out = array();
+		foreach ( $features as $id => $f ) {
 			$out[ $id ] = array(
-				'id' => $id, 'wals' => $f['wals'], 'title' => $f['title'], 'group' => $f['group'], 'kind' => $f['kind'],
+				'id' => $id, 'wals' => $f['wals'] ?? '', 'title' => $f['title'], 'group' => $f['group'] ?? 'other', 'kind' => $f['kind'],
 				'variants' => array_map( function ( $v ) { return array( 'name' => $v[0], 'query' => $v[1] ); }, $f['variants'] ?? array() ),
 				'pos' => $f['pos'] ?? '', 'feat' => $f['feat'] ?? '', 'note' => $f['note'] ?? '',
-				'kept' => is_file( tt_typology_cache_path( $root, $id, $lang ) ),
+				'origin' => $f['origin'] ?? 'builtin', 'program' => tt_typology_program( $f, $lang ),
+				'kept' => is_file( tt_typology_cache_path( $root, $id, $f, $lang ) ),
 			);
 		}
 		return $out;

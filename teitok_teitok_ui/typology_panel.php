@@ -22,6 +22,8 @@ what sets it apart; click a cell in the table for the examples behind it.</p>
 <div class="tt-ty-layout" x-show="!loading && !error">
 	<aside class="tt-ty-side">
 		<h3>Features</h3>
+HTML
+		. tt_typology_editor_tools_html() . <<<'HTML'
 		<template x-for="g in featureGroups()" :key="g.key">
 			<div class="tt-ty-group">
 				<div class="tt-ty-group-title" x-text="g.label"></div>
@@ -30,6 +32,8 @@ what sets it apart; click a cell in the table for the examples behind it.</p>
 						<input type="checkbox" :checked="isSelected(f.id)" @change="toggle(f.id)">
 						<span x-text="f.title"></span>
 						<small x-show="f.wals" x-text="'WALS ' + f.wals"></small>
+						<small class="tt-ty-origin" x-show="originLabel(f)" x-text="originLabel(f)"></small>
+						<button type="button" class="tt-ty-edit" @click.prevent="edit(f.id)" title="Its queries: see, change, keep as your own">✎</button>
 						<small class="tt-ty-busy" x-show="status[f.id] === 'counting'">counting…</small>
 						<small class="tt-ty-err" x-show="(status[f.id] || '').startsWith('error')" x-text="status[f.id]"></small>
 						<small class="tt-ty-na" x-show="(status[f.id] || '').startsWith('n/a')" x-text="(status[f.id] || '').slice(5)"></small>
@@ -38,7 +42,10 @@ what sets it apart; click a cell in the table for the examples behind it.</p>
 				</template>
 			</div>
 		</template>
+HTML
+		. tt_typology_hidden_html() . <<<'HTML'
 		<h3>Languages</h3>
+		<button type="button" class="tt-ty-names-btn" @click="openNames()" x-show="m()">Language names<span x-show="namesMissing()" x-text="' (' + namesMissing() + ' without)'"></span></button>
 		<label class="tt-ty-field">Only these (codes)
 			<input type="text" x-model.debounce.600ms="langFilter" @input.debounce.600ms="rebuild()" placeholder="all, e.g. en de nl ja">
 		</label>
@@ -55,6 +62,15 @@ what sets it apart; click a cell in the table for the examples behind it.</p>
 			<button type="button" :class="{ on: view === 'space' }" @click="view = 'space'; rebuild()">Similarity space</button>
 			<button type="button" :class="{ on: view === 'matrix' }" @click="view = 'matrix'">Similarity matrix</button>
 			<button type="button" :class="{ on: view === 'table' }" @click="view = 'table'">Feature table</button>
+			<select class="tt-ty-download" @change="if ($event.target.value) { download($event.target.value); $event.target.value = ''; }" title="Download this view, or the data behind it">
+				<option value="">Download…</option>
+				<option value="svg" x-show="view !== 'table'">Drawing (SVG: text, easy to edit)</option>
+				<option value="png" x-show="view !== 'table'">Picture (PNG)</option>
+				<option value="newick">Tree (Newick: R ape, iTOL, SplitsTree)</option>
+				<option value="distances">Distances (CSV)</option>
+				<option value="space">Similarity space coordinates (CSV)</option>
+				<option value="table">Feature table (CSV)</option>
+			</select>
 			<button type="button" class="tt-ty-share" @click="copyShare()" x-text="copied ? 'Link copied' : 'Share'"></button>
 		</div>
 		<div class="tt-ty-summary" x-show="m()">
@@ -80,8 +96,8 @@ what sets it apart; click a cell in the table for the examples behind it.</p>
 		<div class="tt-ty-view" x-show="view !== 'table'" x-html="svg" @click="onSvgClick($event)"></div>
 		<div class="tt-ty-table-wrap" x-show="view === 'table' && m()">
 			<table class="tt-ty-table">
-				<thead><tr><th>Language</th>
-					<template x-for="id in (m() ? m().ids : [])" :key="'h' + id"><th :title="features[id].note" x-text="features[id].title"></th></template>
+				<thead><tr><th class="tt-ty-sort" @click="sortBy('lang')" title="Sort by language (again: the other way; a third time: the dendrogram's order)" x-text="'Language' + sortMark('lang')"></th>
+					<template x-for="id in (m() ? m().ids : [])" :key="'h' + id"><th class="tt-ty-sort" @click="sortBy(id)" :title="features[id].note + ' — click to sort'" x-text="features[id].title + sortMark(id)"></th></template>
 				</tr></thead>
 				<tbody>
 					<template x-for="l in tableLangs()" :key="'r' + l">
@@ -103,6 +119,7 @@ what sets it apart; click a cell in the table for the examples behind it.</p>
 		Orders follow WALS's rule: an order is dominant when it is at least twice as frequent as the next.</p>
 	</section>
 </div>
-HTML;
+HTML
+		. tt_typology_editor_html();
 	}
 }

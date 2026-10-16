@@ -2217,6 +2217,7 @@
 									</div>
 									<div class="flexicorp-freq-viz-toolbar flexicorp-freq-export-toolbar flexicorp-freq-viz-toolbar--inline" x-show="frequencyVizMode !== 'table' && !frequencyVizSvgMode() && frequencyChartLibraryAvailable()">
 										<span class="flexicorp-inline-label">Export</span>
+										<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="downloadFrequencyChartSVG()" title="Download the chart as SVG: text throughout, with a caption saying what it shows (easy to edit)">SVG</button>
 										<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="downloadFrequencyChartPNG()" title="Download chart as PNG">PNG</button>
 										<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="downloadFrequencyChartJPEG()" title="Download chart as JPEG">JPEG</button>
 										<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="downloadFrequencyChartPDF()" title="Download chart as PDF (or print dialog if PDF library fails)">PDF</button>
@@ -2579,6 +2580,7 @@
 									</div>
 									<div class="flexicorp-freq-viz-toolbar flexicorp-freq-export-toolbar flexicorp-freq-viz-toolbar--inline" x-show="collocationVizMode !== 'table' && frequencyChartLibraryAvailable()">
 										<span class="flexicorp-inline-label">Export</span>
+										<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="downloadCollocationChartSVG()" title="Download the chart as SVG: text throughout, with a caption saying what it shows (easy to edit)">SVG</button>
 										<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="downloadCollocationChartPNG()" title="Download chart as PNG">PNG</button>
 										<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="downloadCollocationChartJPEG()" title="Download chart as JPEG">JPEG</button>
 										<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="downloadCollocationChartPDF()" title="Download chart as PDF (or print dialog if PDF library fails)">PDF</button>

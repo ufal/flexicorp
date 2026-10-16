@@ -409,6 +409,9 @@ window.ttFlexicorpFreqsParts.stats_coll = function () {
 				if (epoch !== this._collocationChartEpoch || this.collocationChartInstance !== ch) return;
 				try {
 					ch.resize();
+					// axis titles saying what is measured (fc_stats_svgexport.js): after the first layout, not
+					// at creation (an update before it breaks the chart)
+					if (typeof this.collocationChartApplyAxisTitles === 'function') this.collocationChartApplyAxisTitles();
 				} catch (_) {
 					/* ignore */
 				}

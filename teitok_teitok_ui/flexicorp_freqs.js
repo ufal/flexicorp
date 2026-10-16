@@ -3,7 +3,7 @@
  * Merged into flexicorpApp via flexicorpFreqsExtend (see flexicorp.js). This file holds the Stats state;
  * the methods are in fc_<id>.js (FLEXICORP_FREQS_PARTS), loaded before flexicorp.js.
  */
-const FLEXICORP_FREQS_PARTS = ['stats_fields', 'scope', 'stats_corpus', 'stats_freq', 'stats_tabs', 'stats_coll', 'stats_other', 'stats_values', 'stats_freqviz', 'stats_dispersion', 'stats_freqhits'];
+const FLEXICORP_FREQS_PARTS = ['stats_fields', 'scope', 'stats_corpus', 'stats_freq', 'stats_tabs', 'stats_coll', 'stats_other', 'stats_values', 'stats_freqviz', 'stats_dispersion', 'stats_freqhits', 'stats_svgexport'];
 
 window.flexicorpFreqsExtend = function flexicorpFreqsExtend() {
 	const _freqsState = {

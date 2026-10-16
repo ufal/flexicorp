@@ -24,7 +24,7 @@
 		// them many times); `version` tells the page when they changed
 		const data = {};       // featureId → lang → value → count
 		let model = null;      // { ids, prof, langs, dist, tree, order, groups, coords }
-		return {
+		const app = {
 			boot,
 			loading: true,
 			error: '',
@@ -38,12 +38,35 @@
 			minN: 30,
 			minFeatures: 8,
 			minFromShare: false,
+			sortKey: '',        // the feature table's sort column ('' = the dendrogram's order)
+			sortDesc: false,
 			groupsK: 6,
 			view: 'dendrogram',
 			langFilter: '',
 			focus: '',
 			svg: '',
 			copied: false,
+
+			/** The server's state: features (with origin and program), attribute names, hidden ones. */
+			applyState(r) {
+				this.settings = r.settings || this.settings;
+				this.cannotCount = r.cannot_count || '';
+				this.features = r.features || {};
+				this.attributes = r.attributes || {};
+				this.corpusAttributes = r.corpus_attributes || {};
+				this.myAttributes = r.my_attributes || {};
+				this.hidden = r.hidden || [];
+				this.names = r.names || {};
+				this.selected = this.selected.filter((id) => this.features[id]);
+			},
+			attributes: {},
+			corpusAttributes: {},
+			myAttributes: {},
+			hidden: [],
+			names: {},          // language code → name (kept for the user or the corpus)
+			namesOpen: false,
+			namesEdit: {},
+			originLabel(f) { return { corpus: 'corpus', mine: 'mine' }[f.origin] || ''; },
 
 			/** The current model (re-read by the page when `version` changes). */
 			m() { return this.version >= 0 ? model : null; },
@@ -53,9 +76,7 @@
 				const st = this.decodeShare(boot.s);
 				try {
 					const r = await this.post('state', {});
-					this.settings = r.settings;
-					this.cannotCount = r.cannot_count || '';
-					this.features = r.features;
+					this.applyState(r);
 					this.minN = r.settings.min_n || 30;
 					const ids = Object.keys(this.features);
 					this.selected = st && Array.isArray(st.f) ? st.f.filter((id) => this.features[id]) : ids;
@@ -66,6 +87,7 @@
 						if (st.v) this.view = String(st.v);
 						if (st.l) this.langFilter = String(st.l);
 						if (st.x) this.focus = String(st.x);
+						if (st.o) { const o = String(st.o); this.sortDesc = o.startsWith('-'); this.sortKey = o.replace(/^-/, ''); }
 					}
 				} catch (e) {
 					this.error = String(e.message || e);
@@ -77,17 +99,34 @@
 				this.$watch('view', () => this.draw());
 			},
 
-			async post(op, body) {
+			/** A request to the page's server side; `write`: with the page's token (keeping features). */
+			async post(op, body, write) {
+				const headers = { 'Content-Type': 'application/json' };
+				if (write) headers['X-Typology-Token'] = boot.token || '';
 				const res = await fetch(`index.php?action=typology&op=${encodeURIComponent(op)}`, {
-					method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+					method: 'POST', credentials: 'same-origin', headers, body: JSON.stringify(body),
 				});
 				const j = await res.json();
 				if (!j.ok) throw new Error(j.error || 'error');
 				return j;
 			},
 
-			/** The selected features, one by one (each counted once on the server, then kept). */
+			/**
+			 * The selected features: everything already counted in one request, drawn once; then the ones
+			 * still to count, one by one (each counted once on the server, then kept).
+			 */
 			async loadSelected(force) {
+				const keptIds = this.selected.filter((id) => !data[id] && this.features[id] && this.features[id].kept);
+				if (keptIds.length && !force) {
+					try {
+						const r = await this.post('kept', { ids: keptIds });
+						for (const [id, k] of Object.entries(r.features || {})) {
+							data[id] = k.counts || {};
+							this.status[id] = k.missing ? 'n/a: ' + k.missing : 'done';
+						}
+					} catch (_) { /* each one on its own below */ }
+					this.rebuild();
+				}
 				for (const id of this.selected) {
 					if (data[id] && !force) continue;
 					// this server cannot count: only what was counted before (said once, above the views)
@@ -96,7 +135,7 @@
 					try {
 						const r = await this.post(force ? 'recompute' : 'feature', { id });
 						data[id] = r.counts || {};
-						this.status[id] = 'done';
+						this.status[id] = r.missing ? 'n/a: ' + r.missing : 'done';
 						this.features[id].kept = true;
 						this.features[id].seconds = r.seconds;
 					} catch (e) {
@@ -120,7 +159,7 @@
 				try {
 					const r = await this.post('recompute', { id });
 					data[id] = r.counts || {};
-					this.status[id] = 'done';
+					this.status[id] = r.missing ? 'n/a: ' + r.missing : 'done';
 				} catch (e) {
 					this.status[id] = 'error: ' + (e.message || e);
 				}
@@ -163,16 +202,111 @@
 				this.draw();
 			},
 
-			label(code) { const n = langName(code); return n === code ? code : `${n} (${code})`; },
+			/** A language's label: a name kept for it, else the browser's name for the code, else the code. */
+			label(code) {
+				const kept = this.names && this.names[code];
+				const n = kept || langName(code);
+				return n === code ? code : `${n} (${code})`;
+			},
+			hasName(code) { return !!(this.names && this.names[code]) || langName(code) !== code; },
+
+			// ── what the views say about themselves (on the page and in downloads) ──
+			viewTitle() {
+				const m = this.m();
+				const corpus = (document.title || '').trim();
+				return `Typological similarity of ${m ? m.langs.length : 0} languages${corpus ? ' — ' + corpus : ''}`;
+			},
+			featureLine() {
+				const m = this.m();
+				if (!m) return '';
+				const t = m.ids.map((id) => (this.features[id] ? this.features[id].title + (this.features[id].wals ? ` (WALS ${this.features[id].wals})` : '') : id));
+				return `${t.length} features: ` + (t.length > 8 ? t.slice(0, 8).join('; ') + `; and ${t.length - 8} more` : t.join('; '));
+			},
+			methodLine() {
+				const base = 'Distance: per feature the difference of two languages\' values (shares, inventory sizes; 0–1), averaged over the features both have (0 = the same profile)';
+				if (this.view === 'dendrogram') return `${base}; clustered with UPGMA (average linkage), ${this.groupsK} colour groups.`;
+				if (this.view === 'space') return `${base}; placed by classical multidimensional scaling: closer = more similar, the axes have no unit.`;
+				return `${base}; languages in the dendrogram's order.`;
+			},
+			caption() {
+				return [this.viewTitle(), this.featureLine(), this.methodLine(),
+					`At least ${this.minFeatures} features per language, ${this.minN} hits per feature. Counted from the corpus's annotation (typology lens, TEITOK).`];
+			},
 
 			draw() {
 				const m = this.m();
 				if (!m || m.langs.length < 2) { this.svg = ''; return; }
-				const opts = { labels: m.langs.map((l) => this.label(l)), codes: m.langs, groups: m.groups, width: 900, highlight: this.focus };
-				if (this.view === 'dendrogram') this.svg = V().dendrogram(m.tree, opts);
-				else if (this.view === 'space') { if (!m.coords) m.coords = M().mds(m.dist.D); this.svg = V().space(m.coords, opts); }
-				else if (this.view === 'matrix') this.svg = V().matrix(m.dist, m.order, opts);
-				else this.svg = '';
+				this.svg = this.viewSvg(this.view, false);
+			},
+
+			/** A view as SVG: on the page, or ($file) standalone at a fixed width for downloads. */
+			viewSvg(view, file) {
+				const m = this.m();
+				if (!m || m.langs.length < 2) return '';
+				const opts = { labels: m.langs.map((l) => this.label(l)), codes: m.langs, groups: m.groups, width: 900,
+					highlight: file ? '' : this.focus, caption: this.caption(), fixedWidth: !!file };
+				if (view === 'dendrogram') return V().dendrogram(m.tree, Object.assign(opts, { axis: 'distance (mean difference over the shared features)' }));
+				if (view === 'space') {
+					if (!m.coords) m.coords = M().mds(m.dist.D);
+					return V().space(m.coords, Object.assign(opts, { axis: 'MDS dimension 1 (no unit)', axis2: 'MDS dimension 2 (no unit)' }));
+				}
+				if (view === 'matrix') return V().matrix(m.dist, m.order, Object.assign(opts, { axis: 'distance (darker = more similar)' }));
+				return '';
+			},
+
+			// ── downloads (typology_export.js) ──
+			fileBase() {
+				const folder = (window.location.pathname.split('/').filter(Boolean).slice(-2, -1)[0] || 'corpus').replace(/[^A-Za-z0-9_-]/g, '');
+				return `typology-${folder}`;
+			},
+			async download(kind) {
+				const m = this.m();
+				const X = window.ttTypologyExport;
+				if (!m || !X) return;
+				const names = m.langs.map((l) => this.label(l));
+				const base = this.fileBase();
+				try {
+					if (kind === 'svg') X.svg(`${base}-${this.view}.svg`, this.viewSvg(this.view, true));
+					else if (kind === 'png') await X.png(`${base}-${this.view}.png`, this.viewSvg(this.view, true));
+					else if (kind === 'newick') X.text(`${base}.nwk`, X.newick(m.tree, names) + '\n', 'text/plain');
+					else if (kind === 'distances') {
+						X.text(`${base}-distances.csv`, X.csv(['language', ...names], m.dist.D.map((row, i) => [names[i], ...row.map((d, j) => (i === j ? 0 : d === null ? '' : d.toFixed(4)))])), 'text/csv');
+					} else if (kind === 'space') {
+						if (!m.coords) m.coords = M().mds(m.dist.D);
+						X.text(`${base}-space.csv`, X.csv(['code', 'language', 'group', 'x', 'y'], m.langs.map((l, i) => [l, names[i], (m.groups[i] ?? 0) + 1, m.coords[i][0].toFixed(5), m.coords[i][1].toFixed(5)])), 'text/csv');
+					} else if (kind === 'table') {
+						const head = ['code', 'language'];
+						for (const id of m.ids) { const t = this.features[id].title; head.push(t, `${t}: detail`, `${t}: n`); }
+						const rows = m.langs.map((l) => {
+							const r = [l, this.label(l)];
+							for (const id of m.ids) { const v = this.cell(l, id); r.push(v && v.dims ? v.label : '', v ? (v.dims ? v.detail : v.missing) : '', v ? v.n : ''); }
+							return r;
+						});
+						X.text(`${base}-features.csv`, X.csv(head, rows), 'text/csv');
+					}
+				} catch (e) {
+					this.error = String(e.message || e);
+				}
+			},
+
+			// ── language names ──
+			openNames() {
+				const m = this.m();
+				const codes = m ? m.langs.slice() : [];
+				codes.sort((a, b) => (this.hasName(a) - this.hasName(b)) || a.localeCompare(b));
+				this.namesEdit = Object.fromEntries(codes.map((c) => [c, (this.names && this.names[c]) || '']));
+				this.namesOpen = true;
+			},
+			namesMissing() { const m = this.m(); return m ? m.langs.filter((l) => !this.hasName(l)).length : 0; },
+			async saveNames(scope) {
+				try {
+					const r = await this.post('save_names', { scope, names: this.namesEdit }, true);
+					this.applyState(r);
+					this.namesOpen = false;
+					this.draw();
+				} catch (e) {
+					this.error = String(e.message || e);
+				}
 			},
 
 			onSvgClick(ev) {
@@ -182,7 +316,37 @@
 			setFocus(code) { this.focus = this.focus === code ? '' : code; this.draw(); },
 
 			// ── the feature table and the focus panel ──
-			tableLangs() { return this.m() ? this.m().order.map((i) => this.m().langs[i]) : []; },
+			/** The table's rows: in the dendrogram's order, or sorted by a column (sortKey: 'lang' or a feature id). */
+			tableLangs() {
+				const m = this.m();
+				if (!m) return [];
+				const rows = m.order.map((i) => m.langs[i]);
+				if (!this.sortKey) return rows;
+				const dir = this.sortDesc ? -1 : 1;
+				const key = (l) => {
+					if (this.sortKey === 'lang') return [0, this.label(l).toLowerCase(), 0];
+					const v = this.cell(l, this.sortKey);
+					if (!v || !v.dims) return null;   // no value: always last
+					const f = this.features[this.sortKey];
+					if (f.kind === 'order' || f.kind === 'share') return [0, String(v.label).toLowerCase(), -Math.max(...v.dims)];   // category, then how dominant
+					return [Number.parseFloat(v.label) || 0, '', -v.n];   // inventory size, bundles
+				};
+				return rows.map((l) => [l, key(l)]).sort((a, b) => {
+					if (!a[1] || !b[1]) return (a[1] ? 0 : 1) - (b[1] ? 0 : 1);
+					for (let i = 0; i < 3; i += 1) {
+						if (a[1][i] < b[1][i]) return -dir;
+						if (a[1][i] > b[1][i]) return dir;
+					}
+					return 0;
+				}).map(([l]) => l);
+			},
+			/** A header clicked: sort by it, then the other way, then back to the dendrogram's order. */
+			sortBy(key) {
+				if (this.sortKey !== key) { this.sortKey = key; this.sortDesc = false; }
+				else if (!this.sortDesc) this.sortDesc = true;
+				else { this.sortKey = ''; this.sortDesc = false; }
+			},
+			sortMark(key) { return this.sortKey === key ? (this.sortDesc ? ' ▼' : ' ▲') : ''; },
 			cell(lang, id) { return (this.m() && this.m().prof[lang] && this.m().prof[lang][id]) || null; },
 			cellText(lang, id) { const v = this.cell(lang, id); return v ? (v.dims ? v.label : '—') : ''; },
 			cellTitle(lang, id) {
@@ -243,7 +407,8 @@
 
 			// ── share links ──
 			shareState() {
-				return { f: this.selected, n: this.minN, m: this.minFeatures, k: this.groupsK, v: this.view, l: this.langFilter || undefined, x: this.focus || undefined };
+				return { f: this.selected, n: this.minN, m: this.minFeatures, k: this.groupsK, v: this.view, l: this.langFilter || undefined, x: this.focus || undefined,
+					o: this.sortKey ? (this.sortDesc ? '-' : '') + this.sortKey : undefined };
 			},
 			decodeShare(s) {
 				if (!s) return null;
@@ -260,5 +425,12 @@
 				try { await navigator.clipboard.writeText(this.shareUrl()); this.copied = true; setTimeout(() => { this.copied = false; }, 2000); } catch (_) { window.prompt('Share link', this.shareUrl()); }
 			},
 		};
+		// the feature editor (typology_editor.js): its state and methods on the same component
+		const ctx = {
+			post: (op, body, write) => app.post.call(app, op, body, write),
+			forget: (id) => { delete data[id]; },
+			forgetAll: () => { for (const k of Object.keys(data)) delete data[k]; },
+		};
+		return window.ttTypologyEditor ? Object.assign(app, window.ttTypologyEditor(ctx)) : app;
 	};
 })();

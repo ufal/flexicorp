@@ -85,6 +85,9 @@ if ( ! function_exists( 'tt_typology_features' ) ) {
 	/** The pando program that counts a feature per language ($lang: the language attribute). */
 	function tt_typology_program( array $feat, $lang ) {
 		$set = 'set group_limit 0; set child_limit 0; ';
+		// the corpus's own names for upos / feats (typology_store.php), for the queries built here
+		$upos = $feat['attrs']['upos'] ?? 'upos';
+		$feats = $feat['attrs']['feats'] ?? 'feats';
 		switch ( $feat['kind'] ) {
 			case 'order':
 			case 'share':
@@ -96,9 +99,9 @@ if ( ! function_exists( 'tt_typology_features' ) ) {
 				}
 				return $p . 'freq ' . implode( ', ', $names ) . " by $lang;";
 			case 'inventory':
-				return $set . "[upos=\"{$feat['pos']}\"]; freq by feats/{$feat['feat']}, $lang";
+				return $set . "[$upos=\"{$feat['pos']}\"]; freq by $feats/{$feat['feat']}, $lang";
 			case 'bundles':
-				return $set . "[upos=\"{$feat['pos']}\"]; freq by feats, $lang";
+				return $set . "[$upos=\"{$feat['pos']}\"]; freq by $feats, $lang";
 		}
 		return '';
 	}
