@@ -8,6 +8,8 @@
 #   flexencoder TEITOK XML -> CWB / Pando / xidx encoder
 #   pando       pando, pando-index, pando-server, libflexicorp_pando, flexicorp-pando
 #   fqs         FQS query / reindex service (systemd, launchd, or a start script)
+#   manatee     native Manatee for FQS (libfqs_manatee), built from a manatee-open source tree;
+#               only where one is given (--manatee-src DIR, remembered) — skipped otherwise
 #
 # It works on an existing TEITOK installation: it finds where TEITOK lives
 # (Apache .htaccess or vhost SetEnv, nginx fastcgi_param, php-fpm env[], the
@@ -34,7 +36,7 @@
 #                         [the folder of the flexicorp checkout this script runs from;
 #                          else the one the previous run used; else next to TEITOK]
 #   --prefix DIR          binaries and libraries (default /usr/local)
-#   --only LIST           comma-separated subset of: teitok,flexicorp,pages,flexencoder,pando,fqs
+#   --only LIST           comma-separated subset of: teitok,flexicorp,pages,flexencoder,pando,fqs,manatee
 #   --skip LIST           components to leave out
 #   --flexicorp-repo URL  (default https://github.com/ufal/flexicorp.git; a local path works)
 #   --flexicorp-ref REF   branch / tag for a new clone (default: the repository's default)
@@ -45,6 +47,10 @@
 #   --flexencoder-repo URL (default https://github.com/ufal/flexencoder.git; flexencoder and
 #                         the pando adapter libflexicorp_pando)
 #   --flexencoder-ref REF
+#   --manatee-src DIR     a manatee-open source tree configured as KonText's Manatee is
+#                         (./configure --with-pcre2 --disable-python): FQS gets native Manatee
+#                         (fqs/manatee/install-lib.sh). Remembered: later runs rebuild the library
+#                         when fqs/manatee/ or the tree changed
 #   --no-pull             use the existing checkouts as they are
 #   --force [LIST]        rebuild and reinstall even when the sources did not change:
 #                         every component, or the comma-separated ones in LIST
@@ -102,7 +108,7 @@ my %o = (
 my @ORIG_ARGV = @ARGV;    # to restart with the same options when the pull updated this script
 GetOptions( \%o, 'detect', 'check', 'q|yes', 'teitok-root=s', 'shared=s', 'web-user=s', 'git-folder=s',
 	'prefix=s', 'only=s', 'skip=s', 'flexicorp-repo=s', 'flexicorp-ref=s', 'pando-repo=s', 'pando-ref=s', 'fqs-repo=s', 'fqs-ref=s', 'flexencoder-repo=s', 'flexencoder-ref=s',
-	'no-pull', 'no-deps', 'fqs-admin=s', 'no-check', 'no-frontends', 'force:s', 'cron', 'auto-update:s', 'no-auto-update', 'help|h' ) or exit 2;
+	'manatee-src=s', 'no-pull', 'no-deps', 'fqs-admin=s', 'no-check', 'no-frontends', 'force:s', 'cron', 'auto-update:s', 'no-auto-update', 'help|h' ) or exit 2;
 my $CRON = $o{cron} ? 1 : 0;
 $o{q} = 1 if $CRON;
 if ( $o{help} ) { usage(); exit 0; }
@@ -428,7 +434,7 @@ my $THIS_INSTALL = "teitok_root=$D->{teitok_root}\nshared=$D->{shared}\nweb_user
 	if ( open my $cf, '>', $CONFIRMED ) { print $cf $THIS_INSTALL; close $cf; }
 }
 
-my %want = map { $_ => 1 } qw(teitok flexicorp pages flexencoder pando fqs);
+my %want = map { $_ => 1 } qw(teitok flexicorp pages flexencoder pando fqs manatee);
 if ( $o{only} ) { %want = map { $_ => 1 } split /[,\s]+/, $o{only}; }
 delete $want{$_} for split /[,\s]+/, $o{skip};
 
@@ -633,7 +639,7 @@ my ( $PANDO, $PANDO_COMMIT ) = ( '', '' );
 ( $PANDO, $PANDO_COMMIT ) = checkout( 'pando', $o{'pando-repo'}, $o{'pando-ref'} ) if $want{pando} || $want{fqs};
 # FQS: its own repository (it used to live in flexicorp's fqs/)
 my ( $FQS, $FQS_COMMIT ) = ( '', '' );
-( $FQS, $FQS_COMMIT ) = checkout( 'fqs', $o{'fqs-repo'}, $o{'fqs-ref'} ) if $want{fqs};
+( $FQS, $FQS_COMMIT ) = checkout( 'fqs', $o{'fqs-repo'}, $o{'fqs-ref'} ) if $want{fqs} || $want{manatee};
 # flexencoder and the pando adapter (flexicorp_pando/, built with pando): their own repository
 # (they used to live in flexicorp)
 my ( $FLEXENC, $FLEXENC_COMMIT ) = ( '', '' );
@@ -691,6 +697,16 @@ sub source_print {
 	}
 	return sha1_hex( join( "\n", @parts ) );
 }
+# the Manatee source tree for libfqs_manatee: given, or the one the last run used
+my $MSRC = $o{'manatee-src'} // '';
+$MSRC = abs_path($MSRC) // $MSRC if $MSRC ne '';
+$MSRC = $OLD{manatee}{src} // '' if $MSRC eq '';
+sub manatee_print {    # its configuration and its built library ('' when not built: always (re)build)
+	my $d = shift;
+	return '' unless $d ne '' && -f "$d/config.hh";
+	my @st = stat("$d/src/.libs/libbuiltinmanatee.a");
+	return sha1_hex( read_file("$d/config.hh") . ( @st ? "|$st[7]|$st[9]" : '|none' ) );
+}
 sub prints { my @p = @_; return ( grep { $_ eq '' } @p ) ? '' : sha1_hex( join( '+', "install-stack $VERSION", $PREFIX, @p ) ); }
 my %SRC = (
 	teitok      => prints( source_print( $TT, 'src' ) ),
@@ -699,10 +715,11 @@ my %SRC = (
 	flexicorp   => prints( source_print( $FLEXI, 'flexicorp', 'pyproject.toml' ), $D->{venv} ),
 	pages       => prints( source_print( $FLEXI, 'teitok_teitok_ui' ), $D->{shared} ),
 	fqs         => prints( source_print( $FQS, '' ) ),
+	manatee     => prints( source_print( $FQS, 'manatee' ), manatee_print($MSRC), $MSRC ),
 );
 my %FORCE;
 if ( defined $o{force} ) {
-	%FORCE = $o{force} eq '' ? map { $_ => 1 } qw(teitok flexicorp pages flexencoder pando fqs) : map { $_ => 1 } split /[,\s]+/, $o{force};
+	%FORCE = $o{force} eq '' ? map { $_ => 1 } qw(teitok flexicorp pages flexencoder pando fqs manatee) : map { $_ => 1 } split /[,\s]+/, $o{force};
 }
 my ( %BUILT, @UNCHANGED );
 # true (and says so) when a component can be left as it is
@@ -1068,6 +1085,35 @@ SH
 	remove_tree($src);
 }
 
+# ── native Manatee for FQS (libfqs_manatee), where a Manatee source tree is known ─────────────
+# Built, tested in an FQS worker and installed by fqs/manatee/install-lib.sh; FQS runs it in worker
+# processes (a crash in Manatee ends a worker, not FQS). Without a tree: nothing (most TEITOK
+# installations have no Manatee), unless FQS is set up for it, then a reminder.
+my $MLIB = "$PREFIX/lib/libfqs_manatee." . ( $MAC ? 'dylib' : 'so' );
+if ( $want{manatee} && $MSRC eq '' ) {
+	my $envf = $MAC ? '/usr/local/etc/fqs/fqs.env' : '/etc/fqs/fqs.env';
+	warn_("$envf sets FQS_MANATEE_LIB, but no Manatee source tree is known: pass --manatee-src DIR once, so that the library is rebuilt with FQS")
+		if read_file($envf) =~ /^\s*FQS_MANATEE_LIB=/m;
+} elsif ( $want{manatee} && !-f "$MSRC/config.hh" ) {
+	warn_("$MSRC is not a configured manatee-open tree (no config.hh): native Manatee left as it is");
+} elsif ( $want{manatee} && !-x "$PREFIX/bin/fqs" ) {
+	warn_("native Manatee needs FQS installed first (component fqs)");
+} elsif ( $want{manatee} && !unchanged( 'manatee', -e $MLIB ) ) {
+	step('native Manatee for FQS (libfqs_manatee)');
+	if ( !-f "$MSRC/src/.libs/libbuiltinmanatee.a" ) {    # its owner builds it (not root-owned objects in the tree)
+		run( "build Manatee's library in $MSRC (as " . owner_of($MSRC) . '; a few minutes)',
+			[ as_user( owner_of($MSRC), 'sh', '-c', 'for d in hat-trie fsa3 finlib corp concord query src; do [ -d "$0/$d" ] && make -s -C "$0/$d" || exit 1; done', $MSRC ) ], soft => 1 );
+	}
+	if ( run( "build, test and install (Manatee from $MSRC)", [ 'sh', "$FQS/manatee/install-lib.sh", '--manatee-src', $MSRC, '--prefix', $PREFIX ], soft => 1 ) ) {
+		say_("  installed: $MLIB\n");
+		$manifest{manatee} = { src => $MSRC, commit => $FQS_COMMIT, source => $SRC{manatee} };
+		$BUILT{manatee} = 1;
+		fqs_restart('new libfqs_manatee') if fqs_running();
+	} else {
+		warn_("building libfqs_manatee failed (see the log): the installed one is kept");
+	}
+}
+
 # FQS loads libflexicorp_pando: a new one only counts after a restart
 if ( $BUILT{pando} && !$BUILT{fqs} && -x "$PREFIX/bin/fqs" ) {
 	fqs_restart('new libflexicorp_pando');
@@ -1174,7 +1220,7 @@ if ( $o{'fqs-admin'} ) {
 	print $fh "{\n  \"installer\": \"install-stack.pl $VERSION\",\n  \"updated\": \"" . strftime( '%Y-%m-%dT%H:%M:%S%z', localtime ) . "\",\n";
 	print $fh "  \"teitok_root\": \"$D->{teitok_root}\",\n  \"shared\": \"$D->{shared}\",\n  \"web_user\": \"$WEBU\",\n  \"git_folder\": \"$GIT\",\n  \"components\": {\n";
 	my @parts;
-	for my $c (qw(teitok flexicorp pages flexencoder pando fqs)) {
+	for my $c (qw(teitok flexicorp pages flexencoder pando fqs manatee)) {
 		if ( $manifest{$c} ) {
 			my $m = $manifest{$c};
 			my %e = ( %$m, installed => $m->{installed} // $STAMP );

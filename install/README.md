@@ -76,9 +76,19 @@ sources (the git trees plus any uncommitted changes and untracked files):
 | flexicorp | `flexicorp/`, `pyproject.toml` |
 | pages | `teitok_teitok_ui/` |
 | fqs | the fqs checkout (its own repository, `--fqs-repo`; it used to be flexicorp's `fqs/`) |
+| manatee (`libfqs_manatee`: native Manatee for FQS; only with a Manatee source tree) | `manatee/` of the fqs checkout, and the Manatee tree's configuration and built library |
 
 A new `libflexicorp_pando` restarts a running FQS (it loads the library), also when FQS
-itself is unchanged. `--force` rebuilds everything, `--force pando,fqs` only those. System
+itself is unchanged; so does a new `libfqs_manatee`.
+
+Native Manatee (FQS queries Manatee corpora itself, without KonText) needs a manatee-open
+source tree configured as KonText's Manatee is: `./configure --with-pcre2 --disable-python`
+(without a regex library, wildcard queries match nothing; `--disable-python` avoids SWIG). Pass
+it once with `--manatee-src DIR`; later runs remember it and rebuild the library when FQS's
+`manatee/` or the tree changed. Keep the tree somewhere permanent (not `/tmp`). The library is
+built, tested in an FQS worker and installed by `fqs/manatee/install-lib.sh`, which also adds
+`FQS_MANATEE_LIB` to `/etc/fqs/fqs.env`; FQS runs it in worker processes, so a crash in Manatee
+ends a worker, not FQS. Without `--manatee-src` nothing changes. `--force` rebuilds everything, `--force pando,fqs` only those. System
 packages are only installed on a first install or when a build tool is missing.
 
 ## Unattended updates (cron)
