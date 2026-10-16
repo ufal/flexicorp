@@ -1,0 +1,40 @@
+/* typology.php (the typology lens) */
+.tt-ty [x-cloak], [x-cloak] { display: none !important; }
+.tt-ty-intro { max-width: 60em; color: #3a4654; }
+.tt-ty-error { color: #a40000; margin: 0.5em 0; }
+.tt-ty-layout { display: flex; gap: 1.2em; align-items: flex-start; }
+.tt-ty-side { flex: 0 0 17em; font-size: 0.92em; }
+.tt-ty-side h3 { margin: 0.8em 0 0.3em; font-size: 1em; }
+.tt-ty-group-title { font-weight: 600; margin: 0.6em 0 0.2em; color: #5a6675; }
+.tt-ty-feat { display: block; margin: 0.15em 0; cursor: pointer; }
+.tt-ty-feat small { color: #8a94a3; margin-left: 0.3em; }
+.tt-ty-feat .tt-ty-busy { color: #0b5e63; }
+.tt-ty-feat .tt-ty-err { color: #a40000; }
+.tt-ty-feat .tt-ty-na { color: #8a94a3; font-style: italic; }
+.tt-ty-recount { border: 0; background: none; color: #8a94a3; cursor: pointer; padding: 0 0.2em; }
+.tt-ty-field { display: block; margin: 0.35em 0; }
+.tt-ty-field input[type=number] { width: 4em; }
+.tt-ty-field input[type=text] { width: 100%; box-sizing: border-box; }
+.tt-ty-main { flex: 1 1 auto; min-width: 0; }
+.tt-ty-busybar { background: #eef6f7; border: 1px solid #cfe3e5; padding: 0.4em 0.6em; margin-bottom: 0.6em; font-size: 0.92em; }
+.tt-ty-tabs { display: flex; gap: 0.3em; flex-wrap: wrap; margin-bottom: 0.5em; }
+.tt-ty-tabs button { border: 1px solid #c9d1da; background: #fff; padding: 0.3em 0.7em; border-radius: 4px; cursor: pointer; }
+.tt-ty-tabs button.on { background: #e8f1f8; border-color: #0072B2; }
+.tt-ty-tabs .tt-ty-share { margin-left: auto; }
+.tt-ty-summary { color: #5a6675; font-size: 0.9em; margin-bottom: 0.4em; }
+.tt-ty-view { overflow-x: auto; }
+.tt-ty-svg text.tt-ty-lang { cursor: pointer; font-size: 12px; }
+.tt-ty-svg text.tt-ty-lang:hover { text-decoration: underline; }
+.tt-ty-focus { border: 1px solid #dce2e8; background: #fafbfc; padding: 0.5em 0.7em; margin-bottom: 0.6em; font-size: 0.92em; }
+.tt-ty-focus button { border: 0; background: none; cursor: pointer; }
+.tt-ty-near a { margin-right: 0.6em; }
+.tt-ty-diff td { padding: 0.1em 0.6em 0.1em 0; }
+.tt-ty-table-wrap { overflow: auto; max-height: 75vh; }
+.tt-ty-table { border-collapse: collapse; font-size: 0.85em; }
+.tt-ty-table th, .tt-ty-table td { border: 1px solid #e3e6ea; padding: 0.2em 0.4em; white-space: nowrap; }
+.tt-ty-table thead th { position: sticky; top: 0; background: #f6f8fa; white-space: normal; max-width: 9em; vertical-align: bottom; }
+.tt-ty-table tbody th { position: sticky; left: 0; background: #fff; text-align: left; }
+.tt-ty-table td a { color: inherit; text-decoration: none; }
+.tt-ty-table td a:hover { text-decoration: underline; }
+.tt-ty-caveat { color: #5a6675; font-size: 0.85em; max-width: 60em; margin-top: 1em; }
+@media (max-width: 800px) { .tt-ty-layout { flex-direction: column; } .tt-ty-side { flex: none; width: 100%; } }
