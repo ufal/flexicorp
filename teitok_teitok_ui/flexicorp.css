@@ -2336,3 +2336,7 @@ button.flexicorp-search-change-link {
 /* Stats Other (tabulate): a row's example in its sentence */
 .flexicorp-other-row-context td { background: #f8f9fb; font-size: 0.92em; }
 .flexicorp-other-context-hit { font-weight: 700; color: #b02a37; }
+
+/* Heatmap (pivot): the shading scale selector above the table */
+.flexicorp-pivot-scale { margin: 0 0 0.5em; font-size: 0.9em; }
+.flexicorp-pivot-scale select { margin-left: 0.4em; }

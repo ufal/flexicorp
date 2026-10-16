@@ -9,6 +9,8 @@ window.flexicorpFreqsExtend = function flexicorpFreqsExtend() {
 	const _freqsState = {
 		/** 'table' | 'pivot' | 'bar' | 'vbar' | 'vbar-error' | 'stacked-bar' | 'stacked-vbar' | 'line' | 'radar' | 'polar' | 'pie' | 'doughnut' | 'scatter' | 'sankey' | 'wordtree' (fc_stats_freqviz.js) */
 		frequencyVizMode: 'table',
+		/** Heatmap (pivot) shading: 'table' (one scale), 'column' or 'row' (each column / row its own scale). */
+		frequencyPivotScale: 'table',
 		/** Corpus overview: the open value list of an attribute (fc_stats_values.js); region '' = token attribute. */
 		corpusValues: { attr: '', label: '', region: '', vocab: null, rows: [], total: null, limit: 100, loading: false, error: '', filter: '', serverFilter: '' },
 		frequencyTableSearch: '',

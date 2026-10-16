@@ -1509,11 +1509,23 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 				});
 			}
 			
+			// the largest value per column and per row: for per-column / per-row shading
+			const colMax = {};
+			const rowMax = {};
+			Object.keys(cells).forEach((rk) => {
+				Object.keys(cells[rk]).forEach((ck) => {
+					const v = Number(cells[rk][ck]) || 0;
+					if (!(colMax[ck] >= v)) colMax[ck] = v;
+					if (!(rowMax[rk] >= v)) rowMax[rk] = v;
+				});
+			});
 			return {
 				rows: this.frequencyPivotSortKeys(Array.from(rowKeys)),
 				cols: this.frequencyPivotSortKeys(Array.from(colKeys)),
 				cells,
-				maxVal
+				maxVal,
+				colMax,
+				rowMax
 			};
 		},
 
@@ -1550,13 +1562,26 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 			return Number.isInteger(val) ? val : Number(val).toFixed(2);
 		},
 
+		/** The value a heatmap cell is shaded against: the table's largest, or its column's / row's. */
+		frequencyPivotScaleMax(data, r, c) {
+			const scale = this.frequencyPivotScale || 'table';
+			if (scale === 'column' && data.colMax) return Number(data.colMax[c]) || 0;
+			if (scale === 'row' && data.rowMax) return Number(data.rowMax[r]) || 0;
+			return data.maxVal;
+		},
+
+		setFrequencyPivotScale(scale) {
+			this.frequencyPivotScale = ['column', 'row'].includes(scale) ? scale : 'table';
+		},
+
 		frequencyPivotCellStyle(r, c) {
 			const data = this.frequencyPivotData();
 			const val = data.cells[r] && data.cells[r][c];
-			if (!val || data.maxVal <= 0) return '';
+			const max = this.frequencyPivotScaleMax(data, r, c);
+			if (!val || max <= 0) return '';
 			
 			// Simple heatmap calculation (white to blue)
-			const intensity = Math.min(1, Math.max(0, val / data.maxVal));
+			const intensity = Math.min(1, Math.max(0, val / max));
 			// Use an RGBA blue background
 			return `background-color: rgba(0, 123, 255, ${intensity * 0.7}); color: ${intensity > 0.5 ? '#fff' : 'inherit'};`;
 		},

@@ -79,6 +79,7 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 					form_fields: this.frequency && Array.isArray(this.frequency.formFields) ? this.frequency.formFields.map((x) => String(x)) : [],
 					limit: this.frequency && this.frequency.limit != null ? Number(this.frequency.limit) : null,
 					viz_mode: this.frequencyVizMode != null ? String(this.frequencyVizMode) : '',
+					pivot_scale: this.frequencyPivotScale && this.frequencyPivotScale !== 'table' ? String(this.frequencyPivotScale) : '',
 					chart_type: this.frequencyChartType != null ? String(this.frequencyChartType) : '',
 					chart_scale: this.frequencyChartValueScale != null ? String(this.frequencyChartValueScale) : '',
 					chart_order: this.frequencyChartOrder != null ? String(this.frequencyChartOrder) : '',
@@ -214,6 +215,7 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 					ff: p.frequency && p.frequency.form_fields,
 					l: p.frequency && p.frequency.limit,
 					vm: p.frequency && p.frequency.viz_mode,
+					ps: p.frequency && p.frequency.pivot_scale ? p.frequency.pivot_scale : undefined,
 					ct: p.frequency && p.frequency.chart_type,
 					cs: p.frequency && p.frequency.chart_scale,
 					co: p.frequency && p.frequency.chart_order,
@@ -320,6 +322,7 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 					form_fields: Array.isArray(p.f && p.f.ff) ? p.f.ff.map((x) => String(x)) : [],
 					limit: p.f && p.f.l != null ? Number(p.f.l) : null,
 					viz_mode: p.f && p.f.vm ? String(p.f.vm) : '',
+					pivot_scale: p.f && p.f.ps ? String(p.f.ps) : '',
 					chart_type: p.f && p.f.ct ? String(p.f.ct) : '',
 					chart_scale: p.f && p.f.cs ? String(p.f.cs) : '',
 					chart_order: p.f && p.f.co ? String(p.f.co) : '',
@@ -493,6 +496,7 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 			// the search that runs next brings fresh frequency / collocation state: apply again before rerunning
 			this._snapshotAnalysisPayload = p;
 			if (freq.viz_mode != null && this.frequencyVizMode != null) this.frequencyVizMode = String(freq.viz_mode);
+			if (typeof this.setFrequencyPivotScale === 'function') this.setFrequencyPivotScale(freq.pivot_scale ? String(freq.pivot_scale) : 'table');
 			if (freq.chart_type != null && this.frequencyChartType != null) this.frequencyChartType = String(freq.chart_type);
 			if (freq.chart_scale != null && this.frequencyChartValueScale != null) {
 				this.frequencyChartValueScale = String(freq.chart_scale);

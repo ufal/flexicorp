@@ -2428,6 +2428,16 @@
 						</tbody>
 					</table>
 					<template x-if="frequency.rows.length && frequencyVizMode === 'pivot'">
+					<div class="flexicorp-pivot-wrap">
+					<div class="flexicorp-pivot-scale">
+						<label>Shading
+							<select :value="frequencyPivotScale" @change="setFrequencyPivotScale($event.target.value)">
+								<option value="table">whole table</option>
+								<option value="column">per column</option>
+								<option value="row">per row</option>
+							</select>
+						</label>
+					</div>
 					<table class="flexicorp-table">
 						<thead>
 							<tr>
@@ -2448,6 +2458,7 @@
 							</template>
 						</tbody>
 					</table>
+					</div>
 					</template>
 					<div class="flexicorp-freq-chart-wrap" x-show="frequency.rows.length && frequencyVizMode !== 'table' && frequencyVizMode !== 'pivot' && !frequencyVizSvgMode() && !callHasErrors(frequency.response)">
 						<canvas id="flexicorp-freq-chart-canvas" aria-label="Frequency chart"></canvas>
