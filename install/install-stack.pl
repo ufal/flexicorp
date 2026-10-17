@@ -1126,6 +1126,54 @@ if ( -f $RESTART_PENDING && !$RESTARTED && !$POSTPONED ) {
 	else { fqs_restart( $why || 'new files' ); }
 }
 
+# ── pando-server services (systemd) ─────────────────────────────────────────────
+# Other programs run pando-server as their own service (KonText's pando-server.service); this
+# installer does not start them, but a new pando-server only counts after their restart. On every
+# run: a unit that runs this installer's binary and whose process still runs the replaced file
+# (/proc/PID/exe "… (deleted)": files are replaced by rename) is restarted; a unit that runs
+# another copy gets a warning with the override that makes it use this one.
+sub pando_server_units {
+	my @names = grep { /\.service$/ } map { ( split ' ', $_ )[0] // '' }
+		split /\n/, capture('systemctl list-units --type=service --all --no-legend --plain');
+	return () unless @names;
+	my @units;
+	for my $blk ( split /\n\n/, capture( 'systemctl show -p Id -p ExecStart -p MainPID -p ActiveState ' . join( ' ', map { q_($_) } @names ) ) ) {
+		my %u = map { /^(\w+)=(.*)$/ ? ( $1, $2 ) : () } split /\n/, $blk;
+		my ($path) = ( $u{ExecStart} // '' ) =~ /path=(\S+)/;
+		next unless $path && $path =~ m{(?:^|/)pando-server$};
+		my ($argv) = $u{ExecStart} =~ /argv\[\]=(.*?) ;/;
+		push @units, { id => $u{Id}, path => $path, argv => $argv // $path, pid => $u{MainPID} // 0, active => ( $u{ActiveState} // '' ) eq 'active' };
+	}
+	return @units;
+}
+if ( $INIT eq 'systemd' && -x "$PREFIX/bin/pando-server" ) {
+	my $ours = "$PREFIX/bin/pando-server";
+	for my $u ( pando_server_units() ) {
+		if ( $u->{path} ne $ours ) {
+			( my $args = $u->{argv} ) =~ s/^\S+\s*//;
+			warn_( "$u->{id} runs $u->{path}, not this installer's $ours: it does not get pando's updates. "
+				. "To use this one: sudo systemctl edit $u->{id}, add\n      [Service]\n      ExecStart=\n      ExecStart=$ours $args\n"
+				. "    then sudo systemctl restart $u->{id}" );
+			next;
+		}
+		next unless $u->{active} && $u->{pid} && $u->{pid} ne '0';
+		my $exe = readlink("/proc/$u->{pid}/exe");
+		if ( !defined $exe ) {
+			warn_("could not check $u->{id} (process $u->{pid}; run the installer as root): if pando was updated, restart it (sudo systemctl restart $u->{id})") if $BUILT{pando};
+			next;
+		}
+		next unless $exe =~ / \(deleted\)$/;    # it runs the installed file
+		step("Restart $u->{id} (new pando-server)");
+		my $done = run( "systemctl restart $u->{id}", [ 'systemctl', 'restart', $u->{id} ], soft => 1 );
+		my $pid = capture( 'systemctl show -p MainPID --value ' . q_( $u->{id} ) );
+		if ( $done && $pid && $pid ne '0' && $pid ne $u->{pid} && capture( 'systemctl is-active ' . q_( $u->{id} ) ) eq 'active' ) {
+			say_("  $u->{id} runs the new pando-server (process $pid)\n");
+		} else {
+			warn_("$u->{id} was not restarted: restart it by hand (sudo systemctl restart $u->{id}); until then it runs the old pando-server");
+		}
+	}
+}
+
 # ── restarts from fqsadmin (systemd) ───────────────────────────────────────────────
 # FQS runs as an unprivileged user with NoNewPrivileges, so it cannot run `systemctl
 # restart` itself. For each unit fqsadmin may restart (FQS itself; KonText when

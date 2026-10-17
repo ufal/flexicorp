@@ -81,6 +81,11 @@ sources (the git trees plus any uncommitted changes and untracked files):
 A new `libflexicorp_pando` restarts a running FQS (it loads the library), also when FQS
 itself is unchanged; so does a new `libfqs_manatee`.
 
+Services of other programs that run `pando-server` (KonText's `pando-server.service`) are
+checked on every run (systemd): one that runs this installer's `pando-server` and still runs the
+replaced file is restarted; one that runs another copy is left alone, with a warning that gives
+the `systemctl edit` override that makes it use the installed one (another copy gets no updates).
+
 Native Manatee (FQS queries Manatee corpora itself, without KonText) needs a manatee-open
 source tree configured as KonText's Manatee is: `./configure --with-pcre2 --disable-python`
 (without a regex library, wildcard queries match nothing; `--disable-python` avoids SWIG). Pass
