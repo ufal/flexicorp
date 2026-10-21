@@ -1477,7 +1477,8 @@
 		// - and variables, for htmlstyles.css: --corpus-accent (else the link colour),
 		//   --corpus-bg, --corpus-border, --corpus-radius, --corpus-shadow, --corpus-title,
 		//   --corpus-text, --corpus-muted, --corpus-title-font, --corpus-font-size,
-		//   --corpuslist-min (card width), --corpuslist-gap.
+		//   --corpuslist-min (card width), --corpuslist-gap, --corpus-desc-lines (lines of description
+		//   shown before it scrolls; default 6).
 		// <flexicorp corpuslist_css="none"/> leaves all of it out: plain HTML for a style of its own.
 		$corpusCss = ! function_exists( 'getset' ) || getset( 'flexicorp/corpuslist_css', '' ) !== 'none';
 		if ( $corpusCss ) {
@@ -1505,7 +1506,8 @@
 				. "$P p.corpus-langs{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.3em;flex-shrink:0;max-width:50%}"
 				. "$P .corpus-lang{font-size:.8125em;font-weight:600;padding:.25em .75em;border-radius:999px;white-space:nowrap;"
 				. 'color:var(--ca);background:#eef2f4;background:color-mix(in srgb,var(--ca) 10%,#fff)}'
-				. "$P p.corpus-description{color:var(--ct);line-height:1.55}"
+				// a long description scrolls inside its card (--corpus-desc-lines), so one corpus does not stretch its row
+				. "$P p.corpus-description{color:var(--ct);line-height:1.55;max-height:calc(var(--corpus-desc-lines,6) * 1.55em);overflow-y:auto;scrollbar-width:thin}"
 				. "$P p.corpus-tags{display:flex;flex-wrap:wrap;gap:.5em}"
 				. "$P .corpus-tag{font-size:.8125em;padding:.2em .65em;border:1px solid var(--cb);border-radius:6px;color:var(--ct)}"
 				. "$P .corpus-tag-demo{background:#fff4e5;border-color:#f1d6ae;color:#7a4a0b}"
