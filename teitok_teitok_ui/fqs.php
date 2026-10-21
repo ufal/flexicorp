@@ -81,6 +81,11 @@
 		}
 	} else if ( $act == "addcorpus") {
 		check_login();
+		list( $mayRegister, $whyNot ) = tt_fqs_may_register();
+		if ( ! $mayRegister ) {
+			$maintext .= "<p class=warning>" . htmlspecialchars( $whyNot ) . "</p><p><a href='index.php?action=$action'>back to list</a></p>";
+			return;
+		}
 
 		$projectRoot = getcwd();
 		// the server's path of this project (/teitok/<project>/index.php): corpus lists make it
@@ -872,6 +877,13 @@
 		 *                      by KonText, CQPweb, Korp or only through FCS; the default
 		 *                      ("teitok") lists only TEITOK projects
 		 *   searchfrom="8"     show the search box and filters from this many corpora on
+		 *   corpuslist_table="12"  cards up to this many corpora, above it the catalogue view (search box,
+		 *                      facets on the left, one entry per corpus); "table": always the catalogue
+		 *                      view, "cards": never. Visitors can switch (&layout=cards|table).
+		 * The languages and tags of a corpus select their filter, in both views.
+		 *   fqs_register="admin"  who may register this project's corpus in FQS from here: "admin"
+		 *                      (the default) its admins; "guser" only TEITOK's server-wide users
+		 *                      (projects="all"); "off" nobody (tt_fqs_may_register in fqs-lib.php)
 		 *
 		 * The description of a corpus is, in this order: Pages/description.html of the
 		 * project (per language, like other pages), the description in the FQS catalogue,
@@ -1156,6 +1168,13 @@
 		if ( ! function_exists( 'tt_fqs_feature_tags' ) ) {
 			/** Feature keys (local and from the catalogue) as the card's tags: one each, in a fixed order. */
 			function tt_fqs_feature_tags( array $keys ) {
+				return array_values( array_map( 'tt_fqs_feature_name', tt_fqs_feature_keys( $keys ) ) );
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_feature_keys' ) ) {
+			/** The feature keys a corpus is tagged with, in order, one for its kind of annotation. */
+			function tt_fqs_feature_keys( array $keys ) {
 				$keys = array_map( function ( $k ) { return strtolower( trim( (string) $k ) ); }, $keys );
 				$in = array_flip( $keys );
 				// one annotation tag: UD covers dependencies and tagging
@@ -1165,10 +1184,10 @@
 				if ( isset( $in['facs'] ) ) { $in['facsimile'] = 1; unset( $in['facs'] ); }
 				if ( isset( $in['aligned'] ) ) { $in['parallel'] = 1; unset( $in['aligned'] ); }
 				$order = array( 'ud', 'dependencies', 'deps', 'tagged', 'parallel', 'timealigned', 'spoken', 'audio', 'video', 'facsimile', 'dialect', 'geolocation', 'ner' );
-				$tags = array();
-				foreach ( $order as $k ) if ( isset( $in[ $k ] ) ) { $tags[] = tt_fqs_feature_name( $k ); unset( $in[ $k ] ); }
-				foreach ( array_keys( $in ) as $k ) if ( ! in_array( $k, array( 'demo', 'lemma', 'pos', 'morph', 'written' ), true ) ) $tags[] = tt_fqs_feature_name( $k );
-				return $tags;
+				$out = array();
+				foreach ( $order as $k ) if ( isset( $in[ $k ] ) ) { $out[] = $k; unset( $in[ $k ] ); }
+				foreach ( array_keys( $in ) as $k ) if ( ! in_array( $k, array( 'demo', 'lemma', 'pos', 'morph', 'written' ), true ) ) $out[] = (string) $k;
+				return $out;
 			}
 		}
 
@@ -1324,8 +1343,40 @@
 			}
 		}
 
-		if ( ! function_exists( 'tt_fqs_render_corpus_item' ) ) {
-			function tt_fqs_render_corpus_item( array $corp, $showInterface ) {
+		if ( ! function_exists( 'tt_fqs_row_size' ) ) {
+			/** A corpus's tokens: the catalogue's size, else (a project on this server) its own index; or null. */
+			function tt_fqs_row_size( array $corp ) {
+				if ( isset( $corp['corpus_size'] ) && is_numeric( $corp['corpus_size'] ) && (float) $corp['corpus_size'] > 0 ) return (float) $corp['corpus_size'];
+				list( $kind, , $url ) = tt_fqs_row_interface( $corp );
+				$dir = $kind === 'teitok' ? tt_fqs_local_project_dir( $url ) : false;
+				return $dir ? tt_fqs_project_tokens( $dir ) : null;
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_facet_link' ) ) {
+			/**
+			 * A label that selects its filter (as in KonText's corpus list): a link adding (or, when it
+			 * is on, removing) facet GID:VALUE, when FQS knows that value; else the label as text.
+			 * $GLOBALS['tt_fqs_facets']: array( 'href' => function ( token ) => url, 'known' => tokens,
+			 * 'on' => tokens ), set by the list.
+			 */
+			function tt_fqs_facet_link( $gid, $value, $html, $cls ) {
+				$f = isset( $GLOBALS['tt_fqs_facets'] ) ? $GLOBALS['tt_fqs_facets'] : null;
+				$token = strtolower( $gid . ':' . $value );
+				if ( ! $f || ! isset( $f['known'][ $token ] ) ) return '<span class="' . $cls . '">' . $html . '</span>';
+				$on = in_array( $token, $f['on'], true );
+				return '<a class="' . $cls . ( $on ? ' corpus-on' : '' ) . '" href="' . htmlspecialchars( $f['href']( $token ), ENT_QUOTES, 'UTF-8' )
+					. '" title="' . ( $on ? '{%Remove this filter}' : '{%Show the corpora with this}' ) . '">' . $html . '</a>';
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_corpus_view' ) ) {
+			/**
+			 * What the list shows of a corpus, as HTML pieces for the card and the table row:
+			 * id, label, kind, url, current, older, langs (labels), desc, desc_plain, auto, edit (the link to
+			 * write a description), tags, size, docs, ifLabel, links (main one first).
+			 */
+			function tt_fqs_corpus_view( array $corp ) {
 				global $username;
 				$id = isset( $corp['id'] ) ? (string) $corp['id'] : '';
 				$label = isset( $corp['label'] ) && trim( (string) $corp['label'] ) !== '' ? (string) $corp['label'] : $id;
@@ -1339,22 +1390,6 @@
 				$base = $url;
 				if ( $base !== '' && substr( $base, -1 ) === '/' ) $base .= 'index.php';
 
-				$current = tt_fqs_corpus_is_current_project( $corp );
-				$out = '<li class="corpus corpus-' . $h( $kind ) . ( $current ? ' current' : '' ) . '"'
-					. ( $id !== '' ? ' id="corpus-' . $h( preg_replace( '/[^A-Za-z0-9_.-]/', '_', $id ) ) . '"' : '' ) . '>';
-
-				// name and languages; an older version of its family says so
-				$older = ( isset( $corp['is_current'] ) && $corp['is_current'] === false );
-				$out .= '<div class="corpus-head"><h2>' . ( $url !== '' ? '<a href="' . $h( $url ) . '">' . $h( $label ) . '</a>' : $h( $label ) )
-					. ( $older ? ' <span class="corpus-older">{%earlier version}</span>' : '' ) . '</h2>';
-				$langs = array_map( 'tt_fqs_language_name', tt_fqs_row_languages( $corp ) );
-				if ( $langs ) {
-					$out .= '<p class="corpus-langs">';
-					foreach ( $langs as $i => $ln ) $out .= ( $i ? '<span class="corpus-sep">, </span>' : '' ) . '<span class="corpus-lang">' . $h( $ln ) . '</span>';
-					$out .= '</p>';
-				}
-				$out .= '</div>';
-
 				// description: project page > catalogue > home page > made from the project
 				$desc = '';
 				$auto = false;
@@ -1366,8 +1401,7 @@
 					$desc = $sum['description'];
 					$auto = true;
 				}
-				$size = isset( $corp['corpus_size'] ) && is_numeric( $corp['corpus_size'] ) && (float) $corp['corpus_size'] > 0 ? (float) $corp['corpus_size'] : null;
-				if ( $size === null && $dir ) $size = tt_fqs_project_tokens( $dir );
+				$size = tt_fqs_row_size( $corp );
 				$docs = $sum ? $sum['documents'] : null;
 				if ( $desc === '' && $sum ) {
 					// nothing written about the corpus: say what is in it (the annotation and
@@ -1382,14 +1416,10 @@
 						if ( $parts ) $desc = implode( ', ', $parts ) . '.';
 					}
 				}
-				if ( $desc !== '' ) {
-					$out .= '<p class="corpus-description' . ( $auto ? ' corpus-description-auto' : '' ) . '">' . $desc;
-					if ( $auto && $username && $sum ) {
-						// the people who can write it see how to replace the automatic text
-						$out .= ' <span class="adminpart"><a href="' . $h( $base . '?action=pageedit&id=description' ) . '">{%write a description}</a></span>';
-					}
-					$out .= '</p>';
-				}
+				// the people who can write it see how to replace the automatic text
+				$edit = ( $desc !== '' && $auto && $username && $sum )
+					? '<span class="adminpart"><a href="' . $h( $base . '?action=pageedit&id=description' ) . '">{%write a description}</a></span>'
+					: '';
 
 				// tags: what sets the corpus apart (one tag for its kind of annotation, and
 				// features such as parallel translations, time-aligned audio or facsimiles), from
@@ -1399,24 +1429,13 @@
 				if ( ! $empty ) {
 					$fkeys = $sum ? $sum['features'] : array();
 					if ( ! empty( $corp['facets']['feature'] ) && is_array( $corp['facets']['feature'] ) ) $fkeys = array_merge( $fkeys, $corp['facets']['feature'] );
-					$tags = tt_fqs_feature_tags( $fkeys );
+					foreach ( tt_fqs_feature_keys( $fkeys ) as $k ) $tags[] = tt_fqs_facet_link( 'feature', $k, tt_fqs_feature_name( $k ), 'corpus-tag' );
 				}
 				if ( ! empty( $corp['facets']['other'] ) && is_array( $corp['facets']['other'] ) && in_array( 'demo', $corp['facets']['other'], true ) ) {
-					$tags[] = '<span class="corpus-tag corpus-tag-demo">{%Demo}</span>';
+					$tags[] = tt_fqs_facet_link( 'other', 'demo', '{%Demo}', 'corpus-tag corpus-tag-demo' );
 				}
-				if ( $tags ) {
-					$out .= '<p class="corpus-tags">';
-					foreach ( $tags as $i => $t ) {
-						$out .= ( $i ? '<span class="corpus-sep">, </span>' : '' ) . ( strpos( $t, '<span' ) === 0 ? $t : '<span class="corpus-tag">' . $t . '</span>' );
-					}
-					$out .= '</p>';
-				}
-
-				// figures and links, at the bottom of the card
-				$facts = array();
-				if ( $size ) $facts[] = '<span><b>' . tt_fqs_number( $size ) . '</b> {%tokens}</span>';
-				if ( $docs ) $facts[] = '<span><b>' . tt_fqs_number( $docs ) . '</b> ' . ( $docs == 1 ? '{%document}' : '{%documents}' ) . '</span>';
-				if ( $showInterface ) $facts[] = '<span class="corpus-interface">' . $h( $ifLabel ) . '</span>';
+				$langs = array();
+				foreach ( tt_fqs_row_languages( $corp ) as $lc ) $langs[] = tt_fqs_facet_link( 'lang', $lc, $h( tt_fqs_language_name( $lc ) ), 'corpus-lang' );
 
 				$links = array();
 				$icon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
@@ -1432,13 +1451,151 @@
 				} elseif ( $url !== '' ) {
 					$links[] = '<a class="corpus-main" href="' . $h( $url ) . '"><span>{%Open in} ' . $h( $ifLabel ) . '</span></a>';
 				}
-				if ( $facts || $links ) {
+
+				return array(
+					'desc_plain' => tt_fqs_plain_text( preg_replace( '/\{%(.*?)\}/', '$1', $desc ) ),
+					'id' => $id, 'label' => $label, 'kind' => $kind, 'url' => $url,
+					'current' => tt_fqs_corpus_is_current_project( $corp ),
+					'older' => ( isset( $corp['is_current'] ) && $corp['is_current'] === false ),   // an older version of its family
+					'langs' => $langs,   // as labels (links to their filter)
+					'desc' => $desc, 'auto' => $auto, 'edit' => $edit, 'tags' => $tags,
+					'size' => $size, 'docs' => $docs, 'ifLabel' => $ifLabel, 'links' => $links,
+				);
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_corpus_title' ) ) {
+			/** The corpus's name (linked), with "earlier version" for an older one. */
+			function tt_fqs_corpus_title( array $v ) {
+				$h = function ( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); };
+				return ( $v['url'] !== '' ? '<a href="' . $h( $v['url'] ) . '">' . $h( $v['label'] ) . '</a>' : $h( $v['label'] ) )
+					. ( $v['older'] ? ' <span class="corpus-older">{%earlier version}</span>' : '' );
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_corpus_attrs' ) ) {
+			/** The class and id of a corpus's card or row. */
+			function tt_fqs_corpus_attrs( array $v ) {
+				$h = function ( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); };
+				return ' class="corpus corpus-' . $h( $v['kind'] ) . ( $v['current'] ? ' current' : '' ) . '"'
+					. ( $v['id'] !== '' ? ' id="corpus-' . $h( preg_replace( '/[^A-Za-z0-9_.-]/', '_', $v['id'] ) ) . '"' : '' );
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_render_corpus_item' ) ) {
+			/** A corpus as a card (the list for a few corpora). */
+			function tt_fqs_render_corpus_item( array $corp, $showInterface ) {
+				$v = tt_fqs_corpus_view( $corp );
+				$h = function ( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); };
+				$out = '<li' . tt_fqs_corpus_attrs( $v ) . '>';
+
+				// name and languages
+				$out .= '<div class="corpus-head"><h2>' . tt_fqs_corpus_title( $v ) . '</h2>';
+				if ( $v['langs'] ) {
+					$out .= '<p class="corpus-langs">';
+					foreach ( $v['langs'] as $i => $ln ) $out .= ( $i ? '<span class="corpus-sep">, </span>' : '' ) . $ln;
+					$out .= '</p>';
+				}
+				$out .= '</div>';
+
+				if ( $v['desc'] !== '' ) {
+					$out .= '<p class="corpus-description' . ( $v['auto'] ? ' corpus-description-auto' : '' ) . '">' . $v['desc']
+						. ( $v['edit'] !== '' ? ' ' . $v['edit'] : '' ) . '</p>';
+				}
+				if ( $v['tags'] ) {
+					$out .= '<p class="corpus-tags">' . implode( '<span class="corpus-sep">, </span>', $v['tags'] ) . '</p>';
+				}
+
+				// figures and links, at the bottom of the card
+				$facts = array();
+				if ( $v['size'] ) $facts[] = '<span><b>' . tt_fqs_number( $v['size'] ) . '</b> {%tokens}</span>';
+				if ( $v['docs'] ) $facts[] = '<span><b>' . tt_fqs_number( $v['docs'] ) . '</b> ' . ( $v['docs'] == 1 ? '{%document}' : '{%documents}' ) . '</span>';
+				if ( $showInterface ) $facts[] = '<span class="corpus-interface">' . $h( $v['ifLabel'] ) . '</span>';
+				if ( $facts || $v['links'] ) {
 					$out .= '<div class="corpus-foot">';
 					if ( $facts ) $out .= '<p class="corpus-facts">' . implode( '<span class="corpus-sep"> · </span>', $facts ) . '</p>';
-					if ( $links ) $out .= '<p class="corpus-links">' . implode( ' ', $links ) . '</p>';
+					if ( $v['links'] ) $out .= '<p class="corpus-links">' . implode( ' ', $v['links'] ) . '</p>';
 					$out .= '</div>';
 				}
 				return $out . "</li>\n";
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_render_corpus_entry' ) ) {
+			/**
+			 * A corpus as an entry of the catalogue view (many corpora, in the manner of the LINDAT
+			 * repository): its tags, the name, languages and figures on one line, the start of the
+			 * description (all of it on hover), the links.
+			 */
+			function tt_fqs_render_corpus_entry( array $corp, $showInterface ) {
+				$v = tt_fqs_corpus_view( $corp );
+				$h = function ( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); };
+				$out = '<li' . tt_fqs_corpus_attrs( $v ) . '>';
+				if ( $v['tags'] ) $out .= '<p class="corpus-tags">' . implode( '<span class="corpus-sep">, </span>', $v['tags'] ) . '</p>';
+				$out .= '<h3>' . tt_fqs_corpus_title( $v ) . '</h3>';
+				$meta = array();
+				if ( $v['langs'] ) $meta[] = '<span class="corpus-langs">' . implode( '<span class="corpus-sep">, </span>', $v['langs'] ) . '</span>';
+				if ( $v['size'] ) $meta[] = '<span><b>' . tt_fqs_number( $v['size'] ) . '</b> {%tokens}</span>';
+				if ( $v['docs'] ) $meta[] = '<span><b>' . tt_fqs_number( $v['docs'] ) . '</b> ' . ( $v['docs'] == 1 ? '{%document}' : '{%documents}' ) . '</span>';
+				if ( $showInterface ) $meta[] = '<span class="corpus-interface">' . $h( $v['ifLabel'] ) . '</span>';
+				if ( $meta ) $out .= '<p class="corpus-facts">' . implode( '<span class="corpus-sep"> · </span>', $meta ) . '</p>';
+				if ( $v['desc_plain'] !== '' ) {
+					$out .= '<p class="corpus-description' . ( $v['auto'] ? ' corpus-description-auto' : '' ) . '" title="' . $h( $v['desc_plain'] ) . '">'
+						. $h( tt_fqs_shorten( $v['desc_plain'], 220 ) ) . ( $v['edit'] !== '' ? ' ' . $v['edit'] : '' ) . '</p>';
+				}
+				if ( $v['links'] ) $out .= '<p class="corpus-links">' . implode( ' ', $v['links'] ) . '</p>';
+				return $out . "</li>\n";
+			}
+		}
+
+		if ( ! function_exists( 'tt_fqs_facet_sidebar' ) ) {
+			/**
+			 * The facets of the catalogue view: per group (language, features, genre, other, and the
+			 * interface when there are several) its values with their counts, each a link that
+			 * switches it on or off; a group only where it tells corpora apart; past 12 values the
+			 * rest folded away.
+			 */
+			function tt_fqs_facet_sidebar( $facetDict, $selected, $total, $stateUrl, $ifaceKinds, $iface ) {
+				$h = function ( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); };
+				$out = '';
+				$groups = array( 'lang' => 'Language', 'feature' => 'Features', 'genre' => 'Genre', 'other' => 'Other' );
+				foreach ( $groups as $gid => $glabel ) {
+					$items = array();
+					foreach ( ( isset( $facetDict[ $gid ] ) && is_array( $facetDict[ $gid ] ) ) ? $facetDict[ $gid ] : array() as $item ) {
+						if ( is_array( $item ) && isset( $item['value'] ) && (string) $item['value'] !== '' ) $items[] = $item;
+					}
+					$anyOn = false;
+					foreach ( $items as $item ) if ( in_array( strtolower( $gid . ':' . $item['value'] ), $selected, true ) ) $anyOn = true;
+					// a single value that every corpus has does not filter anything
+					if ( ! $anyOn && ( ! $items || ( count( $items ) === 1 && ( empty( $items[0]['count'] ) || (int) $items[0]['count'] >= $total ) ) ) ) continue;
+					usort( $items, function ( $a, $b ) { return ( isset( $b['count'] ) ? (int) $b['count'] : 0 ) - ( isset( $a['count'] ) ? (int) $a['count'] : 0 ); } );
+					$lis = array();
+					$onLate = false;
+					foreach ( $items as $item ) {
+						$val = (string) $item['value'];
+						$token = strtolower( $gid . ':' . $val );
+						$on = in_array( $token, $selected, true );
+						if ( $on && count( $lis ) >= 12 ) $onLate = true;
+						$shown = $gid === 'lang' ? $h( tt_fqs_language_name( $val ) ) : tt_fqs_feature_name( $val );
+						$lis[] = '<li' . ( $on ? ' class="corpus-on"' : '' ) . '><a href="' . $h( $stateUrl( $token ) ) . '"'
+							. ( $on ? ' title="{%Remove this filter}"' : '' ) . '>' . $shown . '</a>'
+							. ( ! empty( $item['count'] ) ? ' <span class="corpus-n">' . (int) $item['count'] . '</span>' : '' ) . '</li>';
+					}
+					$out .= '<div class="corpusfacet"><h3>{%' . $glabel . '}</h3><ul>' . implode( '', array_slice( $lis, 0, 12 ) );
+					if ( count( $lis ) > 12 ) {
+						$out .= '<li class="corpus-more-values"><details' . ( $onLate ? ' open' : '' ) . '><summary>' . ( count( $lis ) - 12 ) . ' {%more}</summary><ul>'
+							. implode( '', array_slice( $lis, 12 ) ) . '</ul></details></li>';
+					}
+					$out .= '</ul></div>';
+				}
+				if ( count( $ifaceKinds ) > 1 ) {
+					$out .= '<div class="corpusfacet"><h3>{%Interface}</h3><ul>';
+					foreach ( $ifaceKinds as $k => $l ) {
+						$out .= '<li' . ( $iface === $k ? ' class="corpus-on"' : '' ) . '><a href="' . $h( $stateUrl( '', $k ) ) . '">' . $h( $l ) . '</a></li>';
+					}
+					$out .= '</ul></div>';
+				}
+				return $out;
 			}
 		}
 
@@ -1533,6 +1690,37 @@
 				. "$P .corpusfilter fieldset label{display:inline-flex;align-items:center;gap:.35em;padding:.3em .85em;border:1px solid #c9d2db;border-radius:999px;background:#fff;font-size:.875em;cursor:pointer}"
 				. "$P .corpusfilter fieldset label:has(input:checked){border-color:var(--ca);color:var(--ca);font-weight:600;background:color-mix(in srgb,var(--ca) 10%,#fff)}"
 				. "$P .corpusfilter fieldset input{margin:0}"
+				// labels that select their filter, and the one that is on
+				. "$P a.corpus-tag,$P a.corpus-lang{text-decoration:none;cursor:pointer}"
+				. "$P a.corpus-tag:hover,$P a.corpus-lang:hover{border-color:var(--ca);color:var(--ca);text-decoration:underline}"
+				. "$P a.corpus-tag.corpus-on{border-color:var(--ca);color:var(--ca);font-weight:600;background:color-mix(in srgb,var(--ca) 10%,#fff)}"
+				. "$P a.corpus-lang.corpus-on{outline:2px solid var(--ca)}"
+				// many corpora: the catalogue view, facets on the left (as the LINDAT repository)
+				. "$P .corpusbrowse{display:grid;grid-template-columns:minmax(11em,15em) minmax(0,1fr);gap:2.5em;align-items:start;margin-bottom:2em}"
+				. "@media (max-width:760px){ $P .corpusbrowse{grid-template-columns:minmax(0,1fr);gap:1em} }"
+				. "$P .corpusfacet h3{margin:0 0 .4em;font-size:.95em;font-weight:600;color:var(--cs)}"
+				. "$P .corpusfacet ul{list-style:none;list-style-image:none;margin:0 0 1.4em;padding:0;font-size:.9em}"
+				. "$P .corpusfacet li{margin:.2em 0;display:flex;justify-content:space-between;gap:.5em}"
+				. "$P .corpusfacet li a{color:var(--ct);text-decoration:none}"
+				. "$P .corpusfacet li a:hover{color:var(--ca);text-decoration:underline}"
+				. "$P .corpusfacet li.corpus-on>a{color:var(--ca);font-weight:600}"
+				. "$P .corpusfacet li.corpus-on>a::before{content:'\\2713\\00a0'}"
+				. "$P .corpusfacet li.corpus-more-values{display:block}"
+				. "$P .corpusfacet summary{cursor:pointer;color:var(--cm)}"
+				. "$P .corpus-n{color:var(--cm);font-size:.9em}"
+				. "$P p.corpus-count{margin:0 0 .5em;color:var(--ct);display:flex;flex-wrap:wrap;gap:.3em 1em}"
+				. "$P .corpus-sort{margin-left:auto;font-size:.9em;color:var(--cm)}"
+				. "$P .corpus-sort b{color:var(--cs)}"
+				. "$P ul.corpusentries{list-style:none;list-style-image:none;margin:0;padding:0}"
+				. "$P ul.corpusentries li.corpus{padding:1em 0;gap:.4em;border:0;border-bottom:1px solid var(--cb);border-radius:0;box-shadow:none;background:none}"
+				. "$P ul.corpusentries li.corpus.current{border-left:3px solid var(--ca);padding-left:.8em}"
+				. "$P .corpusentries h3{margin:0;font-size:1.2em;font-weight:600;line-height:1.3}"
+				. "$P .corpusentries h3 a{color:var(--cs);text-decoration:none}"
+				. "$P .corpusentries h3 a:hover{color:var(--ca)}"
+				. "$P .corpusentries p.corpus-facts{border-top:0;padding-top:0;gap:.2em 1.2em;align-items:center}"
+				. "$P .corpusentries .corpus-langs{display:inline-flex;flex-wrap:wrap;gap:.3em}"
+				. "$P .corpusentries p.corpus-description{max-height:none}"
+				. "$P .corpusentries .corpus-links a{min-height:2.2em;font-size:.9em}"
 				. "$P .corpus-vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}"
 				. "$P .corpuslist-footer{border-top:1px solid var(--cb);padding-top:1em;color:var(--cm);font-size:.9em}"
 				. '</style>';
@@ -1563,20 +1751,60 @@
 		$filtering = ( $qSearch !== '' || $selectedFacets || $iface !== '' );
 		$total = count( $publicRows );
 
-		// Summary line, for more than one corpus
+		// Cards for a few corpora, a table for many: <flexicorp corpuslist_table="12"/> (the default) shows a
+		// table from 13 corpora on; "table" always, "cards" never. A visitor can switch (&layout=cards|table).
+		$tableSetting = function_exists( 'getset' ) ? strtolower( trim( (string) getset( 'flexicorp/corpuslist_table', '' ) ) ) : '';
+		if ( $tableSetting === 'table' ) $asTable = true;
+		elseif ( $tableSetting === 'cards' ) $asTable = false;
+		else $asTable = $total > ( ctype_digit( $tableSetting ) && (int) $tableSetting > 0 ? (int) $tableSetting : 12 );
+		$layoutAsked = isset( $_GET['layout'] ) ? (string) $_GET['layout'] : '';
+		// the order: by name (as FQS gives them), &sort=size (largest first) or &sort=recent (latest
+		// registered first, where FQS gives the date); what has no size or date last
+		$sortAsked = isset( $_GET['sort'] ) && in_array( $_GET['sort'], array( 'size', 'recent' ), true ) ? (string) $_GET['sort'] : '';
+		if ( $layoutAsked === 'table' || $layoutAsked === 'cards' ) $asTable = ( $layoutAsked === 'table' );
+
+		// The filter state as a link: what is selected now, with one facet (GID:VALUE) or interface
+		// switched on or off; every view has its own URL (as the LINDAT repository's browse pages)
+		$stateUrl = function ( $toggleFacet = '', $toggleIface = null, $layout = null, $sort = null ) use ( $action, $qSearch, $selectedFacets, $iface, $layoutAsked, $sortAsked, $allVersions ) {
+			$facets = $selectedFacets;
+			if ( $toggleFacet !== '' ) {
+				$facets = in_array( $toggleFacet, $facets, true ) ? array_values( array_diff( $facets, array( $toggleFacet ) ) ) : array_merge( $facets, array( $toggleFacet ) );
+			}
+			$q = array( 'action' => (string) $action );
+			if ( $qSearch !== '' ) $q['q'] = $qSearch;
+			$if = $toggleIface === null ? $iface : ( $iface === $toggleIface ? '' : $toggleIface );
+			if ( $if !== '' ) $q['iface'] = $if;
+			$lay = $layout === null ? $layoutAsked : $layout;
+			if ( $lay === 'table' || $lay === 'cards' ) $q['layout'] = $lay;
+			$so = $sort === null ? $sortAsked : $sort;
+			if ( $so === 'size' || $so === 'recent' ) $q['sort'] = $so;
+			if ( $allVersions ) $q['versions'] = 'all';
+			$url = 'index.php?' . http_build_query( $q );
+			foreach ( $facets as $f ) $url .= '&facet%5B%5D=' . rawurlencode( $f );
+			return $url;
+		};
+		$known = array();
+		foreach ( $facetDict as $gid => $items ) {
+			if ( ! is_array( $items ) ) continue;
+			foreach ( $items as $item ) {
+				if ( is_array( $item ) && isset( $item['value'] ) && (string) $item['value'] !== '' ) $known[ strtolower( $gid . ':' . $item['value'] ) ] = 1;
+			}
+		}
+		foreach ( $selectedFacets as $f ) $known[ $f ] = 1;   // a chosen one can always be taken off again
+		$GLOBALS['tt_fqs_facets'] = array( 'href' => function ( $token ) use ( $stateUrl ) { return $stateUrl( $token ); },
+			'known' => $known, 'on' => $selectedFacets );
+
+		// Summary line, for more than one corpus: the totals (not while filtering), and in the same place
+		// in both views the switch between cards and the list
+		$bits = array();
 		if ( ! $filtering && $total > 1 ) {
 			$tokens = 0;
 			$langset = array();
 			foreach ( $publicRows as $corp ) {
-				if ( isset( $corp['corpus_size'] ) && is_numeric( $corp['corpus_size'] ) && (float) $corp['corpus_size'] > 0 ) {
-					$tokens += (float) $corp['corpus_size'];
-				} else {
-					list( $ck, , $cu ) = tt_fqs_row_interface( $corp );
-					if ( $ck === 'teitok' ) $tokens += (float) tt_fqs_project_tokens( tt_fqs_local_project_dir( $cu ) );
-				}
+				$tokens += (float) tt_fqs_row_size( $corp );
 				foreach ( tt_fqs_row_languages( $corp ) as $lc ) $langset[ $lc ] = 1;
 			}
-			$bits = array( '<span><b>' . $total . '</b> {%corpora}</span>' );
+			$bits[] = '<span><b>' . $total . '</b> {%corpora}</span>';
 			if ( $tokens > 0 ) $bits[] = '<span><b>' . tt_fqs_number( $tokens ) . '</b> {%tokens}</span>';
 			if ( count( $langset ) > 1 ) $bits[] = '<span><b>' . count( $langset ) . '</b> {%languages}</span>';
 			// versioned corpora: a link to show (or hide again) their earlier versions
@@ -1587,12 +1815,27 @@
 				$bits[] = "<a href='" . htmlspecialchars( $vurl, ENT_QUOTES, 'UTF-8' ) . "'>"
 					. ( $allVersions ? '{%only the latest versions}' : '{%also earlier versions}' ) . '</a>';
 			}
-			$maintext .= '<p class="corpus-summary">' . implode( '<span class="corpus-sep"> · </span>', $bits ) . '</p>';
 		}
+		if ( $total > 1 || $filtering ) {   // (while filtering, $total counts only the matches)
+			$bits[] = "<a class='corpus-layout' href='" . htmlspecialchars( $stateUrl( '', null, $asTable ? 'cards' : 'table' ), ENT_QUOTES, 'UTF-8' ) . "'>"
+				. ( $asTable ? '{%show as cards}' : '{%show as a list}' ) . '</a>';
+		}
+		if ( $bits ) $maintext .= '<p class="corpus-summary">' . implode( '<span class="corpus-sep"> · </span>', $bits ) . '</p>';
 
 		// Search and filters: only from $searchFrom corpora on (or while filtering), and a
 		// filter group only when it tells corpora apart.
-		if ( $filtering || $total >= $searchFrom ) {
+		if ( $asTable ) {
+			// the list: a search box over the facets (the sidebar, below)
+			$maintext .= "<form method='get' action='index.php' class='corpusfilter corpusfilter-q-only'>"
+				. "<input type='hidden' name='action' value='" . htmlspecialchars( (string) $action, ENT_QUOTES, 'UTF-8' ) . "' />";
+			foreach ( $selectedFacets as $f ) $maintext .= "<input type='hidden' name='facet[]' value='" . htmlspecialchars( $f, ENT_QUOTES, 'UTF-8' ) . "' />";
+			if ( $iface !== '' ) $maintext .= "<input type='hidden' name='iface' value='" . htmlspecialchars( $iface, ENT_QUOTES, 'UTF-8' ) . "' />";
+			if ( $layoutAsked !== '' ) $maintext .= "<input type='hidden' name='layout' value='" . htmlspecialchars( $layoutAsked, ENT_QUOTES, 'UTF-8' ) . "' />";
+			if ( $sortAsked !== '' ) $maintext .= "<input type='hidden' name='sort' value='" . $sortAsked . "' />";
+			$maintext .= '<p><label class="corpusfilter-q"><span class="corpus-vh">{%Find a corpus}</span>'
+				. '<input type="search" name="q" placeholder="{%Find a corpus by name}" value="' . htmlspecialchars( $qSearch, ENT_QUOTES, 'UTF-8' ) . '" /></label> '
+				. '<input type="submit" value="{%Search}" /></p></form>';
+		} elseif ( $filtering || $total >= $searchFrom ) {
 			$self = 'index.php?action=' . rawurlencode( (string) $action );
 			$maintext .= "<form method='get' action='index.php' class='corpusfilter'>";
 			$maintext .= "<input type='hidden' name='action' value='" . htmlspecialchars( (string) $action, ENT_QUOTES, 'UTF-8' ) . "' />";
@@ -1662,12 +1905,48 @@
 				? '<p><em>{%No corpora match your search.}</em></p>'
 				: '<p><em>{%There are no corpora to show yet.}</em></p>';
 		} else {
-			$maintext .= "<ul class='corpuslist'>\n";
-			foreach ( $listRows as $corp ) {
-				$maintext .= tt_fqs_render_corpus_item( $corp, $showInterface );
-				if ( tt_fqs_corpus_is_current_project( $corp ) ) $havethiscorpus = true;
+			if ( $sortAsked !== '' ) {
+				$sizes = array();   // the value sorted on, largest (or latest) first
+				foreach ( $listRows as $i => $corp ) {
+					$sizes[ $i ] = $sortAsked === 'size' ? tt_fqs_row_size( $corp )
+						: ( ! empty( $corp['created_at'] ) && ( $t = strtotime( (string) $corp['created_at'] ) ) ? (float) $t : null );
+				}
+				uksort( $listRows, function ( $a, $b ) use ( $sizes ) {
+					if ( $sizes[ $a ] === null || $sizes[ $b ] === null ) return ( $sizes[ $a ] === null ) - ( $sizes[ $b ] === null ) ?: $a - $b;
+					return $sizes[ $b ] <=> $sizes[ $a ] ?: $a - $b;
+				} );
 			}
-			$maintext .= "</ul>\n";
+			if ( $asTable ) {
+				$maintext .= "<div class='corpusbrowse'><aside class='corpusfacets'>" . tt_fqs_facet_sidebar( $facetDict, $selectedFacets, $total, $stateUrl,
+					$showInterface ? $ifaceKinds : array(), $iface ) . '</aside><section>';
+				$n = count( $listRows );
+				$maintext .= '<p class="corpus-count"><b>' . $n . '</b> ' . ( $n == 1 ? '{%corpus}' : '{%corpora}' )
+					. ( $filtering ? " · <a href='" . htmlspecialchars( 'index.php?action=' . rawurlencode( (string) $action ) . ( $layoutAsked !== '' ? '&layout=' . rawurlencode( $layoutAsked ) : '' ), ENT_QUOTES, 'UTF-8' ) . "'>{%all corpora}</a>" : '' );
+				if ( $n > 1 ) {
+					$sortLink = function ( $key, $label ) use ( $sortAsked, $stateUrl ) {
+						return $sortAsked === $key ? '<b>' . $label . '</b>'
+							: "<a href='" . htmlspecialchars( $stateUrl( '', null, null, $key ), ENT_QUOTES, 'UTF-8' ) . "'>" . $label . '</a>';
+					};
+					$dated = false;   // "recent" only where FQS gives the registration date
+					foreach ( $listRows as $corp ) if ( ! empty( $corp['created_at'] ) ) $dated = true;
+					$maintext .= '<span class="corpus-sort">{%Sort by}: ' . $sortLink( '', '{%name}' ) . ' · ' . $sortLink( 'size', '{%size}' )
+						. ( $dated ? ' · ' . $sortLink( 'recent', '{%recent}' ) : '' ) . '</span>';
+				}
+				$maintext .= '</p>';
+				$maintext .= "<ul class='corpusentries'>\n";
+				foreach ( $listRows as $corp ) {
+					$maintext .= tt_fqs_render_corpus_entry( $corp, $showInterface );
+					if ( tt_fqs_corpus_is_current_project( $corp ) ) $havethiscorpus = true;
+				}
+				$maintext .= "</ul></section></div>\n";
+			} else {
+				$maintext .= "<ul class='corpuslist'>\n";
+				foreach ( $listRows as $corp ) {
+					$maintext .= tt_fqs_render_corpus_item( $corp, $showInterface );
+					if ( tt_fqs_corpus_is_current_project( $corp ) ) $havethiscorpus = true;
+				}
+				$maintext .= "</ul>\n";
+			}
 		}
 
 		if ( function_exists( 'getlangfile' ) ) {
@@ -1707,8 +1986,11 @@
 		$thisIsCorpus = is_dir( 'xmlfiles' ) || is_dir( 'pando' ) || is_dir( 'cqp' );
 		if ( empty( $isshared ) && ! $havethiscorpus && $thisIsCorpus ) {
 			$maintext .= "<p class=warning>The current corpus is not included in the corpus list.";
-			if ( $username ) {
+			list( $mayRegister, $whyNot ) = tt_fqs_may_register();
+			if ( $mayRegister ) {
 				$maintext .= " <a href='index.php?action=$action&amp;act=addcorpus'>Register this corpus in FQS</a></p>";
+			} elseif ( $username ) {
+				$maintext .= " <small>" . htmlspecialchars( $whyNot ) . "</small></p>";
 			} else {
 				$maintext .= '</p>';
 			}

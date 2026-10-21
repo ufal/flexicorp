@@ -475,4 +475,27 @@
 			return array( 'Authorization: Bearer ' . $h . '.' . $p . '.' . $b64( hash_hmac( 'sha256', $h . '.' . $p, $secret, true ) ) );
 		}
 	}
+
+	if ( ! function_exists( 'tt_fqs_may_register' ) ) {
+		/**
+		 * May the logged-in user register this project's corpus in FQS (the server-wide catalogue)?
+		 * <flexicorp fqs_register="…"/>: "admin" (the default) the admins of the project; "guser"
+		 * only TEITOK's server-wide users (projects="all", as TEITOK's own shared admin asks);
+		 * "off" nobody from the corpus list (only through FQS itself).
+		 * Returns array( allowed, why not ).
+		 */
+		function tt_fqs_may_register() {
+			global $user, $username;
+			$who = strtolower( trim( (string) ( function_exists( 'getset' ) ? getset( 'flexicorp/fqs_register', 'admin' ) : 'admin' ) ) );
+			if ( $who === 'off' ) return array( false, 'Registering corpora from here is switched off: ask the server administrator.' );
+			if ( empty( $username ) ) return array( false, 'Log in to register this corpus.' );
+			$u = isset( $user ) && is_array( $user ) ? $user : array();
+			if ( $who === 'guser' ) {
+				return ( isset( $u['projects'] ) && $u['projects'] === 'all' )
+					? array( true, '' ) : array( false, 'Only server-wide users can register corpora: ask the server administrator.' );
+			}
+			return ( isset( $u['permissions'] ) && $u['permissions'] === 'admin' ) || ( isset( $u['projects'] ) && $u['projects'] === 'all' )
+				? array( true, '' ) : array( false, 'Only the admins of this project can register it: ask one of them.' );
+		}
+	}
 ?>
