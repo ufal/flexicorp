@@ -11,7 +11,7 @@ function flexicorpSplitSearchIntroHtml(html) {
 }
 
 /** Parts of the root component in fc_<id>.js, in mixing order (flexicorp.php loads them before this file). */
-const FLEXICORP_CORE_PARTS = ['viewstate', 'backend', 'statsrouting', 'kwicview', 'requests', 'highlight', 'querystore', 'documents', 'hitdetail', 'hits', 'fqswarm'];
+const FLEXICORP_CORE_PARTS = ['viewstate', 'backend', 'statsrouting', 'kwicview', 'requests', 'highlight', 'querystore', 'documents', 'hitdetail', 'hits', 'fqswarm', 'multiedit'];
 
 function flexicorpApp() {
 	/** Mirrors tt_flexicorp_default_search_intro_html() when #flexicorp-initial-state omits searchIntroHtml (legacy shell / failed encode fallback). */

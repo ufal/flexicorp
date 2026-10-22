@@ -752,6 +752,12 @@
 				<div class="flexicorp-search-result-title-row">
 					<h3 class="flexicorp-subtitle flexicorp-search-result-heading">{%Search result}</h3>
 					<div class="flexicorp-search-result-actions" style="position:relative;">
+						<a
+							class="btn btn-sm btn-outline-secondary flexicorp-multiedit-btn"
+							x-show="typeof multieditUrl === 'function' && multieditUrl()"
+							x-bind:href="typeof multieditUrl === 'function' ? multieditUrl() : '#'"
+							title="{%Change these tokens: look at the matches and change the ones you tick}"
+						>{%Change these tokens}</a>
 						<button
 							type="button"
 							class="btn btn-sm btn-outline-secondary flexicorp-share-btn"

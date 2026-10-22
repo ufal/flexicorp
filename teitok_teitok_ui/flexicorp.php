@@ -8381,7 +8381,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	// Parts of the root component (fc_<id>.js: FLEXICORP_CORE_PARTS in flexicorp.js, FLEXICORP_FREQS_PARTS in
 	// flexicorp_freqs.js): load before flexicorp.js.
 	$fcCoreParts = array(
-		'viewstate', 'backend', 'statsrouting', 'kwicview', 'requests', 'highlight', 'querystore', 'documents', 'hitdetail', 'hits', 'fqswarm',
+		'viewstate', 'backend', 'statsrouting', 'kwicview', 'requests', 'highlight', 'querystore', 'documents', 'hitdetail', 'hits', 'fqswarm', 'multiedit',
 		'stats_fields', 'scope', 'stats_corpus', 'stats_freq', 'stats_tabs', 'stats_coll', 'stats_other', 'stats_values', 'stats_freqviz', 'stats_dispersion', 'stats_freqhits', 'stats_svgexport',
 	);
 	// Libraries the parts use (window.ttFlexicorp*): loaded first.
