@@ -43,6 +43,24 @@ if ( ! function_exists( 'tt_typology_counts' ) ) {
 		return $out;
 	}
 
+	/**
+	 * The language attribute among the corpus's region attributes (name => number of values or null):
+	 * a structure's attribute named as a language usually is, text first (the language of a document),
+	 * then any other structure; one with a single value cannot tell languages apart. '' when none.
+	 */
+	function tt_typology_find_lang( array $attrs ) {
+		$names = array( 'langcode', 'lang', 'language', 'iso', 'lang_code', 'language_code', 'iso639', 'lang_iso', 'xml_lang', 'xmllang' );
+		foreach ( array( 'text', '' ) as $struct ) {
+			foreach ( $names as $n ) {
+				foreach ( $attrs as $attr => $vocab ) {
+					if ( $vocab !== null && $vocab < 2 ) continue;
+					if ( $struct === 'text' ? $attr === "text_$n" : preg_match( '/^[A-Za-z0-9]+_' . preg_quote( $n, '/' ) . '$/', $attr ) ) return $attr;
+				}
+			}
+		}
+		return '';
+	}
+
 	/** Why the features cannot be counted for the project ('' when they can: through FQS or locally). */
 	function tt_typology_cannot_count( $root ) {
 		return tt_fc_pando_route( $root )['why'];

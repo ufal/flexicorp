@@ -29,7 +29,7 @@
 			loading: true,
 			error: '',
 			cannotCount: '',
-			settings: { lang: 'text_langcode', min_n: 30 },
+			settings: { lang: '', min_n: 30 },
 			admin: !!boot.admin,
 			features: {},
 			version: 0,

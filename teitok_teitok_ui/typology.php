@@ -12,7 +12,8 @@
  *        (scope mine / corpus; writes need a login and the page's token, X-Typology-Token; the
  *        corpus's set needs an admin)                                                   JSON
  *
- * Settings: <typology lang="text_langcode" min_n="30"/> (the language attribute; the fewest hits a
+ * Settings: <typology lang="text_lang" min_n="30"/> (the language attribute, found in the corpus when not
+ * given: tt_typology_find_lang; the fewest hits a
  * feature needs in a language). Counting: typology_engine.php (pando, kept in tmp/typology/); the page:
  * typology_panel.php, typology.js, typology_math.js, typology_views.js.
  */
@@ -26,14 +27,35 @@ require_once __DIR__ . '/typology_editor_panel.php';
 if ( ! isset( $maintext ) ) $maintext = '';
 
 if ( ! function_exists( 'tt_typology_settings' ) ) {
-	function tt_typology_settings() {
+	/**
+	 * The page's settings: <typology lang="…" min_n="30"/>. Without lang, the language attribute is
+	 * found in the corpus (tt_typology_find_lang), kept for an hour in tmp/typology/; 'lang' is ''
+	 * when there is none ('lang_from': setting | corpus).
+	 */
+	function tt_typology_settings( $root = '' ) {
 		$get = function ( $k, $d ) {
 			$v = function_exists( 'getset' ) ? getset( "typology/$k", '' ) : '';
 			return ( is_string( $v ) && trim( $v ) !== '' ) ? trim( $v ) : $d;
 		};
-		$lang = $get( 'lang', 'text_langcode' );
+		$lang = $get( 'lang', '' );
+		$from = 'setting';
+		if ( ! preg_match( '/^[A-Za-z][A-Za-z0-9_]*$/', $lang ) ) {
+			$from = 'corpus';
+			$kept = rtrim( (string) $root, '/' ) . '/tmp/typology/language-attribute.json';
+			$k = is_file( $kept ) && filemtime( $kept ) > time() - 3600 ? json_decode( (string) file_get_contents( $kept ), true ) : null;
+			if ( is_array( $k ) && isset( $k['lang'] ) ) $lang = (string) $k['lang'];
+			else {
+				$attrs = $root !== '' && function_exists( 'tt_fc_pando_region_attrs' ) ? tt_fc_pando_region_attrs( $root ) : array();
+				$lang = tt_typology_find_lang( $attrs );
+				if ( $attrs ) {   // only what was found in an index: no index (yet) is asked again next time
+					if ( ! is_dir( dirname( $kept ) ) ) @mkdir( dirname( $kept ), 0775, true );
+					@file_put_contents( $kept, json_encode( array( 'lang' => $lang ) ) );
+				}
+			}
+		}
 		return array(
-			'lang' => preg_match( '/^[A-Za-z][A-Za-z0-9_]*$/', $lang ) ? $lang : 'text_langcode',
+			'lang' => $lang,
+			'lang_from' => $from,
 			'min_n' => max( 1, (int) $get( 'min_n', '30' ) ),
 		);
 	}
@@ -43,7 +65,10 @@ $ttTyRoot = tt_fc_env_project_root();
 $ttTyAdmin = tt_fc_env_is_admin();
 $ttTyFolder = tt_fc_env_user_folder();
 $ttTyToken = tt_fc_env_session_token( 'typology' );
-$ttTyCfg = tt_typology_settings();
+$ttTyCfg = tt_typology_settings( $ttTyRoot );
+// no language attribute: nothing can be compared (said instead of pando's error on every feature)
+$ttTyNoLang = $ttTyCfg['lang'] !== '' ? '' : 'This corpus has no attribute that gives the language of its texts, so its languages cannot be compared.'
+	. ( $ttTyAdmin ? ' (Admin: name it in the settings: <typology lang="text_…"/>.)' : '' );
 $ttTyOp = (string) ( $_REQUEST['op'] ?? '' );
 
 if ( $ttTyOp !== '' ) {
@@ -62,13 +87,13 @@ if ( $ttTyOp !== '' ) {
 	// whose limits apply at FQS: admin for the built-in and the corpus's features (written by admins),
 	// the user's own role for their own features and for features tried out on the page
 	$userRole = $ttTyAdmin ? 'admin' : ( $ttTyFolder !== '' ? 'user' : 'visitor' );
-	$state = function () use ( $ttTyRoot, $ttTyFolder, $lang, $ttTyCfg, $ttTyAdmin ) {
+	$state = function () use ( $ttTyRoot, $ttTyFolder, $lang, $ttTyCfg, $ttTyAdmin, $ttTyNoLang ) {
 		$m = tt_typology_merged( $ttTyRoot, $ttTyFolder );
 		$hidden = array_values( array_unique( array_merge(
 			tt_typology_store_load( tt_typology_store_path( $ttTyRoot, '' ) )['hidden'],
 			$ttTyFolder !== '' ? tt_typology_store_load( tt_typology_store_path( $ttTyRoot, $ttTyFolder ) )['hidden'] : array() ) ) );
 		return array( 'ok' => true, 'settings' => $ttTyCfg, 'admin' => $ttTyAdmin, 'user' => $ttTyFolder,
-			'cannot_count' => tt_typology_cannot_count( $ttTyRoot ), 'via' => tt_fc_pando_route( $ttTyRoot )['via'],
+			'cannot_count' => tt_typology_cannot_count( $ttTyRoot ) ?: $ttTyNoLang, 'via' => tt_fc_pando_route( $ttTyRoot )['via'],
 			'features' => tt_typology_catalogue( $ttTyRoot, $lang, $m['features'] ),
 			'attributes' => (object) $m['attributes'], 'corpus_attributes' => (object) $m['corpus_attributes'],
 			'my_attributes' => (object) $m['my_attributes'], 'hidden' => $hidden,
@@ -103,6 +128,7 @@ if ( $ttTyOp !== '' ) {
 				$role = ( $feat['origin'] ?? 'builtin' ) === 'mine' ? $userRole : 'admin';
 			}
 			$cannot = tt_typology_cannot_count( $ttTyRoot );
+			if ( $cannot === '' && $ttTyNoLang !== '' ) $fail( $ttTyNoLang );
 			if ( $cannot !== '' && ( $ttTyOp === 'recompute' || ! is_file( tt_typology_cache_path( $ttTyRoot, $id, $feat, $lang ) ) ) ) $fail( $cannot );
 			$r = tt_typology_count( $ttTyRoot, $id, $feat, $lang, $ttTyOp === 'recompute', null, $role );
 			if ( is_string( $r ) ) $fail( $r );

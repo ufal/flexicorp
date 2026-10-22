@@ -74,6 +74,33 @@ if ( ! function_exists( 'tt_fc_pando_route' ) ) {
 	}
 
 	/**
+	 * The corpus's region attributes, wherever its index is: array( 'text_lang' => number of values or
+	 * null (not known: a local index), … ), in the index's order; array() when there is no index.
+	 */
+	function tt_fc_pando_region_attrs( $root ) {
+		static $memo = array();
+		$key = rtrim( (string) $root, '/' );
+		if ( isset( $memo[ $key ] ) ) return $memo[ $key ];
+		$route = tt_fc_pando_route( $root );
+		$out = array();
+		if ( $route['via'] === 'fqs' ) {
+			$r = tt_fc_http_json( 'GET', $route['url'] . '/info?corpus=' . rawurlencode( $route['corpus'] ), null, tt_fqs_bearer_headers( 'admin', 'teitok-lens', 60 ), 10 );
+			$info = $r['data']['result'] ?? array();
+			foreach ( (array) ( $info['structures'] ?? array() ) as $st ) {
+				foreach ( (array) ( $st['region_attrs'] ?? array() ) as $ra ) {
+					if ( is_array( $ra ) && isset( $ra['name'] ) ) $out[ $st['name'] . '_' . $ra['name'] ] = isset( $ra['vocab'] ) ? (int) $ra['vocab'] : null;
+				}
+			}
+			if ( ! $out ) foreach ( (array) ( $info['region_attrs'] ?? array() ) as $ra ) if ( is_string( $ra ) ) $out[ $ra ] = null;
+		} elseif ( $route['via'] === 'local' ) {
+			foreach ( @file( $route['index'] . '/corpus.info', FILE_IGNORE_NEW_LINES ) ?: array() as $line ) {
+				if ( preg_match( '/^region_attrs=(.*)$/', $line, $m ) ) foreach ( explode( ',', $m[1] ) as $ra ) if ( trim( $ra ) !== '' ) $out[ trim( $ra ) ] = null;
+			}
+		}
+		return $memo[ $key ] = $out;
+	}
+
+	/**
 	 * Run a pando program for the project: its JSON answer, or an error message. $role: whose limits
 	 * FQS applies (admin for fixed, server-side programs; the user's role for queries a user wrote).
 	 */
