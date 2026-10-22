@@ -754,9 +754,12 @@
 					<div class="flexicorp-search-result-actions" style="position:relative;">
 						<a
 							class="btn btn-sm btn-outline-secondary flexicorp-multiedit-btn"
-							x-show="typeof multieditUrl === 'function' && multieditUrl()"
-							x-bind:href="typeof multieditUrl === 'function' ? multieditUrl() : '#'"
-							title="{%Change these tokens: look at the matches and change the ones you tick}"
+							x-show="typeof multieditShown === 'function' && multieditShown()"
+							x-bind:href="typeof multieditUrl === 'function' && multieditUrl() ? multieditUrl() : null"
+							x-bind:class="{ 'flexicorp-multiedit-off': typeof multieditUrl === 'function' && !multieditUrl() }"
+							x-bind:aria-disabled="typeof multieditUrl === 'function' && !multieditUrl() ? 'true' : 'false'"
+							x-bind:title="typeof multieditHint === 'function' ? multieditHint() : ''"
+							x-on:click="if (typeof multieditUrl === 'function' && !multieditUrl()) $event.preventDefault()"
 						>{%Change these tokens}</a>
 						<button
 							type="button"

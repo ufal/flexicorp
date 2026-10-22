@@ -1,8 +1,8 @@
 /**
  * flexicorp TEITOK UI: the link to multiedit (index.php?action=multiedit): changing the tokens a query found,
- * after looking at them. Offered to logged-in users for a pando query of one token, or one with labelled
- * tokens (`subj:[…] < buy:[…]`; multiedit asks which one to edit when it is not `edit:`). Methods of the
- * flexicorpRoot Alpine component, mixed in by flexicorpApp() (flexicorp.js) through
+ * after looking at them. Shown to logged-in users after a pando search; active for a query of one token or one
+ * that labels the token to edit `edit:`, greyed out (with a hint) when the query does not say which token to
+ * edit. Methods of the flexicorpRoot Alpine component, mixed in by flexicorpApp() (flexicorp.js) through
  * window.ttFlexicorpCoreParts; `this` is the component.
  */
 window.ttFlexicorpCoreParts = window.ttFlexicorpCoreParts || {};
@@ -13,28 +13,43 @@ window.ttFlexicorpCoreParts.multiedit = function () {
 			return String(q || '').replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, (m) => '_'.repeat(m.length));
 		},
 
-		/** Does multiedit take this query: one token, or labelled tokens, and no program (;)? */
-		multieditQueryFits(q) {
+		/**
+		 * What multiedit can do with this query: 'unique' (one token, or a token labelled edit:), 'unclear' (labelled
+		 * tokens without edit:, or several tokens: which one to edit is not said), '' (no query, or a program with ;).
+		 */
+		multieditTarget(q) {
 			const s = this._multieditUnquoted(q).trim().replace(/;\s*$/, '');
-			if (!s || s.indexOf(';') >= 0) return false;
-			if (/(^|[^A-Za-z0-9_.])[A-Za-z_][A-Za-z0-9_]*\s*:\s*\[/.test(s)) return true;
+			if (!s || s.indexOf(';') >= 0) return '';
+			if (/(^|[^A-Za-z0-9_.])edit\s*:\s*\[/.test(s)) return 'unique';
 			let depth = 0;
 			let tokens = 0;
 			for (const ch of s) {
 				if (ch === '[') { if (depth === 0) tokens++; depth++; } else if (ch === ']' && depth > 0) depth--;
 			}
-			return tokens === 1;
+			return tokens === 1 ? 'unique' : (tokens > 1 ? 'unclear' : '');
 		},
 
-		/** The multiedit link for the search that ran, or '' when it does not apply. */
-		multieditUrl() {
-			if (this.activeTab !== 'search' || !this.search || !this.search.ran) return '';
-			if (typeof this.teitokUsername === 'function' && !this.teitokUsername()) return '';
+		/** Is the link shown at all: a pando search that ran, a logged-in user, a query (not a program)? */
+		multieditShown() {
+			if (this.activeTab !== 'search' || !this.search || !this.search.ran) return false;
+			if (typeof this.teitokUsername === 'function' && !this.teitokUsername()) return false;
 			const engine = String((this.settings && (this.settings.queryEngine || this.settings.backend)) || '').toLowerCase();
-			if (engine !== 'pando' && engine !== 'flexicorp-pando') return '';
+			if (engine !== 'pando' && engine !== 'flexicorp-pando') return false;
+			return this.multieditTarget(String(this.search.query || '')) !== '';
+		},
+
+		/** The multiedit link, or '' when the query does not say which token to edit (the link is then greyed out). */
+		multieditUrl() {
+			if (!this.multieditShown()) return '';
 			const q = String(this.search.query || '').trim();
-			if (!this.multieditQueryFits(q)) return '';
+			if (this.multieditTarget(q) !== 'unique') return '';
 			return 'index.php?action=multiedit&query=' + encodeURIComponent(q);
+		},
+
+		multieditHint() {
+			return this.multieditUrl()
+				? 'Change these tokens: look at the matches and change the ones you tick'
+				: 'To change tokens from this query, label the one to edit edit: (for example subj:[…] < edit:[lemma="buy"])';
 		},
 	};
 };

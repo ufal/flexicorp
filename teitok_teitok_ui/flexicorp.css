@@ -2340,3 +2340,6 @@ button.flexicorp-search-change-link {
 /* Heatmap (pivot): the shading scale selector above the table */
 .flexicorp-pivot-scale { margin: 0 0 0.5em; font-size: 0.9em; }
 .flexicorp-pivot-scale select { margin-left: 0.4em; }
+
+/* the multiedit link, when the query does not say which token to edit: greyed out, the hint on hover */
+.flexicorp-multiedit-btn.flexicorp-multiedit-off { opacity: .45; cursor: not-allowed; }
