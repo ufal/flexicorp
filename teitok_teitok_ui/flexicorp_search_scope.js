@@ -255,7 +255,8 @@
 			.map((s) => s.trim())
 			.filter(Boolean);
 		if (names.length < 2 || !fields.length) return '';
-		return `keyness ${names.join(', ')} by ${fields.join(', ')}`;
+		// pando: keyness A vs B by att (a comma between the two is a syntax error); a contrast is of two sets
+		return `keyness ${names[0]} vs ${names[1]} by ${fields.join(', ')}`;
 	}
 
 	/**

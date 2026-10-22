@@ -77,19 +77,46 @@ var ME = (function () {
 
 	// ---- 2 the overview
 
-	function list() {
+	// fromChoice: the token to edit (and to attach to) was just chosen; otherwise a new query chooses again
+	function list(fromChoice) {
+		if (fromChoice !== true) { st.target = ''; st.head = ''; }
 		cfg.query = ui.q.value.trim();
 		st.fields = chosen();
 		if (!cfg.query) return msg('Give a query.', 'error');
 		if (!st.fields.length) return msg('Choose what to change.', 'error');
 		msg('Looking for the matches …', 'info');
 		ui.overview.innerHTML = ''; ui.list.innerHTML = '';
-		get('list', { query: cfg.query, fields: st.fields }).then(function (d) {
+		get('list', { query: cfg.query, fields: st.fields, target: st.target || '', head: st.head || '' }).then(function (d) {
+			if (d.choose) return choose(d.choose);
 			st.set = d; st.from = 0; st.sort = ''; st.ticked = {};
 			msg('');
 			overview();
 			page();
 		}).catch(fail);
+	}
+
+	// several labelled tokens: which one to edit, and (optionally) which one to attach the ticked ones to
+	function choose(labels) {
+		msg('');
+		var box = ui.overview;
+		box.innerHTML = '';
+		var name = 'me-target-' + Math.random().toString(36).slice(2), hname = name + '-h';
+		var targets = labels.map(function (l, i) {
+			return el('label', { class: 'me-field' }, [el('input', { type: 'radio', name: name, value: l, checked: i === 0 }), ' ', el('code', { text: l })]);
+		});
+		var heads = [el('label', { class: 'me-field' }, [el('input', { type: 'radio', name: hname, value: '', checked: true }), ' no'])].concat(labels.map(function (l) {
+			return el('label', { class: 'me-field' }, [el('input', { type: 'radio', name: hname, value: l }), ' ', el('code', { text: l })]);
+		}));
+		box.appendChild(el('div', { class: 'me-row' }, [el('span', { class: 'me-qlabel', text: 'Token to edit' })].concat(targets)));
+		box.appendChild(el('div', { class: 'me-row' }, [el('span', { class: 'me-qlabel', text: 'Attach to' })].concat(heads)));
+		box.appendChild(el('div', { class: 'me-row' }, [el('span', { class: 'me-qlabel' }), el('button', { type: 'button', class: 'me-main', text: 'Show the matches', on: { click: function () {
+			var t = box.querySelector('input[name="' + name + '"]:checked'), h = box.querySelector('input[name="' + hname + '"]:checked');
+			st.target = t ? t.value : '';
+			st.head = h ? h.value : '';
+			if (st.head && st.head === st.target) return msg('The token to attach to must be another one than the token to edit.', 'error');
+			list(true);
+		} } })]));
+		box.appendChild(el('p', { class: 'me-hint', text: 'The query labels several tokens: choose the one to change. "Attach to": a reattach (its head becomes that token); otherwise the other labels only group and sort.' }));
 	}
 
 	function narrow(q, label, field, value) {
@@ -103,9 +130,10 @@ var ME = (function () {
 		box.appendChild(el('p', { class: 'me-total' }, [el('b', { text: num(d.total) }), d.total === 1 ? ' match' : ' matches',
 			' for ', el('code', { text: d.query })]));
 		// the target's fields first, then the other labels'; a field and its values
+		var tp = d.target + '.';
 		var keys = Object.keys(d.overview).sort(function (a, b) {
-			var ea = a.indexOf('edit.') === 0, eb = b.indexOf('edit.') === 0;
-			return ea !== eb ? (ea ? -1 : 1) : (a === 'edit.form' ? 1 : b === 'edit.form' ? -1 : 0);
+			var ea = a.indexOf(tp) === 0, eb = b.indexOf(tp) === 0;
+			return ea !== eb ? (ea ? -1 : 1) : (a === tp + 'form' ? 1 : b === tp + 'form' ? -1 : 0);
 		});
 		keys.forEach(function (k) {
 			var dot = k.indexOf('.'), label = k.slice(0, dot), field = k.slice(dot + 1), vals = d.overview[k], names = Object.keys(vals);
@@ -128,14 +156,16 @@ var ME = (function () {
 	function page() {
 		ui.list.innerHTML = '';
 		msg('Reading the matches …', 'info');
-		get('page', { set: st.set.set, from: st.from, size: st.size, sort: st.sort, fields: st.fields }).then(function (d) {
+		// with a token to attach to, the current head and relation are needed for the old values, shown or not
+		var fields = hasHead() ? st.fields.concat(['head', 'deprel'].filter(function (f) { return st.fields.indexOf(f) < 0 && cfg.fields[f]; })) : st.fields;
+		get('page', { set: st.set.set, from: st.from, size: st.size, sort: st.sort, fields: fields }).then(function (d) {
 			msg('');
 			st.rows = d.rows; st.ticked = {};
 			table();
 		}).catch(fail);
 	}
 
-	function hasHead() { return st.set.labels.indexOf('head') >= 0; }
+	function hasHead() { return !!st.set.head; }
 
 	function table() {
 		var box = ui.list, total = st.set.total, to = Math.min(total, st.from + st.size);
@@ -157,7 +187,7 @@ var ME = (function () {
 
 		var head = [el('th'), el('th', { text: 'document' }), el('th', { class: 'me-l', text: 'before' }), el('th', { text: 'token' }), el('th', { text: 'after' })];
 		st.fields.forEach(function (f) { head.push(el('th', { text: cfg.fields[f] || f })); });
-		if (hasHead()) head.push(el('th', { text: 'head found' }));
+		if (hasHead()) head.push(el('th', { text: 'attach to (' + st.set.head + ')' }));
 		if (cfg.tree) head.push(el('th'));
 		var tb = el('tbody');
 		st.rows.forEach(function (r) { tb.appendChild(row(r)); });
@@ -241,7 +271,7 @@ var ME = (function () {
 		var setRow = [];
 		setFields.forEach(function (f, i) {
 			var listId = 'me-values-' + f + '-' + Math.random().toString(36).slice(2);
-			var dl = el('datalist', { id: listId }, Object.keys(st.set.overview['edit.' + f] || {}).map(function (v) { return el('option', { value: v }); }));
+			var dl = el('datalist', { id: listId }, Object.keys(st.set.overview[st.set.target + '.' + f] || {}).map(function (v) { return el('option', { value: v }); }));
 			setInputs[f] = el('input', { size: 12, list: listId, placeholder: 'unchanged' });
 			setRow.push(i ? ' and ' : 'Set ', el('b', { text: cfg.fields[f] || f }), ' to ', setInputs[f], dl);
 		});
@@ -256,7 +286,7 @@ var ME = (function () {
 		box.appendChild(el('div', { class: 'me-row' }, setRow));
 		if (hasHead() && cfg.fields.head) {
 			var rel = el('input', { size: 10, placeholder: 'relation (optional)' });
-			box.appendChild(el('div', { class: 'me-row' }, ['Attach the ticked to the head the query found, with relation ', rel, ' ',
+			box.appendChild(el('div', { class: 'me-row' }, ['Attach the ticked to ', el('code', { text: st.set.head }), ', with relation ', rel, ' ',
 				el('button', { type: 'button', class: 'me-main', text: 'add to the changes', on: { click: function () { addAttach(rel.value.trim()); } } })]));
 		}
 		return box;
@@ -284,9 +314,8 @@ var ME = (function () {
 		rows.forEach(function (r) {
 			if (!r.newhead) return;
 			if ((r.values.head || '') !== r.newhead) ch.push({ n: r.n, form: r.form, field: 'head', old: r.values.head || '', new: r.newhead });
-			if (rel && st.fields.indexOf('deprel') >= 0 && (r.values.deprel || '') !== rel) ch.push({ n: r.n, form: r.form, field: 'deprel', old: r.values.deprel || '', new: rel });
+			if (rel && (r.values.deprel || '') !== rel) ch.push({ n: r.n, form: r.form, field: 'deprel', old: r.values.deprel || '', new: rel });
 		});
-		if (rel && st.fields.indexOf('deprel') < 0) msg('To change the relation too, tick "relation" under "To change" and show the matches again.', 'error');
 		add(ch, rows.length);
 	}
 

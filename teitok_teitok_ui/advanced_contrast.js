@@ -705,26 +705,16 @@
 						this.afKeynessError = parseErr ? 'Invalid JSON from endpoint.' : 'Empty response.';
 						return;
 					}
-					const other = state.other && typeof state.other === 'object' ? state.other : null;
-					const payload = other && other.response && typeof other.response === 'object' ? other.response : other;
-					const normalizedPayload = payload != null ? payload : state;
-					const op = String(
-						normalizedPayload && normalizedPayload.operation
-							|| (normalizedPayload && normalizedPayload.result && normalizedPayload.result.operation)
-							|| '',
-					).trim().toLowerCase();
-					if (op && op !== 'keyness') {
-						this.afKeynessError = `Expected keyness result, got "${op}".`;
-						return;
-					}
-					this.afKeynessPayload = normalizedPayload;
-					const extracted = this.afExtractKeynessRows(normalizedPayload);
-					this.afKeynessRows = extracted.rows;
-					this.afKeynessScoreField = extracted.scoreField || 'keyness';
+					// The result is in the search response (state.other is always present, and empty, for a keyness
+					// run): the same reading as when a routed answer comes in.
+					if (this.afContrastHydrateFromState(state)) return;
+					const resp = state.search && state.search.response && typeof state.search.response === 'object' ? state.search.response : null;
+					const err = resp && (resp.error || (Array.isArray(resp.errors) && resp.errors[0]));
+					this.afKeynessError = err ? String(err).split('\n')[0] : 'The answer has no keyness rows.';
 					try {
-						this.afKeynessRaw = JSON.stringify(normalizedPayload, null, 2);
+						this.afKeynessRaw = JSON.stringify(resp || state, null, 2);
 					} catch (_) {
-						this.afKeynessRaw = String(normalizedPayload || '');
+						this.afKeynessRaw = '';
 					}
 				} catch (e) {
 					this.afKeynessError = e && e.message ? e.message : String(e);

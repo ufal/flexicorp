@@ -1,8 +1,9 @@
 /**
  * flexicorp TEITOK UI: the link to multiedit (index.php?action=multiedit): changing the tokens a query found,
- * after looking at them. Offered to logged-in users for a pando query of one token, or one that labels the
- * token to edit `edit:`. Methods of the flexicorpRoot Alpine component, mixed in by flexicorpApp()
- * (flexicorp.js) through window.ttFlexicorpCoreParts; `this` is the component.
+ * after looking at them. Offered to logged-in users for a pando query of one token, or one with labelled
+ * tokens (`subj:[…] < buy:[…]`; multiedit asks which one to edit when it is not `edit:`). Methods of the
+ * flexicorpRoot Alpine component, mixed in by flexicorpApp() (flexicorp.js) through
+ * window.ttFlexicorpCoreParts; `this` is the component.
  */
 window.ttFlexicorpCoreParts = window.ttFlexicorpCoreParts || {};
 window.ttFlexicorpCoreParts.multiedit = function () {
@@ -12,12 +13,11 @@ window.ttFlexicorpCoreParts.multiedit = function () {
 			return String(q || '').replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, (m) => '_'.repeat(m.length));
 		},
 
-		/** Does multiedit take this query: one token, or a token labelled edit:, and no program (;)? */
+		/** Does multiedit take this query: one token, or labelled tokens, and no program (;)? */
 		multieditQueryFits(q) {
 			const s = this._multieditUnquoted(q).trim().replace(/;\s*$/, '');
 			if (!s || s.indexOf(';') >= 0) return false;
-			if (/(^|[^A-Za-z0-9_.])edit\s*:\s*\[/.test(s)) return true;
-			if (/[A-Za-z_][A-Za-z0-9_]*\s*:\s*\[/.test(s)) return false;
+			if (/(^|[^A-Za-z0-9_.])[A-Za-z_][A-Za-z0-9_]*\s*:\s*\[/.test(s)) return true;
 			let depth = 0;
 			let tokens = 0;
 			for (const ch of s) {

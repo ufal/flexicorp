@@ -5,7 +5,7 @@
  * pages (a draft per user), handed to the background worker (multiedit_worker.php), which records per change
  * what it did. A finished job is the edit log; undo is a new job with old and new swapped.
  *
- *   tmp/multiedit/sets/<id>.json   query, user, rows [doc, sid, id, head, keys{}], seen {n: 1}
+ *   tmp/multiedit/sets/<id>.json   query, user, target and head labels, rows [doc, sid, id, head, keys{}], seen {n: 1}
  *   tmp/multiedit/jobs/<id>.json   user, query, status (draft, queued, running, done, failed), changes,
  *                                  results, progress
  */
@@ -47,19 +47,22 @@ if ( ! function_exists( 'tt_me_set_make' ) ) {
 	 * Keep the matches of a query (rows from tabulate: edit.text_id, edit.s_id, edit.id, head.id …; the other
 	 * columns as sort / group keys). Returns the set.
 	 */
-	function tt_me_set_make( $query, array $labels, array $tabrows, $total, $user ) {
+	function tt_me_set_make( $query, array $labels, array $tabrows, $total, $user, $target = 'edit', $head = '' ) {
 		$rows = array();
+		$ids = array( "$target.text_id", "$target.s_id", "$target.id" );
+		if ( $head !== '' ) array_push( $ids, "$head.id", "$head.s_id" );
 		foreach ( $tabrows as $r ) {
 			$keys = $r;
-			foreach ( array( 'edit.text_id', 'edit.s_id', 'edit.id', 'head.id', 'head.s_id' ) as $k ) unset( $keys[ $k ] );
-			$row = array( 'doc' => $r['edit.text_id'] ?? '', 'sid' => $r['edit.s_id'] ?? '', 'id' => $r['edit.id'] ?? '', 'keys' => $keys );
-			if ( isset( $r['head.id'] ) ) {
-				$row['head'] = $r['head.id'];
-				$row['headsid'] = $r['head.s_id'] ?? '';
+			foreach ( $ids as $k ) unset( $keys[ $k ] );
+			$row = array( 'doc' => $r["$target.text_id"] ?? '', 'sid' => $r["$target.s_id"] ?? '', 'id' => $r["$target.id"] ?? '', 'keys' => $keys );
+			if ( $head !== '' && isset( $r["$head.id"] ) ) {
+				$row['head'] = $r["$head.id"];
+				$row['headsid'] = $r["$head.s_id"] ?? '';
 			}
 			$rows[] = $row;
 		}
 		$set = array( 'id' => substr( sha1( $user . "\n" . $query . "\n" . microtime() ), 0, 16 ), 'query' => $query, 'labels' => $labels,
+			'target' => $target, 'head' => $head,
 			'user' => $user, 'made' => date( 'Y-m-d H:i:s' ), 'total' => (int) $total, 'rows' => $rows, 'seen' => new stdClass() );
 		tt_me_write_json( tt_me_dir( 'sets' ) . "/{$set['id']}.json", $set );
 		return $set;

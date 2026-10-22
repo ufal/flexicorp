@@ -44,27 +44,40 @@ if ( ! function_exists( 'tt_me_top_tokens' ) ) {
 
 if ( ! function_exists( 'tt_me_prepare' ) ) {
 	/**
-	 * A query as multiedit runs it: array( query, labels, error ). A one-token query gets the label `edit:`;
-	 * otherwise the query must name the token to edit `edit:`. Programs (`;`) are not queries.
+	 * A query as multiedit runs it: array( query, labels, target, head, error ). The token to edit (TARGET): the label
+	 * asked for, else `edit`, else the only label; a query of one token without labels gets the label `edit`. The
+	 * token to attach to (HEAD, for reattaching; optional): the label asked for, else `head` when the query has it.
+	 * With several labels and none chosen, error is '' and target '': the page asks which one. Programs (`;`) are
+	 * not queries.
 	 */
-	function tt_me_prepare( $q ) {
+	function tt_me_prepare( $q, $target = '', $head = '' ) {
 		$q = trim( preg_replace( '/;\s*$/', '', trim( (string) $q ) ) );
-		if ( $q === '' ) return array( '', array(), 'Give a query.' );
+		if ( $q === '' ) return array( '', array(), '', '', 'Give a query.' );
 		if ( strpos( tt_me_unquoted( $q ), ';' ) !== false ) {
-			return array( '', array(), 'A query only, not a program with ";": the page counts and lists the matches itself.' );
+			return array( '', array(), '', '', 'A query only, not a program with ";": the page counts and lists the matches itself.' );
 		}
 		$labels = tt_me_labels( $q );
-		if ( ! in_array( 'edit', $labels, true ) ) {
-			if ( tt_me_top_tokens( $q ) !== 1 || $labels ) {
-				return array( '', $labels, 'Mark the token to edit with the label edit: — for example [lemma="ser"] edit:[lemma="que"].' );
+		if ( ! $labels ) {
+			if ( tt_me_top_tokens( $q ) !== 1 ) {
+				return array( '', array(), '', '', 'Label the token to edit, for example [lemma="ser"] edit:[lemma="que"].' );
 			}
 			$q = preg_replace( '/^\s*\[/', 'edit:[', $q, 1 );
-			if ( strpos( $q, 'edit:[' ) !== 0 ) {
-				return array( '', $labels, 'Mark the token to edit with the label edit: — for example edit:[lemma="que"].' );
-			}
-			$labels = array( 'edit' );
+			if ( strpos( $q, 'edit:[' ) !== 0 ) return array( '', array(), '', '', 'Label the token to edit, for example edit:[lemma="que"].' );
+			return array( $q, array( 'edit' ), 'edit', '', '' );
 		}
-		return array( $q, $labels, '' );
+		$target = (string) $target;
+		if ( $target !== '' && ! in_array( $target, $labels, true ) ) return array( '', $labels, '', '', "The query has no token labelled $target." );
+		if ( $target === '' ) {
+			if ( in_array( 'edit', $labels, true ) ) $target = 'edit';
+			elseif ( count( $labels ) === 1 ) $target = $labels[0];
+			else return array( $q, $labels, '', '', '' );   // several labels: the page asks which one
+		}
+		$head = (string) $head;
+		if ( $head === '' && $target !== 'head' && in_array( 'head', $labels, true ) ) $head = 'head';
+		if ( $head !== '' && ( $head === $target || ! in_array( $head, $labels, true ) ) ) {
+			return array( '', $labels, '', '', "The token to attach to must be another labelled token than $target." );
+		}
+		return array( $q, $labels, $target, $head, '' );
 	}
 }
 
@@ -78,14 +91,14 @@ if ( ! function_exists( 'tt_me_narrow' ) ) {
 
 if ( ! function_exists( 'tt_me_ids_program' ) ) {
 	/**
-	 * The program listing the matches: per match the document, sentence and token id of `edit`, the ids of
-	 * `head` when the query has it, and LABEL.FIELD values for grouping and sorting.
+	 * The program listing the matches: per match the document, sentence and token id of the token to edit, the
+	 * ids of the token to attach to (when there is one), and LABEL.FIELD values for grouping and sorting.
 	 */
-	function tt_me_ids_program( $q, array $labels, array $extra, $max ) {
-		$cols = array( 'edit.text_id', 'edit.s_id', 'edit.id' );
-		if ( in_array( 'head', $labels, true ) ) {
-			$cols[] = 'head.id';
-			$cols[] = 'head.s_id';
+	function tt_me_ids_program( $q, $target, $head, array $extra, $max ) {
+		$cols = array( "$target.text_id", "$target.s_id", "$target.id" );
+		if ( $head !== '' ) {
+			$cols[] = "$head.id";
+			$cols[] = "$head.s_id";
 		}
 		foreach ( $extra as $c ) if ( ! in_array( $c, $cols, true ) ) $cols[] = $c;
 		return 'M = ' . $q . '; tabulate M 0 ' . (int) $max . ' ' . implode( ', ', $cols );

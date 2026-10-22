@@ -52,8 +52,10 @@
 
 	if ( $me_act === 'list' ) {
 		// the matches, kept as a fixed list; per label the fields to change (for the overview, grouping, sorting)
-		list( $q, $labels, $err ) = tt_me_prepare( $_GET['query'] ?? '' );
-		if ( $err !== '' ) $me_json( array( 'error' => $err ), 400 );
+		list( $q, $labels, $target, $head, $err ) = tt_me_prepare( $_GET['query'] ?? '', (string) ( $_GET['target'] ?? '' ), (string) ( $_GET['head'] ?? '' ) );
+		if ( $err !== '' ) $me_json( array( 'error' => $err, 'labels' => $labels ), 400 );
+		// several labelled tokens, none chosen: which one to edit (and which, if any, to attach to)
+		if ( $target === '' ) $me_json( array( 'choose' => $labels, 'query' => $q ) );
 		$want = array_values( array_intersect( (array) ( $_GET['fields'] ?? array() ), array_keys( $me_fields ) ) );
 		if ( ! $want ) $me_json( array( 'error' => 'Choose what to change.' ), 400 );
 		$extra = array();
@@ -61,22 +63,22 @@
 			$extra[] = "$l.form";
 			foreach ( $want as $f ) if ( $f !== 'head' ) $extra[] = "$l.$f";
 		}
-		$res = tt_me_run( tt_me_ids_program( $q, $labels, $extra, $me_cap + 1 ) );
+		$res = tt_me_run( tt_me_ids_program( $q, $target, $head, $extra, $me_cap + 1 ) );
 		if ( isset( $res['error'] ) ) $me_json( array( 'error' => 'The query did not run: ' . $res['error'] ), 400 );
 		$total = (int) ( $res['total_matches'] ?? 0 );
 		if ( $total > $me_cap ) {
 			$me_json( array( 'error' => number_format( $total ) . " matches: more than $me_cap. Narrow the query." ), 400 );
 		}
-		$set = tt_me_set_make( $q, $labels, tt_me_rows( $res ), $total, $me_user );
+		$set = tt_me_set_make( $q, $labels, tt_me_rows( $res ), $total, $me_user, $target, $head );
 		$overview = array();
 		foreach ( $set['rows'] as $r ) {
 			foreach ( $r['keys'] as $k => $v ) {
-				if ( substr( $k, -5 ) === '.form' && $k !== 'edit.form' ) continue;
+				if ( substr( $k, -5 ) === '.form' && $k !== "$target.form" ) continue;
 				$overview[ $k ][ $v ] = ( $overview[ $k ][ $v ] ?? 0 ) + 1;
 			}
 		}
 		foreach ( $overview as $k => $vals ) arsort( $overview[ $k ] );
-		$me_json( array( 'set' => $set['id'], 'query' => $q, 'labels' => $labels, 'fields' => $want, 'total' => $total,
+		$me_json( array( 'set' => $set['id'], 'query' => $q, 'labels' => $labels, 'target' => $target, 'head' => $head, 'fields' => $want, 'total' => $total,
 			'overview' => $overview, 'sortkeys' => array_keys( $set['rows'][0]['keys'] ?? array() ) ) );
 	}
 
@@ -182,10 +184,9 @@
 		<link rel='stylesheet' href='" . $me_h( "$me_base/multiedit.css?v=$me_ver" ) . "'>
 		<div id='me-app' class='me-app'>
 		<p class='me-intro'>{%Find the tokens with a query, look at what they are now, and change the ones you tick.}
-		{%A query of one token edits that token; in a longer query, label the token to edit} <code>edit:</code>
-		({%for example} <code>[lemma=\"ser\"] edit:[lemma=\"que\"]</code>). {%With a token labelled} <code>head:</code>
-		{%the ticked tokens can be attached to it} (<code>head:[upos=\"VERB\"] [] edit:[lemma=\"que\"]</code>).
-		{%Other labels} (<code>prev:[] edit:[…]</code>) {%can be used to group and sort the matches.}</p>
+		{%A query of one token edits that token; in a longer query, label the tokens} (<code>[lemma=\"ser\"] edit:[lemma=\"que\"]</code>)
+		{%and choose which one to edit} ({%a token labelled} <code>edit:</code> {%is taken by itself}). {%The ticked tokens can also be attached to another labelled token}
+		(<code>head:[upos=\"VERB\"] [] edit:[lemma=\"que\"]</code>). {%The other labels group and sort the matches.}</p>
 		<div class='me-define'></div>
 		<div class='me-msg' aria-live='polite'></div>
 		<div class='me-overview'></div>
