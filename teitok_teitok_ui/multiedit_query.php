@@ -105,6 +105,22 @@ if ( ! function_exists( 'tt_me_run' ) ) {
 	 */
 	function tt_me_run( $program, $runner = null ) {
 		if ( $runner ) return call_user_func( $runner, $program );
+		// FQS when it serves the corpus (where the index lives with FQS on another machine, the only way), else
+		// the local pando (fc_pando_run.php, as the typology lens). Signed as admin: only logged-in editors get
+		// here, and the list of matches must not be cut at a visitor's limit.
+		require_once __DIR__ . '/fc_pando_run.php';
+		$root = function_exists( 'flexicorp_query_corpus_root' ) ? flexicorp_query_corpus_root() : getcwd();
+		$route = tt_fc_pando_route( $root );
+		if ( ! empty( $route['via'] ) ) {
+			$ans = tt_fc_pando_run( $root, $program, 120, 'admin' );
+			if ( is_string( $ans ) ) return array( 'error' => $ans );
+			if ( isset( $ans['ok'] ) && ! $ans['ok'] ) {
+				$e = $ans['error'] ?? 'the query did not run';
+				return array( 'error' => is_array( $e ) ? (string) ( $e['message'] ?? json_encode( $e ) ) : (string) $e );
+			}
+			return isset( $ans['result'] ) && is_array( $ans['result'] ) ? $ans['result'] : $ans;
+		}
+		// no pando route: flexicorp's general query path
 		require_once __DIR__ . '/flexicorp_query.php';
 		$call = flexicorp_query( $program, array( 'engine' => 'pando', 'limit' => 1 ) );
 		if ( empty( $call['ok'] ) ) {
