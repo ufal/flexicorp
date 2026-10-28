@@ -780,16 +780,31 @@ window.flexicorpQuerybuilderExtend = function flexicorpQuerybuilderExtend() {
 			this.qbStateChanged();
 		},
 
+		/** The alignment ids the corpus has: by word (a token tuid), by sentence (s_tuid); empty while unknown. */
+		qbAlignmentFieldsPresent() {
+			const have = new Set(this.qbFieldOptionsFromCatalog().map((o) => String(o.value)));
+			return ['tuid', 's_tuid'].filter((f) => have.has(f));
+		},
+
 		queryBuilderAlignmentJoinFieldOptions() {
-			return [
+			const all = [
 				{ value: 'tuid', label: 'word (tuid)' },
 				{ value: 's_tuid', label: 'sentence (s_tuid)' },
 			];
+			const present = this.qbAlignmentFieldsPresent();
+			return present.length ? all.filter((o) => present.includes(o.value)) : all;
+		},
+
+		/** The join field used: the one chosen when the corpus has it, else the one it has (a corpus aligned by sentence only). */
+		qbAlignmentJoinField() {
+			const a = this.queryBuilderState && this.queryBuilderState.alignment;
+			const chosen = a && a.joinField === 's_tuid' ? 's_tuid' : 'tuid';
+			const present = this.qbAlignmentFieldsPresent();
+			return !present.length || present.includes(chosen) ? chosen : present[0];
 		},
 
 		queryBuilderAlignmentUsesSentenceTarget() {
-			const a = this.queryBuilderState && this.queryBuilderState.alignment;
-			return !!(a && a.joinField === 's_tuid');
+			return this.qbAlignmentJoinField() === 's_tuid';
 		},
 
 		queryBuilderTargetFieldGroups() {
@@ -933,7 +948,7 @@ window.flexicorpQuerybuilderExtend = function flexicorpQuerybuilderExtend() {
 			if (align) {
 				const a = st.alignment;
 				const tAlias = String(a.targetAlias || 'b').trim() || 'b';
-				const join = a.joinField === 's_tuid' ? 's_tuid' : 'tuid';
+				const join = this.qbAlignmentJoinField();
 				const tParts = (a.targetRestrictions || [])
 					.map((r) => this.qbCondition(r.field, r.operator, r.value, false, dialect))
 					.filter(Boolean);
@@ -942,7 +957,12 @@ window.flexicorpQuerybuilderExtend = function flexicorpQuerybuilderExtend() {
 				const target = join === 's_tuid'
 					? `${tAlias}:<s${tParts.length ? ' ' + tParts.join(' & ') : ''}>`
 					: `${tAlias}:[${tParts.join(' & ')}]`;
-				cql = `${seq} with ${target} :: ${srcAlias}.${join} = ${tAlias}.${join}`;
+				// one word aligned with one word: the alignment layer as an operator (a:[…] =:tuid b:[…], the
+				// class join; a token is not paired with itself); a sentence, or a sequence whose first token
+				// is aligned: the explicit join
+				cql = join === 'tuid' && tokens.length === 1
+					? `${seq} =:${join} ${target}`
+					: `${seq} with ${target} :: ${srcAlias}.${join} = ${tAlias}.${join}`;
 			} else {
 				let within = String(st.within || '').trim();
 				if (dialect.docs === 'global' && docs.length) {
@@ -1213,11 +1233,21 @@ window.flexicorpQuerybuilderExtend = function flexicorpQuerybuilderExtend() {
 				globals = gw.rest.trim();
 				if (gw.within) within = gw.within;
 			}
-			// aligned: <seq> with <target>
+			// aligned: <seq> with <target>, or <token> =:tuid <token>
 			let target = '';
+			let opJoin = '';
 			const wParts = this.qbSplitTop(q, /^\s+with\s+/);
 			if (wParts.length > 2) return { reason: 'Only one aligned language is supported' };
 			if (wParts.length === 2) { q = wParts[0]; target = wParts[1]; }
+			else {
+				const oParts = this.qbSplitTop(q, /^\s*=:(?:s_)?tuid\s+/);
+				if (oParts.length > 2) return { reason: 'Only one aligned language is supported' };
+				if (oParts.length === 2) {
+					opJoin = (q.match(/=:((?:s_)?tuid)\s/) || [])[1] || 'tuid';
+					q = oParts[0];
+					target = oParts[1];
+				}
+			}
 			const seq = this.qbParseSequence(q);
 			if (!seq.tokens) return { reason: seq.reason };
 			out.tokens = seq.tokens;
@@ -1262,6 +1292,10 @@ window.flexicorpQuerybuilderExtend = function flexicorpQuerybuilderExtend() {
 			if (target) {
 				const a = out.alignment;
 				a.enabled = true;
+				if (opJoin) {
+					if (out.tokens.length !== 1) return { reason: 'An alignment operator (=:) joins one token with one token' };
+					a.joinField = opJoin;
+				}
 				const tm = target.match(/^(?:([A-Za-z][A-Za-z0-9_]*)\s*:\s*)?(?:\[(.*)\]|<s\b\s*(.*?)\s*\/?>)$/s);
 				if (!tm) return { reason: 'The aligned side must be one token or one <s> region' };
 				if (tm[1]) a.targetAlias = tm[1];

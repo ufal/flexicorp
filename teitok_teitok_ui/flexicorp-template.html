@@ -653,7 +653,7 @@
 											<div class="fc-qb__val">
 												<select id="fc-qb-join" x-on:change="queryBuilderState.alignment.joinField = $event.target.value; qbStateChanged()">
 													<template x-for="opt in queryBuilderAlignmentJoinFieldOptions()" :key="'qb-j-' + opt.value">
-														<option :value="opt.value" :selected="opt.value === queryBuilderState.alignment.joinField" x-text="opt.label"></option>
+														<option :value="opt.value" :selected="opt.value === qbAlignmentJoinField()" x-text="opt.label"></option>
 													</template>
 												</select>
 											</div>
@@ -951,7 +951,7 @@
 										>
 											<span>token : </span><span x-text="getHitTokenIds(hit) || '—'"></span>
 											<template x-if="String(getHitAlignmentTuidForDepalign(hit) || '').trim()">
-												<span> - alignment : </span><span x-text="String(getHitAlignmentTuidForDepalign(hit) || '').trim()"></span>
+												<span><span> - alignment : </span><span x-text="String(getHitAlignmentTuidForDepalign(hit) || '').trim()"></span></span>
 											</template>
 											<template x-if="teitokTuviewGroupUrl(hit)">
 												<span> (</span><a
@@ -1002,9 +1002,11 @@
 															class="flexicorp-hit-token-align flexicorp-hit-token-align--with-context"
 															x-show="getHitTokenIds(alignedHit) || String(getHitAlignmentTuidForDepalign(alignedHit) || '').trim() || teitokTuviewPairUrl(alignedHit)"
 														>
-															<span>token : </span><span x-text="getHitTokenIds(alignedHit) || '—'"></span>
-															<template x-if="String(getHitAlignmentTuidForDepalign(alignedHit) || '').trim()">
-																<span> - alignment : </span><span x-text="String(getHitAlignmentTuidForDepalign(alignedHit) || '').trim()"></span>
+															<template x-if="getAlignedSentence(alignedHit)">
+																<span><span>sentence : </span><span x-text="getAlignedSentence(alignedHit).id || '—'"></span><template x-if="getAlignedSentence(alignedHit).tuid"><span> - alignment : <span x-text="getAlignedSentence(alignedHit).tuid"></span></span></template></span>
+															</template>
+															<template x-if="!getAlignedSentence(alignedHit)">
+																<span><span>token : </span><span x-text="getHitTokenIds(alignedHit) || '—'"></span><template x-if="String(getHitAlignmentTuidForDepalign(alignedHit) || '').trim()"><span> - alignment : <span x-text="String(getHitAlignmentTuidForDepalign(alignedHit) || '').trim()"></span></span></template></span>
 															</template>
 															<template x-if="teitokTuviewPairUrl(alignedHit)">
 																<span> (</span><a

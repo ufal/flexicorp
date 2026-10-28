@@ -360,6 +360,29 @@ window.ttFlexicorpCoreParts.hitdetail = function () {
 			return one || '';
 		},
 
+		/**
+		 * An aligned side that is a whole sentence (a sentence-level alignment, `with b:<s …>`): its id and tuid, so
+		 * it is shown as the sentence, not as the list of all its token ids; null for a token or a part of one.
+		 */
+		getAlignedSentence(hit) {
+			if (!hit || typeof hit !== 'object' || !hit.aligned) return null;
+			// the context's first sentence (the context may go on after it): its start tag and its tokens
+			const xml = String(hit.context_xml || hit.context_data || '').trim();
+			const m = xml.match(/^<s\b([^>]*)>([\s\S]*?)<\/s>/);
+			if (!m) return null;
+			const attr = (name) => {
+				const a = m[1].match(new RegExp('\\s' + name + '="([^"]*)"'));
+				return a ? a[1] : '';
+			};
+			const sentToks = (m[2].match(/<tok\b/g) || []).length;
+			const ids = this.getHitTokenIds(hit);
+			const matched = ids ? ids.split(',').length : 0;
+			const span = Number(hit.match_end) - Number(hit.match_start) + 1;
+			if (!sentToks || (matched !== sentToks && span !== sentToks)) return null;
+			const tuid = hit.tuid != null && String(hit.tuid).trim() ? String(hit.tuid).trim() : attr('tuid');
+			return { id: attr('id'), tuid };
+		},
+
 		getHitDocCid(hit) {
 			if (!hit || typeof hit !== 'object') return '';
 			// Keep raw TEITOK cid for showdocinfo/tokview hover lookups.
