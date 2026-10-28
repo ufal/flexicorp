@@ -2343,3 +2343,17 @@ button.flexicorp-search-change-link {
 
 /* the multiedit link, when the query does not say which token to edit: greyed out, the hint on hover */
 .flexicorp-multiedit-btn.flexicorp-multiedit-off { opacity: .45; cursor: not-allowed; }
+
+/* a hit across sentences (a coreference chain): each token's sentence, an elision between (the fragment's <gap/>) */
+#flexicorp-root gap::before {
+	content: " … ";
+	color: var(--bs-secondary-color, #6c757d);
+	white-space: pre;
+}
+
+/* the span a highlighted head token heads (a CorefUD <mention>): underlined in the token's group colour */
+.flexicorp-hit-xml .flexicorp-headed-span { border-bottom: 3px solid; padding-bottom: 1px; }
+.flexicorp-hit-xml .flexicorp-headed-span--group-A { border-bottom-color: #ff6b6b; }
+.flexicorp-hit-xml .flexicorp-headed-span--group-B { border-bottom-color: #4c6ef5; }
+.flexicorp-hit-xml .flexicorp-headed-span--group-C { border-bottom-color: #2f9e44; }
+.flexicorp-hit-xml .flexicorp-headed-span--group-D { border-bottom-color: #7950f2; }

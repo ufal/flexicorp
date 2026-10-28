@@ -1970,6 +1970,14 @@ window.ttFlexicorpCoreParts.hits = function () {
 			if (!hit || typeof hit !== 'object') return '';
 			const docId = this.getHitDocLabel(hit) || hit.doc_id || '';
 			const ctxObj = hit.context && typeof hit.context === 'object' ? hit.context : null;
+			// a hit whose tokens lie in different sentences (a coreference chain: each token's sentence, <gap/>
+			// between): one row per first query token (`a`), its chain merged there with all the sentences involved
+			// (buildMergedHit)
+			const frag = String(hit.fragment || hit.context_xml || '');
+			if (frag.indexOf('<gap') !== -1) {
+				const g0 = Array.isArray(hit.groups) ? hit.groups.find(g => g && Number(g.index) === 0) : null;
+				if (g0 && Number.isFinite(Number(g0.start))) return `chain::${docId}::${g0.start}`;
+			}
 			const rawSentenceId = this.getHitSentenceIdForNavigation(hit);
 			const sentenceId = String(rawSentenceId).trim();
 			const scope = ctxObj && ctxObj.scope ? String(ctxObj.scope) : '';
@@ -1988,6 +1996,23 @@ window.ttFlexicorpCoreParts.hits = function () {
 			if (context) return `ctx::${docId}::${scope}::${format}::${context}`;
 			if (hit.raw) return `raw::${docId}::${hit.raw}`;
 			return `hit::${docId}::${hit.match_start || ''}::${hit.match_end || ''}::${this.getHitTokenIds(hit)}`;
+		},
+
+		// The sentences of several hits (a chain's row): each once, in corpus order, joined by <gap/> where one does
+		// not directly follow the other (a space where it does); '' when none of the hits spans sentences. From the
+		// hits' context_pieces ({start, end, fragment} per sentence, corpus positions: TEITOK token ids are not in
+		// text order once a text has been edited).
+		mergeGapFragments(hits) {
+			const list = (hits || []).filter(h => h && typeof h === 'object');
+			if (!list.some(h => String(h.fragment || h.context_xml || '').indexOf('<gap') !== -1)) return '';
+			if (!list.every(h => Array.isArray(h.context_pieces) && h.context_pieces.length)) return '';
+			const byStart = new Map();
+			list.forEach(h => h.context_pieces.forEach(pc => {
+				const st = Number(pc && pc.start), en = Number(pc && pc.end);
+				if (Number.isFinite(st) && Number.isFinite(en) && pc.fragment && !byStart.has(st)) byStart.set(st, { st, en, frag: String(pc.fragment) });
+			}));
+			const pieces = Array.from(byStart.values()).sort((a, b) => a.st - b.st);
+			return pieces.map((pc, i) => (i === 0 ? '' : (pc.st === pieces[i - 1].en + 1 ? ' ' : ' <gap/> ')) + pc.frag).join('');
 		},
 
 		getMergedHitCount(hit) {
@@ -2071,6 +2096,13 @@ window.ttFlexicorpCoreParts.hits = function () {
 			});
 			base.toks = mergedTokenIds;
 			base.highlight_map = mergedHighlightMap;
+			// hits across sentences (a chain): the row shows every sentence its hits touch, in text order
+			const chainFragment = this.mergeGapFragments(sourceHits);
+			if (chainFragment) {
+				base.fragment = chainFragment;
+				base.context_xml = chainFragment;
+				base.context_data = chainFragment;
+			}
 			base.__flexicorpMergedHits = sourceHits;
 			base.__flexicorpMergedHitCount = sourceHits.length;
 			if (alignedCompanions.length) {

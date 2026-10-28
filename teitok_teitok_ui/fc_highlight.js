@@ -941,6 +941,25 @@ window.ttFlexicorpCoreParts.highlight = function () {
 			return out;
 		},
 
+		/**
+		 * A span element naming its head token (`<mention head="w-4">`, CorefUD mentions in TEITOK): when the head is
+		 * a highlighted query token, the whole span is underlined in that token's group colour, so a hit on a
+		 * mention's head shows the mention ("Mr. Sherlock Holmes", not "Mr.").
+		 */
+		_markHeadedSpans(container) {
+			const spans = Array.from(container.querySelectorAll('mention[head]'));
+			if (!spans.length) return;
+			const groupOf = {};
+			Array.from(container.querySelectorAll('tok[id]')).forEach((tok) => {
+				const g = Array.from(tok.classList).find((c) => /^flexicorp-hit-token--group-[A-Z]$/.test(c));
+				if (g) groupOf[tok.getAttribute('id')] = g.slice(-1);
+			});
+			spans.forEach((span) => {
+				const g = groupOf[span.getAttribute('head')];
+				if (g) span.classList.add('flexicorp-headed-span', 'flexicorp-headed-span--group-' + g);
+			});
+		},
+
 		/** Same class rules as getRenderedXmlContext — used for full context and XML KWIC columns. */
 		applyHighlightTokenClassesToContainer(container, hit, sideHint) {
 			if (!container || !container.querySelectorAll) return;
@@ -999,6 +1018,7 @@ window.ttFlexicorpCoreParts.highlight = function () {
 				}
 				classSet.forEach((c) => node.classList.add(c));
 			});
+			this._markHeadedSpans(container);
 			this._applyRegionBrackets(container, allGroups.filter((g) => g.region));
 		},
 	};
