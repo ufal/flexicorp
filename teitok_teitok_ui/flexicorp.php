@@ -138,7 +138,14 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			}
 			$joined = rtrim( $cwd, '/' ) . '/' . $raw;
 			$rp = @realpath( $joined );
-			return ( $rp && is_dir( $rp ) ) ? $rp : $joined;
+			if ( $rp && is_dir( $rp ) ) return $rp;
+			// The URL names the folder in another case (…/Salome/ for salome/ on a case-insensitive disk):
+			// foldername comes from the URL, so cwd is the corpus folder all the same.
+			if ( is_dir( $cwd ) && strcasecmp( basename( $cwd ), $raw ) === 0 ) {
+				$rp = @realpath( $cwd );
+				return ( $rp && is_dir( $rp ) ) ? $rp : $cwd;
+			}
+			return $joined;
 		}
 	}
 
