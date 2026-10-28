@@ -4260,6 +4260,8 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 					};
 					$preAlign = preg_split('/\s*::\s*/', $qtxt, 2)[0] ?? $qtxt;
 					$splitWith = preg_split('/\s+with\s+/i', (string)$preAlign, 2);
+					// `a:[…] =:tuid b:[…]` over an alignment layer comes back as pairs too: a the source, b the target
+					if ( count($splitWith) < 2 ) $splitWith = preg_split('/\s*=:[A-Za-z_][A-Za-z0-9_]*\s*/', (string)$preAlign, 2);
 					$sourceExpr = isset($splitWith[0]) ? (string)$splitWith[0] : '';
 					$targetExpr = isset($splitWith[1]) ? (string)$splitWith[1] : '';
 					$sourceNodes = $parseNodes($sourceExpr);
