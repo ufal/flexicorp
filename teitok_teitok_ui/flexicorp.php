@@ -3350,6 +3350,8 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 					$inner = isset( $fqs['raw'] ) && is_array( $fqs['raw'] ) ? tt_fc_result_unwrap( $fqs, true )
 						: ( $fqsOpEffective !== '' ? array( 'operation' => $fqsOpEffective ) : array() );
 				}
+				$unrecognised = tt_fc_result_unrecognised( $inner );
+				if ( $unrecognised !== '' ) return tt_flexicorp_error_call( 'fqs', 'query', $unrecognised );
 				tt_fc_result_finish_collocates( $inner );
 				tt_fc_result_finish_table( $inner );
 				tt_fc_result_lift_page_total( $inner );
@@ -5720,6 +5722,11 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			// envelope, a pando program answer {ok, operation, result{…}}, native program JSON at
 			// the top level, a toolchain's `data` wrapper (fc_result.php, as on the FQS route).
 			$result = tt_fc_result_unwrap( $resp, true );
+			$unrecognised = tt_fc_result_unrecognised( $result );
+			if ( $unrecognised !== '' ) {
+				$data = array( 'success' => false, 'done' => array( 'errors' => array( $unrecognised ), 'result' => null ) );
+				return array( 'ok' => false, 'command' => (string) ( $call['command'] ?? '' ), 'raw' => (string) ( $call['raw'] ?? '' ), 'data' => $data, 'error' => $unrecognised );
+			}
 			$isOk = !empty($resp['success']) || !empty($resp['ok']) || tt_fc_result_is_body( $result );
 			tt_fc_result_finish_collocates( $result );
 			// Backward compatibility for earlier adapter output.

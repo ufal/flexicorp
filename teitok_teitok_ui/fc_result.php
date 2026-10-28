@@ -92,7 +92,7 @@ if ( ! function_exists( 'tt_fc_result_is_body' ) ) {
 	/** An engine result body (hits, a table, collocates), as opposed to an envelope around one. */
 	function tt_fc_result_is_body( $a ) {
 		if ( ! is_array( $a ) ) return false;
-		foreach ( array( 'hits', 'rows', 'collocates', 'compare_queries', 'totals_per_query', 'items' ) as $k ) {
+		foreach ( array( 'hits', 'pairs', 'rows', 'collocates', 'compare_queries', 'totals_per_query', 'items' ) as $k ) {   // pairs: an aligned (with) query
 			if ( isset( $a[ $k ] ) && is_array( $a[ $k ] ) ) return true;
 		}
 		return isset( $a['table'] ) && is_array( $a['table'] );
@@ -142,7 +142,13 @@ if ( ! function_exists( 'tt_fc_result_unwrap' ) ) {
 			}
 		}
 		if ( $strict && ! tt_fc_result_is_body( $x ) ) {
-			return $op !== '' ? array( 'operation' => $op ) : array();
+			$out = $op !== '' ? array( 'operation' => $op ) : array();
+			// An answer with data but none of the result kinds known here (hits, pairs, rows, …) is a
+			// result shape this reader does not know: reported (tt_fc_result_unrecognised), never shown
+			// as an empty result. A real empty result has its body (hits: [], pairs: []).
+			$data = array_filter( array_keys( $x ), function ( $k ) use ( $x ) { return is_array( $x[ $k ] ) && $k !== 'query' && $k !== 'page' && $k !== 'warnings'; } );
+			if ( $data ) $out['unrecognised_shape'] = array_values( array_keys( $x ) );
+			return $out;
 		}
 		if ( $op !== '' && ! isset( $x['operation'] ) ) {
 			$x['operation'] = $op;
@@ -151,6 +157,15 @@ if ( ! function_exists( 'tt_fc_result_unwrap' ) ) {
 			$x['reused'] = $reused;
 		}
 		return $x;
+	}
+}
+
+if ( ! function_exists( 'tt_fc_result_unrecognised' ) ) {
+	/** The error for a result the strict unwrap did not recognise (empty string when it did). */
+	function tt_fc_result_unrecognised( array $r ) {
+		if ( empty( $r['unrecognised_shape'] ) || ! is_array( $r['unrecognised_shape'] ) ) return '';
+		return 'The search engine answered with a result this flexicorp version does not know how to show (fields: '
+			. implode( ', ', $r['unrecognised_shape'] ) . ').';
 	}
 }
 
@@ -211,6 +226,7 @@ if ( ! function_exists( 'tt_fc_result_kind' ) ) {
 		if ( isset( $r['compare_queries'] ) && is_array( $r['compare_queries'] ) && count( $r['compare_queries'] ) ) return 'compare_table';
 		if ( ( isset( $r['rows'] ) && is_array( $r['rows'] ) ) || ( isset( $r['table'] ) && is_array( $r['table'] ) ) ) return 'table';
 		if ( isset( $r['hits'] ) && is_array( $r['hits'] ) ) return 'hits';
+		if ( isset( $r['pairs'] ) && is_array( $r['pairs'] ) ) return 'hits';   // aligned pairs, shown as hits (tt_flexicorp_pando_normalize_aligned_pairs)
 		return 'empty';
 	}
 }
