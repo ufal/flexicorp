@@ -362,12 +362,13 @@ window.ttFlexicorpCoreParts.kwicview = function () {
 		},
 
 		/**
-		 * The view Auto picks: aligned hits → Grouped; hits with a named region or dependency
-		 * subtree → Table (brackets over a whole sentence read better than a centred match);
-		 * a token-window context → KWIC; otherwise Table.
+		 * The view Auto picks: aligned hits → Table (source and target side by side, several targets
+		 * of one source stacked in its row; Grouped stays a choice); hits with a named region or
+		 * dependency subtree → Table (brackets over a whole sentence read better than a centred
+		 * match); a token-window context → KWIC; otherwise Table.
 		 */
 		preferredSearchViewModeForCurrentScope() {
-			if (this.shouldAutoPreferGroupedAlignedView()) return 'grouped';
+			if (this.searchHasAlignedHits() || this.queryUsesStructuralAlignedTarget()) return 'table';
 			const hits = this.search && Array.isArray(this.search.hits) ? this.search.hits.slice(0, 20) : [];
 			if (typeof this.hitHasRegionGroups === 'function' && hits.some((h) => this.hitHasRegionGroups(h))) return 'table';
 			const scope = this.normalizeContextScopeValue(this.search && this.search.contextScope);
@@ -411,23 +412,6 @@ window.ttFlexicorpCoreParts.kwicview = function () {
 			this.applySearchViewChoice();
 			this.updateSearchShareButtonVisibility();
 			this.scheduleAlignedTableHeightSync();
-		},
-
-		shouldAutoPreferGroupedAlignedView() {
-			// Sentence / XML-region aligned targets (alias : <region>) benefit from grouped rows.
-			if (this.queryUsesStructuralAlignedTarget()) return true;
-			if (!this.searchHasAlignedHits()) return false;
-			const hits = Array.isArray(this.search && this.search.hits) ? this.search.hits : [];
-			if (!hits.length) return false;
-			// Typical parallel/bitext queries have exactly one companion per source row.
-			// Prefer KWIC/table unless at least one source row fans out to multiple targets.
-			for (let i = 0; i < hits.length; i += 1) {
-				const hit = hits[i];
-				if (!hit || typeof hit !== 'object') continue;
-				const companions = this.getGroupedAlignedCompanions(hit);
-				if (companions.length > 1) return true;
-			}
-			return false;
 		},
 
 		onContextScopeChanged() {
