@@ -21,6 +21,8 @@ window.flexicorpFreqsExtend = function flexicorpFreqsExtend() {
 		frequencyChartValueScale: 'relative',
 		/** Charts only: ordering of category slices/bars. */
 		frequencyChartOrder: 'size',
+		/** Stacked charts of compared queries: every stack scaled to 100% (each query's share of the group). */
+		frequencyChartStack100: false,
 		frequencyChartInstance: null,
 		/** Sankey / word tree: what the SVG view drew ({shown, total} links or {leaves}). */
 		frequencySvgInfo: null,

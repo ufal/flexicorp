@@ -180,7 +180,14 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 
 		setFrequencyChartOrder(mode) {
 			const allowed = new Set(['size', 'value', 'time']);
-			let next = allowed.has(mode) ? mode : 'size';
+			let next = String(mode || '');
+			// 'share:<query>': by that query's share of the compared values in each group (the view state keeps the query)
+			if (next === 'share' || next.startsWith('share:')) {
+				if (!this.frequencyCanUseShareOrder()) next = 'size';
+				else if (next === 'share') next = 'share:' + this.frequencyChartShareQuery();
+			} else if (!allowed.has(next)) {
+				next = 'size';
+			}
 			if (next === 'time' && !this.frequencyCanUseTimeOrder()) next = 'size';
 			this.frequencyChartOrder = next;
 			if (this.frequencyVizMode && this.frequencyVizMode !== 'table' && this.frequencyVizMode !== 'pivot') {
@@ -233,20 +240,57 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 			return rows;
 		},
 
+		/** One compared query's value in a row, on the chart's scale (0 when missing). */
+		frequencyChartRowQueryNumeric(row, q) {
+			if (!row || !row.queries || typeof row.queries !== 'object') return 0;
+			const cell = row.queries[q] || {};
+			const v = (this.frequencyChartValueScale || 'relative') === 'relative'
+				? this.frequencyRowQueryRelativeNumber(row, q)
+				: Number(cell.count) || 0;
+			return Number.isFinite(v) && v >= 0 ? v : 0;
+		},
+
 		frequencyChartRowCompareNumeric(row) {
 			if (!row || !row.queries || typeof row.queries !== 'object') return 0;
-			const scale = this.frequencyChartValueScale || 'relative';
 			const qs = this.frequencyCompareQueries();
 			let sum = 0;
-			for (let i = 0; i < qs.length; i++) {
-				const q = qs[i];
-				const cell = row.queries[q] || {};
-				let v = 0;
-				if (scale === 'relative') v = this.frequencyRowQueryRelativeNumber(row, q);
-				else v = Number(cell.count) || 0;
-				if (Number.isFinite(v) && v >= 0) sum += v;
-			}
+			for (let i = 0; i < qs.length; i++) sum += this.frequencyChartRowQueryNumeric(row, qs[i]);
 			return sum;
+		},
+
+		/** Share order: for two or more compared queries. */
+		frequencyCanUseShareOrder() {
+			return this.frequencyCompareQueries().length >= 2;
+		},
+
+		frequencyChartIsShareOrder() {
+			return String(this.frequencyChartOrder || '').startsWith('share') && this.frequencyCanUseShareOrder();
+		},
+
+		/** The query whose share orders the groups: the one chosen ('*': in each group the query with the largest share), else the first. */
+		frequencyChartShareQuery() {
+			const qs = this.frequencyCompareQueries();
+			const o = String(this.frequencyChartOrder || '');
+			const q = o.startsWith('share:') ? o.slice(6) : '';
+			if (q === '*' && qs.length > 2) return '*';
+			return qs.includes(q) ? q : (qs[0] || '');
+		},
+
+		/** Bar views of compared queries with every group scaled to 100% (stacked: one full bar; side by side: the shares). */
+		frequencyChartStack100Available() {
+			return this.frequencyCanUseShareOrder()
+				&& ['bar', 'vbar', 'stacked-bar', 'stacked-vbar'].includes(this.frequencyVizMode);
+		},
+
+		frequencyChartIsStack100() {
+			return !!this.frequencyChartStack100 && this.frequencyChartStack100Available();
+		},
+
+		setFrequencyChartStack100(on) {
+			this.frequencyChartStack100 = !!on;
+			if (this.frequencyVizMode && this.frequencyVizMode !== 'table' && this.frequencyVizMode !== 'pivot') {
+				this.scheduleFrequencyChartRender();
+			}
 		},
 
 		frequencyChartParseTemporalOrder(rawValue) {
@@ -425,6 +469,29 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 			const list = Array.isArray(rows) ? [...rows] : [];
 			const mode = this.frequencyChartOrder || 'size';
 			const sizeValue = (row) => (multiple ? this.frequencyChartRowCompareNumeric(row) : this.frequencyRowChartNumeric(row));
+			if (multiple && this.frequencyChartIsShareOrder()) {
+				// largest share first; equal shares by size; groups with nothing compared last. '*': grouped by the
+				// query with the largest share (in query order), within that by its share
+				const q = this.frequencyChartShareQuery();
+				const qs = this.frequencyCompareQueries();
+				const top = (row) => {
+					const total = sizeValue(row);
+					if (!(total > 0)) return { idx: qs.length, share: -1 };
+					let idx = 0;
+					let best = -1;
+					qs.forEach((x, i) => {
+						const v = this.frequencyChartRowQueryNumeric(row, x);
+						if (v > best) { best = v; idx = i; }
+					});
+					return q === '*' ? { idx, share: best / total } : { idx: 0, share: this.frequencyChartRowQueryNumeric(row, q) / total };
+				};
+				list.sort((a, b) => {
+					const ta = top(a);
+					const tb = top(b);
+					return ta.idx - tb.idx || tb.share - ta.share || sizeValue(b) - sizeValue(a);
+				});
+				return list;
+			}
 			if (mode === 'value') {
 				list.sort((a, b) => this.frequencyCompareValueLabels(this.frequencyRowRawValue(a), this.frequencyRowRawValue(b)));
 				return list;
@@ -507,6 +574,17 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 						}
 						datasets[qIdx].data.push(val);
 					});
+				}
+				if (this.frequencyChartIsStack100()) {
+					// each group's stack to 100%: the share of every query; the values themselves stay for the tooltip
+					for (let i = 0; i < slice.length; i++) {
+						const total = datasets.reduce((s, d) => s + (Number(d.data[i]) || 0), 0);
+						datasets.forEach((d) => {
+							if (!d.values) d.values = [];
+							d.values[i] = d.data[i];
+							d.data[i] = total > 0 ? (Number(d.data[i]) || 0) / total * 100 : 0;
+						});
+					}
 				}
 				
 				return { labels, data: [], datasets, multiple: true, rowRefs: [] };
@@ -614,6 +692,10 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 			const scale = this.frequencyChartValueScale || 'relative';
 			const yLabel = this.frequencyChartYLabel();
 			const dsLabel = scale === 'absolute' ? 'Count' : yLabel;
+			const stack100 = multiple && this.frequencyChartIsStack100();
+			const valueAxis = (stacked) => (stack100
+				? { stacked, beginAtZero: true, max: 100, ticks: { callback: (t) => `${t}%` } }
+				: null);
 			// Short animations (Chart default is ~1000ms). Lifecycle guards (stop/destroy, epoch, tab/backend teardown)
 			// avoid the rare null-ctx crash when switching views; no need to disable motion entirely.
 			const common = {
@@ -669,6 +751,13 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 							v = ctx.parsed.y != null ? ctx.parsed.y : ctx.parsed.x;
 						}
 						if (typeof v !== 'number' || !Number.isFinite(v)) return '';
+						if (stack100) {
+							const orig = ctx.dataset && Array.isArray(ctx.dataset.values) ? Number(ctx.dataset.values[ctx.dataIndex]) : NaN;
+							const shown = Number.isFinite(orig)
+								? (scale === 'absolute' ? `count: ${orig}` : `${yLabel}: ${this.frequencyFormatIpmDisplay(orig)}`)
+								: '';
+							return `${ctx.dataset.label}: ${v.toFixed(1)}%` + (shown ? ` (${shown})` : '');
+						}
 						let baseLabel = '';
 						if (scale === 'absolute') baseLabel = `count: ${v}`;
 						else baseLabel = `${ctx.dataset.label || yLabel}: ${this.frequencyFormatIpmDisplay(v)}`;
@@ -768,7 +857,7 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 							tooltip: barTooltip,
 						},
 						scales: {
-							x: {
+							x: valueAxis(stacked) || {
 								stacked: stacked,
 								beginAtZero: true,
 								ticks: { precision: scale === 'absolute' ? 0 : 2 },
@@ -821,7 +910,7 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 									autoSkip: true,
 								},
 							},
-							y: {
+							y: valueAxis(stacked) ? { ...valueAxis(stacked), type: 'linear' } : {
 								stacked: stacked,
 								type: 'linear',
 								beginAtZero: true,

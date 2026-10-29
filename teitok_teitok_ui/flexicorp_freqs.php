@@ -2248,6 +2248,22 @@
 										<template x-if="frequencyVizMode !== 'table' && frequencyVizMode !== 'pivot'">
 											<button type="button" class="flexicorp-seg-btn" :class="{ 'flexicorp-seg-btn--active': frequencyChartOrder === 'value' }" :aria-pressed="frequencyChartOrder === 'value' ? 'true' : 'false'" x-on:click="setFrequencyChartOrder('value')" title="Sort by category value (natural/alphanumeric)">Natural</button>
 										</template>
+										<template x-if="frequencyVizMode !== 'table' && frequencyVizMode !== 'pivot' && $data.frequencyCanUseShareOrder()">
+											<button type="button" class="flexicorp-seg-btn" :class="{ 'flexicorp-seg-btn--active': $data.frequencyChartIsShareOrder() }" :aria-pressed="$data.frequencyChartIsShareOrder() ? 'true' : 'false'" x-on:click="setFrequencyChartOrder('share')" title="Sort groups by one query's share of the compared queries (largest share first)">Share</button>
+										</template>
+										<template x-if="frequencyVizMode !== 'table' && frequencyVizMode !== 'pivot' && $data.frequencyChartIsShareOrder()">
+											<select class="flexicorp-form-control flexicorp-form-control-sm" style="width:auto;display:inline-block;margin-left:0.3rem;" aria-label="Query whose share orders the groups" title="Query whose share orders the groups" x-on:change="setFrequencyChartOrder('share:' + $event.target.value)">
+												<template x-for="q in $data.frequencyCompareQueries()" :key="q">
+													<option :value="q" x-text="q" :selected="q === $data.frequencyChartShareQuery()"></option>
+												</template>
+												<template x-if="$data.frequencyCompareQueries().length > 2">
+													<option value="*" :selected="$data.frequencyChartShareQuery() === '*'">largest share</option>
+												</template>
+											</select>
+										</template>
+										<template x-if="frequencyVizMode !== 'table' && frequencyVizMode !== 'pivot' && $data.frequencyChartStack100Available()">
+											<button type="button" class="flexicorp-seg-btn" style="margin-left:0.6rem;" :class="{ 'flexicorp-seg-btn--active': frequencyChartStack100 }" :aria-pressed="frequencyChartStack100 ? 'true' : 'false'" x-on:click="setFrequencyChartStack100(!frequencyChartStack100)" title="Every group at 100%: each query's share of the group">100%</button>
+										</template>
 										<template x-if="frequencyVizMode !== 'table' && frequencyVizMode !== 'pivot' && $data.frequencyCanUseTimeOrder()">
 											<button type="button" class="flexicorp-seg-btn" :class="{ 'flexicorp-seg-btn--active': frequencyChartOrder === 'time' }" :aria-pressed="frequencyChartOrder === 'time' ? 'true' : 'false'" x-on:click="setFrequencyChartOrder('time')" title="Sort by temporal value when labels look like years/decades/centuries">Time</button>
 										</template>
@@ -2284,7 +2300,7 @@
 						   x-text="$data.frequencyDistributionMetaLine()"></p>
 					</div>
 					<p class="flexicorp-panel-note" x-show="frequency.rows.length && frequencyVizMode !== 'table' && frequencyVizMode !== 'pivot' && !callHasErrors(frequency.response)">
-						Charts use your frequency limit and support ordering by <strong>Size</strong>, <strong>Natural</strong>, or <strong>Time</strong>. <strong>Others</strong> remains at the end (except in Time order). Relative value scale options are shown when subcorpus size/relative metrics are available; <strong>Absolute</strong> uses raw counts.
+						Charts use your frequency limit and support ordering by <strong>Size</strong>, <strong>Natural</strong>, or <strong>Time</strong>, and, when queries are compared, by <strong>Share</strong>: the share the chosen query has in each group (<em>largest share</em>: grouped by the query with the largest share). Bar views can show every group at <strong>100%</strong> (each query's share of the group). <strong>Others</strong> remains at the end (except in Time order). Relative value scale options are shown when subcorpus size/relative metrics are available; <strong>Absolute</strong> uses raw counts.
 					</p>
 					<p class="flexicorp-panel-note" x-show="frequency.rows.length && frequencyVizMode === 'vbar-error' && !callHasErrors(frequency.response)">
 						Error bars show 95% uncertainty intervals estimated from each row's count and subcorpus size.

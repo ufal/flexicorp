@@ -83,6 +83,7 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 					chart_type: this.frequencyChartType != null ? String(this.frequencyChartType) : '',
 					chart_scale: this.frequencyChartValueScale != null ? String(this.frequencyChartValueScale) : '',
 					chart_order: this.frequencyChartOrder != null ? String(this.frequencyChartOrder) : '',
+					stack_100: !!this.frequencyChartStack100,
 					table_search: this.frequencyTableSearch != null ? String(this.frequencyTableSearch) : '',
 					table_sort: this.frequencyTableSort && typeof this.frequencyTableSort === 'object' ? this.frequencyTableSort : null,
 					compare_metric_cols: Array.isArray(this.frequencyCompareMetricCols) ? this.frequencyCompareMetricCols.map((x) => String(x)) : [],
@@ -219,6 +220,7 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 					ct: p.frequency && p.frequency.chart_type,
 					cs: p.frequency && p.frequency.chart_scale,
 					co: p.frequency && p.frequency.chart_order,
+					sp: p.frequency && p.frequency.stack_100 ? 1 : undefined,
 					ts: p.frequency && p.frequency.table_search,
 					to: p.frequency && p.frequency.table_sort,
 					m: p.frequency && p.frequency.compare_metric_cols,
@@ -326,6 +328,7 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 					chart_type: p.f && p.f.ct ? String(p.f.ct) : '',
 					chart_scale: p.f && p.f.cs ? String(p.f.cs) : '',
 					chart_order: p.f && p.f.co ? String(p.f.co) : '',
+					stack_100: !!(p.f && p.f.sp),
 					table_search: p.f && p.f.ts ? String(p.f.ts) : '',
 					table_sort: p.f && p.f.to && typeof p.f.to === 'object' ? p.f.to : null,
 					compare_metric_cols: Array.isArray(p.f && p.f.m) ? p.f.m.map((x) => String(x)) : [],
@@ -503,6 +506,7 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 				this._frequencyScaleChosen = true;
 			}
 			if (freq.chart_order != null && this.frequencyChartOrder != null) this.frequencyChartOrder = String(freq.chart_order);
+			if (this.frequencyChartStack100 != null) this.frequencyChartStack100 = !!freq.stack_100;
 			if (freq.table_search != null && this.frequencyTableSearch != null) this.frequencyTableSearch = String(freq.table_search);
 			if (freq.table_sort && typeof freq.table_sort === 'object' && this.frequencyTableSort && typeof this.frequencyTableSort === 'object') {
 				this.frequencyTableSort = {
