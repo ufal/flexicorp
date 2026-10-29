@@ -38,7 +38,7 @@ if ( ! function_exists( 'tt_flexicorp_adv_dcoll_render_stats_panel' ) ) {
 						</select>
 					</div>
 					<div class="flexicorp-form-row">
-						<label for="fc-dcoll-breakdown" title="For each collocate, how often it came with each value of this attribute (e.g. its dependency relation or word class)">Show also</label>
+						<label for="fc-dcoll-breakdown" title="For each collocate, how often it came with each value of this attribute: for the dependency relation, the relation between the search hit and the collocate (with Head: the hit’s relation to its head); for other attributes, the collocate’s own value (e.g. its word class)">Show also</label>
 						<select id="fc-dcoll-breakdown" class="flexicorp-form-control flexicorp-form-control-sm" x-model="dcollAdv.breakdown">
 							<template x-for="opt in dcollAdvBreakdownOptions()" :key="'dcoll-bd-' + opt.key">
 								<option :value="opt.key" :selected="String(opt.key) === String(dcollAdv.breakdown)" x-text="opt.label"></option>
