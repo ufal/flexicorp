@@ -4943,9 +4943,11 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 					'--context', escapeshellarg((string)$context),
 				);
 			} else {
+				// the index where pando/path puts it; the project root still locates xidx/
 				$cmdParts = array(
 					escapeshellarg($bin),
 					'--project-root', escapeshellarg((string)$projectRoot),
+					'--index-dir', escapeshellarg((string)tt_flexicorp_pando_index_dir($projectRoot)),
 					'--query', escapeshellarg($query),
 					'--offset', escapeshellarg((string)$offset),
 					'--limit', escapeshellarg((string)$limit),
