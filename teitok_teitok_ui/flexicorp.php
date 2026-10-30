@@ -20,7 +20,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	if ( !isset($maintext) ) $maintext = "";
 
 	// the admin's stack check: the programs and routes this project's queries use (fc_stack_check.php)
-	if ( (string) ( $_REQUEST['stackcheck'] ?? '' ) !== '' ) {
+	if ( (string) ( $_REQUEST['act'] ?? '' ) === 'stackcheck' ) {
 		require_once __DIR__ . '/fc_stack_check.php';
 		$maintext .= tt_fc_stack_check_page( tt_fc_env_project_root(), (string) ( $_REQUEST['check_query'] ?? '' ) );
 		return;

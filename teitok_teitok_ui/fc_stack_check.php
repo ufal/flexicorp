@@ -1,7 +1,7 @@
 <?php
 /**
  * fc_stack_check.php — the admin's check of what this project's queries run on (index.php?action=flexicorp
- * &stackcheck=1). Never part of a query: it reports, for the programs flexicorp runs (fc_bin.php), the path,
+ * &act=stackcheck). Never part of a query: it reports, for the programs flexicorp runs (fc_bin.php), the path,
  * where the path came from and the build the program reports; for each kind of request the route it takes
  * (the local programs, or FQS); and, for a query typed in, the path pando takes and its time.
  *
@@ -108,7 +108,7 @@ if ( ! function_exists( 'tt_fc_stack_check_page' ) ) {
 		$o .= '</table><p>FQS: ' . $h( $r['fqs']['url'] ) . ', corpus ' . $h( $r['fqs']['corpus'] ) . ': '
 			. ( $r['fqs']['serves'] ? 'serves it' : 'does not serve it (or does not answer)' ) . '.</p>';
 		$o .= '<h2>A query</h2><form method="get"><input type="hidden" name="action" value="flexicorp">'
-			. '<input type="hidden" name="stackcheck" value="1"><input name="check_query" size="80" value="' . $h( $query ) . '">'
+			. '<input type="hidden" name="act" value="stackcheck"><input name="check_query" size="80" value="' . $h( $query ) . '">'
 			. ' <input type="submit" value="Check"></form>';
 		if ( ! empty( $r['query'] ) ) {
 			$q = $r['query'];
