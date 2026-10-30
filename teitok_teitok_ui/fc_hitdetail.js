@@ -397,7 +397,7 @@ window.ttFlexicorpCoreParts.hitdetail = function () {
 
 		getHitDocUrl(hit) {
 			if (!hit || typeof hit !== 'object' || !hit.doc_id) return '';
-			if (!this.currentBackendSupportsDocumentLinks()) return '';
+			if (!this.currentBackendSupportsDocumentLinks() || !this.projectHasXml) return '';
 			const url = new URL('index.php', window.location.href);
 			url.searchParams.set('action', 'file');
 			url.searchParams.set('cid', hit.doc_id);
@@ -786,6 +786,8 @@ window.ttFlexicorpCoreParts.hitdetail = function () {
 					}
 				}
 			}
+			// without the document, only audio the hit names itself can play
+			if (out && !this.projectHasXml && !String(out.url || '').trim()) out = null;
 			if (cache) cache.audio = out;
 			return out;
 		},
@@ -1129,7 +1131,8 @@ window.ttFlexicorpCoreParts.hitdetail = function () {
 		 * See index.php?action=depalign&ids=…&tuid=<sentence>&jump=<token> (optional).
 		 */
 		getHitParallelDepalignInfo(hit) {
-			if (!hit || typeof hit !== 'object') return null;
+			// action=depalign reads the XML files
+			if (!hit || typeof hit !== 'object' || !this.projectHasXml) return null;
 			if (!this.searchHasAlignedHits()) return null;
 			const companion = this.getAlignedCompanionHit(hit);
 			if (!companion || typeof companion !== 'object') return null;
@@ -1163,6 +1166,7 @@ window.ttFlexicorpCoreParts.hitdetail = function () {
 		},
 
 		getParallelDepalignInfoForPair(sourceHit, companionHit) {
+			if (!this.projectHasXml) return null;
 			if (!sourceHit || typeof sourceHit !== 'object' || !companionHit || typeof companionHit !== 'object') return null;
 			const srcCid = String(this.getHitDocCid(sourceHit) || sourceHit.doc_id || sourceHit.text_id || '').trim();
 			const tgtCid = String(this.getHitDocCid(companionHit) || companionHit.doc_id || companionHit.text_id || '').trim();
@@ -1190,6 +1194,8 @@ window.ttFlexicorpCoreParts.hitdetail = function () {
 		},
 
 		teitokTuviewUrlFromDocsTuidSet(docs, tuid, set) {
+			// action=tuview reads the XML files
+			if (!this.projectHasXml) return '';
 			const d = String(docs || '').trim();
 			const t = String(tuid || '').trim();
 			if (!d || !t) return '';
@@ -1377,6 +1383,8 @@ window.ttFlexicorpCoreParts.hitdetail = function () {
 		},
 
 		getHitFacsimileInfo(hit) {
+			// the facsimile view opens the document
+			if (!this.projectHasXml) return null;
 			const cache = this._getHitEyeCandyCache(hit);
 			if (cache && cache.facs !== undefined) return cache.facs;
 			let out = null;
@@ -1574,7 +1582,7 @@ window.ttFlexicorpCoreParts.hitdetail = function () {
 
 		hasEyeCandy(hit) {
 			const audio = this.getHitAudioInfo(hit);
-			const dep = this.getHitDependencyTreeInfo(hit);
+			const dep = this.projectHasXml ? this.getHitDependencyTreeInfo(hit) : !!this.corpusTreeButtonHtml(hit);
 			const depAlign = this.getHitParallelDepalignInfo(hit);
 			const facs = this.getHitFacsimileInfo(hit);
 			return !!(audio || dep || depAlign || facs);
@@ -1671,7 +1679,10 @@ window.ttFlexicorpCoreParts.hitdetail = function () {
 			}
 
 			const dep = this.getHitDependencyTreeInfo(hit);
-			if (dep && dep.cid && !showParallelDepTrees) {
+			if (!this.projectHasXml) {
+				const tree = this.corpusTreeButtonHtml(hit);
+				if (tree) bits.push(tree);
+			} else if (dep && dep.cid && !showParallelDepTrees) {
 				const url = new URL('index.php', window.location.href);
 				url.searchParams.set('action', 'deptree');
 				url.searchParams.set('cid', dep.cid);

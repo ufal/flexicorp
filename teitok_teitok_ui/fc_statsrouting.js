@@ -344,6 +344,7 @@ window.ttFlexicorpCoreParts.statsrouting = function () {
 			const loaded = state.loadedSections && typeof state.loadedSections === 'object' ? state.loadedSections : {};
 			this.action = state.action || this.action;
 			this.projectRoot = state.projectRoot || '';
+			if (typeof state.projectHasXml === 'boolean') this.projectHasXml = state.projectHasXml;
 			this.backendOverrides = Object.assign({}, this.backendOverrides, state.backendOverrides || {});
 			this.isAdmin = !!state.isAdmin;
 			this.corpusListing = state.corpusListing && typeof state.corpusListing === 'object' ? state.corpusListing : null;

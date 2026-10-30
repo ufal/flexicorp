@@ -240,7 +240,7 @@ window.ttFlexicorpCoreParts.documents = function () {
 
 		getDocumentUrl(doc) {
 			if (!doc || typeof doc !== 'object') return '';
-			if (!this.currentBackendSupportsDocumentLinks()) return '';
+			if (!this.currentBackendSupportsDocumentLinks() || !this.projectHasXml) return '';
 			return this.getDocumentUrlById(doc.id || '');
 		},
 	};

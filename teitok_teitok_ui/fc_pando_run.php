@@ -9,6 +9,7 @@
  *
  *   tt_fc_pando_run( $root, $program[, $timeout, $role] ) → pando's JSON answer (array) or an error message
  *   tt_fc_pando_route( $root )         → array( 'via' => 'fqs' | 'local' | '', 'why' => …, … )
+ *   tt_fc_pando_regions( $root )       → the index's region names (s, p, doc, …)
  */
 
 require_once __DIR__ . '/fc_teitok_env.php';
@@ -98,6 +99,30 @@ if ( ! function_exists( 'tt_fc_pando_route' ) ) {
 			}
 		}
 		return $memo[ $key ] = $out;
+	}
+
+	/**
+	 * The corpus's region names (s, p, doc, …), wherever its index is, in the index's order; array()
+	 * when there is no index. For a project without xidx (no TEITOK XML files), whose sentence etc.
+	 * can only be known from the index.
+	 */
+	function tt_fc_pando_regions( $root ) {
+		static $memo = array();
+		$key = rtrim( (string) $root, '/' );
+		if ( isset( $memo[ $key ] ) ) return $memo[ $key ];
+		$route = tt_fc_pando_route( $root );
+		$out = array();
+		if ( $route['via'] === 'fqs' ) {
+			$r = tt_fc_http_json( 'GET', $route['url'] . '/info?corpus=' . rawurlencode( $route['corpus'] ), null, tt_fqs_bearer_headers( 'admin', 'teitok-lens', 60 ), 10 );
+			foreach ( (array) ( $r['data']['result']['structures'] ?? array() ) as $st ) {
+				if ( is_array( $st ) && isset( $st['name'] ) && (string) $st['name'] !== '' ) $out[] = (string) $st['name'];
+			}
+		} elseif ( $route['via'] === 'local' ) {
+			foreach ( @file( $route['index'] . '/corpus.info', FILE_IGNORE_NEW_LINES ) ?: array() as $line ) {
+				if ( preg_match( '/^structural=(.*)$/', $line, $m ) ) foreach ( explode( ',', $m[1] ) as $s ) if ( trim( $s ) !== '' ) $out[] = trim( $s );
+			}
+		}
+		return $memo[ $key ] = array_values( array_unique( $out ) );
 	}
 
 	/**

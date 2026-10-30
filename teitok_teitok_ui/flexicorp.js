@@ -11,7 +11,7 @@ function flexicorpSplitSearchIntroHtml(html) {
 }
 
 /** Parts of the root component in fc_<id>.js, in mixing order (flexicorp.php loads them before this file). */
-const FLEXICORP_CORE_PARTS = ['viewstate', 'backend', 'statsrouting', 'kwicview', 'requests', 'highlight', 'querystore', 'documents', 'hitdetail', 'hits', 'fqswarm', 'multiedit'];
+const FLEXICORP_CORE_PARTS = ['viewstate', 'backend', 'statsrouting', 'kwicview', 'requests', 'highlight', 'querystore', 'documents', 'hitdetail', 'hits', 'fqswarm', 'multiedit', 'corpuscontext'];
 
 function flexicorpApp() {
 	/** Mirrors tt_flexicorp_default_search_intro_html() when #flexicorp-initial-state omits searchIntroHtml (legacy shell / failed encode fallback). */
@@ -928,13 +928,14 @@ function flexicorpApp() {
 			if (typeof document === 'undefined' || this._tokEditClickBound) return;
 			this._tokEditClickBound = true;
 			const root = document.getElementById('flexicorp-root');
-			if (root && this.teitokUsername()) {
+			// tokedit edits the XML files: nothing to edit in a project without them
+			if (root && this.teitokUsername() && this.projectHasXml) {
 				root.classList.add('flexicorp-can-tokedit');
 			}
 			document.addEventListener(
 				'click',
 				(evt) => {
-					if (!this.teitokUsername()) return;
+					if (!this.teitokUsername() || !this.projectHasXml) return;
 					let el = evt.target;
 					if (!el || el.nodeType !== 1) {
 						el = el && el.parentElement ? el.parentElement : null;

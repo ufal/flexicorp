@@ -32,6 +32,8 @@ window.ttFlexicorpCoreParts.multiedit = function () {
 		/** Is the link shown at all: a pando search that ran, a logged-in user, a query (not a program)? */
 		multieditShown() {
 			if (this.activeTab !== 'search' || !this.search || !this.search.ran) return false;
+			// multiedit writes the XML files
+			if (!this.projectHasXml) return false;
 			if (typeof this.teitokUsername === 'function' && !this.teitokUsername()) return false;
 			const engine = String((this.settings && (this.settings.queryEngine || this.settings.backend)) || '').toLowerCase();
 			if (engine !== 'pando' && engine !== 'flexicorp-pando') return false;

@@ -922,7 +922,7 @@
 						<div class="flexicorp-hit-group">
 							<div class="flexicorp-hit-group-head">
 									<template x-if="group.docUrl">
-										<a class="flexicorp-hit-context-link" x-bind:href="group.docUrl" x-bind:cid="group.docCid" x-bind:title="group.docTooltip" onmouseover="if (typeof showdocinfo === 'function') showdocinfo(this)" onmouseout="if (typeof hidetokinfo === 'function') hidetokinfo()" target="flexicorp_source" rel="noopener noreferrer" x-text="group.docId"></a>
+										<a class="flexicorp-hit-context-link" x-bind:href="group.docUrl || null" x-bind:cid="group.docCid" x-bind:title="group.docTooltip" onmouseover="if (this.getAttribute('href') && typeof showdocinfo === 'function') showdocinfo(this)" onmouseout="if (typeof hidetokinfo === 'function') hidetokinfo()" target="flexicorp_source" rel="noopener noreferrer" x-text="group.docId"></a>
 									</template>
 									<template x-if="!group.docUrl">
 										<span class="flexicorp-hit-context-link" x-text="group.docId"></span>
@@ -940,7 +940,10 @@
 											<template x-if="getHitDocUrl(hit)">
 												<a class="flexicorp-hit-context-link" x-bind:href="getHitDocUrl(hit)" x-bind:cid="getHitDocCid(hit)" x-bind:title="getDocumentTooltip(getHitDocLabel(hit))" x-text="getHitContextLinkLabel(hit)" onmouseover="if (typeof showdocinfo === 'function') showdocinfo(this)" onmouseout="if (typeof hidetokinfo === 'function') hidetokinfo()" target="flexicorp_source" rel="noopener noreferrer"></a>
 											</template>
-											<template x-if="!getHitDocUrl(hit)">
+											<template x-if="!getHitDocUrl(hit) && canShowCorpusContext(hit)">
+												<a class="flexicorp-hit-context-link" href="#" x-bind:title="getDocumentTooltip(getHitDocLabel(hit))" x-text="getHitContextLinkLabel(hit)" x-on:click.prevent="openCorpusContext(hit)"></a>
+											</template>
+											<template x-if="!getHitDocUrl(hit) && !canShowCorpusContext(hit)">
 												<span class="flexicorp-hit-context-link" x-text="getHitContextLinkLabel(hit)" x-bind:title="getDocumentTooltip(getHitDocLabel(hit))"></span>
 											</template>
 											<span x-show="getMergedHitCount(hit) > 1" style="margin-left:0.35em;" x-text="getMergedHitCount(hit) + ' hits'"></span>
@@ -994,7 +997,10 @@
 															<template x-if="getHitDocUrl(alignedHit)">
 																<a class="flexicorp-hit-context-link" x-bind:href="getHitDocUrl(alignedHit)" x-bind:cid="getHitDocCid(alignedHit)" x-bind:title="getDocumentTooltip(getHitDocLabel(alignedHit))" x-text="getHitContextLinkLabel(alignedHit)" onmouseover="if (typeof showdocinfo === 'function') showdocinfo(this)" onmouseout="if (typeof hidetokinfo === 'function') hidetokinfo()" target="flexicorp_source" rel="noopener noreferrer"></a>
 															</template>
-															<template x-if="!getHitDocUrl(alignedHit)">
+															<template x-if="!getHitDocUrl(alignedHit) && canShowCorpusContext(alignedHit)">
+																<a class="flexicorp-hit-context-link" href="#" x-bind:title="getDocumentTooltip(getHitDocLabel(alignedHit))" x-text="getHitContextLinkLabel(alignedHit)" x-on:click.prevent="openCorpusContext(alignedHit)"></a>
+															</template>
+															<template x-if="!getHitDocUrl(alignedHit) && !canShowCorpusContext(alignedHit)">
 																<span x-text="getHitContextLinkLabel(alignedHit)"></span>
 															</template>
 														</span>
@@ -1077,7 +1083,10 @@
 									<template x-if="getHitDocUrl(hit)">
 										<a class="flexicorp-hit-context-link" x-bind:href="getHitDocUrl(hit)" x-bind:cid="getHitDocCid(hit)" x-bind:title="getDocumentTooltip(getHitDocLabel(hit))" x-text="getHitContextLinkLabel(hit)" onmouseover="if (typeof showdocinfo === 'function') showdocinfo(this)" onmouseout="if (typeof hidetokinfo === 'function') hidetokinfo()" target="flexicorp_source" rel="noopener noreferrer"></a>
 									</template>
-									<template x-if="!getHitDocUrl(hit)">
+									<template x-if="!getHitDocUrl(hit) && canShowCorpusContext(hit)">
+										<a class="flexicorp-hit-context-link" href="#" x-bind:title="getDocumentTooltip(getHitDocLabel(hit))" x-text="getHitContextLinkLabel(hit)" x-on:click.prevent="openCorpusContext(hit)"></a>
+									</template>
+									<template x-if="!getHitDocUrl(hit) && !canShowCorpusContext(hit)">
 										<span class="flexicorp-hit-context-link" x-text="getHitContextLinkLabel(hit)" x-bind:title="getDocumentTooltip(getHitDocLabel(hit))"></span>
 									</template>
 									<div class="flexicorp-panel-note" x-show="getMergedHitCount(hit) > 1" x-text="getMergedHitCount(hit) + ' hits'"></div>
@@ -1140,7 +1149,10 @@
 												<template x-if="getHitDocUrl(alignedHit)">
 													<a class="flexicorp-hit-context-link" x-bind:href="getHitDocUrl(alignedHit)" x-bind:cid="getHitDocCid(alignedHit)" x-bind:title="getDocumentTooltip(getHitDocLabel(alignedHit))" x-text="getHitContextLinkLabel(alignedHit)" onmouseover="if (typeof showdocinfo === 'function') showdocinfo(this)" onmouseout="if (typeof hidetokinfo === 'function') hidetokinfo()" target="flexicorp_source" rel="noopener noreferrer"></a>
 												</template>
-												<template x-if="!getHitDocUrl(alignedHit)">
+												<template x-if="!getHitDocUrl(alignedHit) && canShowCorpusContext(alignedHit)">
+													<a class="flexicorp-hit-context-link" href="#" x-bind:title="getDocumentTooltip(getHitDocLabel(alignedHit))" x-text="getHitContextLinkLabel(alignedHit)" x-on:click.prevent="openCorpusContext(alignedHit)"></a>
+												</template>
+												<template x-if="!getHitDocUrl(alignedHit) && !canShowCorpusContext(alignedHit)">
 													<span class="flexicorp-hit-context-link" x-text="getHitContextLinkLabel(alignedHit)" x-bind:title="getDocumentTooltip(getHitDocLabel(alignedHit))"></span>
 												</template>
 											</div>
@@ -1198,7 +1210,10 @@
 									<template x-if="getHitDocUrl(hit)">
 										<a class="flexicorp-hit-context-link" x-bind:href="getHitDocUrl(hit)" x-bind:cid="getHitDocCid(hit)" x-bind:title="getDocumentTooltip(getHitDocLabel(hit))" x-text="getHitContextLinkLabel(hit)" onmouseover="if (typeof showdocinfo === 'function') showdocinfo(this)" onmouseout="if (typeof hidetokinfo === 'function') hidetokinfo()" target="flexicorp_source" rel="noopener noreferrer"></a>
 									</template>
-									<template x-if="!getHitDocUrl(hit)">
+									<template x-if="!getHitDocUrl(hit) && canShowCorpusContext(hit)">
+										<a class="flexicorp-hit-context-link" href="#" x-bind:title="getDocumentTooltip(getHitDocLabel(hit))" x-text="getHitContextLinkLabel(hit)" x-on:click.prevent="openCorpusContext(hit)"></a>
+									</template>
+									<template x-if="!getHitDocUrl(hit) && !canShowCorpusContext(hit)">
 										<span class="flexicorp-hit-context-link" x-text="getHitContextLinkLabel(hit)" x-bind:title="getDocumentTooltip(getHitDocLabel(hit))"></span>
 									</template>
 								</td>

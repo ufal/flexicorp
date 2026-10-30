@@ -7604,6 +7604,8 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	$state = array(
 		'action' => $actionName,
 		'projectRoot' => $projectRoot,
+		// no TEITOK XML files (an index-only corpus): no document links; context and tree come from the engine
+		'projectHasXml' => ! function_exists( 'tt_flexicorp_project_has_xml' ) || tt_flexicorp_project_has_xml( $projectRoot ),
 		'isAdmin' => $isAdmin,
 		// the corpus's entry in corpus lists: indexing asks for a description when there is none
 		'corpusListing' => $isAdmin ? array(
@@ -7938,6 +7940,12 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	}
 	// Region types for context-scope hints: xidx index only (flexencoder region_types.tbl).
 	// Corpus-level structure names come from the flexicorp backend /info (CQP / triple / etc.), not TEITOK xmlfile forms.
+	// A project without XML files has no xidx: its regions (the sentence above all) come from the index itself.
+	if ( ! $state['xidxRegionTypes'] && function_exists( 'tt_flexicorp_project_has_xml' ) && ! tt_flexicorp_project_has_xml( $projectRoot )
+		&& is_file( __DIR__ . '/fc_pando_run.php' ) ) {
+		require_once __DIR__ . '/fc_pando_run.php';
+		$state['xidxRegionTypes'] = tt_fc_pando_regions( $projectRoot );
+	}
 	$state['xidxRegionTypes'] = tt_flexicorp_filter_context_scope_regions( $state['xidxRegionTypes'], $projectRoot );
 
 	global $foldername;
@@ -8259,7 +8267,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	// Parts of the root component (fc_<id>.js: FLEXICORP_CORE_PARTS in flexicorp.js, FLEXICORP_FREQS_PARTS in
 	// flexicorp_freqs.js): load before flexicorp.js.
 	$fcCoreParts = array(
-		'viewstate', 'backend', 'statsrouting', 'kwicview', 'requests', 'highlight', 'querystore', 'documents', 'hitdetail', 'hits', 'fqswarm', 'multiedit',
+		'viewstate', 'backend', 'statsrouting', 'kwicview', 'requests', 'highlight', 'querystore', 'documents', 'hitdetail', 'hits', 'fqswarm', 'multiedit', 'corpuscontext',
 		'stats_fields', 'scope', 'stats_corpus', 'stats_freq', 'stats_tabs', 'stats_coll', 'stats_other', 'stats_values', 'stats_freqviz', 'stats_dispersion', 'stats_freqhits', 'stats_svgexport',
 	);
 	// Libraries the parts use (window.ttFlexicorp*): loaded first.
