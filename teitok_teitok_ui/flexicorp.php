@@ -1594,7 +1594,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			}
 			$out = array(
 				'available' => false,
-				'reason' => 'Pando index exists (' . basename( $pandoDir ) . ') but there is no runnable query path: flexicorp-pando is not installed or not configured (set pando/flexicorp_pando_bin), and ' . $fqsWhy . '.',
+				'reason' => 'Pando index exists (' . basename( $pandoDir ) . ') but there is no runnable query path: flexicorp-pando is not installed or not configured (set bin/flexicorp-pando, or defaults/base/bin for the folder), and ' . $fqsWhy . '.',
 			);
 			$memo[ $rootKey ] = $out;
 			return $out;

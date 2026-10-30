@@ -1,13 +1,13 @@
 <?php
 /**
  * fc_bin.php — the programs flexicorp runs (flexicorp-pando, pando, pando-index): one path each, from
- * the settings, else where install-stack.pl puts them. Nothing is searched for at query time; the
- * admin check (fc_stack_check.php) shows which program is used, its build and where the path came from.
+ * TEITOK's own settings for programs, as findapp() reads them, without findapp's search of /usr/bin and
+ * the PATH. Nothing is searched for at query time; the admin check (fc_stack_check.php) shows which program
+ * is used, its build and where the path came from.
  *
- *   flexicorp-pando  pando/flexicorp_pando_bin
- *   pando            pando/pando_bin
- *   pando-index      pando/pando_index_bin, else next to pando/pando_bin
- *   otherwise        PREFIX/bin/NAME, PREFIX = pando/prefix (install-stack.pl --prefix), default /usr/local
+ *   bin/NAME             one program (<bin flexicorp-pando="…" pando="…"/>)
+ *   defaults/base/bin    the folder of all of them (TEITOK's $bindir), default /usr/local/bin, where
+ *                        install-stack.pl puts them
  */
 
 if ( ! function_exists( 'tt_fc_bin_path' ) ) {
@@ -16,14 +16,11 @@ if ( ! function_exists( 'tt_fc_bin_path' ) ) {
 		$get = function ( $k ) {
 			return function_exists( 'getset' ) ? trim( (string) getset( $k, '' ) ) : '';
 		};
-		$keys = array( 'flexicorp-pando' => 'pando/flexicorp_pando_bin', 'pando' => 'pando/pando_bin',
-			'pando-index' => 'pando/pando_index_bin' );
-		if ( isset( $keys[ $name ] ) && ( $p = $get( $keys[ $name ] ) ) !== '' ) return array( $p, $keys[ $name ] );
-		if ( $name === 'pando-index' && ( $p = $get( 'pando/pando_bin' ) ) !== '' )
-			return array( dirname( $p ) . '/pando-index', 'pando/pando_bin (its folder)' );
-		$prefix = $get( 'pando/prefix' );
-		return array( rtrim( $prefix !== '' ? $prefix : '/usr/local', '/' ) . "/bin/$name",
-			$prefix !== '' ? 'pando/prefix' : 'install-stack.pl default (/usr/local)' );
+		if ( ( $p = $get( "bin/$name" ) ) !== '' ) return array( $p, "bin/$name" );
+		$dir = isset( $GLOBALS['bindir'] ) && is_string( $GLOBALS['bindir'] ) && $GLOBALS['bindir'] !== ''
+			? $GLOBALS['bindir'] : $get( 'defaults/base/bin' );
+		if ( $dir !== '' ) return array( rtrim( $dir, '/' ) . "/$name", 'defaults/base/bin' );
+		return array( "/usr/local/bin/$name", 'defaults/base/bin (default /usr/local/bin)' );
 	}
 }
 
