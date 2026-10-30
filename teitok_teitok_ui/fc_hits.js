@@ -1095,6 +1095,19 @@ window.ttFlexicorpCoreParts.hits = function () {
 				if (hit && typeof hit === 'object') delete hit.__flexicorpRenderedXml;
 				return '';
 			}
+			// no XML fragment (an index without xidx/ or XML files): the plain context, its match highlighted
+			if (!this.hitHasTeitokXmlContext(hit)) {
+				const parts = this.getKwicParts(hit);
+				if (parts && !parts.isXml && String(parts.match || '').trim()) {
+					return [
+						'<span class="flexicorp-hit-kwic-raw">',
+						`<span class="flexicorp-hit-kwic-raw-left">${this.escapeHtmlForPre(parts.left || '')}</span> `,
+						`<span class="flexicorp-hit-kwic-raw-match flexicorp-hit-match">${this.escapeHtmlForPre(parts.match)}</span>`,
+						` <span class="flexicorp-hit-kwic-raw-right">${this.escapeHtmlForPre(parts.right || '')}</span>`,
+						'</span>',
+					].join('');
+				}
+			}
 			if (this.isClearlyCorruptedXmlContext(context)) {
 				const fallbackText = this.getCorruptedXmlFallbackText(hit);
 				const fallbackOut = '<pre class="flexicorp-hit-raw flexicorp-hit-xml-fallback">' + this.escapeHtmlForPre(fallbackText || '[stale XML context; reindex recommended]') + '</pre>';
