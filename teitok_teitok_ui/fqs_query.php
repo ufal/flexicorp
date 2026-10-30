@@ -54,27 +54,29 @@
 		}
 	}
 
+	if ( ! function_exists( 'ttfq_fqs_runtime_url' ) ) {
+		/** The FQS in fqs-http.json (written by `fqs serve`): FQS_HTTP_JSON, beside FQS_DB_PATH, defaults; '' when none. */
+		function ttfq_fqs_runtime_url() {
+			$cands = array();
+			$e = getenv( 'FQS_HTTP_JSON' );
+			if ( is_string( $e ) && trim( $e ) !== '' ) $cands[] = trim( $e );
+			$db = getenv( 'FQS_DB_PATH' );
+			if ( is_string( $db ) && $db !== '' ) $cands[] = rtrim( dirname( $db ), '/' ) . '/fqs-http.json';
+			$cands[] = '/usr/local/var/fqs/fqs-http.json';
+			$cands[] = '/var/lib/fqs/fqs-http.json';
+			foreach ( $cands as $c ) {
+				if ( ! is_readable( $c ) ) continue;
+				$j = json_decode( (string) @file_get_contents( $c ), true );
+				if ( is_array( $j ) && ! empty( $j['url'] ) ) return rtrim( trim( (string) $j['url'] ), '/' );
+			}
+			return '';
+		}
+	}
+
 	if ( ! function_exists( 'ttfq_fqs_url' ) ) {
 		function ttfq_fqs_url() {
 			$url = ttfq_setting( 'flexicorp/fqs_url', 'FQS_URL' );
-			if ( $url === '' ) {
-				// fqs-http.json (written by `fqs serve`): FQS_HTTP_JSON, beside FQS_DB_PATH, defaults
-				$cands = array();
-				$e = getenv( 'FQS_HTTP_JSON' );
-				if ( is_string( $e ) && trim( $e ) !== '' ) $cands[] = trim( $e );
-				$db = getenv( 'FQS_DB_PATH' );
-				if ( is_string( $db ) && $db !== '' ) $cands[] = rtrim( dirname( $db ), '/' ) . '/fqs-http.json';
-				$cands[] = '/usr/local/var/fqs/fqs-http.json';
-				$cands[] = '/var/lib/fqs/fqs-http.json';
-				foreach ( $cands as $c ) {
-					if ( ! is_readable( $c ) ) continue;
-					$j = json_decode( (string) @file_get_contents( $c ), true );
-					if ( is_array( $j ) && ! empty( $j['url'] ) ) {
-						$url = trim( (string) $j['url'] );
-						break;
-					}
-				}
-			}
+			if ( $url === '' ) $url = ttfq_fqs_runtime_url();
 			if ( $url === '' ) $url = 'http://127.0.0.1:8787';
 			return rtrim( $url, '/' );
 		}
@@ -434,6 +436,15 @@
 		$ttfq_method, $ttfq_base . $ttfq_path,
 		$ttfq_body === null ? null : json_encode( $ttfq_body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ),
 		$ttfq_headers, $ttfq_timeout );
+	// the configured FQS does not answer: the local one (fqs-http.json), as the search does (flexicorp.php's
+	// FQS probe, which tells admins so)
+	if ( $ttfq_status === 0 && ( $ttfq_alt = ttfq_fqs_runtime_url() ) !== '' && $ttfq_alt !== $ttfq_base ) {
+		$ttfq_base = $ttfq_alt;
+		list( $ttfq_status, $ttfq_raw, $ttfq_retry, $ttfq_err ) = ttfq_http(
+			$ttfq_method, $ttfq_base . $ttfq_path,
+			$ttfq_body === null ? null : json_encode( $ttfq_body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ),
+			$ttfq_headers, $ttfq_timeout );
+	}
 	$ttfq_timing['fqs'] = (int) round( ( microtime( true ) - $ttfq_t1 ) * 1000 );
 	$ttfq_timing['total'] = isset( $_SERVER['REQUEST_TIME_FLOAT'] )
 		? (int) round( ( microtime( true ) - (float) $_SERVER['REQUEST_TIME_FLOAT'] ) * 1000 )

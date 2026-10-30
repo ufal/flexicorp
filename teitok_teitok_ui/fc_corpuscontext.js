@@ -142,7 +142,8 @@ window.ttFlexicorpCoreParts.corpuscontext = function () {
 						render(String(res.left || ''), match, right.slice(extra).join(' '));
 					})
 					.catch((err) => {
-						bar.hidden = true;
+						// the hit's own context stays; say that it is all there is
+						bar.replaceChildren(el('span', 'flexicorp-panel-note', 'Only the context shown in the results is available here.'));
 						if (this.isAdmin) console.warn('[flexicorp] corpus context:', err && err.message ? err.message : err);
 					});
 			};
