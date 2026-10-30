@@ -612,6 +612,11 @@ window.ttFlexicorpCoreParts.statsrouting = function () {
 				if (initial || prevKey !== nextKey) this.adminPandoIndexHintDismissed = false;
 				this.adminPandoIndexHint = next;
 			}
+			if (state && Object.prototype.hasOwnProperty.call(state, 'adminFqsNotice')) {
+				const next = String(state.adminFqsNotice || '');
+				if (initial || next !== this.adminFqsNotice) this.adminFqsNoticeDismissed = false;
+				this.adminFqsNotice = next;
+			}
 			if (Array.isArray(state.recentQueries)) this.recentQueries = state.recentQueries;
 			if (state.recentQueriesByDialect && typeof state.recentQueriesByDialect === 'object') {
 				this.recentQueriesByDialect = state.recentQueriesByDialect;

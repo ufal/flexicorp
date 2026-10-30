@@ -43,6 +43,12 @@
 			<span x-text="(adminPandoIndexHint && adminPandoIndexHint.message) ? adminPandoIndexHint.message : ''"></span>
 		</div>
 
+		<div class="flexicorp-admin-index-hint" x-show="isAdmin && adminFqsNotice && !adminFqsNoticeDismissed" role="status">
+			<button type="button" class="flexicorp-admin-index-hint__dismiss" aria-label="Dismiss" x-on:click="adminFqsNoticeDismissed = true">&times;</button>
+			<strong>FQS notice</strong>
+			<span x-text="adminFqsNotice"></span>
+		</div>
+
 		<section class="flexicorp-panel" x-show="activeTab === 'overview'">
 				<div class="flexicorp-panel-title-row">
 					<h2 class="flexicorp-panel-title">Backends, query languages &amp; storage</h2>

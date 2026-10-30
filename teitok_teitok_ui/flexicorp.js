@@ -230,6 +230,8 @@ function flexicorpApp() {
 		/** Admin-only: heuristic mismatch between xmlfiles/, pando/, xidx/ (from PHP). */
 		adminPandoIndexHint: null,
 		adminPandoIndexHintDismissed: false,
+		adminFqsNotice: '',
+		adminFqsNoticeDismissed: false,
 		/** First <p> of the search intro (hint below Hit limit). */
 		searchIntroLeadHtml: '',
 		/** { query, label }[] from getset flexicorp/search_example_queries */

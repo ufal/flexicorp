@@ -3174,6 +3174,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 							&& isset($hdata2['service'])
 							&& (string) $hdata2['service'] === 'fqs';
 						if ( !empty($health2['ok']) && $looksLikeFqs2 ) {
+							$probe['http_url_configured'] = rtrim((string)$url, '/');   // for the admin notice
 							$probe['http_url'] = $runtimeUrl;
 							$probe['http_running'] = true;
 							$probe['http_status'] = (int) ($health2['status'] ?? 0);
@@ -7900,6 +7901,13 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			}
 		}
 		$state['adminPandoIndexHint'] = $hint;
+	}
+	// the configured FQS did not answer and another one did (flexicorp/fqs_url vs the local runtime file)
+	$state['adminFqsNotice'] = '';
+	if ( $isAdmin && ! empty( $fqsProbe['http_url_configured'] ) ) {
+		$state['adminFqsNotice'] = 'The configured FQS (' . $fqsProbe['http_url_configured'] . ') does not answer; searches '
+			. 'go to the FQS at ' . (string) $fqsProbe['http_url'] . ' instead, and its corpus "' . (string) $fqsProbe['corpus_id']
+			. '" may not be the same corpus.';
 	}
 
 	if ( $loadOverview || !$isAjax ) {
