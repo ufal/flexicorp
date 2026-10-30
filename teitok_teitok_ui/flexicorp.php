@@ -7,6 +7,7 @@
 require_once __DIR__ . '/flexicorp_functions.php';
 require_once __DIR__ . '/fc_result.php';
 require_once __DIR__ . '/fc_engine.php';
+require_once __DIR__ . '/fc_bin.php';
 require_once __DIR__ . '/fc_fqs_warm.php';
 require_once __DIR__ . '/fc_fqs_catalog.php';
 // custom layers: `my-<attribute>` in queries and fields is the user's own labels (custom_layers_names.php)
@@ -16,6 +17,13 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 }
 
 	if ( !isset($maintext) ) $maintext = "";
+
+	// the admin's stack check: the programs and routes this project's queries use (fc_stack_check.php)
+	if ( (string) ( $_REQUEST['stackcheck'] ?? '' ) !== '' ) {
+		require_once __DIR__ . '/fc_stack_check.php';
+		$maintext .= tt_fc_stack_check_page( tt_fc_env_project_root(), (string) ( $_REQUEST['check_query'] ?? '' ) );
+		return;
+	}
 
 	if ( !function_exists('tt_flexicorp_h') ) {
 		function tt_flexicorp_h($value) {
@@ -4877,162 +4885,17 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		}
 	}
 
-	if ( ! function_exists( 'tt_flexicorp_exec_candidate_is_wrong_abi' ) ) {
-		/**
-		 * On macOS, is_executable() is true for Linux ELF binaries; exec then fails with
-		 * "cannot execute binary file". Skip those so the same path (e.g. flexicorp_pando/build/
-		 * after a native cmake --build on this machine) can hold a Mach-O binary instead.
-		 */
-		function tt_flexicorp_exec_candidate_is_wrong_abi( $path ) {
-			if ( PHP_OS_FAMILY !== 'Darwin' ) {
-				return false;
-			}
-			$fh = @fopen( $path, 'rb' );
-			if ( ! $fh ) {
-				return false;
-			}
-			$magic = fread( $fh, 4 );
-			fclose( $fh );
-			return $magic === "\x7fELF";
-		}
-	}
-
-	if ( ! function_exists( 'tt_flexicorp_exec_candidate_is_wrong_format_on_linux' ) ) {
-		/**
-		 * On Linux, is_executable() is true for macOS Mach-O binaries and other non-ELF files.
-		 * execve fails and the shell may try to run the file as a script, yielding errors like
-		 * "Syntax error: word unexpected (expecting ")")" on line 1. Skip anything that is not
-		 * ELF and not a #! script (Docker: wrong flexicorp-pando on PATH before the real build).
-		 */
-		function tt_flexicorp_exec_candidate_is_wrong_format_on_linux( $path ) {
-			if ( PHP_OS_FAMILY !== 'Linux' ) {
-				return false;
-			}
-			$fh = @fopen( $path, 'rb' );
-			if ( ! $fh ) {
-				return false;
-			}
-			$magic4 = fread( $fh, 4 );
-			fclose( $fh );
-			if ( strlen( $magic4 ) >= 4 && $magic4 === "\x7fELF" ) {
-				return false;
-			}
-			$fh = @fopen( $path, 'rb' );
-			$magic2 = fread( $fh, 2 );
-			fclose( $fh );
-			if ( strlen( $magic2 ) >= 2 && $magic2 === '#!' ) {
-				return false;
-			}
-			return true;
-		}
-	}
-
 	if ( !function_exists('tt_flexicorp_pando_cli_bin') ) {
-		/**
-		 * Path to flexicorp-pando. Prefer getset / env, then TEITOK findapp("flexicorp-pando") (same idea as
-		 * tt_flexicorp_cqp_bin / tt_flexicorp_fqs_bin), then usual paths — PHP-FPM often has a minimal PATH.
-		 */
+		/** flexicorp-pando: the configured path (fc_bin.php), '' when nothing runs there. */
 		function tt_flexicorp_pando_cli_bin($projectRoot) {
-			$cfg = function_exists('getset') ? trim((string)getset('pando/flexicorp_pando_bin', '')) : '';
-			$flexicorpRepoRoot = dirname(__DIR__, 1);
-			$candidates = array();
-			$workspaceBuild = $flexicorpRepoRoot . '/flexicorp_pando/build/flexicorp-pando';
-			$workspaceBuildDarwin = $flexicorpRepoRoot . '/flexicorp_pando/build-darwin/flexicorp-pando';
-			// the adapter's own repository (flexencoder) next to the flexicorp checkout
-			$siblingBuild = dirname($flexicorpRepoRoot) . '/flexencoder/flexicorp_pando/build/flexicorp-pando';
-			// If config still points to legacy build-darwin but a newer standard build exists,
-			// prefer the newer local build so PHP/web path matches direct CLI checks.
-			if ( $cfg !== '' && strpos($cfg, '/flexicorp_pando/build-darwin/flexicorp-pando') !== false ) {
-				if ( is_file($workspaceBuild) && is_executable($workspaceBuild) ) {
-					$cfgMtime = @filemtime($cfg);
-					$buildMtime = @filemtime($workspaceBuild);
-					if ( $cfgMtime === false || $buildMtime === false || $buildMtime >= $cfgMtime ) {
-						$candidates[] = $workspaceBuild;
-					}
-				}
-			}
-			if ( $cfg !== '' ) {
-				$candidates[] = $cfg;
-			}
-			$envBin = trim( (string) ( getenv( 'FLEXICORP_PANDO_BIN' ) ?: '' ) );
-			if ( $envBin !== '' ) {
-				$candidates[] = $envBin;
-			}
-			// Prefer the workspace build first so local source changes are picked up
-			// immediately (e.g. collocation ProgramOptions support) instead of stale
-			// globally installed binaries in /usr/local or Homebrew paths.
-			$candidates[] = $workspaceBuild;
-			$candidates[] = $workspaceBuildDarwin;
-			$candidates[] = $siblingBuild;
-			// findapp() may not probe all Homebrew layouts; keep explicit fallbacks.
-			$candidates[] = '/opt/homebrew/bin/flexicorp-pando';
-			$candidates[] = '/usr/local/bin/flexicorp-pando';
-			// Typical Docker/easycorp layout: flexicorp tree at /opt/flexicorp (TEITOK may live under /var/www/html/teitok only).
-			$candidates[] = '/opt/flexicorp/flexicorp_pando/build/flexicorp-pando';
-			$candidates[] = rtrim((string)$projectRoot, '/') . '/Scripts/flexicorp-pando';
-			if ( function_exists('findapp') ) {
-				$fa = trim((string) findapp('flexicorp-pando'));
-				if ( $fa !== '' ) {
-					$candidates[] = $fa;
-				}
-			}
-			$candidates[] = 'flexicorp-pando';
-			foreach ( $candidates as $cand ) {
-				$cand = trim((string)$cand);
-				if ( $cand === '' ) {
-					continue;
-				}
-				if ( strpos($cand, '/') !== false ) {
-					if ( ! is_file($cand) || ! is_executable($cand) ) {
-						continue;
-					}
-					if ( tt_flexicorp_exec_candidate_is_wrong_abi($cand) ) {
-						continue;
-					}
-					if ( tt_flexicorp_exec_candidate_is_wrong_format_on_linux($cand) ) {
-						continue;
-					}
-					return $cand;
-				}
-				$resolved = trim((string)shell_exec('command -v ' . escapeshellarg($cand) . ' 2>/dev/null'));
-				if ( $resolved !== '' && is_file($resolved) && is_executable($resolved) && ! tt_flexicorp_exec_candidate_is_wrong_abi($resolved) && ! tt_flexicorp_exec_candidate_is_wrong_format_on_linux($resolved) ) {
-					return $resolved;
-				}
-			}
-			return '';
+			return tt_fc_bin('flexicorp-pando');
 		}
 	}
 
 	if ( !function_exists('tt_flexicorp_pando_native_cli_bin') ) {
-		/**
-		 * Path to upstream `pando` CLI (used for aligned `with` queries that return `pairs`).
-		 */
+		/** The `pando` CLI (aligned `with` queries that return `pairs`): the configured path (fc_bin.php). */
 		function tt_flexicorp_pando_native_cli_bin($projectRoot) {
-			$cfg = function_exists('getset') ? trim((string)getset('pando/pando_bin', '')) : '';
-			$flexicorpRepoRoot = dirname(__DIR__, 1);
-			$candidates = array();
-			if ( $cfg !== '' ) $candidates[] = $cfg;
-			$envBin = trim( (string) ( getenv( 'PANDO_BIN' ) ?: '' ) );
-			if ( $envBin !== '' ) $candidates[] = $envBin;
-			$candidates[] = $flexicorpRepoRoot . '/../pando/build/pando';
-			$candidates[] = '/opt/homebrew/bin/pando';
-			$candidates[] = '/usr/local/bin/pando';
-			$candidates[] = 'pando';
-			foreach ( $candidates as $cand ) {
-				$cand = trim((string)$cand);
-				if ( $cand === '' ) continue;
-				if ( strpos($cand, '/') !== false ) {
-					if ( ! is_file($cand) || ! is_executable($cand) ) continue;
-					if ( tt_flexicorp_exec_candidate_is_wrong_abi($cand) ) continue;
-					if ( tt_flexicorp_exec_candidate_is_wrong_format_on_linux($cand) ) continue;
-					return $cand;
-				}
-				$resolved = trim((string)shell_exec('command -v ' . escapeshellarg($cand) . ' 2>/dev/null'));
-				if ( $resolved !== '' && is_file($resolved) && is_executable($resolved) && ! tt_flexicorp_exec_candidate_is_wrong_abi($resolved) && ! tt_flexicorp_exec_candidate_is_wrong_format_on_linux($resolved) ) {
-					return $resolved;
-				}
-			}
-			return '';
+			return tt_fc_bin('pando');
 		}
 	}
 

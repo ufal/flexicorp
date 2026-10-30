@@ -6,6 +6,8 @@
  * split moves it here too — flexicorp dev/ROADMAP-TODO.md item 0).
  */
 
+require_once __DIR__ . '/fc_bin.php';
+
 if ( ! function_exists( 'tt_fc_env_user' ) ) {
 	/** The logged-in TEITOK user ('' for visitors): $username, else the user record, else the session. */
 	function tt_fc_env_user() {
@@ -93,26 +95,9 @@ if ( ! function_exists( 'tt_fc_env_user' ) ) {
 		return $p[0] === '/' ? $p : $root . '/' . $p;
 	}
 
-	/**
-	 * A pando program ('pando', 'pando-index'): next to the pando/pando_bin setting or PANDO_BIN, in the
-	 * pando build folder next to flexicorp, in /usr/local/bin or /opt/homebrew/bin, else on the PATH; ''
-	 * when there is none that runs here.
-	 */
+	/** A pando program ('pando', 'pando-index'): the configured path (fc_bin.php), '' when nothing runs there. */
 	function tt_fc_env_pando_bin( $name ) {
-		$dirs = array();
-		$cfg = function_exists( 'getset' ) ? trim( (string) getset( 'pando/pando_bin', '' ) ) : '';
-		if ( $cfg !== '' ) $dirs[] = dirname( $cfg );
-		$env = trim( (string) ( getenv( 'PANDO_BIN' ) ?: '' ) );
-		if ( $env !== '' ) $dirs[] = dirname( $env );
-		$dirs[] = dirname( __DIR__ ) . '/../pando/build';
-		$dirs[] = '/usr/local/bin';
-		$dirs[] = '/opt/homebrew/bin';
-		foreach ( $dirs as $d ) {
-			$f = rtrim( $d, '/' ) . '/' . $name;
-			if ( is_file( $f ) && is_executable( $f ) && tt_fc_env_runs_here( $f ) ) return $f;
-		}
-		$found = trim( (string) @shell_exec( 'command -v ' . escapeshellarg( $name ) . ' 2>/dev/null' ) );
-		return ( $found !== '' && is_executable( $found ) ) ? $found : '';
+		return tt_fc_bin( $name );
 	}
 
 	/** Not a binary for another system (an ELF file on macOS, a Mach-O file on Linux). */
