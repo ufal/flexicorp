@@ -121,6 +121,9 @@
 
 			$capabilities = array(
 				'teitok_integration' => true,
+				// registered from a TEITOK project: listed as one (corpus_is_teitok_listable in
+				// FQS), also where FQS cannot see the project's folder (indexes on another machine)
+				'teitok_listing' => true,
 				'fcs' => array(
 					'enabled' => true,
 					'resource_pid' => 'local:' . $id,
