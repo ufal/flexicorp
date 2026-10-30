@@ -3,7 +3,8 @@
  * (a corpus that lives only in its index, e.g. Pando built straight from CoNLL-U). There is
  * no document to open (action=file, showdocinfo, action=deptree all need one), so the
  * Context link opens a popup with the wider context from the engine (FQS /context through
- * action=fqs_query, as KonText's widectx), and the tree link draws the hit's sentence from
+ * action=fqs_query, as KonText's widectx; when FQS does not serve the corpus, the project's own
+ * index through action=flexicorp&act=context, fc_context.php), and the tree link draws the hit's sentence from
  * its own fragment. Methods of the flexicorpRoot Alpine component, mixed in by
  * flexicorpApp() (flexicorp.js) through window.ttFlexicorpCoreParts; `this` is the component.
  */
@@ -111,17 +112,31 @@ window.ttFlexicorpCoreParts.corpuscontext = function () {
 				// /context marks one position: ask from the first match token and take the rest
 				// of a longer match from the start of the right side
 				const extra = end - start;
-				const url = new URL('index.php', window.location.href);
-				url.searchParams.set('action', 'fqs_query');
-				url.searchParams.set('op', 'context');
-				url.searchParams.set('pos', String(start));
-				url.searchParams.set('left', String(state.left));
-				url.searchParams.set('right', String(Math.min(MAX_SIDE, state.right + extra)));
-				fetch(url.toString(), { credentials: 'same-origin', headers: { Accept: 'application/json' } })
-					.then((r) => r.json())
-					.then((j) => {
-						const res = j && j.ok && j.result ? j.result : null;
-						if (!res) throw new Error((j && j.error) || 'no context');
+				const ask = (local) => {
+					const url = new URL('index.php', window.location.href);
+					if (local) {
+						url.searchParams.set('action', 'flexicorp');
+						url.searchParams.set('act', 'context');
+					} else {
+						url.searchParams.set('action', 'fqs_query');
+						url.searchParams.set('op', 'context');
+					}
+					url.searchParams.set('pos', String(start));
+					url.searchParams.set('left', String(state.left));
+					url.searchParams.set('right', String(Math.min(MAX_SIDE, state.right + extra)));
+					return fetch(url.toString(), { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+						.then((r) => r.json())
+						.then((j) => {
+							const res = j && j.ok && j.result ? j.result : null;
+							if (!res) throw new Error((j && j.error) || 'no context');
+							return res;
+						});
+				};
+				// FQS first; when it does not serve the corpus, the local index for the rest of the page
+				(this._corpusContextLocal
+					? ask(true)
+					: ask(false).catch(() => ask(true).then((res) => { this._corpusContextLocal = true; return res; })))
+					.then((res) => {
 						const right = String(res.right || '').split(' ').filter(Boolean);
 						const match = [String(res.match || '')].concat(right.slice(0, extra)).join(' ');
 						render(String(res.left || ''), match, right.slice(extra).join(' '));
