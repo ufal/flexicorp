@@ -31,3 +31,23 @@ if ( ! function_exists( 'tt_fc_bin' ) ) {
 		return is_file( $p ) && is_executable( $p ) ? $p : '';
 	}
 }
+
+if ( ! function_exists( 'tt_fc_bin_missing' ) ) {
+	/**
+	 * The message when none of $names runs: what the user sees, and for admins the paths tried, the setting
+	 * each came from, and where to check (act=stackcheck).
+	 */
+	function tt_fc_bin_missing( $names ) {
+		$msg = 'Search is not available for this corpus; the corpus administrator can set it up.';
+		$admin = function_exists( 'tt_fc_env_is_admin' ) ? tt_fc_env_is_admin()
+			: ( isset( $GLOBALS['user']['permissions'] ) && $GLOBALS['user']['permissions'] === 'admin' );
+		if ( ! $admin ) return $msg;
+		$tried = array();
+		foreach ( (array) $names as $name ) {
+			list( $path, $source ) = tt_fc_bin_path( $name );
+			$tried[] = "$name: $path (from $source)";
+		}
+		return $msg . ' Admin: no program runs at ' . implode( '; ', $tried )
+			. '. Set bin/NAME or defaults/base/bin in the settings; action=flexicorp&act=stackcheck shows the check.';
+	}
+}

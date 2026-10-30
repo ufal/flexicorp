@@ -25,6 +25,11 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		$maintext .= tt_fc_stack_check_page( tt_fc_env_project_root(), (string) ( $_REQUEST['check_query'] ?? '' ) );
 		return;
 	}
+	// wider context around a position from the local index, when FQS does not serve the corpus (fc_context.php)
+	if ( (string) ( $_REQUEST['act'] ?? '' ) === 'context' ) {
+		require_once __DIR__ . '/fc_context.php';
+		tt_fc_context_send( tt_fc_env_project_root() );
+	}
 
 	if ( !function_exists('tt_flexicorp_h') ) {
 		function tt_flexicorp_h($value) {
@@ -4922,7 +4927,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 					'command' => '',
 					'raw' => '',
 					'data' => null,
-					'error' => 'No runnable Pando CLI found (flexicorp-pando or pando).',
+					'error' => tt_fc_bin_missing( $looksAlignedWith ? array( 'flexicorp-pando', 'pando' ) : array( 'flexicorp-pando' ) ),
 				);
 			}
 			// Prefer flexicorp-pando whenever available (it now serializes aligned pairs
