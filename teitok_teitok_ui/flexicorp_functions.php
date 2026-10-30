@@ -1484,55 +1484,36 @@ if ( ! function_exists( 'tt_flexicorp_fn_qb_suggest_from_value_file' ) ) {
 	 *
 	 * @return array{items:array<int,array{value:string,label:string}>,scanned:int,stopped_early:bool}
 	 */
-	function tt_flexicorp_fn_qb_suggest_from_value_file( $path, $prefix, $limit = 30, $max_scan_bytes = 6291456 ) {
+	function tt_flexicorp_fn_qb_suggest_from_value_file( $path, $prefix, $limit = 30, $max_scan_bytes = 104857600 ) {
+		// The whole value list (up to $max_scan_bytes) searched at once for the prefix, ignoring case; the values that
+		// match the prefix as typed come first (typing `constituency` lists `constituency` before `Constituency`), then
+		// the others, each group in natural order. (Reading only the start of the list, as before, missed values that
+		// first occur late in a large corpus: Europarl's `constituency` lies at 8.4 MB of 16.)
+		$empty = array( 'items' => array(), 'scanned' => 0, 'stopped_early' => false );
+		$pref = (string) $prefix;
+		if ( $pref === '' || ! is_file( $path ) || ! is_readable( $path ) ) return $empty;
+		$raw = @file_get_contents( $path, false, null, 0, max( 1024, intval( $max_scan_bytes ) ) );
+		if ( ! is_string( $raw ) || $raw === '' ) return $empty;
+		$stopped = @filesize( $path ) > strlen( $raw );
+		if ( ! preg_match_all( '/(?:^|\0)(' . preg_quote( $pref, '/' ) . '[^\0]*)/iu', $raw, $m ) ) {
+			return array( 'items' => array(), 'scanned' => strlen( $raw ), 'stopped_early' => $stopped );
+		}
+		$same = array();
+		$other = array();
+		$pl = strlen( $pref );
+		foreach ( array_unique( array_map( 'trim', $m[1] ) ) as $v ) {
+			if ( $v === '' ) continue;
+			if ( strncmp( $v, $pref, $pl ) === 0 ) $same[] = $v;
+			else $other[] = $v;
+		}
+		natcasesort( $same );
+		natcasesort( $other );
 		$out = array();
-		$seen = array();
-		$scan = 0;
-		$stopped = false;
-		$pref = mb_strtolower( (string) $prefix, 'UTF-8' );
-		$pl = mb_strlen( $pref, 'UTF-8' );
-		if ( ! is_file( $path ) || ! is_readable( $path ) || $pl < 1 ) {
-			return array( 'items' => $out, 'scanned' => 0, 'stopped_early' => false );
+		foreach ( array_merge( $same, $other ) as $v ) {
+			$out[] = array( 'value' => $v, 'label' => $v );
+			if ( count( $out ) >= max( 1, intval( $limit ) ) ) break;
 		}
-		$fh = @fopen( $path, 'rb' );
-		if ( ! $fh ) return array( 'items' => $out, 'scanned' => 0, 'stopped_early' => false );
-		$buf = '';
-		$hardLimit = max( 1, intval( $limit ) );
-		$scanLimit = max( 1024, intval( $max_scan_bytes ) );
-		try {
-			while ( ! feof( $fh ) ) {
-				$chunk = fread( $fh, 65536 );
-				if ( ! is_string( $chunk ) || $chunk === '' ) break;
-				$scan += strlen( $chunk );
-				$buf .= $chunk;
-				$parts = explode( "\0", $buf );
-				$buf = array_pop( $parts );
-				foreach ( $parts as $raw ) {
-					$v = trim( (string) $raw );
-					if ( $v === '' || isset( $seen[ $v ] ) ) continue;
-					$lv = mb_strtolower( $v, 'UTF-8' );
-					if ( mb_substr( $lv, 0, $pl, 'UTF-8' ) !== $pref ) continue;
-					$seen[ $v ] = 1;
-					$out[] = array( 'value' => $v, 'label' => $v );
-					if ( count( $out ) >= $hardLimit ) {
-						$stopped = true;
-						break 2;
-					}
-				}
-				if ( $scan >= $scanLimit ) {
-					$stopped = true;
-					break;
-				}
-			}
-		} finally {
-			fclose( $fh );
-		}
-		natcasesort( $out );
-		return array(
-			'items' => array_values( $out ),
-			'scanned' => $scan,
-			'stopped_early' => (bool) $stopped,
-		);
+		return array( 'items' => $out, 'scanned' => strlen( $raw ), 'stopped_early' => $stopped );
 	}
 }
 
@@ -1593,7 +1574,7 @@ if ( ! function_exists( 'tt_flexicorp_fn_qb_field_suggestions_payload' ) ) {
 			$base['size_limit'] = (int) $maxLexiconBytes;
 			return $base;
 		}
-		$scanCap = intval( function_exists( 'getset' ) ? getset( 'flexicorp/qb_autosuggest_max_scan_bytes', 6 * 1024 * 1024 ) : 6 * 1024 * 1024 );
+		$scanCap = intval( function_exists( 'getset' ) ? getset( 'flexicorp/qb_autosuggest_max_scan_bytes', $maxLexiconBytes ) : $maxLexiconBytes );
 		$sugg = tt_flexicorp_fn_qb_suggest_from_value_file( $path, $q, max( 1, intval( $limit ) ), max( 1024, $scanCap ) );
 		$base['enabled'] = true;
 		$base['reason'] = 'ok';

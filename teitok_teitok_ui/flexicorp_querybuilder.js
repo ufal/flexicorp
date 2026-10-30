@@ -807,13 +807,13 @@ window.flexicorpQuerybuilderExtend = function flexicorpQuerybuilderExtend() {
 			return this.qbAlignmentJoinField() === 's_tuid';
 		},
 
+		/** Word fields in the target too: with a sentence join the target is then the word in the aligned sentence. */
 		queryBuilderTargetFieldGroups() {
-			const sentence = this.queryBuilderAlignmentUsesSentenceTarget();
 			const langField = this.qbLanguageField();
 			const groups = this.queryBuilderFieldGroups()
 				.map((g) => ({
 					...g,
-					options: g.options.filter((o) => !this.qbIsAlignField(o.value) && o.value !== langField && !(sentence && g.id === 'token')),
+					options: g.options.filter((o) => !this.qbIsAlignField(o.value) && o.value !== langField),
 				}))
 				.filter((g) => g.options.length);
 			const known = new Set();
@@ -954,7 +954,11 @@ window.flexicorpQuerybuilderExtend = function flexicorpQuerybuilderExtend() {
 					.filter(Boolean);
 				const langField = this.qbLanguageField();
 				if (langField && String(a.targetLang || '').trim()) tParts.unshift(this.qbCondition(langField, 'is', a.targetLang, false, dialect));
-				const target = join === 's_tuid'
+				// a sentence join: the aligned sentence (b:<s …>), or a word in it when the target names word fields
+				const tokenFields = new Set(this.qbTokenFields().map((f) => String(f.value)));
+				const wordTarget = (a.targetRestrictions || []).some((r) => tokenFields.has(String((r && r.field) || '').trim())
+					&& String((r && r.value) || '').trim() !== '');
+				const target = join === 's_tuid' && !wordTarget
 					? `${tAlias}:<s${tParts.length ? ' ' + tParts.join(' & ') : ''}>`
 					: `${tAlias}:[${tParts.join(' & ')}]`;
 				// one word aligned with one word: the alignment layer as an operator (a:[…] =:tuid b:[…], the
