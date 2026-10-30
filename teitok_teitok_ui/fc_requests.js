@@ -133,9 +133,23 @@ window.ttFlexicorpCoreParts.requests = function () {
 						result: debugEntry.result || null,
 					};
 				}
-				this.rawTitle = 'Request failed';
-				this.rawBody = err && err.message ? err.message : String(err);
-				this.rawOpen = true;
+				const message = err && err.message ? err.message : String(err);
+				if (loadingKey === 'search' && !opts.appendSearch && this.search) {
+					// where the search's own errors show, the previous hits gone (they belonged to another query)
+					const noAnswer = /Failed to fetch|NetworkError|network|Load failed/i.test(message);
+					this.search.ran = true;
+					this.search.hits = [];
+					this.search.response = {
+						errors: [noAnswer
+							? 'The server gave no answer: the search was stopped there, most often because it ran too long. '
+								+ 'A narrower query answers sooner.'
+							: `The search failed: ${message}`],
+					};
+				} else {
+					this.rawTitle = 'Request failed';
+					this.rawBody = message;
+					this.rawOpen = true;
+				}
 			} finally {
 				this.loading[loadingKey] = false;
 				if (loadingKey === 'search') {

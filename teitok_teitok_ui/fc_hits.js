@@ -571,6 +571,8 @@ window.ttFlexicorpCoreParts.hits = function () {
 
 		formatSearchTotalDisplay(result, total, engineHint) {
 			if (!Number.isFinite(total)) return String(total);
+			// a total from a sample (flexicorp-pando, aligned queries): about this many
+			if (result && result.total_estimated === true) return `≈ ${total}`;
 			return this.searchTotalLooksCapped(result, total, engineHint) ? `${total}+` : String(total);
 		},
 

@@ -8,6 +8,7 @@ require_once __DIR__ . '/flexicorp_functions.php';
 require_once __DIR__ . '/fc_result.php';
 require_once __DIR__ . '/fc_engine.php';
 require_once __DIR__ . '/fc_bin.php';
+require_once __DIR__ . '/fc_proc.php';
 require_once __DIR__ . '/fc_fqs_warm.php';
 require_once __DIR__ . '/fc_fqs_catalog.php';
 // custom layers: `my-<attribute>` in queries and fields is the user's own labels (custom_layers_names.php)
@@ -4988,24 +4989,22 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				}
 			}
 			$cmdShell = ( count($envParts) ? ('env ' . implode(' ', $envParts) . ' ') : '' ) . implode(' ', $cmdParts);
-			$stdout = '';
-			$stderr = '';
-			$proc = @proc_open(
-				$cmdShell,
-				array(
-					0 => array( 'pipe', 'r' ),
-					1 => array( 'pipe', 'w' ),
-					2 => array( 'pipe', 'w' ),
-				),
-				$pipes
-			);
-			if ( is_resource( $proc ) ) {
-				fclose( $pipes[0] );
-				$stdout = stream_get_contents( $pipes[1] );
-				fclose( $pipes[1] );
-				$stderr = stream_get_contents( $pipes[2] );
-				fclose( $pipes[2] );
-				proc_close( $proc );
+			// within the request's time limit (fc_proc.php): past it the search stops here, with a message
+			$run = tt_fc_proc_run( $cmdShell );
+			if ( $run['timed_out'] ) {
+				return array(
+					'ok' => false,
+					'command' => $cmdShell,
+					'raw' => '',
+					'data' => null,
+					'error' => 'The search was stopped after ' . (int) $run['limit'] . ' seconds. A narrower query answers '
+						. 'sooner: a rarer word, a language, or for `with` a condition linking its two sides '
+						. '(:: a.s_tuid = b.s_tuid).',
+				);
+			}
+			if ( $run['ok'] ) {
+				$stdout = $run['stdout'];
+				$stderr = $run['stderr'];
 			} else {
 				$stdout = (string) shell_exec( $cmdShell . ' 2>&1' );
 				$stderr = '';
