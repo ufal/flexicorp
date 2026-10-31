@@ -63,8 +63,12 @@ stood (`checkouts`). TEITOK itself is pulled in both channels.
 
 A release moves a repository's `stable` branch to its new tag (`git push origin v0.3.1:stable`);
 stable installations move to it on their next run, with no change to flexicorp or this
-installer. Move `stable` only to versions that work with the other repositories' `stable`.
-A repository without a `stable` branch is left as it is, with a warning.
+installer. Move `stable` only to versions that work with the other repositories' `stable`:
+the maintainers' release check builds the newest tags of all four together, runs each
+repository's tests plus the response-contract and FQS checks, and moves the `stable` branches
+only when everything passed. A repository without a `stable` branch is left as it is, with a
+warning. `install-teitok.pl` starts from flexicorp's `stable` too (a new installation unless
+`--channel edge` is given; the temporary copy of an upgrade always).
 
 The installer says what each pull or switch brought (the new commits, or `v0.2.1 -> v0.3.0`),
 or why it left a checkout as it was: local changes, no upstream branch, an unknown ref, or the

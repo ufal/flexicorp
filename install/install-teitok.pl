@@ -206,6 +206,16 @@ sub stack_args {
 	push @a, '-q' if $quiet;
 	return @a;
 }
+# flexicorp's released version (its `stable` branch), so that the first installer that runs is
+# a released one too; '' when the repository has none
+sub flexicorp_stable {
+	return system( 'git ls-remote --exit-code --heads ' . q_( $o{'flexicorp-repo'} ) . ' stable >/dev/null 2>&1' ) == 0 ? 'stable' : '';
+}
+# --channel edge passed on for install-stack.pl
+sub channel_edge {
+	for my $i ( 0 .. $#ARGV ) { return 1 if $ARGV[$i] eq '--channel=edge' || ( $ARGV[$i] eq '--channel' && ( $ARGV[ $i + 1 ] // '' ) eq 'edge' ); }
+	return 0;
+}
 
 # ── upgrade: hand over to install-stack.pl ──────────────────────────────────────
 if ( $mode eq 'upgrade' ) {
@@ -214,8 +224,11 @@ if ( $mode eq 'upgrade' ) {
 	pkg_install(qw(git curl)) if !have('git') || !have('curl');
 	# a copy of flexicorp just for its installer; install-stack.pl then builds flexicorp
 	# and pando in the git folder of the previous run (else next to the TEITOK checkout)
+	# (released: install-stack.pl then brings the checkouts to the installation's channel and
+	# restarts with that channel's installer when it differs)
 	my $tmp = tempdir( 'teitok-stack-XXXXXX', TMPDIR => 1, CLEANUP => 1 );
-	my @ref = $o{'flexicorp-ref'} ne '' ? ( '-b', $o{'flexicorp-ref'} ) : ();
+	my $from = $o{'flexicorp-ref'} ne '' ? $o{'flexicorp-ref'} : flexicorp_stable();
+	my @ref = $from ne '' ? ( '-b', $from ) : ();
 	sh( join( ' ', 'git', 'clone', '-q', '--depth', '1', @ref, q_( $o{'flexicorp-repo'} ), q_("$tmp/flexicorp") ) )
 		or do { print "Could not get flexicorp from $o{'flexicorp-repo'} (see $LOG)\n"; exit 1; };
 	my @a = ( 'perl', "$tmp/flexicorp/install/install-stack.pl", stack_args(), @ARGV );
@@ -355,6 +368,13 @@ if ( !-d $fx ) {
 	my @ref = $o{'flexicorp-ref'} ne '' ? ( '-b', $o{'flexicorp-ref'} ) : ();
 	sh( "cd " . q_($git) . " && sudo -u $gituser -H git clone -q @ref " . q_( $o{'flexicorp-repo'} ) . " flexicorp" )
 		or print "!!!! Cloning flexicorp failed (is $git writable for $gituser?); see $LOG\n";
+	# a new installation is on the stable channel unless told otherwise: start from the released
+	# installer (detached, as install-stack.pl keeps it; a local `stable` branch would be followed
+	# on the edge channel)
+	if ( !@ref && !channel_edge() && -d "$fx/.git" && flexicorp_stable() ne '' ) {
+		sh( "sudo -u $gituser -H git -C " . q_($fx) . " checkout -q --detach origin/stable" )
+			or print "!!!! flexicorp could not be put on its stable branch; the installer will do it (see $LOG)\n";
+	}
 }
 if ( !$o{'no-stack'} && confirm( 'Do you want to install the query stack (flexicorp, Pando, FQS: multi-engine search, dependency queries)?', 1 ) ) {
 	my $st = "$fx/install/install-stack.pl";
