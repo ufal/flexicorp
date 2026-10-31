@@ -50,8 +50,8 @@ passed along: `sudo --preserve-env=SSH_AUTH_SOCK perl …/install-stack.pl`):
 
 | Channel | What it installs | For |
 |---|---|---|
-| `stable` | released versions: flexicorp's newest version tag, and for pando, fqs and flexencoder the tags that release's `install/stack-stable.json` names | production servers; the default for a first install |
-| `edge` | the newest commits: every checkout follows its branch (`git pull --ff-only`); a checkout a stable run left on a tag goes back to the default branch | test servers and development machines |
+| `stable` | released versions: each repository's `stable` branch (flexicorp, pando, fqs, flexencoder), checked out detached, so a rollback that moves it back is followed too | production servers; the default for a first install |
+| `edge` | the newest commits: every checkout follows its branch (`git pull --ff-only`); a checkout a stable run left on `stable` goes back to the default branch | test servers and development machines |
 
 `--channel stable|edge` sets it; it is kept (`/usr/local/share/teitok-stack/channel`), so later
 runs and the nightly `--cron` run stay on it. An installation from before channels existed
@@ -61,9 +61,10 @@ newest pando on an otherwise stable stack; it is kept too, and `--pando-ref ''` 
 `--detect` prints the channel and the kept refs; the manifest records where each checkout
 stood (`checkouts`). TEITOK itself is pulled in both channels.
 
-A stack release is a flexicorp tag: tag the components, list their tags in
-`install/stack-stable.json`, commit, and tag flexicorp. Stable installations move to it on
-their next run.
+A release moves a repository's `stable` branch to its new tag (`git push origin v0.3.1:stable`);
+stable installations move to it on their next run, with no change to flexicorp or this
+installer. Move `stable` only to versions that work with the other repositories' `stable`.
+A repository without a `stable` branch is left as it is, with a warning.
 
 The installer says what each pull or switch brought (the new commits, or `v0.2.1 -> v0.3.0`),
 or why it left a checkout as it was: local changes, no upstream branch, an unknown ref, or the

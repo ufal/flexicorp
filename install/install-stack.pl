@@ -39,14 +39,14 @@
 #   --only LIST           comma-separated subset of: teitok,flexicorp,pages,flexencoder,pando,fqs,manatee
 #   --skip LIST           components to leave out
 #   --channel stable|edge which versions to install, kept for later runs (and --cron):
-#                         stable   released versions: flexicorp's newest version tag, and
-#                                  for pando, fqs and flexencoder the tags its
-#                                  install/stack-stable.json names (the default for a
-#                                  first install)
+#                         stable   released versions: each repository's `stable` branch,
+#                                  which a release moves to its new tag (followed both
+#                                  ways: a rollback moves it back). The default for a
+#                                  first install
 #                         edge     the newest commits: every checkout follows its branch
-#                                  (git pull --ff-only); a checkout a stable run left on a
-#                                  tag goes back to the default branch. An installation
-#                                  from before channels existed stays on edge
+#                                  (git pull --ff-only); a checkout a stable run left on
+#                                  `stable` goes back to the default branch. An
+#                                  installation from before channels existed stays on edge
 #                         TEITOK is pulled in both (it is not released with the stack)
 #   --flexicorp-repo URL  (default https://github.com/ufal/flexicorp.git; a local path works)
 #   --flexicorp-ref REF   a branch, tag or commit for this component in either channel (a
@@ -626,10 +626,11 @@ sub pull_checkout {
 # where a checkout is: its tag, or the nearest tag plus commits (v0.3.0-4-gabc1234), else the commit
 sub describe { my $dir = shift; return git_in( $dir, 'describe', '--tags', '--always' ); }
 
-# git fetch (with tags) as the checkout's owner; a failure is a warning, the checkout stays usable
+# git fetch (with tags; branches deleted on the remote, such as a withdrawn `stable`, are dropped;
+# tags are not pruned) as the checkout's owner; a failure is a warning, the checkout stays usable
 sub fetch_checkout {
 	my ( $name, $dir ) = @_;
-	my $cmd = cmdline( as_user( owner_of($dir), 'git', '-C', $dir, 'fetch', '-q', '--tags', 'origin' ) );
+	my $cmd = cmdline( as_user( owner_of($dir), 'git', '-C', $dir, 'fetch', '-q', '--prune', '--tags', 'origin' ) );
 	logline("\$ $cmd\n");
 	my $out = `$cmd 2>&1`;
 	logline( $out // '' );
@@ -644,16 +645,6 @@ sub default_branch {
 	my $dir = shift;
 	return $1 if git_in( $dir, 'symbolic-ref', '--short', 'refs/remotes/origin/HEAD' ) =~ m{^origin/(.+)$};
 	for my $b (qw(main master)) { return $b if git_in( $dir, 'rev-parse', '--verify', '-q', "refs/remotes/origin/$b" ) ne ''; }
-	return '';
-}
-
-# a stack release: the newest vX.Y.Z tag that has install/stack-stable.json (older tags have an
-# installer that knows no channels)
-sub newest_release {
-	my $dir = shift;
-	for my $t ( grep { /^v\d+(?:\.\d+)*$/ } split /\n/, git_in( $dir, 'tag', '-l', 'v*', '--sort=-v:refname' ) ) {
-		return $t if git_in( $dir, 'cat-file', '-t', "$t:install/stack-stable.json" ) eq 'blob';
-	}
 	return '';
 }
 
@@ -709,6 +700,7 @@ sub sync_checkout {
 	}
 	fetch_checkout( $name, $dir ) unless $fresh;
 	$ref = $ref->($dir) if ref $ref;
+	return if !defined $ref;
 	return pull_checkout( $name, $dir ) if $ref eq '';
 	switch_checkout( $name, $dir, $ref, $fresh );
 }
@@ -736,33 +728,18 @@ sub checkout {
 }
 
 # what a component's checkout is put on: an explicit --X-ref (kept); else on edge its branch;
-# on stable flexicorp's newest release, and for the others the tag that release's
-# install/stack-stable.json names
-my %STABLE;
-my $STABLE_FILE = '';
+# on stable the remote's `stable` branch, checked out detached (so that a release moved back
+# is followed too); a repository without one is left as it is
 sub ref_for {
 	my $c = shift;
 	return $REF{$c} if $REF{$c} ne '';
 	return '' if $CHANNEL eq 'edge';
-	if ( $c eq 'flexicorp' ) {
-		return sub {
-			my $t = newest_release(shift);
-			warn_("flexicorp: no stack release (a vX.Y.Z tag with install/stack-stable.json): following its branch") if $t eq '';
-			return $t;
-		};
-	}
-	return $STABLE{$c} if ( $STABLE{$c} // '' ) ne '';
-	warn_("$c: $STABLE_FILE names no version for it: left as it is") if $STABLE_FILE ne '';
-	return undef;    # no stable version known: leave the checkout as it is
-}
-sub load_stable {
-	my $f = shift;
-	if ( !-f $f ) { warn_("$f not found (a flexicorp release from before channels): pando, fqs and flexencoder are left as they are"); return; }
-	require JSON::PP;
-	my $d = eval { JSON::PP::decode_json( read_file($f) ) };
-	if ( ref $d ne 'HASH' ) { warn_("$f cannot be read as JSON: pando, fqs and flexencoder are left as they are"); return; }
-	%STABLE = map { ( $_ => $d->{$_} ) } grep { !/^_/ && !ref $d->{$_} } keys %$d;
-	$STABLE_FILE = $f;
+	return sub {
+		my $dir = shift;
+		return 'origin/stable' if git_in( $dir, 'rev-parse', '--verify', '-q', 'refs/remotes/origin/stable' ) ne '';
+		warn_("$c: its repository has no stable branch: left as it is (" . describe($dir) . ")");
+		return undef;
+	};
 }
 
 step('Sources');
@@ -794,8 +771,6 @@ if ( $want{teitok} ) {
 my $INSTALLER_IN_GIT = "$GIT/flexicorp/install/install-stack.pl";
 my $INSTALLER_BEFORE = -f $INSTALLER_IN_GIT ? sha1_hex( read_file($INSTALLER_IN_GIT) ) : '';
 my ( $FLEXI, $FLEXI_COMMIT ) = checkout( 'flexicorp', $o{'flexicorp-repo'}, ref_for('flexicorp') );
-# stable: the versions this flexicorp release names for the others
-load_stable("$FLEXI/install/stack-stable.json") if $CHANNEL eq 'stable' && !$o{'no-pull'};
 my ( $PANDO, $PANDO_COMMIT ) = ( '', '' );
 ( $PANDO, $PANDO_COMMIT ) = checkout( 'pando', $o{'pando-repo'}, ref_for('pando') ) if $want{pando} || $want{fqs};
 # FQS: its own repository (it used to live in flexicorp's fqs/)
