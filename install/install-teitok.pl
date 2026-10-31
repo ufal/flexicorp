@@ -28,6 +28,8 @@
 #   --teitok-repo URL     (default https://gitlab.com/maartenes/TEITOK.git; a local path works)
 #   --flexicorp-repo URL --flexicorp-ref REF --pando-repo URL --pando-ref REF
 #                         passed on to install-stack.pl (flexicorp/install/install-stack.pl)
+#   --channel stable|edge passed on too: released versions (the default for a new
+#                         installation) or the newest commits (test servers)
 #   --check               only check the installation (check-stack.pl)
 #
 # On a machine where TEITOK is already installed (by this script or another way),

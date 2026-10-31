@@ -1,0 +1,6 @@
+{
+  "_about": "The versions install-stack.pl --channel stable installs together with this flexicorp release (flexicorp itself: its newest vX.Y.Z tag). To release a new stack: tag the components, update this file, then tag flexicorp.",
+  "pando": "v0.3.0",
+  "fqs": "v0.1.11",
+  "flexencoder": "v0.1.0"
+}

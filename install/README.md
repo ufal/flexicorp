@@ -43,12 +43,33 @@ folder of the flexicorp checkout the installer is run from (so `perl ~/Git/flexi
 builds `~/Git/flexicorp`, `~/Git/pando`, `~/Git/fqs` and `~/Git/flexencoder`); for a temporary copy (as `install-teitok.pl --upgrade`
 makes) it is the folder the previous run used (`git_folder` in the manifest), else the folder
 holding the TEITOK checkout. The installer warns when that differs from the previous run.
-Missing checkouts are cloned there as the owner of that folder; existing ones are updated
-with `git pull --ff-only`, run as the checkout's owner with that user's HOME (so their ssh
-keys and git credentials are used; a key with a passphrase needs the agent passed along:
-`sudo --preserve-env=SSH_AUTH_SOCK perl …/install-stack.pl`). The installer says what each
-pull brought (the new commits), or why it did not pull: local changes, no upstream branch,
-or the error git gave. `--no-pull` builds the checkouts as they are. When the pull changed
+Missing checkouts are cloned there as the owner of that folder; existing ones are brought to
+the versions of the installation's **channel**, as the checkout's owner with that user's HOME
+(so their ssh keys and git credentials are used; a key with a passphrase needs the agent
+passed along: `sudo --preserve-env=SSH_AUTH_SOCK perl …/install-stack.pl`):
+
+| Channel | What it installs | For |
+|---|---|---|
+| `stable` | released versions: flexicorp's newest version tag, and for pando, fqs and flexencoder the tags that release's `install/stack-stable.json` names | production servers; the default for a first install |
+| `edge` | the newest commits: every checkout follows its branch (`git pull --ff-only`); a checkout a stable run left on a tag goes back to the default branch | test servers and development machines |
+
+`--channel stable|edge` sets it; it is kept (`/usr/local/share/teitok-stack/channel`), so later
+runs and the nightly `--cron` run stay on it. An installation from before channels existed
+stays on `edge` until told otherwise. `--pando-ref REF` (and `--flexicorp-ref`, `--fqs-ref`,
+`--flexencoder-ref`) puts one component on a branch, tag or commit in either channel, e.g. the
+newest pando on an otherwise stable stack; it is kept too, and `--pando-ref ''` clears it.
+`--detect` prints the channel and the kept refs; the manifest records where each checkout
+stood (`checkouts`). TEITOK itself is pulled in both channels.
+
+A stack release is a flexicorp tag: tag the components, list their tags in
+`install/stack-stable.json`, commit, and tag flexicorp. Stable installations move to it on
+their next run.
+
+The installer says what each pull or switch brought (the new commits, or `v0.2.1 -> v0.3.0`),
+or why it left a checkout as it was: local changes, no upstream branch, an unknown ref, or the
+error git gave. Going back to an older version (`edge` to `stable`, or an older ref) is
+warned about, and asked on an interactive run: indexes a newer pando built may need a
+rebuild. `--no-pull` builds the checkouts as they are. When the update changed
 `install-stack.pl` itself, the installer restarts with the new version.
 Builds happen in `/var/tmp/teitok-stack-build` and are installed into `--prefix`, so nothing
 runs from the git folder afterwards.
@@ -119,8 +140,8 @@ it up. By hand, the same is:
   postponed (`/usr/local/share/teitok-stack/fqs-restart-pending`) and the next run does it once
   the jobs have finished. Manual runs ask instead (default: postpone).
 - The pull runs as the checkouts' owner without an ssh agent: use https remotes for public
-  repositories, or a read-only deploy key without a passphrase. Let the checkouts follow a
-  stable branch: whatever is pushed there goes live.
+  repositories, or a read-only deploy key without a passphrase. On `edge`, whatever is pushed
+  goes live overnight; on `stable`, only a new flexicorp release does.
 - A rebuild of pando or FQS takes minutes and restarts FQS: a nightly time suits better than
   every few minutes.
 

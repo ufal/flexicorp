@@ -15,10 +15,10 @@
 # (Apache .htaccess or vhost SetEnv, nginx fastcgi_param, php-fpm env[], the
 # Scripts symlink, the usual places), which user runs PHP, and the shared
 # project, and changes nothing in TEITOK's configuration except adding
-# settings that are not there yet. Re-running it upgrades the stack: it pulls the
-# checkouts (git pull --ff-only, as their owner), then rebuilds and installs only the
-# components whose sources changed since the last install (clean builds, atomic
-# installs); --force rebuilds them anyway. When the pull updated this installer
+# settings that are not there yet. Re-running it upgrades the stack: it brings the
+# checkouts to the versions of its channel (as their owner; see --channel), then rebuilds
+# and installs only the components whose sources changed since the last install (clean
+# builds, atomic installs); --force rebuilds them anyway. When that updated this installer
 # itself, it restarts with the new version.
 # install-teitok.pl runs it at the end of a fresh install and for --upgrade.
 #
@@ -38,8 +38,19 @@
 #   --prefix DIR          binaries and libraries (default /usr/local)
 #   --only LIST           comma-separated subset of: teitok,flexicorp,pages,flexencoder,pando,fqs,manatee
 #   --skip LIST           components to leave out
+#   --channel stable|edge which versions to install, kept for later runs (and --cron):
+#                         stable   released versions: flexicorp's newest version tag, and
+#                                  for pando, fqs and flexencoder the tags its
+#                                  install/stack-stable.json names (the default for a
+#                                  first install)
+#                         edge     the newest commits: every checkout follows its branch
+#                                  (git pull --ff-only); a checkout a stable run left on a
+#                                  tag goes back to the default branch. An installation
+#                                  from before channels existed stays on edge
+#                         TEITOK is pulled in both (it is not released with the stack)
 #   --flexicorp-repo URL  (default https://github.com/ufal/flexicorp.git; a local path works)
-#   --flexicorp-ref REF   branch / tag for a new clone (default: the repository's default)
+#   --flexicorp-ref REF   a branch, tag or commit for this component in either channel (a
+#                         branch is followed from then on); kept for later runs, '' clears it
 #   --pando-repo URL      (default https://github.com/ufal/pando.git)
 #   --pando-ref REF
 #   --fqs-repo URL        (default https://github.com/ufal/fqs.git)
@@ -51,7 +62,7 @@
 #                         (./configure --with-pcre2 --disable-python): FQS gets native Manatee
 #                         (fqs/manatee/install-lib.sh). Remembered: later runs rebuild the library
 #                         when fqs/manatee/ or the tree changed
-#   --no-pull             use the existing checkouts as they are
+#   --no-pull             use the existing checkouts as they are (whatever the channel)
 #   --force [LIST]        rebuild and reinstall even when the sources did not change:
 #                         every component, or the comma-separated ones in LIST
 #   --cron                for unattended updates (cron, a systemd timer): no questions,
@@ -92,21 +103,17 @@ use POSIX qw(strftime);
 use Getopt::Long qw(:config no_ignore_case bundling);
 use Digest::SHA qw(sha1_hex);
 
-my $VERSION = '0.2.0';
+my $VERSION = '0.3.0';
 my %o = (
 	prefix         => '/usr/local',
 	'flexicorp-repo' => 'https://github.com/ufal/flexicorp.git',
 	'pando-repo'     => 'https://github.com/ufal/pando.git',
 	'fqs-repo'       => 'https://github.com/ufal/fqs.git',
 	'flexencoder-repo' => 'https://github.com/ufal/flexencoder.git',
-	'flexicorp-ref'  => '',
-	'pando-ref'      => '',
-	'fqs-ref'        => '',
-	'flexencoder-ref' => '',
 	only => '', skip => '',
-);
+);    # channel and *-ref: undefined when not given (then the kept ones count)
 my @ORIG_ARGV = @ARGV;    # to restart with the same options when the pull updated this script
-GetOptions( \%o, 'detect', 'check', 'q|yes', 'teitok-root=s', 'shared=s', 'web-user=s', 'git-folder=s',
+GetOptions( \%o, 'detect', 'check', 'q|yes', 'teitok-root=s', 'shared=s', 'web-user=s', 'git-folder=s', 'channel=s',
 	'prefix=s', 'only=s', 'skip=s', 'flexicorp-repo=s', 'flexicorp-ref=s', 'pando-repo=s', 'pando-ref=s', 'fqs-repo=s', 'fqs-ref=s', 'flexencoder-repo=s', 'flexencoder-ref=s',
 	'manatee-src=s', 'no-pull', 'no-deps', 'fqs-admin=s', 'no-check', 'no-frontends', 'force:s', 'cron', 'auto-update:s', 'no-auto-update', 'help|h' ) or exit 2;
 my $CRON = $o{cron} ? 1 : 0;
@@ -294,6 +301,8 @@ my @WEBROOTS = ( '/var/www/html', '/srv/www/htdocs', '/var/www/localhost/htdocs'
 	'/usr/local/var/www', '/var/www' );
 
 sub read_file { my $f = shift; open my $fh, '<', $f or return ''; local $/; my $s = <$fh>; close $fh; return $s // ''; }
+# the channel kept for an installation: KEY=VALUE lines (channel=stable|edge, pando-ref=REF, …)
+sub read_kept { my %h; for ( split /\n/, read_file(shift) ) { $h{$1} = $2 if /^([\w-]+)=(.*)$/; } return %h; }
 
 sub detect_teitok {
 	my %d = ( how => [] );
@@ -400,6 +409,10 @@ if ( $o{detect} ) {
 	for my $k (qw(teitok_root shared teitok_dir webroot web_user web_group webserver venv)) { print uc($k), '=', ( $D->{$k} // '' ), "\n"; }
 	print "HOW=$_\n" for @{ $D->{how} };
 	print "OS=$OS\nPKG=$PKG\nINIT=$INIT\n";
+	my $sd = "$o{prefix}/share/teitok-stack";
+	my %kept = read_kept("$sd/channel");
+	print "CHANNEL=", $kept{channel} // ( -f "$sd/manifest.json" ? 'edge' : 'stable' ), "\n";
+	for ( grep { /-ref$/ } sort keys %kept ) { ( my $k = uc $_ ) =~ tr/-/_/; print "$k=$kept{$_}\n"; }
 	exit( $D->{shared} && $D->{teitok_root} ? 0 : 3 );
 }
 if ( $o{check} ) { exec( 'perl', "$HERE/check-stack.pl", ( $D->{shared} ? ( '--shared', $D->{shared} ) : () ), ( $D->{web_user} ? ( '--web-user', $D->{web_user} ) : () ), '--prefix', $o{prefix} ); }
@@ -437,6 +450,27 @@ my $THIS_INSTALL = "teitok_root=$D->{teitok_root}\nshared=$D->{shared}\nweb_user
 my %want = map { $_ => 1 } qw(teitok flexicorp pages flexencoder pando fqs manatee);
 if ( $o{only} ) { %want = map { $_ => 1 } split /[,\s]+/, $o{only}; }
 delete $want{$_} for split /[,\s]+/, $o{skip};
+
+# ── channel: stable (released versions) or edge (the newest commits) ─────────────
+# Kept per installation, with any --X-ref, so that later runs and the nightly --cron run stay
+# on it. A first install is stable; an installation from before channels existed (a manifest,
+# no channel file) keeps following its branches.
+my $CHANNEL_FILE = "$PREFIX/share/teitok-stack/channel";
+my %KEPT = read_kept($CHANNEL_FILE);
+my $CHANNEL = $o{channel} // $KEPT{channel} // ( -f $MANIFEST ? 'edge' : 'stable' );
+fail("--channel is stable or edge, not '$CHANNEL'") unless $CHANNEL =~ /^(?:stable|edge)$/;
+my $CHANNEL_WHY = defined $o{channel} ? '--channel' : defined $KEPT{channel} ? "kept in $CHANNEL_FILE"
+	: -f $MANIFEST ? 'an installation from before channels: it keeps following the branches' : 'a first install';
+my %REF;    # component => the branch, tag or commit asked for ('' = what its channel says)
+for my $c (qw(flexicorp pando fqs flexencoder)) { $REF{$c} = $o{"$c-ref"} // $KEPT{"$c-ref"} // ''; }
+{
+	make_path( dirname($CHANNEL_FILE) );
+	if ( open my $cf, '>', $CHANNEL_FILE ) {
+		print $cf "channel=$CHANNEL\n";
+		print $cf "$_-ref=$REF{$_}\n" for grep { $REF{$_} ne '' } sort keys %REF;
+		close $cf;
+	}
+}
 
 my $PREV_GIT = ( read_file($MANIFEST) =~ /"git_folder"\s*:\s*"([^"]+)"/ ) ? $1 : '';
 my ( $GIT, $GIT_WHY ) = git_folder();
@@ -589,28 +623,153 @@ sub pull_checkout {
 	}
 }
 
+# where a checkout is: its tag, or the nearest tag plus commits (v0.3.0-4-gabc1234), else the commit
+sub describe { my $dir = shift; return git_in( $dir, 'describe', '--tags', '--always' ); }
+
+# git fetch (with tags) as the checkout's owner; a failure is a warning, the checkout stays usable
+sub fetch_checkout {
+	my ( $name, $dir ) = @_;
+	my $cmd = cmdline( as_user( owner_of($dir), 'git', '-C', $dir, 'fetch', '-q', '--tags', 'origin' ) );
+	logline("\$ $cmd\n");
+	my $out = `$cmd 2>&1`;
+	logline( $out // '' );
+	return 1 unless $?;
+	my ($why) = grep { /\S/ } reverse split /\n/, ( $out // '' );
+	warn_( "git fetch in $dir failed" . ( $why ? ": $why" : '' ) );
+	return 0;
+}
+
+# the branch a checkout follows when nothing pins it: the remote's default branch
+sub default_branch {
+	my $dir = shift;
+	return $1 if git_in( $dir, 'symbolic-ref', '--short', 'refs/remotes/origin/HEAD' ) =~ m{^origin/(.+)$};
+	for my $b (qw(main master)) { return $b if git_in( $dir, 'rev-parse', '--verify', '-q', "refs/remotes/origin/$b" ) ne ''; }
+	return '';
+}
+
+# a stack release: the newest vX.Y.Z tag that has install/stack-stable.json (older tags have an
+# installer that knows no channels)
+sub newest_release {
+	my $dir = shift;
+	for my $t ( grep { /^v\d+(?:\.\d+)*$/ } split /\n/, git_in( $dir, 'tag', '-l', 'v*', '--sort=-v:refname' ) ) {
+		return $t if git_in( $dir, 'cat-file', '-t', "$t:install/stack-stable.json" ) eq 'blob';
+	}
+	return '';
+}
+
+# put a checkout on REF, as its owner: a branch is checked out and pulled (and followed from
+# then on), a tag or commit is checked out detached. Not with local changes; going back to an
+# older version is said (an older pando may not read the indexes a newer one built) and, on
+# an interactive run, asked.
+sub switch_checkout {
+	my ( $name, $dir, $ref, $fresh ) = @_;
+	my $own = owner_of($dir);
+	my $before = describe($dir);
+	my $head = git_in( $dir, 'rev-parse', 'HEAD' );
+	my $on = git_in( $dir, 'rev-parse', '--abbrev-ref', 'HEAD' );
+	my $is_branch = git_in( $dir, 'rev-parse', '--verify', '-q', "refs/remotes/origin/$ref" ) ne '';
+	my $target = git_in( $dir, 'rev-parse', '--verify', '-q', $is_branch ? "refs/remotes/origin/$ref" : "$ref^{commit}" );
+	if ( $target eq '' ) { warn_("$name: $dir has no branch or tag '$ref': using it as it is ($before)"); return; }
+	return pull_checkout( $name, $dir ) if $is_branch && $on eq $ref;
+	if ( !$is_branch && $target eq $head ) { say_("  $name: at $ref\n"); return; }
+	if ( git_in( $dir, 'status', '--porcelain', '--untracked-files=no' ) ne '' ) {
+		warn_("$dir has uncommitted changes: not switching to $ref (commit or stash them); using it as it is ($before)");
+		return;
+	}
+	if ( !$fresh && !$is_branch && capture( cmdline( 'git', '-C', $dir, 'merge-base', '--is-ancestor', $target, $head ) . ' && echo y' ) eq 'y' ) {
+		warn_("$name: $ref is older than $before: going back (indexes built by the newer version may need a rebuild)");
+		if ( !yes( "  Go back from $before to $ref in $name?", 1 ) ) { say_("  $name: left at $before\n"); return; }
+	}
+	my @co = $is_branch ? ( 'checkout', '-q', $ref ) : ( 'checkout', '-q', '--detach', $target );
+	if ( !run( "$name: check out $ref (as $own)", [ as_user( $own, 'git', '-C', $dir, @co ) ], soft => 1 ) ) {
+		warn_("$name: git checkout $ref failed in $dir (see the log); using it as it is ($before)");
+		return;
+	}
+	pull_checkout( $name, $dir ) if $is_branch;
+	my $after = describe($dir);
+	if ( $after ne $before ) { $PULLED{$name} = "$before -> $after"; say_("  $name: $before -> $after\n"); }
+}
+
+# bring a checkout to what this run wants. REF: a branch, tag or commit, or code that picks one
+# after the fetch; '' = follow the branch it is on (edge; a checkout a stable run left on a tag
+# goes back to the default branch); undef = leave it as it is (stable without a version for
+# it). --no-pull leaves existing checkouts as they are.
+sub sync_checkout {
+	my ( $name, $dir, $ref, $fresh ) = @_;
+	if ( $o{'no-pull'} && !$fresh ) { say_("  $name: using $dir as it is (--no-pull)\n"); return; }
+	return if !defined $ref;
+	if ( !ref $ref && $ref eq '' ) {
+		return if $fresh;
+		return pull_checkout( $name, $dir ) if git_in( $dir, 'rev-parse', '--abbrev-ref', 'HEAD' ) ne 'HEAD';
+		fetch_checkout( $name, $dir );
+		my $b = default_branch($dir);
+		return switch_checkout( $name, $dir, $b ) if $b ne '';
+		warn_("$name: $dir is on no branch and its remote names no default branch: using it as it is");
+		return;
+	}
+	fetch_checkout( $name, $dir ) unless $fresh;
+	$ref = $ref->($dir) if ref $ref;
+	return pull_checkout( $name, $dir ) if $ref eq '';
+	switch_checkout( $name, $dir, $ref, $fresh );
+}
+
+my %AT;    # component => describe() of its checkout, for the manifest
 sub checkout {
 	my ( $name, $repo, $ref ) = @_;
 	my $dir = "$GIT/$name";
-	if ( -d "$dir/.git" ) {
-		pull_checkout( $name, $dir );
-	} elsif ( -d $dir ) {
+	my $fresh = 0;
+	if ( -d $dir && !-d "$dir/.git" ) {
 		warn_("$dir exists but is not a git checkout: building it as it is");
-	} else {
+	} elsif ( !-d $dir ) {
 		make_path($GIT) unless -d $GIT;
 		my $own = owner_of($GIT);
-		my @c = ( 'git', 'clone', '-q', ( $ref ne '' ? ( '-b', $ref ) : () ), $repo, $dir );
-		run( "clone $repo into $dir (as $own)", [ as_user( $own, @c ) ] );
+		run( "clone $repo into $dir (as $own)", [ as_user( $own, 'git', 'clone', '-q', $repo, $dir ) ] );
+		$fresh = 1;
 	}
+	sync_checkout( $name, $dir, $ref, $fresh ) if -d "$dir/.git";
 	my $commit = git_in( $dir, 'rev-parse', '--short', 'HEAD' );
 	my $branch = git_in( $dir, 'rev-parse', '--abbrev-ref', 'HEAD' );
 	my $dirty = git_in( $dir, 'status', '--porcelain', '--untracked-files=no' ) ne '' ? '-dirty' : '';
-	say_( "  $name: $dir  ($branch $commit$dirty)\n" );
+	$AT{$name} = describe($dir) . $dirty;
+	say_( "  $name: $dir  (" . ( $branch eq 'HEAD' ? $AT{$name} : "$branch $commit$dirty" ) . ")\n" );
 	return ( $dir, "$commit$dirty" );
+}
+
+# what a component's checkout is put on: an explicit --X-ref (kept); else on edge its branch;
+# on stable flexicorp's newest release, and for the others the tag that release's
+# install/stack-stable.json names
+my %STABLE;
+my $STABLE_FILE = '';
+sub ref_for {
+	my $c = shift;
+	return $REF{$c} if $REF{$c} ne '';
+	return '' if $CHANNEL eq 'edge';
+	if ( $c eq 'flexicorp' ) {
+		return sub {
+			my $t = newest_release(shift);
+			warn_("flexicorp: no stack release (a vX.Y.Z tag with install/stack-stable.json): following its branch") if $t eq '';
+			return $t;
+		};
+	}
+	return $STABLE{$c} if ( $STABLE{$c} // '' ) ne '';
+	warn_("$c: $STABLE_FILE names no version for it: left as it is") if $STABLE_FILE ne '';
+	return undef;    # no stable version known: leave the checkout as it is
+}
+sub load_stable {
+	my $f = shift;
+	if ( !-f $f ) { warn_("$f not found (a flexicorp release from before channels): pando, fqs and flexencoder are left as they are"); return; }
+	require JSON::PP;
+	my $d = eval { JSON::PP::decode_json( read_file($f) ) };
+	if ( ref $d ne 'HASH' ) { warn_("$f cannot be read as JSON: pando, fqs and flexencoder are left as they are"); return; }
+	%STABLE = map { ( $_ => $d->{$_} ) } grep { !/^_/ && !ref $d->{$_} } keys %$d;
+	$STABLE_FILE = $f;
 }
 
 step('Sources');
 say_("  git folder: $GIT  ($GIT_WHY)\n");
+say_( "  channel: $CHANNEL  ($CHANNEL_WHY)"
+	. join( '', map { "; $_ at $REF{$_}" } grep { $REF{$_} ne '' } sort keys %REF ) . "\n" );
+say_("    (--channel stable installs the released versions instead)\n") if $CHANNEL eq 'edge' && !defined $o{channel} && !defined $KEPT{channel};
 if ( $PREV_GIT && $PREV_GIT ne $GIT ) {
 	warn_( "the previous run built from $PREV_GIT, this one builds from $GIT: from now on the installed binaries come from $GIT"
 		  . ( -d "$PREV_GIT/pando" || -d "$PREV_GIT/flexicorp" ? " (the checkouts in $PREV_GIT are no longer used; remove them or pass --git-folder $PREV_GIT)" : '' ) );
@@ -634,16 +793,18 @@ if ( $want{teitok} ) {
 # this installer as the flexicorp checkout has it before the pull (to notice a pull that updates it)
 my $INSTALLER_IN_GIT = "$GIT/flexicorp/install/install-stack.pl";
 my $INSTALLER_BEFORE = -f $INSTALLER_IN_GIT ? sha1_hex( read_file($INSTALLER_IN_GIT) ) : '';
-my ( $FLEXI, $FLEXI_COMMIT ) = checkout( 'flexicorp', $o{'flexicorp-repo'}, $o{'flexicorp-ref'} );
+my ( $FLEXI, $FLEXI_COMMIT ) = checkout( 'flexicorp', $o{'flexicorp-repo'}, ref_for('flexicorp') );
+# stable: the versions this flexicorp release names for the others
+load_stable("$FLEXI/install/stack-stable.json") if $CHANNEL eq 'stable' && !$o{'no-pull'};
 my ( $PANDO, $PANDO_COMMIT ) = ( '', '' );
-( $PANDO, $PANDO_COMMIT ) = checkout( 'pando', $o{'pando-repo'}, $o{'pando-ref'} ) if $want{pando} || $want{fqs};
+( $PANDO, $PANDO_COMMIT ) = checkout( 'pando', $o{'pando-repo'}, ref_for('pando') ) if $want{pando} || $want{fqs};
 # FQS: its own repository (it used to live in flexicorp's fqs/)
 my ( $FQS, $FQS_COMMIT ) = ( '', '' );
-( $FQS, $FQS_COMMIT ) = checkout( 'fqs', $o{'fqs-repo'}, $o{'fqs-ref'} ) if $want{fqs} || $want{manatee};
+( $FQS, $FQS_COMMIT ) = checkout( 'fqs', $o{'fqs-repo'}, ref_for('fqs') ) if $want{fqs} || $want{manatee};
 # flexencoder and the pando adapter (flexicorp_pando/, built with pando): their own repository
 # (they used to live in flexicorp)
 my ( $FLEXENC, $FLEXENC_COMMIT ) = ( '', '' );
-( $FLEXENC, $FLEXENC_COMMIT ) = checkout( 'flexencoder', $o{'flexencoder-repo'}, $o{'flexencoder-ref'} )
+( $FLEXENC, $FLEXENC_COMMIT ) = checkout( 'flexencoder', $o{'flexencoder-repo'}, ref_for('flexencoder') )
 	if $want{flexencoder} || $want{pando};
 my $FLEXI_VERSION = ( read_file("$FLEXI/pyproject.toml") =~ /^version\s*=\s*"([^"]+)"/m ) ? $1 : '?';
 
@@ -1266,7 +1427,7 @@ if ( $o{'fqs-admin'} ) {
 	while ( $s =~ /"(\w+)"\s*:\s*\{([^{}]*)\}/g ) { $old{$1} = $2; }
 	open my $fh, '>', "$mf.new-$$" or fail("cannot write $mf");
 	print $fh "{\n  \"installer\": \"install-stack.pl $VERSION\",\n  \"updated\": \"" . strftime( '%Y-%m-%dT%H:%M:%S%z', localtime ) . "\",\n";
-	print $fh "  \"teitok_root\": \"$D->{teitok_root}\",\n  \"shared\": \"$D->{shared}\",\n  \"web_user\": \"$WEBU\",\n  \"git_folder\": \"$GIT\",\n  \"components\": {\n";
+	print $fh "  \"teitok_root\": \"$D->{teitok_root}\",\n  \"shared\": \"$D->{shared}\",\n  \"web_user\": \"$WEBU\",\n  \"git_folder\": \"$GIT\",\n  \"channel\": \"$CHANNEL\",\n  \"components\": {\n";
 	my @parts;
 	for my $c (qw(teitok flexicorp pages flexencoder pando fqs manatee)) {
 		if ( $manifest{$c} ) {
@@ -1275,7 +1436,10 @@ if ( $o{'fqs-admin'} ) {
 			push @parts, "    \"$c\": {" . join( ', ', map { my $v = $e{$_} // ''; $v =~ s/"/'/g; "\"$_\": \"$v\"" } sort keys %e ) . "}";
 		} elsif ( $old{$c} ) { push @parts, "    \"$c\": {$old{$c}}"; }
 	}
-	print $fh join( ",\n", @parts ), "\n  }\n}\n";
+	# where each checkout stood (a tag on stable): after the components, as a flat object
+	$AT{teitok} = $TT_COMMIT ne '' ? describe($TT) : '';
+	my @at = map { "\"$_\": \"$AT{$_}\"" } grep { ( $AT{$_} // '' ) ne '' } qw(teitok flexicorp pando fqs flexencoder);
+	print $fh join( ",\n", @parts ), "\n  },\n  \"checkouts\": {" . join( ', ', @at ) . "}\n}\n";
 	close $fh;
 	rename "$mf.new-$$", $mf;
 }
