@@ -4,6 +4,75 @@
  * through window.ttFlexicorpFreqsParts; `this` is the component.
  */
 window.ttFlexicorpFreqsParts = window.ttFlexicorpFreqsParts || {};
+
+/**
+ * A grouped count (count / group by several fields) as nested rows. `tree` is fc_result.php's
+ * (docs/Result-Reading.md): {fields[], total_matches, groups, top_groups, groups_returned,
+ * child_limit, hidden, nodes[]}, a node {field, value, count, pct, pct_of_parent, groups, hidden,
+ * children[]}. Pure functions, so tests run them without the page.
+ */
+window.ttFlexicorpTree = {
+	/**
+	 * The visible rows: every top-level node, under an open one (open[id]) its children, and where a
+	 * cut left values out a "more" row. A row's id is its path of indexes ("/0/2"), unique in one answer.
+	 */
+	rows(tree, open) {
+		const out = [];
+		if (!tree || !Array.isArray(tree.nodes)) return out;
+		const fields = Array.isArray(tree.fields) ? tree.fields.map(String) : [];
+		const walk = (nodes, depth, parent) => {
+			nodes.forEach((n, i) => {
+				const id = `${parent}/${i}`;
+				const kids = Array.isArray(n.children) ? n.children : [];
+				const isOpen = !!(open && open[id]) && kids.length > 0;
+				out.push({
+					id, depth, more: false,
+					field: String(n.field != null ? n.field : (fields[depth] || '')),
+					value: n.value != null ? String(n.value) : '',
+					count: Number(n.count) || 0,
+					pct: n.pct != null ? Number(n.pct) : null,
+					pctOfParent: n.pct_of_parent != null ? Number(n.pct_of_parent) : null,
+					groups: n.groups != null ? Number(n.groups) : null,
+					hidden: Number(n.hidden) || 0,
+					nextField: fields[depth + 1] || '',
+					hasChildren: kids.length > 0,
+					open: isOpen,
+				});
+				if (!isOpen) return;
+				walk(kids, depth + 1, id);
+				if (Number(n.hidden) > 0) out.push({ id: `${id}/more`, depth: depth + 1, more: true, hidden: Number(n.hidden), field: fields[depth + 1] || '' });
+			});
+		};
+		walk(tree.nodes, 0, '');
+		if (Number(tree.hidden) > 0) out.push({ id: '/more', depth: 0, more: true, hidden: Number(tree.hidden), field: fields[0] || '' });
+		return out;
+	},
+
+	/** The ids of all nodes with children (to open the whole tree). */
+	parentIds(tree) {
+		const ids = [];
+		const walk = (nodes, parent) => nodes.forEach((n, i) => {
+			const id = `${parent}/${i}`;
+			if (Array.isArray(n.children) && n.children.length) { ids.push(id); walk(n.children, id); }
+		});
+		if (tree && Array.isArray(tree.nodes)) walk(tree.nodes, '');
+		return ids;
+	},
+
+	/** What identifies one answer's tree: a new one starts closed. */
+	signature(tree) {
+		if (!tree || !Array.isArray(tree.nodes)) return '';
+		const first = tree.nodes[0] || {};
+		return JSON.stringify([tree.fields, tree.total_matches, tree.groups, tree.groups_returned, first.value, first.count]);
+	},
+
+	/** A percentage as shown: two decimals at most. */
+	pct(v) {
+		if (v === null || v === undefined || !Number.isFinite(Number(v))) return '';
+		return String(Math.round(Number(v) * 100) / 100);
+	},
+};
+
 window.ttFlexicorpFreqsParts.stats_other = function () {
 	return {
 		otherColumnsList() {
@@ -18,6 +87,52 @@ window.ttFlexicorpFreqsParts.stats_other = function () {
 				return rows[0].map((_, i) => `col_${i + 1}`);
 			}
 			return [];
+		},
+
+		/** The grouped-count tree of the current result (count / group by several fields), or null. */
+		otherTree() {
+			const t = this.other && this.other.tree;
+			return t && typeof t === 'object' && Array.isArray(t.nodes) ? t : null;
+		},
+
+		otherTreeRows() {
+			return window.ttFlexicorpTree.rows(this.otherTree(), this.otherTreeOpen);
+		},
+
+		/** The tree's column heading: its fields, outermost first. */
+		otherTreeHeading() {
+			const t = this.otherTree();
+			return t && Array.isArray(t.fields) ? t.fields.join(' › ') : '';
+		},
+
+		toggleOtherTreeNode(id) {
+			const open = Object.assign({}, this.otherTreeOpen || {});
+			open[id] = !open[id];
+			this.otherTreeOpen = open;
+		},
+
+		/** Open (true) or close every node. */
+		otherTreeOpenAll(on) {
+			const open = {};
+			if (on) window.ttFlexicorpTree.parentIds(this.otherTree()).forEach((id) => { open[id] = true; });
+			this.otherTreeOpen = open;
+		},
+
+		otherTreePct(v) {
+			return window.ttFlexicorpTree.pct(v);
+		},
+
+		/**
+		 * After new `other` data: a tree is shown nested (all closed) unless a chart view was chosen; a
+		 * table without a tree is not left in the tree view. The same tree again keeps what was opened.
+		 */
+		otherApplyViewForResult() {
+			const tree = this.otherTree();
+			const sig = window.ttFlexicorpTree.signature(tree);
+			if (sig !== this._otherTreeSig) this.otherTreeOpen = {};
+			if (tree && sig !== this._otherTreeSig && this.otherVizMode === 'table') this.otherVizMode = 'tree';
+			if (!tree && this.otherVizMode === 'tree') this.otherVizMode = 'table';
+			this._otherTreeSig = sig;
 		},
 
 		otherRowsList() {
@@ -110,7 +225,7 @@ window.ttFlexicorpFreqsParts.stats_other = function () {
 			const preferredY = numeric.find((c) => c !== x) || numeric[0] || '';
 			const yNow = String(this.otherChartYColumn || '').trim();
 			if (!yNow || !numeric.includes(yNow) || yNow === x) this.otherChartYColumn = preferredY;
-			if (!this.otherChartYColumn) this.otherVizMode = 'table';
+			if (!this.otherChartYColumn && (this.otherVizMode === 'bar' || this.otherVizMode === 'line')) this.otherVizMode = this.otherTree() ? 'tree' : 'table';
 		},
 
 		otherChartData() {
@@ -201,7 +316,7 @@ window.ttFlexicorpFreqsParts.stats_other = function () {
 				this.destroyOtherChart();
 				return;
 			}
-			if (this.otherVizMode === 'table') {
+			if (this.otherVizMode === 'table' || this.otherVizMode === 'tree') {
 				this.destroyOtherChart();
 				return;
 			}
@@ -221,17 +336,18 @@ window.ttFlexicorpFreqsParts.stats_other = function () {
 		},
 
 		setOtherVizMode(mode) {
-			const allowed = new Set(['table', 'bar', 'line']);
+			const allowed = new Set(['table', 'bar', 'line'].concat(this.otherTree() ? ['tree'] : []));
 			const next = allowed.has(mode) ? mode : 'table';
-			if (next !== 'table' && !this.frequencyChartLibraryAvailable()) return;
+			const chart = next === 'bar' || next === 'line';
+			if (chart && !this.frequencyChartLibraryAvailable()) return;
 			this.otherVizMode = next;
-			if (next === 'table') this.destroyOtherChart();
+			if (!chart) this.destroyOtherChart();
 			else this.scheduleOtherChartRender();
 		},
 
 		onOtherChartColumnsChanged() {
 			this.otherEnsureChartSelection();
-			if (this.otherVizMode !== 'table') this.scheduleOtherChartRender();
+			if (this.otherVizMode === 'bar' || this.otherVizMode === 'line') this.scheduleOtherChartRender();
 		},
 	};
 };

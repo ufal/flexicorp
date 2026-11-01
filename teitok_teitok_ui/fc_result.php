@@ -194,18 +194,55 @@ if ( ! function_exists( 'tt_fc_result_finish_collocates' ) ) {
 	}
 }
 
+if ( ! function_exists( 'tt_fc_result_tree_nodes' ) ) {
+	/**
+	 * pando's grouped-count nodes as `tree` nodes: field, value, count, pct, pct_of_parent (null on
+	 * the top level), groups (distinct values of the next field, null on the last level), hidden (of
+	 * those, how many a cut left out), children[].
+	 */
+	function tt_fc_result_tree_nodes( array $nodes, $level, $levels ) {
+		$out = array();
+		foreach ( $nodes as $n ) {
+			if ( ! is_array( $n ) ) continue;
+			$children = isset( $n['children'] ) && is_array( $n['children'] ) ? tt_fc_result_tree_nodes( $n['children'], $level + 1, $levels ) : array();
+			$groups = isset( $n['groups'] ) && is_numeric( $n['groups'] ) ? (int) $n['groups'] : ( $level + 1 < $levels ? count( $children ) : null );
+			$out[] = array(
+				'field' => (string) ( $n['field'] ?? '' ),
+				'value' => (string) ( $n['value'] ?? '' ),
+				'count' => isset( $n['count'] ) ? (int) $n['count'] : 0,
+				'pct' => isset( $n['pct'] ) && is_numeric( $n['pct'] ) ? (float) $n['pct'] : null,
+				'pct_of_parent' => isset( $n['pct_of_parent'] ) && is_numeric( $n['pct_of_parent'] ) ? (float) $n['pct_of_parent'] : null,
+				'groups' => $groups,
+				'hidden' => $groups === null ? 0 : max( 0, $groups - count( $children ) ),
+				'children' => $children,
+			);
+		}
+		return $out;
+	}
+}
+
 if ( ! function_exists( 'tt_fc_result_finish_hierarchy' ) ) {
 	/**
-	 * count / group by several fields: pando answers a tree (hierarchy[], each node {field, value,
-	 * count, pct, children[]}). It becomes the rows freq by the same fields gives ({key: the values
-	 * joined by a tab, count, pct}, with fields[]), so the frequency table shows it; each row also has
-	 * every field's value under the field's name, and `columns` names them, for the generic table
-	 * (one column per field). The tree stays. Each node without children is a row, its key padded
-	 * when the tree ends early.
+	 * count / group by several fields (pando's Result-Format, "Grouped counts"): the answer is a tree,
+	 * hierarchy[]. It becomes `tree` (docs/Result-Reading.md): pando's nodes with what a cut left out
+	 * made explicit, which the Stats "Other" tab shows as nested rows. Beside it, the leaves as the
+	 * rows a freq by the same fields gives ({key: the values joined by a tab, count, pct}), with every
+	 * field's value under the field's name and `columns` naming them, for the flat table, charts and
+	 * the frequency views; a leaf's key is padded when the tree ends early.
 	 */
 	function tt_fc_result_finish_hierarchy( array &$r ) {
 		if ( ! isset( $r['hierarchy'] ) || ! is_array( $r['hierarchy'] ) || ( isset( $r['rows'] ) && is_array( $r['rows'] ) ) ) return;
 		$fields = isset( $r['fields'] ) && is_array( $r['fields'] ) ? array_map( 'strval', array_values( $r['fields'] ) ) : array();
+		$r['tree'] = array(
+			'fields' => $fields,
+			'total_matches' => isset( $r['total_matches'] ) ? (int) $r['total_matches'] : null,
+			'groups' => isset( $r['groups'] ) ? (int) $r['groups'] : null,
+			'top_groups' => isset( $r['top_groups'] ) ? (int) $r['top_groups'] : count( $r['hierarchy'] ),
+			'groups_returned' => count( $r['hierarchy'] ),
+			'child_limit' => isset( $r['child_limit'] ) ? (int) $r['child_limit'] : null,
+			'hidden' => max( 0, ( isset( $r['top_groups'] ) ? (int) $r['top_groups'] : 0 ) - count( $r['hierarchy'] ) ),
+			'nodes' => tt_fc_result_tree_nodes( $r['hierarchy'], 0, count( $fields ) ),
+		);
 		$width = count( $fields );
 		$rows = array();
 		$walk = function ( array $nodes, array $path ) use ( &$walk, &$rows, $width, $fields ) {

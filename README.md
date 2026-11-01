@@ -86,6 +86,7 @@ See the wiki for a complete list of commands, backends, and JSON schemas.
 - `flexicorp/` — main Python package (CLI, JSON API, backends, configuration helpers)
 - `flexencoder/` — C++ helpers for TEITOK integration (not required for pure Python use)
 - `teitok/` — TEITOK-side integration (PHP/JS; distributed with TEITOK rather than via PyPI)
+- `docs/` — contracts: [how the TEITOK pages read search results](docs/Result-Reading.md) (pando's result format → what the pages show)
 
 Long-form documentation (backends, TEITOK configuration, JSON API reference, contributing) will be maintained in the GitHub wiki for `ufal/flexicorp`.
 

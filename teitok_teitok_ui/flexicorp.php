@@ -7801,6 +7801,10 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			'total' => ( $promoteQueryFreqToStats && $opSlot === 'other' )
 				? ( isset($kwicDone['result']['total']) ? intval($kwicDone['result']['total']) : null )
 				: null,
+			// count / group by several fields: the tree (fc_result.php, docs/Result-Reading.md), shown nested
+			'tree' => ( $promoteQueryFreqToStats && $opSlot === 'other' && isset($kwicDone['result']['tree']) && is_array($kwicDone['result']['tree']) )
+				? $kwicDone['result']['tree']
+				: null,
 			// per row, the example in its sentence (pando tabulate: tokens, hit indices, doc, token id)
 			'row_contexts' => ( $promoteQueryFreqToStats && $opSlot === 'other' && isset($kwicDone['result']['row_contexts']) && is_array($kwicDone['result']['row_contexts']) )
 				? array_values($kwicDone['result']['row_contexts'])

@@ -2679,11 +2679,17 @@
 					<p class="flexicorp-panel-note" x-show="!(other && other.ran)">No aggregation result for the current query. Run a query that ends with <code>count</code> or <code>dist</code> to populate this view.</p>
 					<div class="flexicorp-freq-viz-toolbar flexicorp-freq-viz-toolbar--inline" x-show="other && other.ran && Array.isArray(other.rows) && other.rows.length > 0" style="margin-bottom:0.5rem;">
 						<span class="flexicorp-inline-label">View</span>
+						<button type="button" class="flexicorp-seg-btn" x-show="otherTree()" :class="{ 'flexicorp-seg-btn--active': otherVizMode === 'tree' }" :aria-pressed="otherVizMode === 'tree' ? 'true' : 'false'" x-on:click="setOtherVizMode('tree')" title="Grouped: each value with the values of the next field under it">Tree</button>
 						<button type="button" class="flexicorp-seg-btn" :class="{ 'flexicorp-seg-btn--active': otherVizMode === 'table' }" :aria-pressed="otherVizMode === 'table' ? 'true' : 'false'" x-on:click="setOtherVizMode('table')">Table</button>
 						<button type="button" class="flexicorp-seg-btn" :class="{ 'flexicorp-seg-btn--active': otherVizMode === 'bar' }" :aria-pressed="otherVizMode === 'bar' ? 'true' : 'false'" x-on:click="setOtherVizMode('bar')">H-bar</button>
 						<button type="button" class="flexicorp-seg-btn" :class="{ 'flexicorp-seg-btn--active': otherVizMode === 'line' }" :aria-pressed="otherVizMode === 'line' ? 'true' : 'false'" x-on:click="setOtherVizMode('line')">Line</button>
+						<span x-show="otherVizMode === 'tree' && otherTree()" style="margin-left:0.75rem">
+							<button type="button" class="btn btn-link btn-sm p-0" x-on:click="otherTreeOpenAll(true)">Open all</button>
+							<span aria-hidden="true">·</span>
+							<button type="button" class="btn btn-link btn-sm p-0" x-on:click="otherTreeOpenAll(false)">Close all</button>
+						</span>
 					</div>
-					<div class="flexicorp-form-row" x-show="other && other.ran && Array.isArray(other.rows) && other.rows.length > 0 && otherVizMode !== 'table'" style="display:grid;grid-template-columns:minmax(10rem,1fr) minmax(10rem,1fr);gap:0.6rem;max-width:40rem;margin-bottom:0.55rem;">
+					<div class="flexicorp-form-row" x-show="other && other.ran && Array.isArray(other.rows) && other.rows.length > 0 && (otherVizMode === 'bar' || otherVizMode === 'line')" style="display:grid;grid-template-columns:minmax(10rem,1fr) minmax(10rem,1fr);gap:0.6rem;max-width:40rem;margin-bottom:0.55rem;">
 						<div>
 							<label for="fc-other-xcol">X column</label>
 							<select id="fc-other-xcol" class="form-control form-control-sm" x-model="otherChartXColumn" x-on:change="onOtherChartColumnsChanged()">
@@ -2702,6 +2708,39 @@
 						</div>
 					</div>
 					<div class="flexicorp-table-wrap" x-show="other && other.ran && Array.isArray(other.rows) && other.rows.length > 0">
+						<!-- count / group by several fields: each value with, opened, the values of the next field under it -->
+						<table class="flexicorp-table flexicorp-table--freq flexicorp-table--tree" x-show="otherVizMode === 'tree' && otherTree()">
+							<thead>
+								<tr>
+									<th x-text="otherTreeHeading()"></th>
+									<th>count</th>
+									<th title="Of all hits">% of all</th>
+									<th title="Of the value above it">% of parent</th>
+								</tr>
+							</thead>
+							<tbody>
+								<template x-for="r in otherTreeRows()" :key="'otr' + r.id">
+									<tr :class="r.more ? 'flexicorp-tree-more' : ''">
+										<td :style="'padding-left:' + (0.4 + r.depth * 1.4) + 'rem'">
+											<template x-if="!r.more">
+												<span>
+													<button type="button" class="btn btn-link btn-sm p-0" style="width:1.1rem" x-show="r.hasChildren" x-on:click="toggleOtherTreeNode(r.id)" :aria-expanded="r.open ? 'true' : 'false'" :title="r.open ? 'Close' : 'Show the ' + r.nextField + ' values'" x-text="r.open ? '▾' : '▸'"></button>
+													<span x-show="!r.hasChildren" style="display:inline-block;width:1.1rem"></span>
+													<span x-text="r.value === '' ? '(no value)' : r.value"></span>
+													<span class="flexicorp-subtitle-tag" x-show="r.groups !== null" :title="'Distinct ' + r.nextField + ' values under ' + r.value" x-text="r.groups + ' ' + r.nextField + (r.groups === 1 ? ' value' : ' values')"></span>
+												</span>
+											</template>
+											<template x-if="r.more">
+												<span class="flexicorp-panel-note" x-text="'+ ' + r.hidden + ' more ' + r.field + ' values with lower counts'"></span>
+											</template>
+										</td>
+										<td x-text="r.more ? '' : String(r.count)"></td>
+										<td x-text="r.more ? '' : otherTreePct(r.pct)"></td>
+										<td x-text="r.more ? '' : otherTreePct(r.pctOfParent)"></td>
+									</tr>
+								</template>
+							</tbody>
+						</table>
 						<table class="flexicorp-table flexicorp-table--freq" x-show="otherVizMode === 'table'">
 							<thead>
 								<tr>
@@ -2734,10 +2773,10 @@
 									</tbody>
 								</template>
 						</table>
-						<div class="flexicorp-freq-chart-wrap" x-show="otherVizMode !== 'table' && frequencyChartLibraryAvailable()">
+						<div class="flexicorp-freq-chart-wrap" x-show="(otherVizMode === 'bar' || otherVizMode === 'line') && frequencyChartLibraryAvailable()">
 							<canvas id="flexicorp-other-chart-canvas" aria-label="Other chart"></canvas>
 						</div>
-						<p class="flexicorp-panel-note" x-show="otherVizMode !== 'table' && !frequencyChartLibraryAvailable()">Chart view needs Chart.js.</p>
+						<p class="flexicorp-panel-note" x-show="(otherVizMode === 'bar' || otherVizMode === 'line') && !frequencyChartLibraryAvailable()">Chart view needs Chart.js.</p>
 					</div>
 					<p class="flexicorp-panel-note" x-show="other && other.ran && (!Array.isArray(other.rows) || other.rows.length === 0)">The operation ran but returned no rows.</p>
 					<p class="flexicorp-panel-note" x-show="other && other.ran && other.total !== null && other.total !== undefined">Rows: <span x-text="String(other.total)"></span></p>

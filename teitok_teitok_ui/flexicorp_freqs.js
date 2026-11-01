@@ -39,6 +39,8 @@ window.flexicorpFreqsExtend = function flexicorpFreqsExtend() {
 		/** Generic "Other" table visualizations. */
 		otherVizMode: 'table',
 		otherOpenRows: {},   // Stats Other table: rows whose sentence is shown
+		otherTreeOpen: {},   // Stats Other tree (grouped count): open nodes by id (ttFlexicorpTree.rows)
+		_otherTreeSig: '',   // the tree they belong to
 		otherChartXColumn: '',
 		otherChartYColumn: '',
 		otherChartInstance: null,

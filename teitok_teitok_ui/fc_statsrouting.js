@@ -532,6 +532,7 @@ window.ttFlexicorpCoreParts.statsrouting = function () {
 				// guarantees only one of frequency / collocation / other is "ran" per query.
 				this.other = Object.assign({}, this.other || { ran: false }, state.other || {});
 				this.otherOpenRows = {};   // a new table: no row's sentence open
+				if (typeof this.otherApplyViewForResult === 'function') this.otherApplyViewForResult();   // a grouped count: nested
 				const c = this.collocation;
 				if (c) {
 					let nextKeys = null;
@@ -577,6 +578,7 @@ window.ttFlexicorpCoreParts.statsrouting = function () {
 			if (state.other && typeof state.other === 'object') {
 				this.other = Object.assign({}, this.other || { ran: false }, state.other);
 				this.otherOpenRows = {};   // a new table: no row's sentence open
+				if (typeof this.otherApplyViewForResult === 'function') this.otherApplyViewForResult();   // a grouped count: nested
 			}
 			const nextResponses = Object.assign({}, this.responses || {});
 			const responseMap = state.responses && typeof state.responses === 'object' ? state.responses : {};
