@@ -92,7 +92,8 @@ if ( ! function_exists( 'tt_fc_result_is_body' ) ) {
 	/** An engine result body (hits, a table, collocates), as opposed to an envelope around one. */
 	function tt_fc_result_is_body( $a ) {
 		if ( ! is_array( $a ) ) return false;
-		foreach ( array( 'hits', 'pairs', 'rows', 'collocates', 'compare_queries', 'totals_per_query', 'items' ) as $k ) {   // pairs: an aligned (with) query
+		// pairs: an aligned (with) query; hierarchy: count / group by several fields
+		foreach ( array( 'hits', 'pairs', 'rows', 'hierarchy', 'collocates', 'compare_queries', 'totals_per_query', 'items' ) as $k ) {
 			if ( isset( $a[ $k ] ) && is_array( $a[ $k ] ) ) return true;
 		}
 		return isset( $a['table'] ) && is_array( $a['table'] );
@@ -146,7 +147,15 @@ if ( ! function_exists( 'tt_fc_result_unwrap' ) ) {
 			// An answer with data but none of the result kinds known here (hits, pairs, rows, …) is a
 			// result shape this reader does not know: reported (tt_fc_result_unrecognised), never shown
 			// as an empty result. A real empty result has its body (hits: [], pairs: []).
-			$data = array_filter( array_keys( $x ), function ( $k ) use ( $x ) { return is_array( $x[ $k ] ) && $k !== 'query' && $k !== 'page' && $k !== 'warnings'; } );
+			// A number or list as the result (size, raw) is data too.
+			if ( $x && array_keys( $x ) === range( 0, count( $x ) - 1 ) ) {
+				$out['unrecognised_shape'] = array( 'a list of ' . count( $x ) );
+				return $out;
+			}
+			$data = array_filter( array_keys( $x ), function ( $k ) use ( $x ) {
+				return ( is_array( $x[ $k ] ) && ! in_array( $k, array( 'query', 'page', 'warnings', 'reused' ), true ) )
+					|| ( $k === 'result' && $x[ $k ] !== null && ! is_bool( $x[ $k ] ) );
+			} );
 			if ( $data ) $out['unrecognised_shape'] = array_values( array_keys( $x ) );
 			return $out;
 		}
@@ -181,6 +190,43 @@ if ( ! function_exists( 'tt_fc_result_finish_collocates' ) ) {
 		}
 		if ( ! isset( $r['total'] ) && isset( $r['matches'] ) && is_numeric( $r['matches'] ) ) {
 			$r['total'] = (int) $r['matches'];
+		}
+	}
+}
+
+if ( ! function_exists( 'tt_fc_result_finish_hierarchy' ) ) {
+	/**
+	 * count / group by several fields: pando answers a tree (hierarchy[], each node {field, value,
+	 * count, pct, children[]}). It becomes the rows freq by the same fields gives ({key: the values
+	 * joined by a tab, count, pct}, with fields[]), so the frequency table shows it; each row also has
+	 * every field's value under the field's name, and `columns` names them, for the generic table
+	 * (one column per field). The tree stays. Each node without children is a row, its key padded
+	 * when the tree ends early.
+	 */
+	function tt_fc_result_finish_hierarchy( array &$r ) {
+		if ( ! isset( $r['hierarchy'] ) || ! is_array( $r['hierarchy'] ) || ( isset( $r['rows'] ) && is_array( $r['rows'] ) ) ) return;
+		$fields = isset( $r['fields'] ) && is_array( $r['fields'] ) ? array_map( 'strval', array_values( $r['fields'] ) ) : array();
+		$width = count( $fields );
+		$rows = array();
+		$walk = function ( array $nodes, array $path ) use ( &$walk, &$rows, $width, $fields ) {
+			foreach ( $nodes as $n ) {
+				if ( ! is_array( $n ) ) continue;
+				$p = array_merge( $path, array( (string) ( $n['value'] ?? '' ) ) );
+				if ( ! empty( $n['children'] ) && is_array( $n['children'] ) ) {
+					$walk( $n['children'], $p );
+					continue;
+				}
+				$p = array_pad( $p, max( $width, count( $p ) ), '' );
+				$row = array( 'key' => implode( "\t", $p ) );
+				foreach ( $fields as $i => $f ) $row[ $f ] = $p[ $i ];
+				$rows[] = $row + array( 'count' => $n['count'] ?? 0, 'pct' => $n['pct'] ?? null );
+			}
+		};
+		$walk( $r['hierarchy'], array() );
+		$r['rows'] = $rows;
+		if ( $fields && ! isset( $r['columns'] ) ) $r['columns'] = array_merge( $fields, array( 'count', 'pct' ) );
+		if ( ! isset( $r['result_type'] ) || trim( (string) $r['result_type'] ) === '' ) {
+			$r['result_type'] = 'table';
 		}
 	}
 }

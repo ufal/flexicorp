@@ -3346,6 +3346,8 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 					'offset' => (int)$start,
 					'limit' => (int)$size,
 					'group_limit' => isset($qopts['group_limit']) ? max(1, (int)$qopts['group_limit']) : max(1, (int)$size),
+					// count / group by several fields: values per level (pando's default, 20, would cut the table)
+					'child_limit' => isset($qopts['group_limit']) ? max(1, (int)$qopts['group_limit']) : max(1, (int)$size),
 					'request_role' => (string)($probe['request_role'] ?? 'visitor'),
 					'user' => tt_flexicorp_request_user(),
 				);
@@ -3366,7 +3368,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				// The result body under FQS's envelope (/query: raw.done.result; /run: the engine's
 				// own payload {ok, operation, result{…}}), peeled as on every route (fc_result.php).
 				if ( $isProgram ) {
-					$inner = tt_fc_result_unwrap( $fqs );
+					$inner = tt_fc_result_unwrap( $fqs, true );   // strict: an unknown shape is an error, not an empty result
 					unset( $inner['ok'] );
 				} else {
 					$inner = isset( $fqs['raw'] ) && is_array( $fqs['raw'] ) ? tt_fc_result_unwrap( $fqs, true )
@@ -3375,6 +3377,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				$unrecognised = tt_fc_result_unrecognised( $inner );
 				if ( $unrecognised !== '' ) return tt_flexicorp_error_call( 'fqs', 'query', $unrecognised );
 				tt_fc_result_finish_collocates( $inner );
+				tt_fc_result_finish_hierarchy( $inner );
 				tt_fc_result_finish_table( $inner );
 				tt_fc_result_lift_page_total( $inner );
 				$inner['kind'] = tt_fc_result_kind( $inner );
@@ -5608,6 +5611,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			}
 			$isOk = !empty($resp['success']) || !empty($resp['ok']) || tt_fc_result_is_body( $result );
 			tt_fc_result_finish_collocates( $result );
+			tt_fc_result_finish_hierarchy( $result );
 			// Backward compatibility for earlier adapter output.
 			if ( !isset($result['groups']) && isset($result['query_groups']) && is_array($result['query_groups']) ) {
 				$result['groups'] = $result['query_groups'];
