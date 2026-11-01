@@ -3453,11 +3453,15 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				$doneErrors[] = $opErr;
 			}
 
+			// pando's notes (result.warnings: a `with` without a link, dates read as before or no date):
+			// shown with the result, as the other messages of the call
+			$engineWarnings = ( is_array( $result ) && isset( $result['warnings'] ) && is_array( $result['warnings'] ) )
+				? array_values( array_filter( $result['warnings'], 'is_string' ) ) : array();
 			$done = array(
 				'backend' => 'fqs',
 				'operation' => 'query',
 				'result' => $result,
-				'warnings' => array(),
+				'warnings' => $engineWarnings,
 				'errors' => $doneErrors,
 			);
 			$data = array(
@@ -3479,7 +3483,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				'request_payload' => $payload,
 				'raw' => $debugRaw,
 				'errors' => $doneErrors,
-				'warnings' => array(),
+				'warnings' => $engineWarnings,
 				'result' => $result,
 			);
 			tt_flexicorp_debug_log( $debugEntry );
@@ -3490,6 +3494,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				'raw' => (string)($resp['body'] ?? ''),
 				'data' => $data,
 				'error' => $opErr,
+				'warnings' => $engineWarnings,
 			);
 		}
 	}
@@ -5797,6 +5802,10 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				}
 			}
 			$warnings = isset($resp['done']['warnings']) && is_array($resp['done']['warnings']) ? $resp['done']['warnings'] : array();
+			// pando's own notes in the result (dates read as before or no date, a `with` without a link)
+			if ( isset( $result['warnings'] ) && is_array( $result['warnings'] ) ) {
+				foreach ( $result['warnings'] as $w ) if ( is_string( $w ) && ! in_array( $w, $warnings, true ) ) $warnings[] = $w;
+			}
 			$done = array(
 				'backend' => 'flexicorp-pando',
 				'operation' => $doneOp,
