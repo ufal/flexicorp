@@ -7,6 +7,7 @@
  */
 
 require_once __DIR__ . '/fc_fqs_conn.php';   // the FQS address and secret
+require_once __DIR__ . '/fc_shortcache.php';   // FQS answers kept for a few seconds
 
 	if ( !function_exists("getBaseUrl") ) {
 		function getBaseUrl() {
@@ -422,6 +423,7 @@ require_once __DIR__ . '/fc_fqs_conn.php';   // the FQS address and secret
 			if ( $tmp === false ) return array( 'ok' => false, 'id' => $payload['id'], 'error' => 'no temp file' );
 			file_put_contents( $tmp, json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
 			$out = (string) shell_exec( escapeshellarg( $bin ) . ' corpora upsert-json --json-file ' . escapeshellarg( $tmp ) . ' 2>&1' );
+			if ( function_exists( 'tt_fc_cache_drop' ) ) tt_fc_cache_drop( $projectRoot );   // the catalogue entry changed
 			@unlink( $tmp );
 			$dec = json_decode( $out, true );
 			if ( is_array( $dec ) && ! empty( $dec['ok'] ) ) return array( 'ok' => true, 'id' => $payload['id'], 'error' => '' );

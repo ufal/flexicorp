@@ -18,6 +18,7 @@ require_once __DIR__ . '/fc_pando_run.php';
 if ( ! function_exists( 'tt_fc_stack_check' ) ) {
 	/** The report: array( 'programs' => …, 'fqs' => …, 'routes' => …, 'query' => … ). */
 	function tt_fc_stack_check( $root, $query = '' ) {
+		tt_fc_cache_drop( $root );   // a check asks FQS now, not what was kept (fc_shortcache.php)
 		$out = array( 'programs' => array(), 'routes' => array() );
 		foreach ( array( 'flexicorp-pando', 'pando', 'pando-index' ) as $name ) {
 			list( $path, $source ) = tt_fc_bin_path( $name );

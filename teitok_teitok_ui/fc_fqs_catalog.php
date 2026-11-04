@@ -14,19 +14,32 @@
 if ( ! function_exists( 'tt_flexicorp_fqs_http_corpus_row' ) ) {
 	/** The catalogue entry of `$corpusId` in the FQS at the probe's URL, or null (signed as admin when there is a secret). */
 	function tt_flexicorp_fqs_http_corpus_row( $probe, $corpusId ) {
+		static $memo = array();
 		$url = rtrim( (string) ( $probe['http_url'] ?? '' ), '/' );
 		$corpusId = trim( (string) $corpusId );
 		if ( $url === '' || $corpusId === '' || empty( $probe['http_running'] ) ) return null;
+		$key = $url . '|' . $corpusId;
+		if ( array_key_exists( $key, $memo ) ) return $memo[ $key ];
+		// kept between requests (fc_shortcache.php), in the project the page runs in
+		$root = function_exists( 'tt_fc_env_project_root' ) ? tt_fc_env_project_root() : (string) getcwd();
+		$name = 'fqs-row-' . $corpusId;
+		if ( function_exists( 'tt_fc_cache_get' ) ) {
+			$kept = tt_fc_cache_get( $root, $name, tt_fc_cache_ttl( 30 ) );
+			if ( is_array( $kept ) ) return $memo[ $key ] = ( $kept['row'] ?? null );
+		}
 		$headers = function_exists( 'tt_flexicorp_fqs_headers_with_optional_jwt' )
 			? tt_flexicorp_fqs_headers_with_optional_jwt( $probe, 'admin' )
 			: array( 'Accept: application/json' );
 		$resp = tt_flexicorp_http_json_request( 'GET',
 			$url . '/corpora?request_role=admin&include_noncurrent=true&q=' . rawurlencode( $corpusId ), null, $headers, 3.0 );
 		$rows = is_array( $resp['data']['corpora'] ?? null ) ? $resp['data']['corpora'] : array();
+		$found = null;
 		foreach ( $rows as $row ) {
-			if ( is_array( $row ) && (string) ( $row['id'] ?? '' ) === $corpusId ) return $row;
+			if ( is_array( $row ) && (string) ( $row['id'] ?? '' ) === $corpusId ) { $found = $row; break; }
 		}
-		return null;
+		// an answer (with or without the corpus) is kept; no answer is not
+		if ( isset( $resp['data']['corpora'] ) && function_exists( 'tt_fc_cache_put' ) ) tt_fc_cache_put( $root, $name, array( 'row' => $found ) );
+		return $memo[ $key ] = $found;
 	}
 
 	/** The engine FQS answers a catalogue entry with: pando, cqp or manatee (preferred_backend, else the first available one). */

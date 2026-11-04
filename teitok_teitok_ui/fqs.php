@@ -117,6 +117,7 @@
 					file_put_contents( $tmp, json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
 					$cmd = escapeshellarg( $fqsapp ) . ' corpora upsert-json --json-file ' . escapeshellarg( $tmp ) . ' 2>&1';
 					$out = shell_exec( $cmd );
+					if ( function_exists( 'tt_fc_cache_drop' ) ) tt_fc_cache_drop();   // the catalogue entry changed
 					@unlink( $tmp );
 
 					$decoded = is_string( $out ) ? json_decode( $out, true ) : null;
@@ -289,6 +290,7 @@
 										file_put_contents( $tmp, json_encode( $entry, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );
 										$upCmd = escapeshellarg( $fqsapp ) . ' corpora upsert-json --json-file ' . escapeshellarg( $tmp ) . ' 2>&1';
 										$upOut = shell_exec( $upCmd );
+										if ( function_exists( 'tt_fc_cache_drop' ) ) tt_fc_cache_drop();   // the catalogue entry changed
 										@unlink( $tmp );
 										$upDec = is_string( $upOut ) ? json_decode( $upOut, true ) : null;
 										if ( is_array( $upDec ) && !empty( $upDec['ok'] ) ) {

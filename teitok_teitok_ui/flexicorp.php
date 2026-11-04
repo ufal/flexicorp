@@ -10,6 +10,7 @@ require_once __DIR__ . '/fc_engine.php';
 require_once __DIR__ . '/fc_bin.php';
 require_once __DIR__ . '/fc_proc.php';
 require_once __DIR__ . '/fc_fqs_conn.php';   // the FQS address and secret
+require_once __DIR__ . '/fc_shortcache.php';   // FQS answers kept for a few seconds
 require_once __DIR__ . '/fc_fqs_warm.php';
 require_once __DIR__ . '/fc_fqs_catalog.php';
 // custom layers: `my-<attribute>` in queries and fields is the user's own labels (custom_layers_names.php)
@@ -2976,7 +2977,16 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			static $memo = array();
 			$key = rtrim( (string) $projectRoot, '/' );
 			if ( $fresh || !isset( $memo[$key] ) ) {
-				$memo[$key] = tt_flexicorp_fqs_probe_uncached( $projectRoot, $isAdmin );
+				// kept between requests (fc_shortcache.php): 30 s, 10 s while FQS does not answer
+				$ttl = tt_fc_cache_ttl( 30 );
+				$kept = $fresh ? null : tt_fc_cache_get( $projectRoot, 'fqs-check', $ttl );
+				if ( is_array( $kept ) && ! empty( $kept['unreachable'] ) ) $kept = tt_fc_cache_get( $projectRoot, 'fqs-check', min( $ttl, 10 ) );
+				if ( is_array( $kept ) ) {
+					$memo[$key] = $kept;
+				} else {
+					$memo[$key] = tt_flexicorp_fqs_probe_uncached( $projectRoot, $isAdmin );
+					tt_fc_cache_put( $projectRoot, 'fqs-check', $memo[$key] );
+				}
 			}
 			$probe = $memo[$key];
 			$role = $isAdmin ? 'admin' : ( tt_flexicorp_request_user() !== '' ? 'user' : 'visitor' );
@@ -4040,6 +4050,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 					. ' --json ' . escapeshellarg($json)
 					. ' 2>&1';
 				$out = (string) shell_exec($cmd);
+				if ( function_exists( 'tt_fc_cache_drop' ) ) tt_fc_cache_drop( $projectRoot );   // the catalogue entry changed
 				$dec = json_decode($out, true);
 				if ( is_array($dec) && !empty($dec['ok']) ) {
 					$res['ok'] = true;
@@ -6287,7 +6298,9 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		'warnings' => array(),
 		'result' => tt_flexicorp_fqs_probe_public( $fqsProbe, $isAdmin ),
 	);
-	$fqsActiveReindex = tt_flexicorp_fqs_reindex_active_jobs($fqsProbe, $projectRoot, 200);
+	// indexing jobs (the Engines tab's reindex lock): for admins, and not on a search request
+	$fqsActiveReindex = ( $isAdmin && trim( (string) ( $_REQUEST['query'] ?? '' ) ) === '' )
+		? tt_flexicorp_fqs_reindex_active_jobs($fqsProbe, $projectRoot, 200) : null;
 
 	// AJAX: return only highlight API result for query syntax highlighting
 	if ( isset($_REQUEST['ajax']) && (string)$_REQUEST['ajax'] === '1' && isset($_REQUEST['highlight_snippet']) ) {
@@ -6914,6 +6927,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				tt_flexicorp_reindex_log_append( $projectRoot, $reg['ok'] ? 'fqs_register_ok id=' . $reg['id'] : 'fqs_register_failed error=' . $reg['error'] );
 			}
 			$fqsEnq = tt_flexicorp_fqs_enqueue_reindex($fqsProbe, $reindexBackendsForFqs, $projectRoot, 'teitok-flexicorp-ui');
+			if ( function_exists( 'tt_fc_cache_drop' ) ) tt_fc_cache_drop( $projectRoot );   // the catalogue entry changed
 			if ( !empty($fqsEnq['ok']) && trim((string)($fqsEnq['job_id'] ?? '')) !== '' ) {
 				$fqsJobId = trim((string)$fqsEnq['job_id']);
 				$fqsResult = array(
@@ -7735,6 +7749,8 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		'fqs' => tt_flexicorp_fqs_probe_public( $fqsProbe, $isAdmin ),
 		'fqsActiveReindex' => $fqsActiveReindex,
 	);
+	// not asked on this request: the page keeps what it has
+	if ( $fqsActiveReindex === null ) unset( $state['fqsActiveReindex'] );
 	$ajaxResultOnly = (
 		$isAjax
 		&& $activeTab !== 'debug'

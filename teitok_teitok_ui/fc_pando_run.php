@@ -14,6 +14,7 @@
 
 require_once __DIR__ . '/fc_teitok_env.php';
 require_once __DIR__ . '/fqs-lib.php';
+require_once __DIR__ . '/fc_shortcache.php';
 
 if ( ! function_exists( 'tt_fc_pando_route' ) ) {
 	/** The FQS this TEITOK talks to (fc_fqs_conn.php). */
@@ -52,24 +53,48 @@ if ( ! function_exists( 'tt_fc_pando_route' ) ) {
 
 	/**
 	 * Where the project's programs run: FQS when it answers and has the corpus, else the local pando
-	 * on the project's index, else nowhere ('why' says what is missing). Asked once per request.
+	 * on the project's index, else nowhere ('why' says what is missing). Asked once per request, and kept
+	 * between requests for a short time (fc_shortcache.php).
 	 */
 	function tt_fc_pando_route( $root ) {
 		static $memo = array();
 		$key = rtrim( (string) $root, '/' );
 		if ( isset( $memo[ $key ] ) ) return $memo[ $key ];
+		// kept between requests (fc_shortcache.php), when there is a route
+		$kept = tt_fc_cache_get( $root, 'pando-route', tt_fc_cache_ttl( 30 ) );
+		if ( is_array( $kept ) && ! empty( $kept['via'] ) ) return $memo[ $key ] = $kept;
+		$memo[ $key ] = tt_fc_pando_route_uncached( $root );
+		if ( $memo[ $key ]['via'] !== '' ) tt_fc_cache_put( $root, 'pando-route', $memo[ $key ] );
+		return $memo[ $key ];
+	}
+
+	/** tt_fc_pando_route, asked now. */
+	function tt_fc_pando_route_uncached( $root ) {
 		$url = tt_fc_fqs_base_url();
 		$id = tt_fc_fqs_corpus_id( $root );
 		$r = tt_fc_http_json( 'GET', $url . '/corpora?include_noncurrent=true&q=' . rawurlencode( $id ), null, tt_fqs_bearer_headers( 'admin', 'teitok-lens', 60 ), 5 );
 		$ids = array();
 		foreach ( (array) ( $r['data']['corpora'] ?? array() ) as $c ) $ids[] = (string) ( $c['id'] ?? '' );
-		if ( in_array( $id, $ids, true ) ) return $memo[ $key ] = array( 'via' => 'fqs', 'url' => $url, 'corpus' => $id, 'why' => '' );
+		if ( in_array( $id, $ids, true ) ) return array( 'via' => 'fqs', 'url' => $url, 'corpus' => $id, 'why' => '' );
 		$index = rtrim( tt_fc_env_pando_index_dir( $root ), '/' );
 		$pando = tt_fc_env_pando_bin( 'pando' );
-		if ( $pando !== '' && is_file( "$index/corpus.info" ) ) return $memo[ $key ] = array( 'via' => 'local', 'index' => $index, 'why' => '' );
+		if ( $pando !== '' && is_file( "$index/corpus.info" ) ) return array( 'via' => 'local', 'index' => $index, 'why' => '' );
 		$fqsWhy = $r['status'] === 0 ? "no FQS answers at $url" : "FQS at $url has no corpus '$id' (flexicorp/fqs_corpus_id names it)";
 		$localWhy = $pando === '' ? 'pando is not installed here' : "no pando index at $index (<pando path=\"…\"/> names it)";
-		return $memo[ $key ] = array( 'via' => '', 'why' => "$fqsWhy, and $localWhy" );
+		return array( 'via' => '', 'why' => "$fqsWhy, and $localWhy" );
+	}
+
+	/** FQS's /info for the corpus (its 'result'), once per request and kept between requests; array() without. */
+	function tt_fc_fqs_info( $root, $route ) {
+		static $memo = array();
+		$key = rtrim( (string) $root, '/' );
+		if ( isset( $memo[ $key ] ) ) return $memo[ $key ];
+		$kept = tt_fc_cache_get( $root, 'fqs-info', tt_fc_cache_ttl( 30 ) );
+		if ( is_array( $kept ) ) return $memo[ $key ] = $kept;
+		$r = tt_fc_http_json( 'GET', $route['url'] . '/info?corpus=' . rawurlencode( $route['corpus'] ), null, tt_fqs_bearer_headers( 'admin', 'teitok-lens', 60 ), 10 );
+		$info = is_array( $r['data']['result'] ?? null ) ? $r['data']['result'] : array();
+		if ( $info ) tt_fc_cache_put( $root, 'fqs-info', $info );
+		return $memo[ $key ] = $info;
 	}
 
 	/**
@@ -83,8 +108,7 @@ if ( ! function_exists( 'tt_fc_pando_route' ) ) {
 		$route = tt_fc_pando_route( $root );
 		$out = array();
 		if ( $route['via'] === 'fqs' ) {
-			$r = tt_fc_http_json( 'GET', $route['url'] . '/info?corpus=' . rawurlencode( $route['corpus'] ), null, tt_fqs_bearer_headers( 'admin', 'teitok-lens', 60 ), 10 );
-			$info = $r['data']['result'] ?? array();
+			$info = tt_fc_fqs_info( $root, $route );
 			foreach ( (array) ( $info['structures'] ?? array() ) as $st ) {
 				foreach ( (array) ( $st['region_attrs'] ?? array() ) as $ra ) {
 					if ( is_array( $ra ) && isset( $ra['name'] ) ) $out[ $st['name'] . '_' . $ra['name'] ] = isset( $ra['vocab'] ) ? (int) $ra['vocab'] : null;
@@ -111,8 +135,7 @@ if ( ! function_exists( 'tt_fc_pando_route' ) ) {
 		$route = tt_fc_pando_route( $root );
 		$out = array();
 		if ( $route['via'] === 'fqs' ) {
-			$r = tt_fc_http_json( 'GET', $route['url'] . '/info?corpus=' . rawurlencode( $route['corpus'] ), null, tt_fqs_bearer_headers( 'admin', 'teitok-lens', 60 ), 10 );
-			foreach ( (array) ( $r['data']['result']['structures'] ?? array() ) as $st ) {
+			foreach ( (array) ( tt_fc_fqs_info( $root, $route )['structures'] ?? array() ) as $st ) {
 				if ( is_array( $st ) && isset( $st['name'] ) && (string) $st['name'] !== '' ) $out[] = (string) $st['name'];
 			}
 		} elseif ( $route['via'] === 'local' ) {
