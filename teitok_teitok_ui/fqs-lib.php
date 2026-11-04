@@ -6,6 +6,8 @@
  * entry. Only functions: opened as an action it shows nothing.
  */
 
+require_once __DIR__ . '/fc_fqs_conn.php';   // the FQS address and secret
+
 	if ( !function_exists("getBaseUrl") ) {
 		function getBaseUrl() {
 			$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
@@ -427,32 +429,6 @@
 			return array( 'ok' => false, 'id' => $payload['id'], 'error' => $last !== '' ? $last : 'upsert failed' );
 		}
 	}
-	if ( ! function_exists( 'tt_fqs_secret_from_env_file' ) ) {
-		/**
-		 * FQS_SECRET from FQS's own environment file (`/etc/fqs/fqs.env`, root:fqs 0640;
-		 * the installer puts www-data in group fqs). Path: setting flexicorp/fqs_env_file or
-		 * env FQS_ENV_FILE. '' when not readable. Same as in fqs_query.php / flexicorp.php.
-		 */
-		function tt_fqs_secret_from_env_file() {
-			static $memo = null;
-			if ( $memo !== null ) return $memo;
-			$path = '';
-			if ( function_exists( 'getset' ) ) {
-				$g = getset( 'flexicorp/fqs_env_file', '' );
-				if ( is_scalar( $g ) ) $path = trim( (string) $g );
-			}
-			if ( $path === '' ) {
-				$e = getenv( 'FQS_ENV_FILE' );
-				$path = is_string( $e ) && trim( $e ) !== '' ? trim( $e ) : '/etc/fqs/fqs.env';
-			}
-			$memo = '';
-			$txt = @is_readable( $path ) ? @file_get_contents( $path ) : false;
-			if ( is_string( $txt ) && preg_match_all( '/^\s*(?:export\s+)?FQS_SECRET\s*=\s*["\']?([^"\'\s#]+)/m', $txt, $m ) ) {
-				$memo = (string) end( $m[1] );
-			}
-			return $memo;
-		}
-	}
 
 	if ( ! function_exists( 'tt_fqs_bearer_headers' ) ) {
 		/**
@@ -461,12 +437,7 @@
 		 * secret, so every FQS call that depends on the caller's role must send this.
 		 */
 		function tt_fqs_bearer_headers( $role, $user = '', $ttl = 300 ) {
-			$secret = tt_fqs_secret_from_env_file();
-			if ( $secret === '' && function_exists( 'getset' ) ) $secret = trim( (string) getset( 'flexicorp/fqs_secret', '' ) );
-			if ( $secret === '' ) {
-				$e = getenv( 'FQS_SECRET' );
-				if ( is_string( $e ) ) $secret = trim( $e );
-			}
+			$secret = tt_fc_fqs_secret();
 			if ( $secret === '' ) return array();
 			$b64 = function ( $s ) { return rtrim( strtr( base64_encode( $s ), '+/', '-_' ), '=' ); };
 			$now = time();

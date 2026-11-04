@@ -494,36 +494,7 @@
 		if ( ! function_exists( 'tt_fqs_browse_url' ) ) {
 			/** Public FQS base URL (same discovery as fqs_query / flexicorp). */
 			function tt_fqs_browse_url() {
-				$url = '';
-				if ( function_exists( 'getset' ) ) {
-					$url = trim( (string) getset( 'flexicorp/fqs_url', '' ) );
-				}
-				if ( $url === '' ) {
-					$e = getenv( 'FQS_URL' );
-					if ( is_string( $e ) ) $url = trim( $e );
-				}
-				if ( $url === '' && function_exists( 'tt_flexicorp_fqs_url_from_runtime_file' ) ) {
-					$url = (string) tt_flexicorp_fqs_url_from_runtime_file();
-				}
-				if ( $url === '' ) {
-					$cands = array();
-					$e = getenv( 'FQS_HTTP_JSON' );
-					if ( is_string( $e ) && trim( $e ) !== '' ) $cands[] = trim( $e );
-					$db = getenv( 'FQS_DB_PATH' );
-					if ( is_string( $db ) && $db !== '' ) $cands[] = rtrim( dirname( $db ), '/' ) . '/fqs-http.json';
-					$cands[] = '/usr/local/var/fqs/fqs-http.json';
-					$cands[] = '/var/lib/fqs/fqs-http.json';
-					foreach ( $cands as $c ) {
-						if ( ! is_readable( $c ) ) continue;
-						$j = json_decode( (string) @file_get_contents( $c ), true );
-						if ( is_array( $j ) && ! empty( $j['url'] ) ) {
-							$url = trim( (string) $j['url'] );
-							break;
-						}
-					}
-				}
-				if ( $url === '' ) $url = 'http://127.0.0.1:8787';
-				return rtrim( $url, '/' );
+				return tt_fc_fqs_url();
 			}
 		}
 

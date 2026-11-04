@@ -43,12 +43,6 @@
 			<span x-text="(adminPandoIndexHint && adminPandoIndexHint.message) ? adminPandoIndexHint.message : ''"></span>
 		</div>
 
-		<div class="flexicorp-admin-index-hint" x-show="isAdmin && adminFqsNotice && !adminFqsNoticeDismissed" role="status">
-			<button type="button" class="flexicorp-admin-index-hint__dismiss" aria-label="Dismiss" x-on:click="adminFqsNoticeDismissed = true">&times;</button>
-			<strong>FQS notice</strong>
-			<span x-text="adminFqsNotice"></span>
-		</div>
-
 		<section class="flexicorp-panel" x-show="activeTab === 'overview'">
 				<div class="flexicorp-panel-title-row">
 					<h2 class="flexicorp-panel-title">Backends, query languages &amp; storage</h2>
@@ -252,9 +246,9 @@
 				<h2 class="flexicorp-panel-title">{%Search}</h2>
 				<button type="button" class="btn btn-sm btn-outline-secondary" x-show="hasRaw('search')" x-on:click="openResponse('search', 'Search response')">Raw</button>
 			</div>
-			<p class="wrong" x-show="!isAdmin && noQueryBackendAvailable()" x-text="searchUnavailableMessage()"></p>
+			<p class="wrong" x-show="searchBlocked()" x-text="searchUnavailableMessage()"></p>
 			<!-- Outside the query form so it stays visible after a search (collapsed result view hides the form). -->
-			<div class="flexicorp-search-query-toolbar" x-show="!search.ran || search.showQueryForm">
+			<div class="flexicorp-search-query-toolbar" x-show="(!search.ran || search.showQueryForm) && !searchBlocked()">
 				<div class="flexicorp-search-query-toolbar__right">
 					<a
 						class="flexicorp-stored-queries-link"
@@ -320,7 +314,7 @@
 			<form id="flexicorp-teitok-store-query" action="index.php?action=querymng&amp;type=cqp&amp;act=save" method="post" class="flexicorp-store-query-form" style="display:none;">
 				<textarea name="query"></textarea>
 			</form>
-			<form action="" method="post" class="flexicorp-form" x-on:submit.prevent="submitSearch($event)">
+			<form action="" method="post" class="flexicorp-form" x-show="!searchBlocked()" x-on:submit.prevent="submitSearch($event)">
 				<input type="hidden" name="action" value="{{ACTION_NAME}}">
 				<input type="hidden" name="backend" :value="settings.backend">
 				<input type="hidden" name="blacklab_url" :value="backendOverrides.blacklab_url || ''">

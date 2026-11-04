@@ -35,6 +35,7 @@
  */
 
 	global $user, $username, $foldername, $settings;
+	require_once __DIR__ . '/fc_fqs_conn.php';   // the FQS address and secret
 
 	$ttfq_t0 = microtime( true );
 
@@ -54,31 +55,10 @@
 		}
 	}
 
-	if ( ! function_exists( 'ttfq_fqs_runtime_url' ) ) {
-		/** The FQS in fqs-http.json (written by `fqs serve`): FQS_HTTP_JSON, beside FQS_DB_PATH, defaults; '' when none. */
-		function ttfq_fqs_runtime_url() {
-			$cands = array();
-			$e = getenv( 'FQS_HTTP_JSON' );
-			if ( is_string( $e ) && trim( $e ) !== '' ) $cands[] = trim( $e );
-			$db = getenv( 'FQS_DB_PATH' );
-			if ( is_string( $db ) && $db !== '' ) $cands[] = rtrim( dirname( $db ), '/' ) . '/fqs-http.json';
-			$cands[] = '/usr/local/var/fqs/fqs-http.json';
-			$cands[] = '/var/lib/fqs/fqs-http.json';
-			foreach ( $cands as $c ) {
-				if ( ! is_readable( $c ) ) continue;
-				$j = json_decode( (string) @file_get_contents( $c ), true );
-				if ( is_array( $j ) && ! empty( $j['url'] ) ) return rtrim( trim( (string) $j['url'] ), '/' );
-			}
-			return '';
-		}
-	}
 
 	if ( ! function_exists( 'ttfq_fqs_url' ) ) {
 		function ttfq_fqs_url() {
-			$url = ttfq_setting( 'flexicorp/fqs_url', 'FQS_URL' );
-			if ( $url === '' ) $url = ttfq_fqs_runtime_url();
-			if ( $url === '' ) $url = 'http://127.0.0.1:8787';
-			return rtrim( $url, '/' );
+			return tt_fc_fqs_url();
 		}
 	}
 
@@ -118,34 +98,6 @@
 		}
 	}
 
-	if ( ! function_exists( 'tt_fqs_secret_from_env_file' ) ) {
-		/**
-		 * FQS_SECRET from FQS's own environment file (`/etc/fqs/fqs.env`, root:fqs 0640;
-		 * the installer puts www-data in group fqs), so TEITOK needs no copy of the
-		 * secret. Path: setting flexicorp/fqs_env_file or env FQS_ENV_FILE. '' when
-		 * not readable (then: setting flexicorp/fqs_secret or env FQS_SECRET).
-		 */
-		function tt_fqs_secret_from_env_file() {
-			static $memo = null;
-			if ( $memo !== null ) return $memo;
-			$path = '';
-			if ( function_exists( 'getset' ) ) {
-				$g = getset( 'flexicorp/fqs_env_file', '' );
-				if ( is_scalar( $g ) ) $path = trim( (string) $g );
-			}
-			if ( $path === '' ) {
-				$e = getenv( 'FQS_ENV_FILE' );
-				$path = is_string( $e ) && trim( $e ) !== '' ? trim( $e ) : '/etc/fqs/fqs.env';
-			}
-			$memo = '';
-			$txt = @is_readable( $path ) ? @file_get_contents( $path ) : false;
-			// the last assignment wins, as for systemd's EnvironmentFile and `source`
-			if ( is_string( $txt ) && preg_match_all( '/^\s*(?:export\s+)?FQS_SECRET\s*=\s*["\']?([^"\'\s#]+)/m', $txt, $m ) ) {
-				$memo = (string) end( $m[1] );
-			}
-			return $memo;
-		}
-	}
 
 	if ( ! function_exists( 'ttfq_b64url' ) ) {
 		function ttfq_b64url( $s ) {
@@ -350,8 +302,7 @@
 
 	$ttfq_base = ttfq_fqs_url();
 	$ttfq_headers = array( 'Accept: application/json', 'Content-Type: application/json' );
-	$ttfq_secret = tt_fqs_secret_from_env_file();   // what fqs serve runs with; then copies
-	if ( $ttfq_secret === '' ) $ttfq_secret = ttfq_setting( 'flexicorp/fqs_secret', 'FQS_SECRET' );
+	$ttfq_secret = tt_fc_fqs_secret();
 	$ttfq_tok = ttfq_token( $ttfq_secret, $ttfq_corpus, $ttfq_role, $ttfq_user );
 	if ( $ttfq_tok !== '' ) $ttfq_headers[] = 'Authorization: Bearer ' . $ttfq_tok;
 	$ttfq_maxsize = (int) ttfq_setting( 'flexicorp/fqs_max_size' );
@@ -436,15 +387,6 @@
 		$ttfq_method, $ttfq_base . $ttfq_path,
 		$ttfq_body === null ? null : json_encode( $ttfq_body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ),
 		$ttfq_headers, $ttfq_timeout );
-	// the configured FQS does not answer: the local one (fqs-http.json), as the search does (flexicorp.php's
-	// FQS probe, which tells admins so)
-	if ( $ttfq_status === 0 && ( $ttfq_alt = ttfq_fqs_runtime_url() ) !== '' && $ttfq_alt !== $ttfq_base ) {
-		$ttfq_base = $ttfq_alt;
-		list( $ttfq_status, $ttfq_raw, $ttfq_retry, $ttfq_err ) = ttfq_http(
-			$ttfq_method, $ttfq_base . $ttfq_path,
-			$ttfq_body === null ? null : json_encode( $ttfq_body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ),
-			$ttfq_headers, $ttfq_timeout );
-	}
 	$ttfq_timing['fqs'] = (int) round( ( microtime( true ) - $ttfq_t1 ) * 1000 );
 	$ttfq_timing['total'] = isset( $_SERVER['REQUEST_TIME_FLOAT'] )
 		? (int) round( ( microtime( true ) - (float) $_SERVER['REQUEST_TIME_FLOAT'] ) * 1000 )

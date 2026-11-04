@@ -9,6 +9,7 @@ require_once __DIR__ . '/fc_result.php';
 require_once __DIR__ . '/fc_engine.php';
 require_once __DIR__ . '/fc_bin.php';
 require_once __DIR__ . '/fc_proc.php';
+require_once __DIR__ . '/fc_fqs_conn.php';   // the FQS address and secret
 require_once __DIR__ . '/fc_fqs_warm.php';
 require_once __DIR__ . '/fc_fqs_catalog.php';
 // custom layers: `my-<attribute>` in queries and fields is the user's own labels (custom_layers_names.php)
@@ -2774,150 +2775,32 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		}
 	}
 
-	if ( !function_exists('tt_flexicorp_fqs_url_from_runtime_file') ) {
-		/**
-		 * Reads URL from fqs-http.json (written beside fqs.db when `fqs serve` binds).
-		 * Discovery order: FQS_HTTP_JSON path, dirname(FQS_DB_PATH)/fqs-http.json, then common defaults.
-		 */
+	if ( ! function_exists( 'tt_flexicorp_fqs_url_from_runtime_file' ) ) {
+		/** The address in this machine's fqs-http.json (fc_fqs_conn.php); '' when none. */
 		function tt_flexicorp_fqs_url_from_runtime_file() {
-			$candidates = array();
-			$explicit = getenv('FQS_HTTP_JSON');
-			if ( is_string($explicit) && trim($explicit) !== '' ) {
-				$candidates[] = trim($explicit);
-			}
-			$dbp = getenv('FQS_DB_PATH');
-			if ( is_string($dbp) && $dbp !== '' ) {
-				$candidates[] = rtrim(str_replace('\\', '/', dirname($dbp)), '/') . '/fqs-http.json';
-			}
-			$candidates[] = '/usr/local/var/fqs/fqs-http.json';
-			$candidates[] = '/var/lib/fqs/fqs-http.json';
-			$seen = array();
-			foreach ( $candidates as $c ) {
-				if ( isset($seen[$c]) ) continue;
-				$seen[$c] = true;
-				if ( ! is_readable($c) ) {
-					continue;
-				}
-				$raw = @file_get_contents($c);
-				if ( $raw === false || trim($raw) === '' ) {
-					continue;
-				}
-				$j = json_decode($raw, true);
-				if ( ! is_array($j) || empty($j['url']) ) {
-					continue;
-				}
-				$u = trim((string) $j['url']);
-				if ( $u !== '' ) {
-					return rtrim($u, '/');
-				}
-			}
-			return '';
+			return rtrim( trim( (string) ( tt_fc_fqs_runtime_file()['url'] ?? '' ) ), '/' );
 		}
 	}
 
-	if ( !function_exists('tt_flexicorp_fqs_db_path_from_runtime_file') ) {
-		/**
-		 * Reads db_path from fqs-http.json (same discovery order as URL helper).
-		 */
+	if ( ! function_exists( 'tt_flexicorp_fqs_db_path_from_runtime_file' ) ) {
+		/** The db_path in this machine's fqs-http.json (fc_fqs_conn.php); '' when none. */
 		function tt_flexicorp_fqs_db_path_from_runtime_file() {
-			$candidates = array();
-			$explicit = getenv('FQS_HTTP_JSON');
-			if ( is_string($explicit) && trim($explicit) !== '' ) {
-				$candidates[] = trim($explicit);
-			}
-			$dbp = getenv('FQS_DB_PATH');
-			if ( is_string($dbp) && $dbp !== '' ) {
-				$candidates[] = rtrim(str_replace('\\', '/', dirname($dbp)), '/') . '/fqs-http.json';
-			}
-			$candidates[] = '/usr/local/var/fqs/fqs-http.json';
-			$candidates[] = '/var/lib/fqs/fqs-http.json';
-			$seen = array();
-			foreach ( $candidates as $c ) {
-				if ( isset($seen[$c]) ) continue;
-				$seen[$c] = true;
-				if ( !is_readable($c) ) continue;
-				$raw = @file_get_contents($c);
-				if ( $raw === false || trim($raw) === '' ) continue;
-				$j = json_decode($raw, true);
-				if ( !is_array($j) ) continue;
-				$db = trim((string)($j['db_path'] ?? ''));
-				if ( $db !== '' ) return $db;
-			}
-			return '';
+			return trim( (string) ( tt_fc_fqs_runtime_file()['db_path'] ?? '' ) );
 		}
 	}
 
-	if ( !function_exists('tt_flexicorp_fqs_url') ) {
+	if ( ! function_exists( 'tt_flexicorp_fqs_url' ) ) {
+		/** The project's FQS address (fc_fqs_conn.php). */
 		function tt_flexicorp_fqs_url() {
-			$url = '';
-			if ( function_exists('getset') ) {
-				$url = trim((string) getset('flexicorp/fqs_url', ''));
-			}
-			if ( $url === '' ) {
-				$env = getenv('FQS_URL');
-				if ( is_string($env) ) {
-					$url = trim($env);
-				}
-			}
-			if ( $url === '' && function_exists('tt_flexicorp_fqs_url_from_runtime_file') ) {
-				$url = tt_flexicorp_fqs_url_from_runtime_file();
-			}
-			if ( $url === '' ) {
-				// Local default for `fqs serve` when no explicit URL or fqs-http.json is configured.
-				$url = 'http://127.0.0.1:8787';
-			}
-			return rtrim($url, '/');
+			return tt_fc_fqs_url();
 		}
 	}
 
-	if ( ! function_exists( 'tt_fqs_secret_from_env_file' ) ) {
-		/**
-		 * FQS_SECRET from FQS's own environment file (`/etc/fqs/fqs.env`, root:fqs 0640;
-		 * the installer puts www-data in group fqs), so TEITOK needs no copy of the
-		 * secret. Path: setting flexicorp/fqs_env_file or env FQS_ENV_FILE. '' when
-		 * not readable (then: setting flexicorp/fqs_secret or env FQS_SECRET).
-		 */
-		function tt_fqs_secret_from_env_file() {
-			static $memo = null;
-			if ( $memo !== null ) return $memo;
-			$path = '';
-			if ( function_exists( 'getset' ) ) {
-				$g = getset( 'flexicorp/fqs_env_file', '' );
-				if ( is_scalar( $g ) ) $path = trim( (string) $g );
-			}
-			if ( $path === '' ) {
-				$e = getenv( 'FQS_ENV_FILE' );
-				$path = is_string( $e ) && trim( $e ) !== '' ? trim( $e ) : '/etc/fqs/fqs.env';
-			}
-			$memo = '';
-			$txt = @is_readable( $path ) ? @file_get_contents( $path ) : false;
-			// the last assignment wins, as for systemd's EnvironmentFile and `source`
-			if ( is_string( $txt ) && preg_match_all( '/^\s*(?:export\s+)?FQS_SECRET\s*=\s*["\']?([^"\'\s#]+)/m', $txt, $m ) ) {
-				$memo = (string) end( $m[1] );
-			}
-			return $memo;
-		}
-	}
 
-	if ( !function_exists('tt_flexicorp_fqs_secret') ) {
+	if ( ! function_exists( 'tt_flexicorp_fqs_secret' ) ) {
+		/** The secret for the project's FQS (fc_fqs_conn.php). */
 		function tt_flexicorp_fqs_secret() {
-			// FQS's own env file first (what fqs serve runs with), then copies
-			if ( function_exists('tt_fqs_secret_from_env_file') ) {
-				$fromFile = tt_fqs_secret_from_env_file();
-				if ( $fromFile !== '' ) return $fromFile;
-			}
-			$secret = '';
-			if ( function_exists('getset') ) {
-				$secret = trim((string) getset('flexicorp/fqs_secret', ''));
-			}
-			if ( $secret === '' ) {
-				$env = getenv('FQS_SECRET');
-				if ( is_string($env) ) $secret = trim($env);
-			}
-			if ( $secret === '' && function_exists('tt_fqs_secret_from_env_file') ) {
-				$secret = tt_fqs_secret_from_env_file();
-			}
-			return $secret;
+			return tt_fc_fqs_secret();
 		}
 	}
 
@@ -3117,6 +3000,22 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		}
 	}
 
+	if ( ! function_exists( 'tt_flexicorp_fqs_probe_public' ) ) {
+		/** The FQS check as the page gets it: all of it for admins; for others no addresses, paths or tokens. */
+		function tt_flexicorp_fqs_probe_public( $probe, $isAdmin ) {
+			if ( $isAdmin || ! is_array( $probe ) ) return $probe;
+			$keep = array( 'enabled', 'corpus_id', 'request_role', 'corpus_registered', 'http_running', 'unreachable',
+				'required', 'ready_for_queries', 'routing_active', 'routing_backend', 'routing_reason', 'version_mismatch',
+				'cli_version', 'server_version' );
+			$out = array_intersect_key( $probe, array_flip( $keep ) );
+			foreach ( array( 'reason', 'routing_reason' ) as $k ) {
+				if ( isset( $probe[ $k ] ) ) $out[ $k ] = ! empty( $probe['unreachable'] ) && strpos( (string) $probe[ $k ], 'does not answer' ) !== false
+					? 'FQS does not answer' : (string) $probe[ $k ];
+			}
+			return $out;
+		}
+	}
+
 	if ( !function_exists('tt_flexicorp_fqs_probe_uncached') ) {
 		function tt_flexicorp_fqs_probe_uncached( $projectRoot, $isAdmin ) {
 			$url = tt_flexicorp_fqs_url();
@@ -3172,33 +3071,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				if ( is_array($hdata) ) {
 					$probe['server_version'] = trim((string)($hdata['version'] ?? ''));
 				}
-				// If configured URL is stale/unreachable, try runtime-discovered URL as fallback.
-				if (
-					!$probe['http_running']
-					&& function_exists('tt_flexicorp_fqs_url_from_runtime_file')
-				) {
-					$runtimeUrl = rtrim((string) tt_flexicorp_fqs_url_from_runtime_file(), '/');
-					if ( $runtimeUrl !== '' && $runtimeUrl !== rtrim((string)$url, '/') ) {
-						$health2 = tt_flexicorp_http_json_request('GET', $runtimeUrl . '/health', null, array('Accept: application/json'), 3.0);
-						$hdata2 = isset($health2['data']) && is_array($health2['data']) ? $health2['data'] : null;
-						$looksLikeFqs2 = is_array($hdata2)
-							&& isset($hdata2['service'])
-							&& (string) $hdata2['service'] === 'fqs';
-						if ( !empty($health2['ok']) && $looksLikeFqs2 ) {
-							$probe['http_url_configured'] = rtrim((string)$url, '/');   // for the admin notice
-							$probe['http_url'] = $runtimeUrl;
-							$probe['http_running'] = true;
-							$probe['http_status'] = (int) ($health2['status'] ?? 0);
-							$probe['health'] = $health2['data'];
-							if ( is_array($hdata2) ) {
-								$probe['db_path'] = trim((string)($hdata2['db_path'] ?? ''));
-							}
-							if ( is_array($hdata2) ) {
-								$probe['server_version'] = trim((string)($hdata2['version'] ?? ''));
-							}
-						}
-					}
-				}
+				// a configured address is the one: when it does not answer, the page says so (no other FQS)
 			}
 			$probe['version_mismatch'] = (
 				trim((string)$probe['cli_version']) !== ''
@@ -3276,7 +3149,10 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			if ( $probe['http_url'] === '' ) {
 				$probe['reason'] = 'fqs_url not configured';
 			} elseif ( !$probe['http_running'] ) {
-				$probe['reason'] = 'FQS HTTP server not reachable';
+				$probe['reason'] = 'FQS at ' . $url . ' does not answer';
+				$probe['unreachable'] = true;
+				// a project that names its FQS depends on it: the page hides the search (no other FQS is tried)
+				$probe['required'] = in_array( tt_fc_fqs_url_info()[1], array( 'flexicorp/fqs_url', 'FQS_URL' ), true );
 			} elseif ( !$probe['corpus_registered'] ) {
 				$probe['reason'] = 'corpus not registered in FQS catalog';
 			} else {
@@ -6407,9 +6283,9 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		'ok' => !empty($fqsProbe['ready_for_queries']),
 		'command' => 'fqs probe',
 		'raw' => '',
-		'errors' => empty($fqsProbe['ready_for_queries']) ? array((string)($fqsProbe['reason'] ?? 'FQS not ready')) : array(),
+		'errors' => empty($fqsProbe['ready_for_queries']) ? array((string)(tt_flexicorp_fqs_probe_public( $fqsProbe, $isAdmin )['reason'] ?? 'FQS not ready')) : array(),
 		'warnings' => array(),
-		'result' => $fqsProbe,
+		'result' => tt_flexicorp_fqs_probe_public( $fqsProbe, $isAdmin ),
 	);
 	$fqsActiveReindex = tt_flexicorp_fqs_reindex_active_jobs($fqsProbe, $projectRoot, 200);
 
@@ -7856,7 +7732,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		'searchExampleQueries' => $searchExampleQueries,
 		'queryBuilder' => $queryBuilderConfig,
 		'backendDisplayNames' => $backendDisplayNames,
-		'fqs' => $fqsProbe,
+		'fqs' => tt_flexicorp_fqs_probe_public( $fqsProbe, $isAdmin ),
 		'fqsActiveReindex' => $fqsActiveReindex,
 	);
 	$ajaxResultOnly = (
@@ -7934,14 +7810,6 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		}
 		$state['adminPandoIndexHint'] = $hint;
 	}
-	// the configured FQS did not answer and another one did (flexicorp/fqs_url vs the local runtime file)
-	$state['adminFqsNotice'] = '';
-	if ( $isAdmin && ! empty( $fqsProbe['http_url_configured'] ) ) {
-		$state['adminFqsNotice'] = 'The configured FQS (' . $fqsProbe['http_url_configured'] . ') does not answer; searches '
-			. 'go to the FQS at ' . (string) $fqsProbe['http_url'] . ' instead, and its corpus "' . (string) $fqsProbe['corpus_id']
-			. '" may not be the same corpus.';
-	}
-
 	if ( $loadOverview || !$isAjax ) {
 		$state['availableBackends'] = $availableBackends;
 		$state['availableQueryEngines'] = $availableQueryEngines;

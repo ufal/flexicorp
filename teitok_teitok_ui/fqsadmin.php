@@ -45,6 +45,7 @@
  */
 
 	global $user, $username, $isshared;
+	require_once __DIR__ . '/fc_fqs_conn.php';   // the FQS address and secret
 
 	if ( ! function_exists( 'ttfa_setting' ) ) {
 		function ttfa_setting( $key, $env = '' ) {
@@ -68,34 +69,6 @@
 		}
 	}
 
-	if ( ! function_exists( 'tt_fqs_secret_from_env_file' ) ) {
-		/**
-		 * FQS_SECRET from FQS's own environment file (`/etc/fqs/fqs.env`, root:fqs 0640;
-		 * the installer puts www-data in group fqs), so TEITOK needs no copy of the
-		 * secret. Path: setting flexicorp/fqs_env_file or env FQS_ENV_FILE. '' when
-		 * not readable (then: setting flexicorp/fqs_secret or env FQS_SECRET).
-		 */
-		function tt_fqs_secret_from_env_file() {
-			static $memo = null;
-			if ( $memo !== null ) return $memo;
-			$path = '';
-			if ( function_exists( 'getset' ) ) {
-				$g = getset( 'flexicorp/fqs_env_file', '' );
-				if ( is_scalar( $g ) ) $path = trim( (string) $g );
-			}
-			if ( $path === '' ) {
-				$e = getenv( 'FQS_ENV_FILE' );
-				$path = is_string( $e ) && trim( $e ) !== '' ? trim( $e ) : '/etc/fqs/fqs.env';
-			}
-			$memo = '';
-			$txt = @is_readable( $path ) ? @file_get_contents( $path ) : false;
-			// the last assignment wins, as for systemd's EnvironmentFile and `source`
-			if ( is_string( $txt ) && preg_match_all( '/^\s*(?:export\s+)?FQS_SECRET\s*=\s*["\']?([^"\'\s#]+)/m', $txt, $m ) ) {
-				$memo = (string) end( $m[1] );
-			}
-			return $memo;
-		}
-	}
 
 	if ( ! function_exists( 'ttfa_out' ) ) {
 		function ttfa_out( $status, $body, $ctype = 'application/json; charset=UTF-8', $extra = array() ) {

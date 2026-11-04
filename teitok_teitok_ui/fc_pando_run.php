@@ -16,11 +16,9 @@ require_once __DIR__ . '/fc_teitok_env.php';
 require_once __DIR__ . '/fqs-lib.php';
 
 if ( ! function_exists( 'tt_fc_pando_route' ) ) {
-	/** The FQS this TEITOK talks to: flexicorp/fqs_url, else FQS_URL, else the local default. */
+	/** The FQS this TEITOK talks to (fc_fqs_conn.php). */
 	function tt_fc_fqs_base_url() {
-		$u = function_exists( 'getset' ) ? trim( (string) getset( 'flexicorp/fqs_url', '' ) ) : '';
-		if ( $u === '' ) $u = trim( (string) ( getenv( 'FQS_URL' ) ?: '' ) );
-		return rtrim( $u !== '' ? $u : 'http://127.0.0.1:8787', '/' );
+		return tt_fc_fqs_url();
 	}
 
 	/** The project's corpus id at FQS: flexicorp/fqs_corpus_id, else from the project folder. */

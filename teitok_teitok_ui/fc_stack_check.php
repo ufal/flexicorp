@@ -51,7 +51,8 @@ if ( ! function_exists( 'tt_fc_stack_check' ) ) {
 		$out['index'] = array( 'path' => $index, 'ok' => is_file( "$index/corpus.info" ),
 			'xidx' => is_dir( dirname( $index ) . '/xidx' ) || is_dir( rtrim( $root, '/' ) . '/xidx' ) );
 		$route = tt_fc_pando_route( $root );
-		$out['fqs'] = array( 'url' => tt_fc_fqs_base_url(), 'corpus' => tt_fc_fqs_corpus_id( $root ),
+		list( $fqsUrl, $fqsFrom ) = tt_fc_fqs_url_info();
+		$out['fqs'] = array( 'url' => $fqsUrl, 'from' => $fqsFrom, 'corpus' => tt_fc_fqs_corpus_id( $root ),
 			'serves' => $route['via'] === 'fqs' );
 		$fp = $out['programs']['flexicorp-pando'];
 		$pp = $out['programs']['pando'];
@@ -105,7 +106,7 @@ if ( ! function_exists( 'tt_fc_stack_check_page' ) ) {
 		$o .= '<h2>Routes</h2><table class="rollovertable"><tr><th></th><th>request</th><th>runs on</th></tr>';
 		foreach ( $r['routes'] as $x )
 			$o .= '<tr><td>' . $mark( $x['ok'] ) . '</td><td>' . $h( $x['what'] ) . '</td><td>' . $h( $x['via'] ) . '</td></tr>';
-		$o .= '</table><p>FQS: ' . $h( $r['fqs']['url'] ) . ', corpus ' . $h( $r['fqs']['corpus'] ) . ': '
+		$o .= '</table><p>FQS: ' . $h( $r['fqs']['url'] ) . ' (from ' . $h( $r['fqs']['from'] ) . '), corpus ' . $h( $r['fqs']['corpus'] ) . ': '
 			. ( $r['fqs']['serves'] ? 'serves it' : 'does not serve it (or does not answer)' ) . '.</p>';
 		$o .= '<h2>A query</h2><form method="get"><input type="hidden" name="action" value="flexicorp">'
 			. '<input type="hidden" name="act" value="stackcheck"><input name="check_query" size="80" value="' . $h( $query ) . '">'

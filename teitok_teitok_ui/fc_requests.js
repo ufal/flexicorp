@@ -432,7 +432,22 @@ window.ttFlexicorpCoreParts.requests = function () {
 			const engines = Array.isArray(this.availableQueryEngines) ? this.availableQueryEngines : [];
 			return engines.length === 0 || !String(this.settings && this.settings.queryEngine ? this.settings.queryEngine : '').trim();
 		},
+		/** The project's FQS is configured but does not answer (the FQS check). */
+		fqsUnreachable() {
+			return !!(this.fqs && typeof this.fqs === 'object' && this.fqs.unreachable);
+		},
+		/** No search can run here: the page shows why instead of the search form (admins keep the form
+		 *  when only the set-up is missing, to configure it; nobody gets it when the project's FQS is down). */
+		searchBlocked() {
+			const f = this.fqs && typeof this.fqs === 'object' ? this.fqs : null;
+			if (f && f.unreachable && f.required) return true;   // the project's own FQS does not answer
+			return this.noQueryBackendAvailable() && !this.isAdmin;
+		},
 		searchUnavailableMessage() {
+			if (this.fqsUnreachable()) {
+				const msg = 'Search is not available: the search server does not answer. Please try again later.';
+				return this.isAdmin ? `${msg} Admin: ${String(this.fqs.reason || '')}.` : msg;
+			}
 			return 'Search not available: no query backend is configured for this corpus.';
 		},
 
