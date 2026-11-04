@@ -62,6 +62,16 @@
 		}
 	}
 
+	if ( ! function_exists( 'ttfq_xml_fragments' ) ) {
+		/** FQS gives this corpus's hits their real XML: from the catalogue entry flexicorp's page kept
+		 *  (fc_shortcache.php); false when there is none (then synthetic fragments, as before). */
+		function ttfq_xml_fragments( $corpus ) {
+			require_once __DIR__ . '/fc_shortcache.php';
+			$kept = tt_fc_cache_get( (string) getcwd(), 'fqs-row-' . $corpus, max( 300, tt_fc_cache_ttl( 30 ) ) );
+			return is_array( $kept ) && is_array( $kept['row'] ?? null ) && ! empty( $kept['row']['xml_fragments'] );
+		}
+	}
+
 	if ( ! function_exists( 'ttfq_corpus_id' ) ) {
 		/** The FQS corpus id of this TEITOK project (as flexicorp.php: the folder name, sanitised). */
 		function ttfq_corpus_id() {
@@ -333,8 +343,10 @@
 			if ( in_array( $ttfq_str( 'backend' ), array( 'pando', 'cqp', 'manatee' ), true ) ) $ttfq_body['backend'] = $ttfq_str( 'backend' );
 			// Pando: synthetic TEITOK-style XML fragment per hit — explicit, or for a project without xmlfiles/
 			$ttfq_frag = $ttfq_str( 'fragment' );
+			// … not when FQS gives the hits their real XML (xml_fragments, in the catalogue entry the page kept)
 			if ( $ttfq_frag === '1' || strtolower( $ttfq_frag ) === 'true'
-				 || ( $ttfq_frag === '' && function_exists( 'tt_flexicorp_project_has_xml' ) && ! tt_flexicorp_project_has_xml() ) ) {
+				 || ( $ttfq_frag === '' && function_exists( 'tt_flexicorp_project_has_xml' ) && ! tt_flexicorp_project_has_xml()
+					  && ! ttfq_xml_fragments( $ttfq_corpus ) ) ) {
 				$ttfq_body['fragment'] = true;
 			}
 			foreach ( array( 'name', 'from' ) as $k ) {

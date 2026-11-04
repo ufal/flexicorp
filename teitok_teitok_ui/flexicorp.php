@@ -6799,7 +6799,8 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			'window' => (int) $kwicWindow,
 			'context_scope' => (string) $contextScope,
 			'context_format' => (string) $contextFormat,
-			'fragment' => ! empty( $pandoWithoutXml ),
+			// synthetic fragments only when the hits get no real XML: none here, and none from FQS
+			'fragment' => ! empty( $pandoWithoutXml ) && ! tt_flexicorp_fqs_xml_fragments( $fqsProbe ),
 		) );
 		$queryTimeMs = (int) round((microtime(true) - $queryStart) * 1000);
 		}

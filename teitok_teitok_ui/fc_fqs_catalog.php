@@ -63,6 +63,17 @@ if ( ! function_exists( 'tt_flexicorp_fqs_http_corpus_row' ) ) {
 		return $set !== '' ? $set : tt_flexicorp_corpus_id_from_root( $projectRoot );
 	}
 
+	/**
+	 * Does FQS give this corpus's hits their real TEITOK XML (from its xidx, `xml_fragments` in the
+	 * catalogue)? Then a project without XML files of its own need not ask for synthetic fragments.
+	 * An FQS whose catalogue doesn't say so is asked as before.
+	 */
+	function tt_flexicorp_fqs_xml_fragments( $probe ) {
+		if ( ! is_array( $probe ) || empty( $probe['ready_for_queries'] ) ) return false;
+		$row = tt_flexicorp_fqs_http_corpus_row( $probe, $probe['corpus_id'] ?? '' );
+		return is_array( $row ) && ! empty( $row['xml_fragments'] );
+	}
+
 	/** Does FQS serve this project's corpus with `$engine` (pando / cqp) without a local index? */
 	function tt_flexicorp_fqs_serves_engine( $projectRoot, $engine ) {
 		static $engines = array();
