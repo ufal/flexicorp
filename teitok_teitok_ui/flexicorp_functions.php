@@ -1217,8 +1217,9 @@ if ( ! function_exists( 'tt_flexicorp_fn_attribute_catalog' ) ) {
 				foreach ( $regionNode as $attrKey => $attrNode ) {
 					if ( ! is_string( $attrKey ) ) continue;
 					if ( ! tt_flexicorp_fn_cfg_is_attr_key( $attrKey ) ) continue;
-					if ( tt_flexicorp_fn_cfg_is_meta_attr_key( $attrKey ) ) continue;
 					if ( ! is_array( $attrNode ) ) continue;
+					// an attribute named like a settings word (doc.title, doc.type) is an <item key=…>, not a setting
+					if ( tt_flexicorp_fn_cfg_is_meta_attr_key( $attrKey ) && ! isset( $attrNode['key'] ) ) continue;
 					$composite = $regionKey . '_' . $attrKey;
 					$attrLabel = tt_flexicorp_fn_cfg_meta_label( $attrNode, $attrKey );
 					$label = $prefixSattr ? ( $regionLabel . ': ' . $attrLabel ) : $attrLabel;
