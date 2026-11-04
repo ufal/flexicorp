@@ -1345,6 +1345,16 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			$manateePath = function_exists('getset') ? getset('manatee/path', '') : '';
 			if ( $manateePath === '' ) $manateePath = rtrim($projectRoot, '/') . '/manatee';
 			elseif ( $manateePath[0] !== '/' ) $manateePath = rtrim($projectRoot, '/') . '/' . $manateePath;
+			// a search-only view of a Manatee corpus that FQS serves: no local manatee/ folder or bindings needed
+			if ( !is_dir($manateePath) && function_exists('tt_flexicorp_fqs_serves_engine') && tt_flexicorp_fqs_serves_engine($projectRoot, 'manatee') ) {
+				return array(
+					'available' => true,
+					'corpus_available' => true,
+					'bindings_available' => false,
+					'via_fqs' => true,
+					'reason' => 'Served by FQS (no local index).',
+				);
+			}
 			if ( !is_dir($manateePath) ) {
 				return array(
 					'available' => false,
@@ -1477,7 +1487,8 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		 */
 		function tt_flexicorp_manatee_project_status_resolved( $projectRoot, $backendOverrideArgs = array(), $deepProbe = false ) {
 			$fs = tt_flexicorp_manatee_status( $projectRoot );
-			if ( empty( $fs['corpus_available'] ) ) {
+			// served by FQS: there is nothing local to probe
+			if ( empty( $fs['corpus_available'] ) || ! empty( $fs['via_fqs'] ) ) {
 				return $fs;
 			}
 			// Manatee is optional in the TEITOK UI. Only run the expensive/strict flexicorp subprocess
@@ -6357,11 +6368,15 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 
 	$fqsProbe = tt_flexicorp_fqs_probe($projectRoot, $isAdmin);
 	$fqsBackendOverride = null;
-	// FQS routing applies only to CWB/Pando execution modes. Do not infer FQS
-	// routing from stale queryEngine values when an explicit non-FQS backend
-	// (e.g. clickql/clickhouse/blacklab/manatee) is selected.
-	$explicitNonFqsBackend = !in_array($backend, array('flexi', 'cqp', 'pando'), true);
-	if ( !$explicitNonFqsBackend ) {
+	// FQS routing applies to CWB/Pando execution modes, and to Manatee when FQS serves the
+	// corpus with Manatee. Do not infer FQS routing from stale queryEngine values when an
+	// explicit non-FQS backend (e.g. clickql/clickhouse/blacklab) is selected.
+	$fqsManatee = ( $backend === 'manatee' || $queryEngine === 'manatee' || $queryLanguage === 'manatee-cql' )
+		&& function_exists('tt_flexicorp_fqs_serves_engine') && tt_flexicorp_fqs_serves_engine($projectRoot, 'manatee');
+	$explicitNonFqsBackend = !in_array($backend, array('flexi', 'cqp', 'pando'), true) && !$fqsManatee;
+	if ( $fqsManatee ) {
+		$fqsBackendOverride = 'manatee';
+	} elseif ( !$explicitNonFqsBackend ) {
 		if ( $queryEngine === 'pando' || $backend === 'pando' || $queryLanguage === 'pando-cql' || $corpusFormat === 'pando' ) {
 			$fqsBackendOverride = 'pando';
 		} elseif ( $queryEngine === 'cqp' || $backend === 'cqp' || $queryLanguage === 'cwb-cql' || $corpusFormat === 'cwb' ) {

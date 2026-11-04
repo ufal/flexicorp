@@ -13,7 +13,7 @@
  *   op        query (default) | run | status | context
  *   query     CQL                              (op=query; op=run: `cql` or `query`)
  *   ql        query language: auto (default), pando-cql, cwb-cql, …
- *   start, size, window, context_scope, context_format, backend (pando|cqp)
+ *   start, size, window, context_scope, context_format, backend (pando|cqp|manatee)
  *   name, from                                  hit sets of this user's FQS session
  *   offset, limit, group_limit                  (op=run)
  *   job                                         (op=status: a background total — a page
@@ -379,7 +379,7 @@
 				 && in_array( strtolower( $ttfq_str( 'context_scope', 'tok' ) ), array( 'window', 'tok' ), true ) ) {
 				$ttfq_body['flexicorp_fragment_kwic_cpos_span'] = true;
 			}
-			if ( in_array( $ttfq_str( 'backend' ), array( 'pando', 'cqp' ), true ) ) $ttfq_body['backend'] = $ttfq_str( 'backend' );
+			if ( in_array( $ttfq_str( 'backend' ), array( 'pando', 'cqp', 'manatee' ), true ) ) $ttfq_body['backend'] = $ttfq_str( 'backend' );
 			// Pando: synthetic TEITOK-style XML fragment per hit — explicit, or for a project without xmlfiles/
 			$ttfq_frag = $ttfq_str( 'fragment' );
 			if ( $ttfq_frag === '1' || strtolower( $ttfq_frag ) === 'true'

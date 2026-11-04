@@ -29,17 +29,18 @@ if ( ! function_exists( 'tt_flexicorp_fqs_http_corpus_row' ) ) {
 		return null;
 	}
 
-	/** The engine FQS answers a catalogue entry with: pando or cqp (preferred_backend, else the first available one). */
+	/** The engine FQS answers a catalogue entry with: pando, cqp or manatee (preferred_backend, else the first available one). */
 	function tt_flexicorp_fqs_row_engine( $row ) {
 		if ( ! is_array( $row ) ) return '';
 		$pb = strtolower( trim( (string) ( $row['preferred_backend'] ?? '' ) ) );
-		if ( $pb === 'pando' || $pb === 'cqp' ) return $pb;
+		if ( $pb === 'pando' || $pb === 'cqp' || $pb === 'manatee' ) return $pb;
 		$avail = $row['settings']['available_backends'] ?? array();
 		foreach ( is_array( $avail ) ? $avail : array() as $b ) {
 			$b = strtolower( trim( (string) $b ) );
-			if ( $b === 'pando' || $b === 'cqp' ) return $b;
+			if ( $b === 'pando' || $b === 'cqp' || $b === 'manatee' ) return $b;
 		}
 		$kind = (string) ( $row['source_kind'] ?? '' );
+		if ( strpos( $kind, 'manatee' ) !== false ) return 'manatee';
 		return strpos( $kind, 'pando' ) !== false ? 'pando' : ( strpos( $kind, 'cqp' ) !== false || strpos( $kind, 'cwb' ) !== false ? 'cqp' : '' );
 	}
 
