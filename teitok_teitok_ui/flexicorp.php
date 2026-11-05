@@ -5312,6 +5312,9 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 					unset( $_SESSION['flexicorp_teitok']['pando_freshness_hint_v1'] );
 				}
 				$reindexWarnings = array();
+				// flexencoder's own warnings (e.g. an index left behind by a rewritten xidx)
+				if ( preg_match_all( '/^\[flexencoder\] Warning: (.+)$/m', $raw, $fw ) )
+					foreach ( $fw[1] as $w ) $reindexWarnings[] = trim( $w );
 				if ( $ok && ! $hasXidxLine ) {
 					$reindexWarnings[] = 'flexencoder did not print "xidx written under …" (older binary?). '
 						. 'TEITOK XML hit fragments need project/xidx in sync with pando/; upgrade flexencoder or re-run encode with a build that writes xidx.';

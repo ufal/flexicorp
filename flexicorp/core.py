@@ -415,9 +415,16 @@ def _run_flexencoder_reindex(
         raise RuntimeError(
             f"flexencoder failed with exit code {proc.returncode}: {err_text}"
         )
+    # flexencoder's own warnings (e.g. an index left behind by a rewritten xidx), for the reindex result
+    warnings = [
+        line.split("Warning: ", 1)[1].strip()
+        for line in (proc.stderr or "").splitlines()
+        if line.startswith("[flexencoder] Warning: ")
+    ]
     return {
         "engine": "flexencoder",
         "binary": str(flexencoder_bin),
+        "warnings": warnings,
         "output_cwb": str(output_cwb) if output_cwb else None,
         "output_clickhouse": str(output_clickhouse) if output_clickhouse else None,
         "output_pando": str(output_pando) if output_pando else None,
@@ -577,6 +584,7 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
     debug = bool(params.get("debug"))
     results: List[Dict[str, Any]] = []
     errors: List[str] = []
+    warnings: List[str] = []
 
     use_staging = bool(params.get("reindex_staging"))
     staging_dir: Optional[Path] = None
@@ -626,6 +634,7 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
                 debug=debug,
             )
             results.append(r)
+            warnings.extend(r.get("warnings") or [])
             if (
                 output_clickhouse
                 and r.get("output_clickhouse")
@@ -694,7 +703,7 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
                 "results": results,
                 "message": message,
             },
-            "warnings": [],
+            "warnings": warnings,
             "errors": errors,
         }
 
@@ -715,6 +724,16 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
                 "live indexes left unchanged"
             )
             swap_items = []
+        # a new xidx without a new Pando index: the live index no longer matches it (build ids,
+        # flexencoder_build_id.hpp), so its hits lose their XML fragments until it is reindexed too
+        labels = {it["label"] for it in swap_items}
+        if "xidx" in labels and "pando" not in labels and (
+            (live_pando / "corpus.info").is_file() or (live_pando / "current" / "corpus.info").is_file()
+        ):
+            warnings.append(
+                f"this reindex replaces the xidx but not the Pando index {live_pando}, which was built with it: "
+                "that index's hits will show without XML fragments until it is reindexed as well"
+            )
         if swap_items:
             try:
                 swapped = _swap_staged_trees_atomically(swap_items)
@@ -785,7 +804,7 @@ def _handle_reindex_multi(req: FlexiRequest) -> FlexiResponse:
             "message": message,
             **({"reindex_staging": str(staging_dir)} if staging_dir is not None else {}),
         },
-        "warnings": [],
+        "warnings": warnings,
         "errors": errors,
     }
 
