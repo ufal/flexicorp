@@ -6800,7 +6800,11 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			'context_scope' => (string) $contextScope,
 			'context_format' => (string) $contextFormat,
 			// synthetic fragments only when the hits get no real XML: none here, and none from FQS
-			'fragment' => ! empty( $pandoWithoutXml ) && ! tt_flexicorp_fqs_xml_fragments( $fqsProbe ),
+			// (pando, and Manatee / CWB served by FQS: their tokens with attributes, as for pando)
+			'fragment' => ( ! empty( $pandoWithoutXml )
+					|| ( in_array( (string) $backend, array( 'manatee', 'cqp' ), true ) && function_exists( 'tt_flexicorp_project_has_xml' )
+						&& ! tt_flexicorp_project_has_xml( isset( $projectRoot ) ? $projectRoot : null ) ) )
+				&& ! tt_flexicorp_fqs_xml_fragments( $fqsProbe ),
 		) );
 		$queryTimeMs = (int) round((microtime(true) - $queryStart) * 1000);
 		}
