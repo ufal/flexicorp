@@ -10,6 +10,8 @@
 #   fqs         FQS query / reindex service (systemd, launchd, or a start script)
 #   manatee     native Manatee for FQS (libfqs_manatee), built from a manatee-open source tree;
 #               only where one is given (--manatee-src DIR, remembered) — skipped otherwise
+#   portal      the FQS portal (one TEITOK project that searches many FQS corpora), into the
+#               projects given with --portal DIR (remembered) — skipped otherwise
 #
 # It works on an existing TEITOK installation: it finds where TEITOK lives
 # (Apache .htaccess or vhost SetEnv, nginx fastcgi_param, php-fpm env[], the
@@ -36,7 +38,7 @@
 #                         [the folder of the flexicorp checkout this script runs from;
 #                          else the one the previous run used; else next to TEITOK]
 #   --prefix DIR          binaries and libraries (default /usr/local)
-#   --only LIST           comma-separated subset of: teitok,flexicorp,pages,flexencoder,pando,fqs,manatee
+#   --only LIST           comma-separated subset of: teitok,flexicorp,pages,flexencoder,pando,fqs,manatee,portal
 #   --skip LIST           components to leave out
 #   --channel stable|edge which versions to install, kept for later runs (and --cron):
 #                         stable   released versions: each repository's `stable` branch,
@@ -62,6 +64,11 @@
 #                         (./configure --with-pcre2 --disable-python): FQS gets native Manatee
 #                         (fqs/manatee/install-lib.sh). Remembered: later runs rebuild the library
 #                         when fqs/manatee/ or the tree changed
+#   --portal DIR[,DIR]    install the FQS portal into these TEITOK projects (never the shared one;
+#                         teitok_teitok_ui/portal/README.md). Remembered: later runs update them.
+#                         A project with a Sources/startup.php of its own keeps it: the run says
+#                         which two lines to add. --portal '' forgets the projects (their files stay;
+#                         install-portal.pl --remove removes them)
 #   --no-pull             use the existing checkouts as they are (whatever the channel)
 #   --force [LIST]        rebuild and reinstall even when the sources did not change:
 #                         every component, or the comma-separated ones in LIST
@@ -115,7 +122,7 @@ my %o = (
 my @ORIG_ARGV = @ARGV;    # to restart with the same options when the pull updated this script
 GetOptions( \%o, 'detect', 'check', 'q|yes', 'teitok-root=s', 'shared=s', 'web-user=s', 'git-folder=s', 'channel=s',
 	'prefix=s', 'only=s', 'skip=s', 'flexicorp-repo=s', 'flexicorp-ref=s', 'pando-repo=s', 'pando-ref=s', 'fqs-repo=s', 'fqs-ref=s', 'flexencoder-repo=s', 'flexencoder-ref=s',
-	'manatee-src=s', 'no-pull', 'no-deps', 'fqs-admin=s', 'no-check', 'no-frontends', 'force:s', 'cron', 'auto-update:s', 'no-auto-update', 'help|h' ) or exit 2;
+	'manatee-src=s', 'portal=s', 'no-pull', 'no-deps', 'fqs-admin=s', 'no-check', 'no-frontends', 'force:s', 'cron', 'auto-update:s', 'no-auto-update', 'help|h' ) or exit 2;
 my $CRON = $o{cron} ? 1 : 0;
 $o{q} = 1 if $CRON;
 if ( $o{help} ) { usage(); exit 0; }
@@ -447,7 +454,7 @@ my $THIS_INSTALL = "teitok_root=$D->{teitok_root}\nshared=$D->{shared}\nweb_user
 	if ( open my $cf, '>', $CONFIRMED ) { print $cf $THIS_INSTALL; close $cf; }
 }
 
-my %want = map { $_ => 1 } qw(teitok flexicorp pages flexencoder pando fqs manatee);
+my %want = map { $_ => 1 } qw(teitok flexicorp pages flexencoder pando fqs manatee portal);
 if ( $o{only} ) { %want = map { $_ => 1 } split /[,\s]+/, $o{only}; }
 delete $want{$_} for split /[,\s]+/, $o{skip};
 
@@ -833,6 +840,14 @@ sub source_print {
 	}
 	return sha1_hex( join( "\n", @parts ) );
 }
+# the FQS portal's projects: given (added to the remembered ones; '' forgets them), or the last run's
+my @PORTALS = defined $o{portal} && $o{portal} eq '' ? () : grep { $_ ne '' } split /;/, $OLD{portal}{projects} // '';
+for my $p ( split /,/, $o{portal} // '' ) {
+	$p =~ s/^\s+|\s+$//g;
+	next if $p eq '';
+	$p = abs_path($p) // $p;
+	push @PORTALS, $p unless grep { $_ eq $p } @PORTALS;
+}
 # the Manatee source tree for libfqs_manatee: given, or the one the last run used
 my $MSRC = $o{'manatee-src'} // '';
 $MSRC = abs_path($MSRC) // $MSRC if $MSRC ne '';
@@ -852,10 +867,11 @@ my %SRC = (
 	pages       => prints( source_print( $FLEXI, 'teitok_teitok_ui' ), $D->{shared} ),
 	fqs         => prints( source_print( $FQS, '' ) ),
 	manatee     => prints( source_print( $FQS, 'manatee' ), manatee_print($MSRC), $MSRC ),
+	portal      => @PORTALS ? prints( source_print( $FLEXI, 'teitok_teitok_ui/portal' ), join( ';', @PORTALS ) ) : '',
 );
 my %FORCE;
 if ( defined $o{force} ) {
-	%FORCE = $o{force} eq '' ? map { $_ => 1 } qw(teitok flexicorp pages flexencoder pando fqs manatee) : map { $_ => 1 } split /[,\s]+/, $o{force};
+	%FORCE = $o{force} eq '' ? map { $_ => 1 } qw(teitok flexicorp pages flexencoder pando fqs manatee portal) : map { $_ => 1 } split /[,\s]+/, $o{force};
 }
 my ( %BUILT, @UNCHANGED );
 # true (and says so) when a component can be left as it is
@@ -1002,6 +1018,31 @@ if ( $want{pages} && !unchanged( 'pages', -f "$D->{shared}/Sources/flexicorp.php
 	fail('installing the TEITOK pages failed') if $?;
 	$manifest{pages} = { version => $FLEXI_VERSION, commit => $FLEXI_COMMIT, source => $SRC{pages} };
 	$BUILT{pages} = 1;
+}
+
+# ── FQS portal (optional: only into the projects given with --portal) ───────────────
+if ( $want{portal} && @PORTALS && !unchanged( 'portal', !grep { !-f "$_/Sources/fqsportal.php" } @PORTALS ) ) {
+	step('FQS portal (' . scalar(@PORTALS) . ' project' . ( @PORTALS > 1 ? 's' : '' ) . ')');
+	my $pi = "$FLEXI/teitok_teitok_ui/portal/install-portal.pl";
+	fail("$pi not found") unless -f $pi;
+	my $all_ok = 1;
+	for my $p (@PORTALS) {
+		my $out = `perl @{[q_($pi)]} --project @{[q_($p)]} --shared @{[q_($D->{shared})]} --user @{[q_($WEBU)]} 2>&1`;
+		my $rc = $? >> 8;
+		say_( map { "  $_\n" } split /\n/, $out );
+		if ( $rc == 3 ) {
+			warn_("$p has a Sources/startup.php of its own: the portal is on once it calls fqp_startup() (see above)");
+			$all_ok = 0;
+		} elsif ( $rc != 0 ) {
+			warn_("installing the FQS portal into $p failed (see above)");
+			$all_ok = 0;
+		}
+	}
+	# a portal still waiting for its hook is tried again on the next run (no source kept)
+	$manifest{portal} = { projects => join( ';', @PORTALS ), commit => $FLEXI_COMMIT, source => $all_ok ? $SRC{portal} : '' };
+	$BUILT{portal} = 1 if $all_ok;
+} elsif ( defined $o{portal} && !@PORTALS ) {
+	$manifest{portal} = { projects => '' };
 }
 
 # ── FQS ────────────────────────────────────────────────────────────────────
@@ -1404,7 +1445,7 @@ if ( $o{'fqs-admin'} ) {
 	print $fh "{\n  \"installer\": \"install-stack.pl $VERSION\",\n  \"updated\": \"" . strftime( '%Y-%m-%dT%H:%M:%S%z', localtime ) . "\",\n";
 	print $fh "  \"teitok_root\": \"$D->{teitok_root}\",\n  \"shared\": \"$D->{shared}\",\n  \"web_user\": \"$WEBU\",\n  \"git_folder\": \"$GIT\",\n  \"channel\": \"$CHANNEL\",\n  \"components\": {\n";
 	my @parts;
-	for my $c (qw(teitok flexicorp pages flexencoder pando fqs manatee)) {
+	for my $c (qw(teitok flexicorp pages flexencoder pando fqs manatee portal)) {
 		if ( $manifest{$c} ) {
 			my $m = $manifest{$c};
 			my %e = ( %$m, installed => $m->{installed} // $STAMP );
@@ -1516,7 +1557,7 @@ if ( !$CRON ) {
 }
 
 step('Done');
-my @built = grep { $BUILT{$_} } qw(teitok flexicorp pages flexencoder pando fqs);
+my @built = grep { $BUILT{$_} } qw(teitok flexicorp pages flexencoder pando fqs portal);
 say_( "  installed: " . ( @built ? join( ', ', @built ) : 'nothing to rebuild' ) . "\n" );
 say_( "  unchanged: " . join( ', ', @UNCHANGED ) . "\n" ) if @UNCHANGED;
 say_( "  updated by the pull: " . join( ', ', map { "$_ ($PULLED{$_})" } sort keys %PULLED )
