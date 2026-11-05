@@ -24,6 +24,31 @@ window.ttFlexicorpCoreParts.corpuscontext = function () {
 	return {
 		/** False when the project has no XML files (from PHP: tt_flexicorp_project_has_xml). */
 		projectHasXml: true,
+		/**
+		 * Without XML here: the base URL of the TEITOK project elsewhere that shows this corpus's documents
+		 * (the FQS catalogue's project_url; PHP tt_flexicorp_remote_doc_base), else ''.
+		 */
+		remoteDocBase: '',
+
+		/**
+		 * The document view of `cid` (at token `jmp`): this project's, or, without XML here, that of the
+		 * corpus's TEITOK project elsewhere; '' when neither has the document.
+		 */
+		teitokDocUrl(cid, jmp) {
+			if (!cid) return '';
+			const remote = this.projectHasXml ? '' : String(this.remoteDocBase || '').replace(/\/+$/, '');
+			if (!this.projectHasXml && !remote) return '';
+			const url = new URL(remote ? remote + '/index.php' : 'index.php', window.location.href);
+			url.searchParams.set('action', 'file');
+			url.searchParams.set('cid', cid);
+			if (jmp) url.searchParams.set('jmp', jmp);
+			return url.toString();
+		},
+
+		/** The hit's document is shown by another TEITOK project (no hover info from this one). */
+		docIsRemote() {
+			return !this.projectHasXml && !!this.remoteDocBase;
+		},
 
 		/** The hit has a corpus position to ask the engine for its context. */
 		canShowCorpusContext(hit) {

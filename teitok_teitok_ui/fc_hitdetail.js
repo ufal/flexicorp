@@ -343,6 +343,12 @@ window.ttFlexicorpCoreParts.hitdetail = function () {
 			if (Array.isArray(hit.toks) && hit.toks.length) return hit.toks[0];
 			if (hit.tok_id) return hit.tok_id;
 			if (hit.token_id) return hit.token_id;
+			// pando's hits list the matched tokens with their ids (TEITOK's) in `tokens`
+			if (Array.isArray(hit.tokens)) {
+				const idOf = (t) => (t && t.id != null && String(t.id).trim() !== '_' ? String(t.id).trim() : '');
+				const tok = hit.tokens.find((t) => t && t.group != null && idOf(t)) || hit.tokens.find(idOf);
+				if (tok) return idOf(tok);
+			}
 			return '';
 		},
 
@@ -397,13 +403,8 @@ window.ttFlexicorpCoreParts.hitdetail = function () {
 
 		getHitDocUrl(hit) {
 			if (!hit || typeof hit !== 'object' || !hit.doc_id) return '';
-			if (!this.currentBackendSupportsDocumentLinks() || !this.projectHasXml) return '';
-			const url = new URL('index.php', window.location.href);
-			url.searchParams.set('action', 'file');
-			url.searchParams.set('cid', hit.doc_id);
-			const tokId = this.getHitTokenId(hit);
-			if (tokId) url.searchParams.set('jmp', tokId);
-			return url.toString();
+			if (!this.currentBackendSupportsDocumentLinks()) return '';
+			return this.teitokDocUrl(hit.doc_id, this.getHitTokenId(hit));
 		},
 
 		_getHitEyeCandyCache(hit) {

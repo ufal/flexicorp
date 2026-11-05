@@ -7540,6 +7540,8 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		'projectRoot' => $projectRoot,
 		// no TEITOK XML files (an index-only corpus): no document links; context and tree come from the engine
 		'projectHasXml' => ! function_exists( 'tt_flexicorp_project_has_xml' ) || tt_flexicorp_project_has_xml( $projectRoot ),
+		// without XML here: the TEITOK project elsewhere whose document view the hits link to
+		'remoteDocBase' => function_exists( 'tt_flexicorp_remote_doc_base' ) ? tt_flexicorp_remote_doc_base( $projectRoot ) : '',
 		'isAdmin' => $isAdmin,
 		// the corpus's entry in corpus lists: indexing asks for a description when there is none
 		'corpusListing' => $isAdmin ? array(

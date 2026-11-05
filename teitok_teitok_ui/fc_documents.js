@@ -231,16 +231,12 @@ window.ttFlexicorpCoreParts.documents = function () {
 		},
 
 		getDocumentUrlById(id) {
-			if (!id) return '';
-			const url = new URL('index.php', window.location.href);
-			url.searchParams.set('action', 'file');
-			url.searchParams.set('cid', id);
-			return url.toString();
+			return this.teitokDocUrl(id, '');
 		},
 
 		getDocumentUrl(doc) {
 			if (!doc || typeof doc !== 'object') return '';
-			if (!this.currentBackendSupportsDocumentLinks() || !this.projectHasXml) return '';
+			if (!this.currentBackendSupportsDocumentLinks()) return '';
 			return this.getDocumentUrlById(doc.id || '');
 		},
 	};
