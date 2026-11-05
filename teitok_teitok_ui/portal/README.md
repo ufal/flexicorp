@@ -42,7 +42,7 @@ The fragment contains:
 
 The fragment is built from FQS's `GET /info?corpus=…` (every engine: Pando from its index, CWB
 and Manatee from their registry), else from the catalogue row's `settings.corpus_info` (written
-by the catalogue importer from the Manatee registry, with its `LABEL`s), else only `word`. It is
+by `fqs corpora import` from the Manatee registry, with its `LABEL`s), else only `word`. It is
 cached in `tmp/fqsportal/<id>.json` until the row's `updated_at` changes; a fragment built from a
 fallback is rebuilt after `cache_ttl`, so `/info` is tried again.
 
@@ -79,7 +79,7 @@ box. Admins also see where each corpus's attributes came from, FQS's errors in f
    ```
    and a menu item: `<item key="corpora" display="Corpora"/>`.
 4. Mark the corpora in FQS, if the portal shouldn't simply take all non-TEITOK corpora (or all
-   Manatee ones, `engines="manatee"`). The catalogue importer can do it for KonText's corpora: a
+   Manatee ones, `engines="manatee"`). `fqs corpora import` can do it for KonText's corpora: a
    visible label with `--portal-label portal:lindat`, or a hidden key with `--portal lindat`, plus
    `--portal-url https://…/teitok/corpora`.
 
