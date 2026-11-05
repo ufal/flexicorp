@@ -51,6 +51,19 @@ if ( ! function_exists( 'tt_fc_stack_check' ) ) {
 		$index = tt_fc_env_pando_index_dir( $root );
 		$out['index'] = array( 'path' => $index, 'ok' => is_file( "$index/corpus.info" ),
 			'xidx' => is_dir( dirname( $index ) . '/xidx' ) || is_dir( rtrim( $root, '/' ) . '/xidx' ) );
+		// flexencoder's run id in the xidx and in the index: the xidx is used only when they are the same
+		// (flexencoder_build_id.hpp; the adapter's xidx_matches_index), as the adapter looks for it
+		$xdir = is_file( rtrim( $root, '/' ) . '/xidx/tokens.bin' ) ? rtrim( $root, '/' ) . '/xidx' : dirname( $index ) . '/xidx';
+		$xid = is_file( "$xdir/build.id" ) ? trim( (string) strtok( (string) file_get_contents( "$xdir/build.id" ), "\n" ) ) : '';
+		$iid = '';
+		foreach ( array( "$index/corpus.info", "$index/current/corpus.info" ) as $ci ) {
+			if ( ! is_file( $ci ) ) continue;
+			if ( preg_match( '/^build_id=(.*)$/m', (string) file_get_contents( $ci ), $m ) ) $iid = trim( $m[1] );
+			break;
+		}
+		$out['index']['xidx_build'] = $xid;
+		$out['index']['index_build'] = $iid;
+		$out['index']['xidx_matches'] = ! $out['index']['xidx'] || ( $xid === '' && $iid === '' ) || $xid === $iid;
 		$route = tt_fc_pando_route( $root );
 		list( $fqsUrl, $fqsFrom ) = tt_fc_fqs_url_info();
 		$out['fqs'] = array( 'url' => $fqsUrl, 'from' => $fqsFrom, 'corpus' => tt_fc_fqs_corpus_id( $root ),
@@ -104,6 +117,11 @@ if ( ! function_exists( 'tt_fc_stack_check_page' ) ) {
 		if ( ! $r['same_pando'] ) $o .= '<p>' . $mark( false ) . ' The programs are built from different pando commits.</p>';
 		$o .= '<h2>Index</h2><p>' . $mark( $r['index']['ok'] ) . ' <code>' . $h( $r['index']['path'] ) . '</code>'
 			. ( $r['index']['xidx'] ? ', with xidx (XML fragments)' : ', no xidx: hits without XML fragments' ) . '</p>';
+		if ( ! $r['index']['xidx_matches'] )
+			$o .= '<p>' . $mark( false ) . ' The xidx is from another indexing run than the index (xidx build '
+				. $h( $r['index']['xidx_build'] !== '' ? $r['index']['xidx_build'] : 'not recorded' ) . ', index build '
+				. $h( $r['index']['index_build'] !== '' ? $r['index']['index_build'] : 'not recorded' )
+				. '), so hits are shown without their XML. Reindex the corpus to build both again.</p>';
 		$o .= '<h2>Routes</h2><table class="rollovertable"><tr><th></th><th>request</th><th>runs on</th></tr>';
 		foreach ( $r['routes'] as $x )
 			$o .= '<tr><td>' . $mark( $x['ok'] ) . '</td><td>' . $h( $x['what'] ) . '</td><td>' . $h( $x['via'] ) . '</td></tr>';
