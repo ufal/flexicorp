@@ -97,3 +97,8 @@ Long-form documentation (backends, TEITOK configuration, JSON API reference, con
 - **Visualization snapshot URL (MVP)**: serialize backend, query/scope, and visualization settings into a portable URL token so users can publish exact analysis setups (optionally via TinyURL or similar shorteners).
 - **Published visualization handles**: optional server-side storage with short stable handles for curated/public visualizations, including later support for metadata (title/description), lifecycle controls, and access policy.
 
+## License
+
+MIT — see [`LICENSE`](LICENSE). Exception: [`flexicorp/querylang/manatee_cql/`](flexicorp/querylang/manatee_cql/) holds a CQL grammar adapted from KonText, and the parser generated from it; that folder is GPL-2.0, like KonText.
+
+If you use flexicorp in research, please cite it: [`CITATION.cff`](CITATION.cff) has the reference (GitHub shows it as "Cite this repository").

@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use flexicorp in your research, please cite it as below."
+type: software
+title: "flexicorp"
+abstract: "Multi-backend corpus interface for TEITOK and EasyCorp."
+authors:
+  - family-names: Janssen
+    given-names: Maarten
+    affiliation: "Institute of Formal and Applied Linguistics, Charles University"
+license: MIT
+repository-code: "https://github.com/ufal/flexicorp"
