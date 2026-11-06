@@ -2241,7 +2241,9 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 					'corpusFormat' => 'pando',
 					'available' => $pandoOtherOk,
 					'reason' => $pandoOtherOk ? 'Pando index, queried in ' . $spec[0] . ' (pando translates it).' : $pandoComboReason,
-					'help_url' => is_file( __DIR__ . '/help-' . $lang . '.html' ) ? 'help-' . $lang : '',
+					// the language as pando reads it (help-pando-LANG: what to write differently) before the language itself
+					'help_url' => is_file( __DIR__ . '/help-pando-' . $lang . '.html' ) ? 'help-pando-' . $lang
+						: ( is_file( __DIR__ . '/help-' . $lang . '.html' ) ? 'help-' . $lang : '' ),
 					'capabilities' => array(
 						'reindex' => true,
 						'stats_keyness' => false,

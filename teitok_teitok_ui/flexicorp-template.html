@@ -86,10 +86,10 @@
 									<span class="flexicorp-badge" x-show="combo.isCurrent">current</span>
 								</td>
 								<td>
-									<template x-if="getQueryLanguageHelpUrl(combo.queryLanguage)">
-										<a x-bind:href="getQueryLanguageHelpUrl(combo.queryLanguage)" x-bind:title="getQueryLanguageHelpTitle(combo.queryLanguage, combo.corpusFormat)" x-text="combo.queryLanguage"></a>
+									<template x-if="getQueryLanguageHelpUrl(combo.queryLanguage, combo.backend)">
+										<a x-bind:href="getQueryLanguageHelpUrl(combo.queryLanguage, combo.backend)" x-bind:title="getQueryLanguageHelpTitle(combo.queryLanguage, combo.corpusFormat)" x-text="combo.queryLanguage"></a>
 									</template>
-									<template x-if="!getQueryLanguageHelpUrl(combo.queryLanguage)">
+									<template x-if="!getQueryLanguageHelpUrl(combo.queryLanguage, combo.backend)">
 										<span x-text="combo.queryLanguage"></span>
 									</template>
 								</td>
@@ -339,10 +339,10 @@
 							{%Search Query}
 							<span class="flexicorp-query-language-hint" x-show="settings.queryLanguage">
 								- in
-								<template x-if="getQueryLanguageHelpUrl(settings.queryLanguage)">
-									<a x-bind:href="getQueryLanguageHelpUrl(settings.queryLanguage)" x-bind:title="getQueryLanguageHelpTitle(settings.queryLanguage)" x-text="settings.queryLanguage"></a>
+								<template x-if="getQueryLanguageHelpUrl(settings.queryLanguage, settings.backend)">
+									<a x-bind:href="getQueryLanguageHelpUrl(settings.queryLanguage, settings.backend)" x-bind:title="getQueryLanguageHelpTitle(settings.queryLanguage)" x-text="settings.queryLanguage"></a>
 								</template>
-								<template x-if="!getQueryLanguageHelpUrl(settings.queryLanguage)">
+								<template x-if="!getQueryLanguageHelpUrl(settings.queryLanguage, settings.backend)">
 									<span x-bind:title="getQueryLanguageHelpTitle(settings.queryLanguage)" x-text="settings.queryLanguage"></span>
 								</template>
 							</span>

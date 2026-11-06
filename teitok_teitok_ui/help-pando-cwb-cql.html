@@ -1,0 +1,36 @@
+<h1>CWB CQL on a pando index</h1>
+<p>With this choice you write your query in CWB CQL, the language of the IMS Open Corpus Workbench (CQP), and pando runs it on its own index. Most token queries work exactly as in CQP. The language itself is explained in the <a href="index.php?action=help-cwb-cql">CWB/CQL search guide</a>; this page lists only what to write differently for pando.</p>
+
+<h2>Works as in CQP</h2>
+<ul>
+<li>Token queries: <code>"word"</code>, <code>[lemma="go" &amp; upos="VERB"]</code>, <code>[]</code>, sequences, <code>? * + {m,n}</code>, <code>!=</code>, <code>!</code> inside <code>[ ]</code>.</li>
+<li>Regular expressions and escapes: <code>[word="walk.*"]</code>, <code>[word="\."]</code>, <code>"\("</code> or <code>"[(]"</code> for a literal bracket.</li>
+<li>Flags <code>%c</code>, <code>%d</code>, <code>%cd</code>, <code>%l</code>.</li>
+<li>Document metadata with <code>::</code>, as the query builder writes it: <code>[lemma="go"] :: match.text_genre="Book" within text</code>; named tokens <code>a:[…] b:[…] :: a.lemma != b.lemma</code>.</li>
+<li>The token's own metadata: <code>[lemma="go" &amp; _.text_genre="Book"]</code>.</li>
+<li>XML tags: <code>&lt;s&gt; [upos="DET"]</code>, <code>[] &lt;/s&gt;</code>, <code>&lt;text_genre="Book"&gt; []</code>.</li>
+<li>The target marker <code>@[upos="NOUN"]</code>, implication <code>[(lemma="be") -&gt; (upos="AUX")]</code>, lookahead <code>[upos="DET"] [:upos="NOUN":]</code>.</li>
+<li><code>within s</code>, <code>within text</code>.</li>
+<li>Named queries with <code>count by</code>, <code>group by</code>, <code>sort by</code>, <code>size</code>, <code>cat</code>, <code>tabulate</code>.</li>
+</ul>
+
+<h2>Working on result sets</h2>
+<p>The largest difference with CQP: pando does not combine or rework stored results. <code>subset</code>, <code>intersect</code>, <code>union</code>, <code>diff</code>, <code>join</code>, <code>meet</code> / <code>MU</code>, <code>reduce</code>, <code>randomize</code> and piping output to a program (<code>cat A &gt; "| sort"</code>) are CQP commands that pando does not read. Put all conditions into one query instead (with <code>within</code>, <code>::</code> and named tokens), and use the Frequency and Download options of this page for what you would pipe to a script.</p>
+
+<h2>Write these differently</h2>
+<p>For these, switch the query language to <em>pando CQL</em> and write the right-hand form.</p>
+<table>
+<thead>
+<tr><th>CQP</th><th>In pando CQL</th></tr>
+</thead>
+<tbody>
+<tr><td>Alternative sequences<br><code>( [] | [] [] ) [lemma="go"]</code></td><td>two queries, or Manatee CQL, which reads it</td></tr>
+<tr><td>A number of tokens<br><code>[lemma="go"] []* [lemma="home"] within 5</code></td><td><code>[lemma="go"] []{0,3} [lemma="home"]</code></td></tr>
+<tr><td>Limiting the hits<br><code>A = [lemma="go"] cut 100</code></td><td><code>A = [lemma="go"]; cat A 0 99</code></td></tr>
+<tr><td>Words near each other<br><code>MU(meet [lemma="a"] [lemma="b"] s)</code></td><td><code>[lemma="a"] []* [lemma="b"] within s</code> (in this order)</td></tr>
+</tbody>
+</table>
+
+<p>Patterns of varying length (<code>?</code>, <code>+</code>, <code>{m,n}</code>) can give more hits than in CQP: CQP keeps one match per end (<code>[upos="DET"]? [upos="NOUN"]</code> counts each noun once), pando also counts the shorter match.</p>
+
+<p>The full list, with what pando reads differently from CQP, is on the <a href="https://github.com/ufal/pando/blob/main/wiki/CWB-Dialect.md" target="_blank" rel="noopener noreferrer">CWB dialect page of pando</a>. The <a href="index.php?action=help-pando-cql">pando CQL guide</a> explains pando's own language.</p>

@@ -334,6 +334,10 @@ function flexicorpApp() {
 			clickcql: 'help-clickcql',
 			clickql: 'help-clickcql',
 			'pando-cql': 'help-pando-cql',
+			// the language as pando reads it (backend pando): what to write differently
+			'pando:cwb-cql': 'help-pando-cwb-cql',
+			'pando:cwb': 'help-pando-cwb-cql',
+			'pando:cql': 'help-pando-cwb-cql',
 			pmltq: 'help-pmltq',
 			clickpmltq: 'help-pmltq',
 		},

@@ -39,11 +39,13 @@ window.ttFlexicorpCoreParts.backend = function () {
 			return item ? item.description : '';
 		},
 
-		getQueryLanguageHelpUrl(queryLanguage) {
+		/** Help page for a query language; with backend pando, the page on how pando reads it (`pando:LANG`) when there is one. */
+		getQueryLanguageHelpUrl(queryLanguage, backend) {
 			if (!queryLanguage) return '';
 			const key = String(queryLanguage || '').toLowerCase();
 			const map = this.queryLanguageHelpDocs || {};
-			const action = typeof map[key] === 'string' ? map[key] : '';
+			const viaPando = String(backend || '').toLowerCase() === 'pando' && typeof map['pando:' + key] === 'string';
+			const action = viaPando ? map['pando:' + key] : (typeof map[key] === 'string' ? map[key] : '');
 			return action ? `index.php?action=${encodeURIComponent(action)}` : '';
 		},
 
