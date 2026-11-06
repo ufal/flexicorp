@@ -896,8 +896,10 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 
 	if ( !function_exists('tt_flexicorp_legacy_backends') ) {
 		/**
-		 * Kept for emergency / admin use only — not offered as normal defaults.
-		 * flexi = early native reader; clickql/clickhouse = deprecated ClickHouse path.
+		 * Removed engines (2026-11-06): flexi = flexicorp's own early reader of CWB / Manatee indexes,
+		 * redundant with pando; clickql / clickhouse = the abandoned ClickHouse path. Not offered to
+		 * anyone; a link or setting naming one falls back to the corpus's default engine. Their code
+		 * goes in a following change.
 		 */
 		function tt_flexicorp_legacy_backends() {
 			return array( 'flexi', 'clickql', 'clickhouse' );
@@ -917,14 +919,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		 * Admins: always visible (Engines / settings escape hatch).
 		 */
 		function tt_flexicorp_show_legacy_backends( $isAdmin = false ) {
-			if ( $isAdmin ) {
-				return true;
-			}
-			if ( ! function_exists( 'getset' ) ) {
-				return false;
-			}
-			$raw = strtolower( trim( (string) getset( 'flexicorp/show_legacy_backends', '' ) ) );
-			return in_array( $raw, array( '1', 'true', 'yes', 'on' ), true );
+			return false;   // removed engines (tt_flexicorp_legacy_backends): for nobody
 		}
 	}
 
@@ -1843,7 +1838,11 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		function tt_flexicorp_pmltq_in_use() {
 			static $memo = null;
 			if ( $memo !== null ) return $memo;
+			// pando reads PML-TQ itself: language pmltq on the pando engine needs no PML-TQ server
+			$reqBackend = isset( $_REQUEST['backend'] ) && is_scalar( $_REQUEST['backend'] ) ? strtolower( (string) $_REQUEST['backend'] ) : '';
+			$onPando = $reqBackend === 'pando' || strpos( strtolower( (string) ( $_REQUEST['backend_combo'] ?? '' ) ), 'pando:' ) === 0;
 			foreach ( array( 'backend', 'query_engine', 'query_language', 'backend_combo', 'reindex_backend', 'reindex_backends' ) as $k ) {
+				if ( $onPando && in_array( $k, array( 'query_language', 'backend_combo' ), true ) ) continue;
 				$v = isset( $_REQUEST[$k] ) && is_scalar( $_REQUEST[$k] ) ? strtolower( (string) $_REQUEST[$k] ) : '';
 				if ( $v !== '' && strpos( $v, 'pmltq' ) !== false ) return $memo = true;
 			}
@@ -2182,7 +2181,6 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			$cqpSt = tt_flexicorp_cqp_status_resolved( $projectRoot );
 			$manateeSt = tt_flexicorp_manatee_status( $projectRoot );
 			$pandoSt = tt_flexicorp_pando_status( $projectRoot );
-			$clickSt = tt_flexicorp_clickhouse_status( $projectRoot );
 			$nativeManateeAvail = ! empty( $manateeSt['available'] );
 			$nativeManateeReason = isset( $manateeSt['reason'] ) ? (string) $manateeSt['reason'] : '';
 			if ( is_array( $manateeResolved ) ) {
@@ -2193,6 +2191,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			$combos = array();
 
 			$pandoComboReason = isset( $pandoSt['reason'] ) ? (string) $pandoSt['reason'] : '';
+			$fqsProbe = array();
 			if ( ! empty( $pandoSt['available'] ) ) {
 				$fqsProbe = tt_flexicorp_fqs_probe( $projectRoot, $isAdmin );
 				$fqsWhy = isset( $fqsProbe['reason'] ) ? trim( (string) $fqsProbe['reason'] ) : '';
@@ -2223,6 +2222,35 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				),
 			);
 
+			// pando reads the other query languages too (its dialects), offered as
+			// tt_fc_pando_languages says: through FQS the ones FQS accepts for the corpus (so the page
+			// never offers what FQS refuses), locally the ones the adapter can be told (--cql)
+			$pandoOtherOk = ! empty( $pandoSt['available'] );
+			$pandoLangs = $pandoOtherOk ? tt_fc_pando_languages( $projectRoot ) : array();
+			foreach ( array(
+				'cwb-cql' => array( 'CWB CQL' ),
+				'manatee-cql' => array( 'Manatee CQL' ),
+				'pmltq' => array( 'PML-TQ' ),
+				'tiger' => array( 'TIGER' ),
+			) as $lang => $spec ) {
+				if ( ! in_array( $lang, $pandoLangs, true ) ) continue;
+				$combos[] = array(
+					'id' => 'pando:' . $lang . ':pando',
+					'backend' => 'pando',
+					'queryLanguage' => $lang,
+					'corpusFormat' => 'pando',
+					'available' => $pandoOtherOk,
+					'reason' => $pandoOtherOk ? 'Pando index, queried in ' . $spec[0] . ' (pando translates it).' : $pandoComboReason,
+					'help_url' => is_file( __DIR__ . '/help-' . $lang . '.html' ) ? 'help-' . $lang : '',
+					'capabilities' => array(
+						'reindex' => true,
+						'stats_keyness' => false,
+						'stats_collocations' => true,
+						'stats_dep_collocations' => false,
+					),
+				);
+			}
+
 			$combos[] = array(
 				'id' => 'cqp:cwb-cql:cwb',
 				'backend' => 'cqp',
@@ -2252,73 +2280,6 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 					'stats_dep_collocations' => false,
 				),
 			);
-
-			// Legacy escape hatches (hidden for visitors unless flexicorp/show_legacy_backends).
-			$combos[] = array(
-				'id' => 'flexi:cwb-cql:cwb',
-				'backend' => 'flexi',
-				'queryLanguage' => 'cwb-cql',
-				'corpusFormat' => 'cwb',
-				'available' => !empty($cqpSt['available']),
-				'reason' => !empty($cqpSt['reason']) ? $cqpSt['reason'] : (!empty($cqpSt['available']) ? 'CWB/CQP index available.' : 'CWB/CQP index not available for this corpus.'),
-				'legacy' => true,
-				'capabilities' => array(
-					'reindex' => false,
-					'stats_keyness' => false,
-					'stats_collocations' => false,
-					'stats_dep_collocations' => false,
-				),
-			);
-
-			$combos[] = array(
-				'id' => 'flexi:manatee-cql:manatee',
-				'backend' => 'flexi',
-				'queryLanguage' => 'manatee-cql',
-				'corpusFormat' => 'manatee',
-				'available' => !empty($manateeSt['corpus_available']),
-				'reason' => !empty($manateeSt['corpus_available']) ? 'Manatee index available for this corpus (flexi native file path).' : 'Manatee index not available for this corpus.',
-				'legacy' => true,
-				'capabilities' => array(
-					'reindex' => false,
-					'stats_keyness' => false,
-					'stats_collocations' => false,
-					'stats_dep_collocations' => false,
-				),
-			);
-
-			$clickReason = isset($clickSt['reason']) ? (string)$clickSt['reason'] : '';
-			if ( tt_flexicorp_clickhouse_enabled() ) {
-			$combos[] = array(
-				'id' => 'clickql:clickcql:clickhouse',
-				'backend' => 'clickql',
-				'queryLanguage' => 'clickcql',
-				'corpusFormat' => 'clickhouse',
-				'available' => !empty($clickSt['available']),
-				'reason' => $clickReason,
-				'legacy' => true,
-				'capabilities' => array(
-					'reindex' => true,
-					'stats_keyness' => false,
-					'stats_collocations' => false,
-					'stats_dep_collocations' => false,
-				),
-			);
-			$combos[] = array(
-				'id' => 'clickhouse:sql:clickhouse',
-				'backend' => 'clickhouse',
-				'queryLanguage' => 'sql',
-				'corpusFormat' => 'clickhouse',
-				'available' => !empty($clickSt['available']),
-				'reason' => $clickReason,
-				'legacy' => true,
-				'capabilities' => array(
-					'reindex' => true,
-					'stats_keyness' => false,
-					'stats_collocations' => false,
-					'stats_dep_collocations' => false,
-				),
-			);
-			}
 
 			// TEITOK XML files backend (no query support, documents only)
 			$combos[] = array(
@@ -4586,7 +4547,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			// the generic Python flexicorp CLI so background/staging jobs are visible and
 			// consistent with other backends.
 			if ( $isPandoBackend && $op0 !== 'reindex' ) {
-				return tt_flexicorp_pando_run($subcommandParts, $projectRoot);
+				return tt_flexicorp_pando_run($subcommandParts, $projectRoot, (string)$queryLanguage);
 			}
 			if ( $backend === 'flexicorp-pando' ) {
 				$backend = 'pando';
@@ -4815,7 +4776,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	}
 
 	if ( !function_exists('tt_flexicorp_pando_cli_call') ) {
-		function tt_flexicorp_pando_cli_call($projectRoot, $query, $offset, $limit, $context, $attrs = '', $contextScope = 'tok') {
+		function tt_flexicorp_pando_cli_call($projectRoot, $query, $offset, $limit, $context, $attrs = '', $contextScope = 'tok', $queryLanguage = '') {
 			$query = trim((string)$query);
 			if ( $query === '' ) $query = '[]';
 			$offset = max(0, intval($offset));
@@ -4867,6 +4828,12 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 					'--limit', escapeshellarg((string)$limit),
 					'--context', escapeshellarg((string)$context),
 				);
+			}
+			// the query's language (pando translates it; groups follow its tokens): pando CQL needs none
+			$queryLanguage = strtolower( trim( (string) $queryLanguage ) );
+			if ( $queryLanguage !== '' && $queryLanguage !== 'pando-cql' && !$usingNativePando ) {
+				$cmdParts[] = '--cql';
+				$cmdParts[] = escapeshellarg( $queryLanguage );
 			}
 			$attrs = trim((string)$attrs);
 			if ( $attrs !== '' && !$usingNativePando ) {
@@ -5167,7 +5134,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			}
 		}
 
-		function tt_flexicorp_pando_run($subcommandParts, $projectRoot) {
+		function tt_flexicorp_pando_run($subcommandParts, $projectRoot, $queryLanguage = '') {
 			if ( !is_array($subcommandParts) ) $subcommandParts = array($subcommandParts);
 			$op = isset($subcommandParts[0]) ? (string)$subcommandParts[0] : '';
 			$indexDir = tt_flexicorp_pando_index_dir($projectRoot);
@@ -5491,7 +5458,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 					'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? (string)$_SERVER['HTTP_USER_AGENT'] : '',
 				)
 			);
-			$call = tt_flexicorp_pando_cli_call($projectRoot, $runQuery, $offset, $limit, $context, '', (string)($wire['context_scope'] ?? 'tok'));
+			$call = tt_flexicorp_pando_cli_call($projectRoot, $runQuery, $offset, $limit, $context, '', (string)($wire['context_scope'] ?? 'tok'), $queryLanguage);
 			if ( isset($call['raw']) ) {
 				$call['raw'] = "[flexicorp] flexicorp-pando CLI route (FQS path preferred)\n" . (string)$call['raw'];
 			}
@@ -5864,20 +5831,11 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			}
 		}
 	}
-	// Demote legacy flexi / ClickHouse: keep only when admin, explicitly enabled, or nothing else works.
-	$showLegacyBackends = tt_flexicorp_show_legacy_backends( $isAdmin );
-	$reqBackendForLegacy = tt_flexicorp_backend_canonical( trim( (string) ( $_REQUEST['backend'] ?? '' ) ) );
-	$primaryAvailable = array_values( array_filter( $availableBackends, function ( $b ) {
+	// removed engines (flexi, ClickHouse) are never offered, also not when a link names one: it
+	// falls back to the corpus's default (tt_flexicorp_legacy_backends)
+	$availableBackends = array_values( array_filter( $availableBackends, function ( $b ) {
 		return ! tt_flexicorp_is_legacy_backend( $b );
 	} ) );
-	if ( ! $showLegacyBackends && count( $primaryAvailable ) > 0 ) {
-		$keepLegacy = array();
-		if ( tt_flexicorp_is_legacy_backend( $reqBackendForLegacy ) ) {
-			$keepLegacy[] = $reqBackendForLegacy;
-		}
-		// Do not keep sticky legacy — visitors should move off deprecated engines.
-		$availableBackends = array_values( array_unique( array_merge( $primaryAvailable, $keepLegacy ) ) );
-	}
 	$availableQueryEngines = array();
 	if ( isset($overviewResult['queryEngines']) && is_array($overviewResult['queryEngines']) ) {
 		foreach ( $overviewResult['queryEngines'] as $engineId => $engineCfg ) {
@@ -5929,6 +5887,14 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			return is_array($combo) && !empty($combo['backend']);
 		}))
 		: tt_flexicorp_backend_combinations( $projectRoot, $manateeProjectStatus, $isAdmin );
+	// the combinations only this page knows (pando with other languages) count for the choice too,
+	// as in the list shown (backendCombos below)
+	if ( isset($overviewResult['backendCombos']) && is_array($overviewResult['backendCombos']) ) {
+		$knownComboIds = array_flip( array_map( function ( $c ) { return (string) ( $c['id'] ?? '' ); }, $allCombos ) );
+		foreach ( tt_flexicorp_backend_combinations( $projectRoot, $manateeProjectStatus, $isAdmin ) as $lc ) {
+			if ( is_array( $lc ) && ! empty( $lc['id'] ) && ! isset( $knownComboIds[ (string) $lc['id'] ] ) ) $allCombos[] = $lc;
+		}
+	}
 	// Overview JSON can mark native Manatee available while TEITOK `info corpus` probe disagrees.
 	foreach ( $allCombos as $aci => $ac ) {
 		if ( ! is_array( $ac ) ) {
@@ -5969,6 +5935,8 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	}
 
 	$requestBackend = tt_flexicorp_backend_canonical(trim((string)($_REQUEST['backend'] ?? '')));
+	// a removed engine (flexi, ClickHouse) named by an old link: the corpus's default instead
+	if ( tt_flexicorp_is_legacy_backend( $requestBackend ) ) $requestBackend = '';
 	$requestQueryLanguage = trim((string)($_REQUEST['query_language'] ?? ''));
 	$requestCorpusFormat = trim((string)($_REQUEST['corpus_format'] ?? ''));
 	$requestRun = trim((string)($_REQUEST['run'] ?? ''));
@@ -6148,6 +6116,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	$queryLanguage = $requestQueryLanguage;
 	$corpusFormat = $requestCorpusFormat;
 	$comboDefaultsByBackend = array();
+	$comboLanguagesByBackend = array();
 	foreach ( $allCombos as $combo ) {
 		if ( !is_array($combo) ) continue;
 		$cb = tt_flexicorp_backend_canonical((string)($combo['backend'] ?? ''));
@@ -6160,6 +6129,8 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			'corpusFormat' => $cf,
 			'available' => !empty($combo['available']),
 		);
+		// the languages each engine takes (pando reads several), for keeping the one asked for
+		if ( $ql !== '' && !empty($combo['available']) ) $comboLanguagesByBackend[$cb][$ql] = $cf;
 		if ( !isset($comboDefaultsByBackend[$cb]) ) {
 			$comboDefaultsByBackend[$cb] = $candidate;
 		} elseif ( empty($comboDefaultsByBackend[$cb]['available']) && !empty($candidate['available']) ) {
@@ -6172,8 +6143,11 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			? $comboDefaultsByBackend[$backend]
 			: array();
 		// For non-flexi backends, keep dialect/storage aligned with the selected
-		// backend combo instead of reusing stale session values.
-		if ( isset($defaults['queryLanguage']) && trim((string)$defaults['queryLanguage']) !== '' ) {
+		// backend combo instead of reusing stale session values; a language the engine takes (pando:
+		// pando-cql, cwb-cql, manatee-cql, pmltq) is kept as asked for.
+		if ( $queryLanguage !== '' && isset($comboLanguagesByBackend[$backend][$queryLanguage]) ) {
+			$corpusFormat = (string) $comboLanguagesByBackend[$backend][$queryLanguage];
+		} elseif ( isset($defaults['queryLanguage']) && trim((string)$defaults['queryLanguage']) !== '' ) {
 			$queryLanguage = (string)$defaults['queryLanguage'];
 		}
 		if ( isset($defaults['corpusFormat']) && trim((string)$defaults['corpusFormat']) !== '' ) {

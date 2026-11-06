@@ -710,14 +710,27 @@ window.ttFlexicorpCoreParts.highlight = function () {
 						}
 					}
 				}
+				// a node's own conditions: its nested nodes (with the relation in front of them, as in
+				// `child a-node [ … ]`) left out, since each has its own entry
 				return spans
 					.sort((a, b) => (a.start - b.start) || (a.depth - b.depth))
 					.map((span) => {
-						let clause = query.slice(span.start, span.end).trim();
-						if (clause.startsWith('[') && clause.endsWith(']')) {
-							clause = clause.slice(1, -1).trim();
-						}
-						return clause;
+						let body = '';
+						let pos = span.start + 1;
+						spans
+							.filter((s) => s.depth === span.depth + 1 && s.start > span.start && s.end < span.end)
+							.sort((a, b) => a.start - b.start)
+							.forEach((s) => {
+								body += query.slice(pos, s.start) + '\u0000';
+								pos = s.end;
+							});
+						body += query.slice(pos, span.end - 1);
+						return body
+							.split(',')
+							.filter((part) => part.indexOf('\u0000') < 0)
+							.map((part) => part.trim())
+							.filter(Boolean)
+							.join(', ');
 					})
 					.filter(Boolean);
 			}
@@ -756,9 +769,11 @@ window.ttFlexicorpCoreParts.highlight = function () {
 			return clauses;
 		},
 
-		getLegendLabel(entry, tokenClauses) {
+		getLegendLabel(entry, tokenClauses, queryLang) {
 			const rawName = entry && (entry.name || entry.id || entry.key) ? String(entry.name || entry.id || entry.key) : '';
-			const match = rawName.match(/^t(\d+)$/i);
+			// t1, t2, …: the query's tokens in order; in PML-TQ pando names the nodes n1, n2, … in the
+			// order they are written, whatever its place in the chain it searches (the groups' order)
+			const match = rawName.match(String(queryLang || '') === 'pmltq' ? /^[tn](\d+)$/i : /^t(\d+)$/i);
 			if (match) {
 				const idx = Number(match[1]) - 1;
 				if (tokenClauses[idx]) return tokenClauses[idx];
@@ -780,8 +795,21 @@ window.ttFlexicorpCoreParts.highlight = function () {
 			const executedQuery = this.search && typeof this.search.query === 'string' && this.search.query
 				? this.search.query
 				: (result && typeof result.query === 'string' ? result.query : '');
-			const queryLang = result && typeof result.query_lang === 'string' ? result.query_lang : '';
-			const tokenClauses = this.extractQueryTokenClauses(executedQuery, queryLang);
+			// the language the query ran in: as the answer reports it, else as chosen on the page; a
+			// language word in front of the query (PMLTQ …, CWB …) wins, and is not part of the query
+			let queryLang = result && typeof result.query_lang === 'string' && result.query_lang ? result.query_lang
+				: String((this.settings && this.settings.queryLanguage) || '');
+			let clauseQuery = executedQuery;
+			const prefix = String(executedQuery || '').match(/^\s*(PMLTQ|PML-TQ|CWB|CQP|MANATEE|TIGER)\s+/i);
+			if (prefix) {
+				const word = prefix[1].toUpperCase();
+				queryLang = { PMLTQ: 'pmltq', 'PML-TQ': 'pmltq', CWB: 'cwb-cql', CQP: 'cwb-cql', MANATEE: 'manatee-cql', TIGER: 'tiger' }[word];
+				clauseQuery = executedQuery.slice(prefix[0].length);
+			}
+			const tokenClauses = this.extractQueryTokenClauses(clauseQuery, queryLang);
+			// PML-TQ: n1, n2, … are the nodes in written order only when none has a name of its own
+			// (pando numbers the unnamed ones); with `$x :=` names, groups are not paired by number
+			const legendLang = queryLang === 'pmltq' && /\$\w+\s*:=/.test(clauseQuery) ? 'pmltq-named' : queryLang;
 			const querySpanForName = (name) => {
 				const n = String(name || '').trim();
 				if (!n) return '';
@@ -801,7 +829,7 @@ window.ttFlexicorpCoreParts.highlight = function () {
 					const palette = this.getGroupPalette(idx);
 					return addSafe({
 						name: entry.name || entry.key || entry.id,
-						label: this.getLegendLabel(entry, tokenClauses),
+						label: this.getLegendLabel(entry, tokenClauses, legendLang),
 						querySpan: (typeof entry.querySpan === 'string' ? entry.querySpan : (typeof entry.query_span === 'string' ? entry.query_span : '')) || querySpanForName(entry.name || entry.key || entry.id),
 						color: entry.color || palette.chipColor,
 						textColor: entry.textColor || palette.chipTextColor,
@@ -815,7 +843,7 @@ window.ttFlexicorpCoreParts.highlight = function () {
 					const palette = this.getGroupPalette(idx);
 					return addSafe({
 						name: entry.name || entry.id,
-						label: this.getLegendLabel(entry, tokenClauses),
+						label: this.getLegendLabel(entry, tokenClauses, legendLang),
 						querySpan: (typeof entry.querySpan === 'string' ? entry.querySpan : (typeof entry.query_span === 'string' ? entry.query_span : '')) || querySpanForName(entry.name || entry.id),
 						color: entry.color || palette.chipColor,
 						textColor: entry.textColor || palette.chipTextColor,
@@ -828,7 +856,7 @@ window.ttFlexicorpCoreParts.highlight = function () {
 			if (!first) return [];
 			return this.getHighlightMapGroups(first).map((group, idx) => addSafe({
 				name: group.name || group.id,
-				label: this.getLegendLabel(group, tokenClauses),
+				label: this.getLegendLabel(group, tokenClauses, legendLang),
 				querySpan: (typeof group.querySpan === 'string' ? group.querySpan : '') || querySpanForName(group.name || group.id),
 				color: group.color || group.paletteColor || this.getGroupPalette(idx).chipColor,
 				textColor: group.paletteTextColor || this.getGroupPalette(idx).chipTextColor,

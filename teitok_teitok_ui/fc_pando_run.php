@@ -62,7 +62,8 @@ if ( ! function_exists( 'tt_fc_pando_route' ) ) {
 		if ( isset( $memo[ $key ] ) ) return $memo[ $key ];
 		// kept between requests (fc_shortcache.php), when there is a route
 		$kept = tt_fc_cache_get( $root, 'pando-route', tt_fc_cache_ttl( 30 ) );
-		if ( is_array( $kept ) && ! empty( $kept['via'] ) ) return $memo[ $key ] = $kept;
+		// (a route kept by an older version has no language list: ask again)
+		if ( is_array( $kept ) && ! empty( $kept['via'] ) && ( $kept['via'] !== 'fqs' || array_key_exists( 'languages', $kept ) ) ) return $memo[ $key ] = $kept;
 		$memo[ $key ] = tt_fc_pando_route_uncached( $root );
 		if ( $memo[ $key ]['via'] !== '' ) tt_fc_cache_put( $root, 'pando-route', $memo[ $key ] );
 		return $memo[ $key ];
@@ -73,15 +74,51 @@ if ( ! function_exists( 'tt_fc_pando_route' ) ) {
 		$url = tt_fc_fqs_base_url();
 		$id = tt_fc_fqs_corpus_id( $root );
 		$r = tt_fc_http_json( 'GET', $url . '/corpora?include_noncurrent=true&q=' . rawurlencode( $id ), null, tt_fqs_bearer_headers( 'admin', 'teitok-lens', 60 ), 5 );
-		$ids = array();
-		foreach ( (array) ( $r['data']['corpora'] ?? array() ) as $c ) $ids[] = (string) ( $c['id'] ?? '' );
-		if ( in_array( $id, $ids, true ) ) return array( 'via' => 'fqs', 'url' => $url, 'corpus' => $id, 'why' => '' );
+		foreach ( (array) ( $r['data']['corpora'] ?? array() ) as $c ) {
+			if ( (string) ( $c['id'] ?? '' ) !== $id ) continue;
+			// the query languages FQS accepts for this corpus (by engine and annotation); null from an
+			// FQS that does not list them
+			$langs = isset( $c['query_languages'] ) && is_array( $c['query_languages'] ) ? array_values( array_map( 'strval', $c['query_languages'] ) ) : null;
+			return array( 'via' => 'fqs', 'url' => $url, 'corpus' => $id, 'why' => '', 'languages' => $langs );
+		}
 		$index = rtrim( tt_fc_env_pando_index_dir( $root ), '/' );
 		$pando = tt_fc_env_pando_bin( 'pando' );
 		if ( $pando !== '' && is_file( "$index/corpus.info" ) ) return array( 'via' => 'local', 'index' => $index, 'why' => '' );
 		$fqsWhy = $r['status'] === 0 ? "no FQS answers at $url" : "FQS at $url has no corpus '$id' (flexicorp/fqs_corpus_id names it)";
 		$localWhy = $pando === '' ? 'pando is not installed here' : "no pando index at $index (<pando path=\"…\"/> names it)";
 		return array( 'via' => '', 'why' => "$fqsWhy, and $localWhy" );
+	}
+
+	/**
+	 * The query languages pando can be asked in for this corpus: through FQS, the ones FQS lists for
+	 * it (`query_languages` in /corpora; PML-TQ and TIGER only for a corpus labelled for them, see
+	 * FQS's README); from an FQS without that list, pando CQL and CWB CQL. Without FQS (the local
+	 * flexicorp-pando): pando CQL, plus CWB CQL and Manatee CQL when the adapter takes `--cql`;
+	 * PML-TQ and TIGER need FQS's labels.
+	 */
+	function tt_fc_pando_languages( $root ) {
+		$route = tt_fc_pando_route( $root );
+		if ( ( $route['via'] ?? '' ) === 'local' ) {
+			return tt_fc_pando_adapter_has_cql( $root ) ? array( 'pando-cql', 'cwb-cql', 'manatee-cql' ) : array( 'pando-cql' );
+		}
+		if ( ( $route['via'] ?? '' ) !== 'fqs' ) return array( 'pando-cql' );
+		if ( is_array( $route['languages'] ?? null ) && $route['languages'] ) return $route['languages'];
+		return array( 'pando-cql', 'cwb-cql' );
+	}
+
+	/** Does the installed flexicorp-pando take `--cql` (adapter API 6)? Asked once per binary. */
+	function tt_fc_pando_adapter_has_cql( $root ) {
+		static $memo = array();
+		$bin = function_exists( 'tt_fc_bin' ) ? tt_fc_bin( 'flexicorp-pando' ) : '';
+		if ( $bin === '' || ! is_file( $bin ) ) return false;
+		$key = 'fcp-cql-' . substr( md5( $bin . '|' . (string) @filemtime( $bin ) ), 0, 12 );
+		if ( isset( $memo[ $key ] ) ) return $memo[ $key ];
+		$kept = tt_fc_cache_get( $root, $key, 86400 );
+		if ( is_array( $kept ) ) return $memo[ $key ] = ! empty( $kept['cql'] );
+		$help = (string) @shell_exec( escapeshellarg( $bin ) . ' --help 2>&1' );
+		$has = strpos( $help, '--cql' ) !== false;
+		tt_fc_cache_put( $root, $key, array( 'cql' => $has ) );
+		return $memo[ $key ] = $has;
 	}
 
 	/** FQS's /info for the corpus (its 'result'), once per request and kept between requests; array() without. */
