@@ -11,6 +11,8 @@ require_once __DIR__ . '/fc_bin.php';
 require_once __DIR__ . '/fc_proc.php';
 require_once __DIR__ . '/fc_fqs_conn.php';   // the FQS address and secret
 require_once __DIR__ . '/fc_shortcache.php';   // FQS answers kept for a few seconds
+require_once __DIR__ . '/fc_public_state.php';   // no server paths for non-admins
+require_once __DIR__ . '/fc_pando_run.php';   // pando's route and languages (tt_fc_pando_languages)
 require_once __DIR__ . '/fc_fqs_warm.php';
 require_once __DIR__ . '/fc_fqs_catalog.php';
 // custom layers: `my-<attribute>` in queries and fields is the user's own labels (custom_layers_names.php)
@@ -7930,6 +7932,8 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		'hint' => 'Open DevTools Console: warnings when backendSelectionError is set; with ?debug=1 also console.info bootstrapDiag.',
 	);
 
+	// a visitor or user gets no server paths and no diagnostics (fc_public_state.php)
+	if ( empty( $isAdmin ) ) $state = tt_fc_state_public( $state );
 	$stateJson = tt_flexicorp_json_encode_safe($state, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
 	if ( $stateJson === false ) {
 		$stateJson = '{"ok":false,"error":"flexicorp state encoding failed","errors":["flexicorp state encoding failed"],"result":null,"searchIntroHtml":"","searchIntroLeadHtml":"","searchExampleQueries":[]}';

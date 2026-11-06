@@ -36,6 +36,7 @@
 
 	global $user, $username, $foldername, $settings;
 	require_once __DIR__ . '/fc_fqs_conn.php';   // the FQS address and secret
+	require_once __DIR__ . '/fc_public_state.php';   // no server paths for non-admins
 
 	$ttfq_t0 = microtime( true );
 
@@ -441,7 +442,11 @@
 	if ( is_array( $ttfq_result ) ) ttfq_highlight_map( $ttfq_result );
 
 	$ttfq_out = array( 'ok' => true, 'op' => $ttfq_op, 'corpus' => $ttfq_corpus, 'result' => $ttfq_result );
-	if ( $ttfq_meta !== null ) $ttfq_out['fqs_meta'] = $ttfq_meta;
+	if ( $ttfq_meta !== null ) {
+		// FQS's routing details name server paths: only for admins (fc_public_state.php)
+		if ( $ttfq_role !== 'admin' && function_exists( 'tt_fc_strip_server_paths' ) ) $ttfq_meta = tt_fc_strip_server_paths( $ttfq_meta );
+		$ttfq_out['fqs_meta'] = $ttfq_meta;
+	}
 	if ( $ttfq_op === 'status' && isset( $ttfq_json['job'] ) ) $ttfq_out['job'] = $ttfq_json['job'];
 	ttfq_send( 200, $ttfq_out, $ttfq_timing );
 
