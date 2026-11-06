@@ -5796,10 +5796,28 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	$overviewCall = null;
 	$overviewDone = array();
 	$overviewResult = array();
+	// The overview (a Python process checking the engines on this server) is not needed where FQS
+	// serves the corpus: FQS keeps the engines' status itself (pando from its start, CQP and
+	// Manatee checked and kept) and lists the corpus's languages; the page's own checks and FQS's
+	// answer make the list. Still run for admins on the Overview / Debug tabs, and for a project
+	// on BlackLab (only the overview checks that). Otherwise kept for a minute per project.
+	$overviewForAdmin = ! empty( $isAdmin ) && in_array( $activeTabProbe, array( 'overview', 'debug' ), true );
+	if ( ! $skipOverviewProbe && ! $overviewForAdmin ) {
+		$ovFqs = tt_flexicorp_fqs_probe( $projectRoot, ! empty( $isAdmin ) );
+		$ovBlacklab = function_exists( 'getset' ) && strtolower( trim( (string) getset( 'defaults/flexicorp/backend', '' ) ) ) === 'blacklab';
+		if ( ! empty( $ovFqs['ready_for_queries'] ) && ! $ovBlacklab ) $skipOverviewProbe = true;
+	}
 	if ( !$skipOverviewProbe ) {
-		$overviewCall = tt_flexicorp_run(array('info', 'backends'), 'clickhouse', $projectRoot, $backendOverrideArgs, null, null, null);
-		$overviewDone = tt_flexicorp_done($overviewCall);
-		$overviewResult = ( isset($overviewDone['result']) && is_array($overviewDone['result']) ) ? $overviewDone['result'] : array();
+		$ovKey = 'backends-overview-' . substr( md5( json_encode( array_values( (array) $backendOverrideArgs ) ) ), 0, 12 );
+		$ovKept = $overviewForAdmin ? null : tt_fc_cache_get( $projectRoot, $ovKey, tt_fc_cache_ttl( 60 ) );
+		if ( is_array( $ovKept ) ) {
+			$overviewResult = $ovKept;
+		} else {
+			$overviewCall = tt_flexicorp_run(array('info', 'backends'), 'clickhouse', $projectRoot, $backendOverrideArgs, null, null, null);
+			$overviewDone = tt_flexicorp_done($overviewCall);
+			$overviewResult = ( isset($overviewDone['result']) && is_array($overviewDone['result']) ) ? $overviewDone['result'] : array();
+			if ( ! empty( $overviewResult['backendStatus'] ) ) tt_fc_cache_put( $projectRoot, $ovKey, $overviewResult );
+		}
 	}
 	$availableBackends = ( isset($overviewResult['availableBackends']) && is_array($overviewResult['availableBackends']) )
 		? array_values(array_unique(array_filter(array_map(function ($backendId) {
