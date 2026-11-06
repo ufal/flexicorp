@@ -552,6 +552,15 @@ window.ttFlexicorpCoreParts.highlight = function () {
 			return out;
 		},
 
+		/** The language the current result's query ran in (as the answer says, else as chosen). */
+		_resultQueryLang() {
+			const result = this.search && this.search.response ? this.search.response.result : null;
+			if (result && typeof result.query_lang === 'string' && result.query_lang) return result.query_lang;
+			const q = String((this.search && this.search.query) || '');
+			if (/^\s*(PMLTQ|PML-TQ)\s+/.test(q)) return 'pmltq';
+			return String((this.settings && this.settings.queryLanguage) || '');
+		},
+
 		compareGroupIds(a, b) {
 			const ax = String(a || '').match(/^t(\d+)$/i);
 			const bx = String(b || '').match(/^t(\d+)$/i);
@@ -566,6 +575,13 @@ window.ttFlexicorpCoreParts.highlight = function () {
 		sortHighlightEntriesByGroupId(entries) {
 			if (!Array.isArray(entries) || entries.length < 2) return entries ? entries.slice() : [];
 			const copy = entries.slice();
+			// PML-TQ: groups come in the order pando searches the chain (t1, t2, … may start at a
+			// dependent); colours and the legend follow the nodes as written (n1, n2, …)
+			const nodeNo = (e) => { const m = String((e && e.name) || '').match(/^n(\d+)$/); return m ? Number(m[1]) : NaN; };
+			if (this._resultQueryLang() === 'pmltq' && copy.every((e) => Number.isFinite(nodeNo(e)))) {
+				copy.sort((a, b) => nodeNo(a) - nodeNo(b));
+				return copy;
+			}
 			if (!copy.every((e) => e && /^t\d+$/i.test(String(e.id || '')))) return copy;
 			copy.sort((a, b) => this.compareGroupIds(String(a.id || ''), String(b.id || '')));
 			return copy;
