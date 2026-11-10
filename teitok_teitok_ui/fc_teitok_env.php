@@ -44,6 +44,16 @@ if ( ! function_exists( 'tt_fc_env_user' ) ) {
 	/** The project (corpus) folder: TEITOK runs a project's pages from it. */
 	function tt_fc_env_project_root() {
 		$cwd = getcwd();
+		// TEITOK's own idea of the project folder ($thisfolder: a path, or a folder name next to the
+		// working directory's), for installations that serve several projects through one entry
+		// point (LINDAT: the working directory is then another project's)
+		$tf = isset( $GLOBALS['thisfolder'] ) && is_string( $GLOBALS['thisfolder'] ) ? trim( $GLOBALS['thisfolder'] ) : '';
+		if ( $tf !== '' ) {
+			$tf = rtrim( $tf, '/' );
+			foreach ( array( $tf, ( $cwd ? dirname( $cwd ) : '' ) . '/' . basename( $tf ) ) as $cand ) {
+				if ( $cand !== '' && $cand[0] === '/' && is_file( "$cand/Resources/settings.xml" ) ) return $cand;
+			}
+		}
 		return ( $cwd && is_dir( $cwd ) ) ? $cwd : '.';
 	}
 

@@ -108,6 +108,8 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 
 	if ( !function_exists('tt_flexicorp_project_root') ) {
 		function tt_flexicorp_project_root() {
+			// TEITOK's $thisfolder when it names another project than the working directory (fc_teitok_env.php)
+			if ( function_exists( 'tt_fc_env_project_root' ) ) return tt_fc_env_project_root();
 			$cwd = getcwd();
 			if ( $cwd && is_dir($cwd) ) return $cwd;
 			return '.';
