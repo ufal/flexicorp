@@ -1140,6 +1140,30 @@ window.ttFlexicorpCoreParts.hits = function () {
 			if (this.kwicScopeUsesTokenWindow()) {
 				const xmlParts = this.getXmlKwicPartsForIds(hit, this.getHitMatchIds(hit), { wrap: false });
 				if (xmlParts && xmlParts.isXml) {
+					// A remote engine (pando via FQS) may send an XML fragment of only the matched token(s),
+					// with the window context as plain left/right: keep the XML match, add the plain sides
+					// (as KWIC does in getKwicParts), instead of showing the match alone.
+					const xmlLeftText = this.fragmentToText(xmlParts.left || '').trim();
+					const xmlRightText = this.fragmentToText(xmlParts.right || '').trim();
+					if (xmlLeftText === '' && xmlRightText === '') {
+						const plain = this.getPlainContextPartsFromHit(hit);
+						const pl = plain && typeof plain.left === 'string' ? plain.left.trim() : '';
+						const pr = plain && typeof plain.right === 'string' ? plain.right.trim() : '';
+						if (pl !== '' || pr !== '') {
+							const out = [
+								'<span class="flexicorp-hit-xml flexicorp-kwic-xml">',
+								pl !== '' ? `<span class="flexicorp-hit-kwic-raw-left">${this.escapeHtmlForPre(pl)}</span> ` : '',
+								xmlParts.match || this.escapeHtmlForPre(plain.match || ''),
+								pr !== '' ? ` <span class="flexicorp-hit-kwic-raw-right">${this.escapeHtmlForPre(pr)}</span>` : '',
+								'</span>',
+							].join('');
+							if (hit && typeof hit === 'object') {
+								hit.__flexicorpRenderedXml = out;
+								hit.__flexicorpRenderedXmlKey = renderKey;
+							}
+							return out;
+						}
+					}
 					const out = `<span class="flexicorp-hit-xml flexicorp-kwic-xml">${xmlParts.left || ''}${xmlParts.match || ''}${xmlParts.right || ''}</span>`;
 					if (hit && typeof hit === 'object' && out) {
 						hit.__flexicorpRenderedXml = out;
@@ -1755,13 +1779,15 @@ window.ttFlexicorpCoreParts.hits = function () {
 					|| (typeof ctxPlain.right === 'string' && ctxPlain.right.trim() !== '')
 				)
 			);
-			// Fast path for token-window scope: use backend/native plain context directly.
-			// This avoids expensive XML parsing and fixes contracted-form rows where XML clipping
-			// may collapse to one orthographic token (e.g. a single-token "abiendolo" row).
+			// Fast path for token-window scope: the backend's plain context when there is no XML
+			// fragment (or plain text is asked for). With XML, the XML window is used below; a
+			// fragment that holds only the match (an older libflexicorp_pando, or contracted forms
+			// where XML clipping collapses to one orthographic token, e.g. a single-token
+			// "abiendolo" row) falls back to this plain context there (xml-empty-sides-plain-rescue).
 			if (
 				this.kwicScopeUsesTokenWindow()
 				&& ctxPlain
-				&& (plainHasSides || !hasXml || textDisplay)
+				&& (!hasXml || textDisplay)
 				&& (typeof ctxPlain.left === 'string' || typeof ctxPlain.match === 'string' || typeof ctxPlain.right === 'string')
 			) {
 				const parts = {
