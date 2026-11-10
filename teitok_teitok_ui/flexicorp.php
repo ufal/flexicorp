@@ -3101,6 +3101,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 					$probe['corpus_registered'] = true;
 					$probe['registered_via'] = 'http';
 					$probe['remote_engine'] = tt_flexicorp_fqs_row_engine($fqsRow);
+					$probe['remote_engines'] = tt_flexicorp_fqs_row_engines($fqsRow);
 				}
 			}
 

@@ -57,6 +57,22 @@ if ( ! function_exists( 'tt_flexicorp_fqs_http_corpus_row' ) ) {
 		return strpos( $kind, 'pando' ) !== false ? 'pando' : ( strpos( $kind, 'cqp' ) !== false || strpos( $kind, 'cwb' ) !== false ? 'cqp' : '' );
 	}
 
+	/**
+	 * Every engine FQS can query this catalogue row with: its preferred one first, then the others
+	 * in `settings.available_backends` (a TEITOK project with pando and CWB: pando, cqp).
+	 */
+	function tt_flexicorp_fqs_row_engines( $row ) {
+		$out = array();
+		$first = tt_flexicorp_fqs_row_engine( $row );
+		if ( $first !== '' ) $out[] = $first;
+		$avail = is_array( $row ) ? ( $row['settings']['available_backends'] ?? array() ) : array();
+		foreach ( is_array( $avail ) ? $avail : array() as $b ) {
+			$b = strtolower( trim( (string) $b ) );
+			if ( in_array( $b, array( 'pando', 'cqp', 'manatee' ), true ) && ! in_array( $b, $out, true ) ) $out[] = $b;
+		}
+		return $out;
+	}
+
 	/** The corpus id this project asks FQS for: flexicorp/fqs_corpus_id, else from the project folder. */
 	function tt_flexicorp_fqs_corpus_id_for( $projectRoot ) {
 		$set = function_exists( 'getset' ) ? trim( (string) getset( 'flexicorp/fqs_corpus_id', '' ) ) : '';
@@ -108,7 +124,11 @@ if ( ! function_exists( 'tt_flexicorp_fqs_http_corpus_row' ) ) {
 		return $u;
 	}
 
-	/** Does FQS serve this project's corpus with `$engine` (pando / cqp) without a local index? */
+	/**
+	 * Does FQS serve this project's corpus with `$engine` (pando / cqp / manatee) without a local index?
+	 * Any engine of the row counts, not only the preferred one: a project with pando and CWB in FQS
+	 * gets pando by default and CWB as a choice in the settings.
+	 */
 	function tt_flexicorp_fqs_serves_engine( $projectRoot, $engine ) {
 		static $engines = array();
 		if ( ! function_exists( 'tt_flexicorp_fqs_probe' ) ) return false;
@@ -117,9 +137,9 @@ if ( ! function_exists( 'tt_flexicorp_fqs_http_corpus_row' ) ) {
 		// known from the HTTP lookup; else (found by the local fqs program) asked once
 		$key = rtrim( (string) $projectRoot, '/' );
 		if ( ! isset( $engines[ $key ] ) ) {
-			$engines[ $key ] = (string) ( $probe['remote_engine'] ?? '' );
-			if ( $engines[ $key ] === '' ) $engines[ $key ] = tt_flexicorp_fqs_row_engine( tt_flexicorp_fqs_http_corpus_row( $probe, $probe['corpus_id'] ?? '' ) );
+			$engines[ $key ] = is_array( $probe['remote_engines'] ?? null ) ? $probe['remote_engines'] : array();
+			if ( empty( $engines[ $key ] ) ) $engines[ $key ] = tt_flexicorp_fqs_row_engines( tt_flexicorp_fqs_http_corpus_row( $probe, $probe['corpus_id'] ?? '' ) );
 		}
-		return $engines[ $key ] === $engine;
+		return in_array( $engine, $engines[ $key ], true );
 	}
 }
