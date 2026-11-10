@@ -4,6 +4,7 @@
 	require_once("$ttroot/common/Sources/venv.php");
 	require_once __DIR__ . '/flexicorp_search.php';
 	require_once __DIR__ . '/flexicorp_freqs.php';
+require_once __DIR__ . '/fc_teitok_env.php';   // the project folder (TEITOK's $thisfolder), the user
 require_once __DIR__ . '/flexicorp_functions.php';
 require_once __DIR__ . '/fc_result.php';
 require_once __DIR__ . '/fc_engine.php';
