@@ -54,6 +54,13 @@ if ( ! function_exists( 'tt_fc_env_user' ) ) {
 				if ( $cand !== '' && $cand[0] === '/' && is_file( "$cand/Resources/settings.xml" ) ) return $cand;
 			}
 		}
+		// else the request's own path (…/<project>/index.php): that project, when it sits next to
+		// the working directory's and is not it
+		$uri = (string) parse_url( (string) ( $_SERVER['REQUEST_URI'] ?? '' ), PHP_URL_PATH );
+		if ( $cwd && preg_match( '#/([A-Za-z0-9][A-Za-z0-9._-]*)/(?:index\.php)?(?:/.*)?$#', $uri, $m ) ) {
+			$cand = dirname( $cwd ) . '/' . $m[1];
+			if ( $m[1] !== basename( $cwd ) && is_file( "$cand/Resources/settings.xml" ) ) return $cand;
+		}
 		return ( $cwd && is_dir( $cwd ) ) ? $cwd : '.';
 	}
 
