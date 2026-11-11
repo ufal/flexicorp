@@ -8136,6 +8136,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	$mainVars = array(
 		'{{CQP_CORPUS_NAME}}' => tt_flexicorp_h($cqpCorpusName),
 		'{{ACTION_NAME}}' => tt_flexicorp_h($actionName),
+		'{{VERSION_NOTE_HTML}}' => function_exists('tt_flexicorp_fn_version_note_html') ? tt_flexicorp_fn_version_note_html() : '',
 		'{{DOCS_LIMIT}}' => tt_flexicorp_h((string)$docsLimit),
 		'{{STATS_PANEL_HTML}}' => tt_flexicorp_stats_tab_panel_html( $actionName, $infoResultForStats, $projectRoot, $backend, $stats_geo_map_json ),
 		'{{STATS_SETTINGS_FREQ_ROW_HTML}}' => tt_flexicorp_stats_settings_freq_limit_row(),

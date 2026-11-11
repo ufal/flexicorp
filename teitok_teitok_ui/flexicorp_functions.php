@@ -1263,6 +1263,62 @@ if ( ! function_exists( 'tt_flexicorp_fn_qb_field_node_lookup' ) ) {
 	}
 }
 
+if ( ! function_exists( 'tt_flexicorp_fn_version_info' ) ) {
+	/**
+	 * What this installation runs, from the manifest install-stack.pl keeps (share/teitok-stack/manifest.json):
+	 * the pages (this code), and the engines it talks to. Empty values when no manifest is found
+	 * (a hand-copied install); the modified time of this file is then the only hint.
+	 *
+	 * @return array<string,mixed>
+	 */
+	function tt_flexicorp_fn_version_info() {
+		$info = array( 'pages' => '', 'flexicorp' => '', 'pando' => '', 'fqs' => '', 'installed' => '', 'channel' => '', 'file' => '' );
+		$info['file'] = is_file( __FILE__ ) ? gmdate( 'Y-m-d H:i', (int) filemtime( __FILE__ ) ) . ' UTC' : '';
+		$cands = array();
+		if ( getenv( 'TEITOK_STACK_MANIFEST' ) ) $cands[] = getenv( 'TEITOK_STACK_MANIFEST' );
+		foreach ( array( '/usr/local', '/usr', '/opt/teitok-stack' ) as $pre ) $cands[] = $pre . '/share/teitok-stack/manifest.json';
+		foreach ( $cands as $mf ) {
+			if ( ! is_string( $mf ) || ! @is_file( $mf ) || ! @is_readable( $mf ) ) continue;
+			$j = json_decode( (string) @file_get_contents( $mf ), true );
+			if ( ! is_array( $j ) ) continue;
+			$c = isset( $j['components'] ) && is_array( $j['components'] ) ? $j['components'] : array();
+			$short = function ( $e ) {
+				if ( ! is_array( $e ) ) return '';
+				$v = trim( (string) ( $e['version'] ?? '' ) );
+				$h = substr( trim( (string) ( $e['commit'] ?? '' ) ), 0, 8 );
+				return trim( $v . ( $h !== '' ? ' (' . $h . ')' : '' ) );
+			};
+			$info['pages'] = $short( $c['pages'] ?? null );
+			$info['pando'] = $short( $c['pando'] ?? null );
+			$info['fqs'] = $short( $c['fqs'] ?? null );
+			$info['installed'] = is_array( $c['pages'] ?? null ) ? (string) ( $c['pages']['installed'] ?? '' ) : '';
+			$info['channel'] = (string) ( $j['channel'] ?? '' );
+			$co = isset( $j['checkouts'] ) && is_array( $j['checkouts'] ) ? $j['checkouts'] : array();
+			$info['flexicorp'] = (string) ( $co['flexicorp'] ?? '' );
+			break;
+		}
+		return $info;
+	}
+}
+
+if ( ! function_exists( 'tt_flexicorp_fn_version_note_html' ) ) {
+	/** The small grey line in the Settings dialog saying which version of flexicorp this is. */
+	function tt_flexicorp_fn_version_note_html() {
+		$i = tt_flexicorp_fn_version_info();
+		$h = function ( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); };
+		$parts = array();
+		if ( $i['flexicorp'] !== '' ) $parts[] = 'flexicorp ' . $h( $i['flexicorp'] );
+		elseif ( $i['pages'] !== '' ) $parts[] = 'flexicorp ' . $h( $i['pages'] );
+		if ( $i['pando'] !== '' ) $parts[] = 'pando ' . $h( $i['pando'] );
+		if ( $i['fqs'] !== '' ) $parts[] = 'FQS ' . $h( $i['fqs'] );
+		$tail = array();
+		if ( $i['channel'] !== '' ) $tail[] = $h( $i['channel'] );
+		if ( $i['installed'] !== '' ) $tail[] = 'installed ' . $h( $i['installed'] );
+		if ( ! $parts ) $parts[] = 'flexicorp: version not recorded (pages from ' . $h( $i['file'] ) . ')';
+		return '<p class="flexicorp-panel-note" style="font-size: small; color: #999999;">' . implode( ', ', $parts ) . ( $tail ? ' &middot; ' . implode( ', ', $tail ) : '' ) . '</p>';
+	}
+}
+
 if ( ! function_exists( 'tt_flexicorp_fn_qb_values_from_index' ) ) {
 	/**
 	 * The values a field has in the index, for a closed-list field without options or value files: asked
