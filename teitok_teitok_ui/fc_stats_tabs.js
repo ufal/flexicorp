@@ -79,7 +79,6 @@ window.ttFlexicorpFreqsParts.stats_tabs = function () {
 			// Ask once per page: an answer without the expected stats (e.g. a pando corpus) must not
 			// re-trigger this effect for ever. The Corpus stats button still forces a refresh.
 			if (this.corpusInfoAutoTried) return;
-			this.corpusInfoAutoTried = true;
 			if (typeof this.fetchCorpusStatsInfo === 'function') {
 				this.fetchCorpusStatsInfo();
 			}
@@ -91,6 +90,8 @@ window.ttFlexicorpFreqsParts.stats_tabs = function () {
 			if (!force && this.statsSubTab && this.statsSubTab !== 'corpus') return;
 			if (typeof this.submitAjaxData !== 'function') return;
 			this.corpusInfoRefreshInFlight = true;
+			// the automatic load asks once per page (see ensureCorpusStatsLoaded); set here, where a request really goes out
+			this.corpusInfoAutoTried = true;
 			try {
 				// Minimal corpus-info probe payload: avoid query/kwic/freq/coll fields entirely.
 				const formData = new FormData();
