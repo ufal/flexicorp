@@ -815,7 +815,9 @@ window.ttFlexicorpCoreParts.hits = function () {
 		 */
 		searchIsRegionResult() {
 			const hits = this.search && Array.isArray(this.search.hits) ? this.search.hits : [];
-			return hits.length > 0 && hits.every((h) => h && h.named_regions && h.named_regions.r);
+			const result = this.search && this.search.response ? this.search.response.result : null;
+			if (result && result.hit_kind === 'regions') return hits.length > 0;
+			return hits.length > 0 && hits.every((h) => h && h.compact && h.named_regions && h.named_regions.r);
 		},
 
 		/** The regions of a region result: {struct, id, attrs[], docId} per hit. */
