@@ -3209,6 +3209,11 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				// Pando: synthetic TEITOK-style XML per hit (corpus without xmlfiles)
 				$payload['fragment'] = true;
 			}
+			// A region listing (r:<text ...>) matches whole texts: ask FQS for the compact form
+			// (ids, offsets, region attributes) instead of megabytes of text per hit.
+			if ( !empty($qopts['compact_regions']) || preg_match( '/^\s*r:\s*</', (string)$queryText ) ) {
+				$payload['compact_regions'] = true;
+			}
 			if ( $backendOverride !== null && trim((string)$backendOverride) !== '' ) {
 				$payload['backend'] = trim((string)$backendOverride);
 			}

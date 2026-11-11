@@ -917,6 +917,24 @@
 					</tbody>
 				</table>
 				<div id="mtxt">
+				<template x-if="searchIsRegionResult()">
+					<table class="flexicorp-table flexicorp-region-table">
+						<thead><tr><th>Region</th><th>Id</th><th>Attributes</th></tr></thead>
+						<tbody>
+							<template x-for="(row, ridx) in searchRegionRows()" :key="'region:' + searchRenderGen + ':' + ridx">
+								<tr>
+									<td x-text="row.struct"></td>
+									<td x-text="row.id"></td>
+									<td>
+										<template x-for="a in row.attrs" :key="a.name">
+											<span class="flexicorp-region-attr"><b x-text="a.name"></b>=<span x-text="a.value"></span>&nbsp; </span>
+										</template>
+									</td>
+								</tr>
+							</template>
+						</tbody>
+					</table>
+				</template>
 				<div x-show="!searchHasTableResults() && isSearchViewMode('grouped')">
 					<template x-for="group in groupHitsByDoc()" :key="searchRenderGen + ':' + group.docId">
 						<div class="flexicorp-hit-group">

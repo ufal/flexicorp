@@ -809,7 +809,33 @@ window.ttFlexicorpCoreParts.hits = function () {
 			return this.getSearchTableRows().reduce((sum, r) => sum + (Number(r && r.count) || 0), 0);
 		},
 
+		/**
+		 * A region query (r:<text ...>) answers with regions, not tokens: each hit is a region
+		 * (struct, id, attributes) and shows as such in the region list, in no token view mode.
+		 */
+		searchIsRegionResult() {
+			const hits = this.search && Array.isArray(this.search.hits) ? this.search.hits : [];
+			return hits.length > 0 && hits.every((h) => h && h.named_regions && h.named_regions.r);
+		},
+
+		/** The regions of a region result: {struct, id, attrs[], docId} per hit. */
+		searchRegionRows() {
+			const hits = this.search && Array.isArray(this.search.hits) ? this.search.hits : [];
+			return hits.map((h) => {
+				const r = (h.named_regions && h.named_regions.r) || {};
+				const attrs = r.attrs && typeof r.attrs === 'object' ? r.attrs : {};
+				return {
+					struct: r.struct || 'region',
+					id: r.id || attrs.id || h.doc_id || '',
+					docId: h.doc_id || r.id || '',
+					attrs: Object.keys(attrs).filter((k) => k !== 'id').map((k) => ({ name: k, value: String(attrs[k]) })),
+					tokens: Number.isFinite(Number(h.token_count)) ? Number(h.token_count) : null,
+				};
+			});
+		},
+
 		isSearchViewMode(mode) {
+			if (this.searchIsRegionResult()) return false;
 			return !!(this.search && this.search.viewMode === mode);
 		},
 
