@@ -1385,8 +1385,8 @@ window.flexicorpQuerybuilderExtend = function flexicorpQuerybuilderExtend() {
 			this.queryBuilderEnsureTokenSeed();
 			st.open = true;
 			this.queryBuilderAutoLoadFromCurrentQuery();
-			this.qbTokenFields().forEach((f) => this.queryBuilderEnsureFieldUiLoaded(f.value));
-			this.qbDocGroups().forEach((g) => g.options.forEach((o) => this.queryBuilderEnsureFieldUiLoaded(o.value)));
+			// Value lists are asked for per field, when a row shows that field (qbInputType): opening the
+			// builder must not request the lists of every token field and document field of the corpus.
 		},
 
 		queryBuilderClose() {
