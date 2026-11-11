@@ -1263,6 +1263,39 @@ if ( ! function_exists( 'tt_flexicorp_fn_qb_field_node_lookup' ) ) {
 	}
 }
 
+if ( ! function_exists( 'tt_flexicorp_fn_qb_values_from_index' ) ) {
+	/**
+	 * The values a field has in the index, for a closed-list field without options or value files: asked
+	 * from the pando engine (flexicorp_query_attribute_values), and kept for ten minutes per project (a
+	 * reindex drops the cache). Other engines have their value files, so they get nothing here. An empty
+	 * or failed answer is not kept, so the next request asks again.
+	 *
+	 * @return array<int,string>
+	 */
+	function tt_flexicorp_fn_qb_values_from_index( $field, $project_root = '', $max = 2000 ) {
+		$f = trim( (string) $field );
+		$root = rtrim( (string) $project_root, '/' );
+		if ( $f === '' || ! preg_match( '/^[A-Za-z][A-Za-z0-9_:-]*$/', $f ) ) return array();
+		if ( ! function_exists( 'flexicorp_query_attribute_values' ) ) {
+			$lib = __DIR__ . '/flexicorp_query.php';
+			if ( is_file( $lib ) ) require_once $lib;
+		}
+		if ( ! function_exists( 'flexicorp_query_attribute_values' ) || ! function_exists( 'flexicorp_query_run_context' ) ) return array();
+		$opts = array( 'project_root' => $root, 'max' => max( 1, (int) $max ) );
+		$ctx = flexicorp_query_run_context( $opts );
+		if ( ( $ctx['engine'] ?? '' ) !== 'pando' ) return array();
+		$cacheName = 'qb-values-' . preg_replace( '/[^A-Za-z0-9_.-]/', '_', $f );
+		if ( function_exists( 'tt_fc_cache_get' ) && $root !== '' ) {
+			$kept = tt_fc_cache_get( $root, $cacheName, tt_fc_cache_ttl( 600 ) );
+			if ( is_array( $kept ) && $kept ) return array_values( array_map( 'strval', $kept ) );
+		}
+		$res = flexicorp_query_attribute_values( $f, $opts );
+		$vals = ( ! empty( $res['ok'] ) && ! empty( $res['values'] ) && is_array( $res['values'] ) ) ? array_values( array_map( 'strval', $res['values'] ) ) : array();
+		if ( $vals && function_exists( 'tt_fc_cache_put' ) && $root !== '' ) tt_fc_cache_put( $root, $cacheName, $vals );
+		return $vals;
+	}
+}
+
 if ( ! function_exists( 'tt_flexicorp_fn_qb_candidate_value_files' ) ) {
 	/**
 	 * Candidate list files for a CQP field (lexicon/avs).
@@ -1394,6 +1427,15 @@ if ( ! function_exists( 'tt_flexicorp_fn_qb_field_value_payload' ) ) {
 					$source = 'cqp-file';
 					break;
 				}
+			}
+		}
+		if ( !$options && $isClosedType ) {
+			// no options in the settings and no CQP value files (a pando-only project has none): the values
+			// that exist in the index
+			$fromIndex = tt_flexicorp_fn_qb_values_from_index( $f, $project_root );
+			if ( $fromIndex ) {
+				foreach ( $fromIndex as $vv ) $options[] = array( 'value' => $vv, 'label' => $vv );
+				$source = 'index';
 			}
 		}
 		if ( $isClosedType || $options ) {
