@@ -5770,6 +5770,18 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		$payload = function_exists('tt_flexicorp_fn_qb_field_value_payload')
 			? tt_flexicorp_fn_qb_field_value_payload($fieldFast, $projectRoot, $isAdmin)
 			: array('ok' => true, 'field' => $fieldFast, 'input' => 'text', 'closed_list' => false, 'source' => '', 'options' => array());
+		if ( isset($_REQUEST['qb_debug']) && is_array($payload) && isset($payload['debug']) && is_array($payload['debug']) ) {
+			global $foldername;
+			$payload['debug']['root_debug'] = array(
+				'project_root' => $projectRoot,
+				'cwd' => (string) getcwd(),
+				'foldername' => isset($foldername) ? (string) $foldername : null,
+				'thisfolder' => isset($GLOBALS['thisfolder']) ? (string) $GLOBALS['thisfolder'] : null,
+				'env_root' => function_exists('tt_fc_env_project_root') ? tt_fc_env_project_root() : null,
+				'root_exists' => is_dir((string) $projectRoot),
+				'cwd_has_settings' => is_file(getcwd() . '/Resources/settings.xml'),
+			);
+		}
 		if ( !headers_sent() ) header('Content-Type: application/json; charset=UTF-8');
 		print json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 		exit;
