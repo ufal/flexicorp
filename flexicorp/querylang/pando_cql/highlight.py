@@ -79,19 +79,48 @@ def _classify_ident(text: str) -> TokenKind:
     return "attr"
 
 
-def _looks_like_region_start(source: str, start: int) -> bool:
+_RELATION_WORDS = frozenset(
+    {"child", "parent", "ancestor", "descendant", "sibling", "next", "prev", "after", "before"}
+)
+
+_NOT_REGION = -1
+_REGION_UNCLOSED = -2
+
+
+def _region_end(source: str, start: int) -> int:
     """
-    Heuristic for TEITOK-like region syntax: <tag...>
-    Treat '<' as region start only when the next non-space char is an identifier start.
+    Region anchor `<name ...>` starting at start (index of '<'): the index past its '>'.
+
+    A region start has its name directly after '<' (`<s>`, `<text genre="Book">`); `A < B` is a
+    dependency relation. Quoted values may contain '>'. Token brackets before the closing '>' mean
+    it is not an anchor. Returns _NOT_REGION, or _REGION_UNCLOSED when the query ends inside it.
     """
+    n = len(source)
     j = start + 1
+    if j >= n or not (source[j].isalpha() or source[j] == "_"):
+        return _NOT_REGION
+    while j < n:
+        ch = source[j]
+        if ch == '"':
+            j = _consume_string(source, j)
+            continue
+        if ch == ">":
+            return j + 1
+        if ch in "[]()<;":
+            return _NOT_REGION
+        j += 1
+    return _REGION_UNCLOSED
+
+
+def _relation_word_at(source: str, start: int, ident: str) -> bool:
+    """A relation word (`child [..]`) only directly before '['; otherwise an ordinary name."""
+    if ident.lower() not in _RELATION_WORDS:
+        return False
+    j = start + len(ident)
     n = len(source)
     while j < n and source[j].isspace():
         j += 1
-    if j >= n:
-        return False
-    ch = source[j]
-    return ch.isalpha() or ch == "_"
+    return j < n and source[j] == "["
 
 
 def _consume_string(source: str, start: int) -> int:
@@ -171,15 +200,10 @@ def _light_validate(source: str) -> str | None:
                 if i < n and source[i] == ">":
                     i += 1
                 continue
-            if not _looks_like_region_start(source, i):
-                i += 1
-                continue
-            j = i + 1
-            while j < n and source[j] != ">":
-                j += 1
-            if j >= n:
+            end = _region_end(source, i)
+            if end == _REGION_UNCLOSED:
                 return "Unclosed region start <...> at end of query"
-            i = j + 1
+            i = end if end > 0 else i + 1
             continue
         i += 1
     if stack:
@@ -253,27 +277,21 @@ def _tokenize_pando_cql(source: str) -> List[Dict[str, Any]]:
             continue
 
         if source[i] == "<":
-            if not _looks_like_region_start(source, i):
+            end = _region_end(source, i)
+            if end < 0:
+                # dependency relation (`A < B`), or a '<' with no closing '>'
                 tokens.append({"text": "<", "kind": "op"})
                 i += 1
                 continue
             tokens.append({"text": "<", "kind": "bracket"})
-            i += 1
-            start_inner = i
-            while i < n and source[i] != ">":
-                i += 1
-            if i < n:
-                inner = source[start_inner:i]
-                if inner:
-                    tokens.append({"text": inner, "kind": "attr"})
-                tokens.append({"text": ">", "kind": "bracket"})
-                i += 1
-            else:
-                # No closing '>': treat lone '<' as operator and continue lexing.
-                tokens[-1] = {"text": "<", "kind": "op"}
+            inner = source[i + 1 : end - 1]
+            if inner:
+                tokens.append({"text": inner, "kind": "attr"})
+            tokens.append({"text": ">", "kind": "bracket"})
+            i = end
             continue
 
-        if source[i] in "|&%":
+        if source[i] in "|&%~":
             tokens.append({"text": source[i], "kind": "op"})
             i += 1
             continue
@@ -305,7 +323,8 @@ def _tokenize_pando_cql(source: str) -> List[Dict[str, Any]]:
         m = _IDENT_RE.match(source, i)
         if m:
             ident = m.group(0)
-            tokens.append({"text": ident, "kind": _classify_ident(ident)})
+            kind = "keyword" if _relation_word_at(source, i, ident) else _classify_ident(ident)
+            tokens.append({"text": ident, "kind": kind})
             i = m.end()
             continue
 
