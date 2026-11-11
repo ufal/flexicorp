@@ -76,6 +76,10 @@ window.ttFlexicorpFreqsParts.stats_tabs = function () {
 			}
 			if (typeof this.isLoading === 'function' && this.isLoading('backend')) return;
 			if (this.corpusInfoRefreshInFlight) return;
+			// Ask once per page: an answer without the expected stats (e.g. a pando corpus) must not
+			// re-trigger this effect for ever. The Corpus stats button still forces a refresh.
+			if (this.corpusInfoAutoTried) return;
+			this.corpusInfoAutoTried = true;
 			if (typeof this.fetchCorpusStatsInfo === 'function') {
 				this.fetchCorpusStatsInfo();
 			}
