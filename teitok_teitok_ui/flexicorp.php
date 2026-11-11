@@ -166,6 +166,15 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				$rp = @realpath( $cwd );
 				return ( $rp && is_dir( $rp ) ) ? $rp : $cwd;
 			}
+			// foldername names no folder next to here (ud219 has foldername "list": .../ud219/list does not
+			// exist): take the project TEITOK itself is serving
+			if ( function_exists( 'tt_fc_env_project_root' ) ) {
+				$envRoot = tt_fc_env_project_root();
+				if ( is_string( $envRoot ) && $envRoot !== '' && $envRoot !== '.' && is_file( rtrim( $envRoot, '/' ) . '/Resources/settings.xml' ) ) {
+					$rp = @realpath( $envRoot );
+					return ( $rp && is_dir( $rp ) ) ? $rp : $envRoot;
+				}
+			}
 			return $joined;
 		}
 	}
