@@ -460,6 +460,27 @@ window.flexicorpQuerybuilderExtend = function flexicorpQuerybuilderExtend() {
 			return QB_OPERATORS;
 		},
 
+		/** Field-value requests go through a small queue: a page with many fields must not fire them all at once (rate limit, 429). */
+		qbQueueFieldRequest(job) {
+			if (!this._qbFieldQueue) { this._qbFieldQueue = []; this._qbFieldActive = 0; }
+			return new Promise((resolve) => {
+				this._qbFieldQueue.push({ job, resolve });
+				this.qbPumpFieldQueue();
+			});
+		},
+
+		qbPumpFieldQueue() {
+			const max = 3;
+			while (this._qbFieldQueue.length && this._qbFieldActive < max) {
+				const item = this._qbFieldQueue.shift();
+				this._qbFieldActive++;
+				Promise.resolve().then(item.job).then(item.resolve, () => item.resolve(null)).finally(() => {
+					this._qbFieldActive--;
+					this.qbPumpFieldQueue();
+				});
+			}
+		},
+
 		async queryBuilderEnsureFieldUiLoaded(field) {
 			const f = String(field || '').trim();
 			if (!f) return;
@@ -467,20 +488,36 @@ window.flexicorpQuerybuilderExtend = function flexicorpQuerybuilderExtend() {
 			if (this.queryBuilderFieldUiLoading && this.queryBuilderFieldUiLoading[f]) return;
 			if (!this.queryBuilderFieldUiLoading || typeof this.queryBuilderFieldUiLoading !== 'object') this.queryBuilderFieldUiLoading = {};
 			this.queryBuilderFieldUiLoading[f] = true;
-			try {
+			const fetchOnce = async () => {
 				const formData = typeof this.buildCommonRequestData === 'function' ? this.buildCommonRequestData() : new FormData();
 				if (typeof this.buildCommonRequestData !== 'function') formData.set('action', this.action || 'flexicorp');
 				formData.set('ajax', '1');
 				formData.set('qb_field_values', '1');
 				formData.set('field', f);
-				const resp = await fetch(this.getRequestUrl(), {
+				return fetch(this.getRequestUrl(), {
 					method: 'POST',
 					body: formData,
 					credentials: 'same-origin',
 					headers: { 'X-Requested-With': 'XMLHttpRequest' },
 				});
-				const data = await resp.json();
+			};
+			try {
+				const data = await this.qbQueueFieldRequest(async () => {
+					let resp = await fetchOnce();
+					for (let n = 0; resp.status === 429 && n < 3; n++) {
+						await new Promise((r) => setTimeout(r, 1500 * (n + 1)));
+						resp = await fetchOnce();
+					}
+					if (!resp.ok) return null;
+					return resp.json();
+				});
 				if (!this.queryBuilderFieldUi || typeof this.queryBuilderFieldUi !== 'object') this.queryBuilderFieldUi = {};
+				if (!data) {
+					// failed: show it as free text for now, but do not keep it, so a later render asks again
+					this.queryBuilderFieldUi[f] = { input: 'text', options: [], features: {}, source: 'error' };
+					setTimeout(() => { if (this.queryBuilderFieldUi && this.queryBuilderFieldUi[f] && this.queryBuilderFieldUi[f].source === 'error') delete this.queryBuilderFieldUi[f]; }, 15000);
+					return;
+				}
 				this.queryBuilderFieldUi[f] = {
 					input: data && data.input ? String(data.input) : 'text',
 					options: data && Array.isArray(data.options) ? data.options : [],
