@@ -919,17 +919,20 @@
 				<div id="mtxt">
 				<template x-if="searchIsRegionResult()">
 					<table class="flexicorp-table flexicorp-region-table">
-						<thead><tr><th>Region</th><th>Id</th><th>Attributes</th></tr></thead>
+						<thead><tr>
+							<th x-text="searchRegionKindLabel()"></th>
+							<th x-show="searchRegionMixed()">type</th>
+							<template x-for="col in searchRegionColumns()" :key="'region-col:' + col"><th x-text="col"></th></template>
+						</tr></thead>
 						<tbody>
 							<template x-for="(row, ridx) in searchRegionRows()" :key="'region:' + searchRenderGen + ':' + ridx">
 								<tr>
-									<td x-text="row.struct"></td>
-									<td x-text="row.id"></td>
 									<td>
-										<template x-for="a in row.attrs" :key="a.name">
-											<span class="flexicorp-region-attr"><b x-text="a.name"></b>=<span x-text="a.value"></span>&nbsp; </span>
-										</template>
+										<template x-if="row.url"><a x-bind:href="row.url" x-bind:title="row.raw" target="flexicorp_source" rel="noopener noreferrer" x-text="row.label"></a></template>
+										<template x-if="!row.url"><span x-bind:title="row.raw" x-text="row.label"></span></template>
 									</td>
+									<td x-show="searchRegionMixed()" x-text="row.struct"></td>
+									<template x-for="col in searchRegionColumns()" :key="'region-cell:' + ridx + ':' + col"><td x-text="row.values[col] || ''"></td></template>
 								</tr>
 							</template>
 						</tbody>

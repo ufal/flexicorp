@@ -820,20 +820,49 @@ window.ttFlexicorpCoreParts.hits = function () {
 			return hits.length > 0 && hits.every((h) => h && h.compact && h.named_regions && h.named_regions.r);
 		},
 
-		/** The regions of a region result: {struct, id, attrs[], docId} per hit. */
+		/**
+		 * The regions of a region result, one row each: the label (a text shows as its file name without
+		 * folders and .xml, as in KonText: xmlfiles/ru/pud/ru_pud-ud-test-0212.xml -> ru_pud-ud-test-0212),
+		 * its link (a text opens in the file view) and its attributes by name.
+		 */
 		searchRegionRows() {
 			const hits = this.search && Array.isArray(this.search.hits) ? this.search.hits : [];
 			return hits.map((h) => {
 				const r = (h.named_regions && h.named_regions.r) || {};
 				const attrs = r.attrs && typeof r.attrs === 'object' ? r.attrs : {};
+				const struct = r.struct || 'region';
+				const raw = String(r.id || attrs.id || h.doc_id || '');
+				const isText = struct === 'text';
+				const label = isText ? raw.replace(/^.*\//, '').replace(/\.xml$/i, '') : raw;
+				const values = {};
+				Object.keys(attrs).forEach((k) => { if (k !== 'id') values[k] = String(attrs[k]); });
 				return {
-					struct: r.struct || 'region',
-					id: r.id || attrs.id || h.doc_id || '',
-					docId: h.doc_id || r.id || '',
-					attrs: Object.keys(attrs).filter((k) => k !== 'id').map((k) => ({ name: k, value: String(attrs[k]) })),
+					struct,
+					raw,
+					label: label || raw,
+					url: isText && label ? this.teitokDocUrl(label) : '',
+					values,
 					tokens: Number.isFinite(Number(h.token_count)) ? Number(h.token_count) : null,
 				};
 			});
+		},
+
+		/** Header of the first column of the region table: the structure when all are alike, else 'Region'. */
+		searchRegionKindLabel() {
+			const kinds = Array.from(new Set(this.searchRegionRows().map((r) => r.struct)));
+			return kinds.length === 1 ? kinds[0] : 'Region';
+		},
+
+		/** Whether the regions are of more than one kind (then the kind gets a column of its own). */
+		searchRegionMixed() {
+			return new Set(this.searchRegionRows().map((r) => r.struct)).size > 1;
+		},
+
+		/** The attribute names over all the rows, in order of first appearance: the columns. */
+		searchRegionColumns() {
+			const cols = [];
+			this.searchRegionRows().forEach((r) => Object.keys(r.values).forEach((k) => { if (!cols.includes(k)) cols.push(k); }));
+			return cols;
 		},
 
 		isSearchViewMode(mode) {
