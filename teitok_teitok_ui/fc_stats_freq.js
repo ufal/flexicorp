@@ -1590,7 +1590,10 @@ window.ttFlexicorpFreqsParts.stats_freq = function () {
 				rows.forEach(r => {
 					const parts = this.frequencyRowValuesArray(r);
 					const rowName = parts[0] || '(empty)';
-					const colName = parts.slice(1).join(' · ') || '(empty)';
+					// one field and no compared queries: there is no second dimension, so the one column is the measure
+					const colName = parts.length <= 1
+						? (this.frequencyChartValueScale === 'relative' ? 'Relative frequency' : 'Count')
+						: (parts.slice(1).join(' · ') || '(empty)');
 					rowKeys.add(rowName);
 					colKeys.add(colName);
 					
