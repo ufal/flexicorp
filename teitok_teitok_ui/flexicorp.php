@@ -3332,16 +3332,20 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				if ( $opErr === '' ) {
 					$opErr = 'FQS query failed';
 				}
-				$payloadJson = function_exists( 'tt_flexicorp_json_encode_safe' )
-					? tt_flexicorp_json_encode_safe( $payload )
-					: json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
-				if ( $payloadJson === false ) {
-					$payloadJson = '{}';
+				// The request payload (query text, user name, session id) only goes to admins; other
+				// visitors get the engine's message alone.
+				if ( (string)( $probe['request_role'] ?? '' ) === 'admin' ) {
+					$payloadJson = function_exists( 'tt_flexicorp_json_encode_safe' )
+						? tt_flexicorp_json_encode_safe( $payload )
+						: json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+					if ( $payloadJson === false ) {
+						$payloadJson = '{}';
+					}
+					if ( strlen( $payloadJson ) > 4096 ) {
+						$payloadJson = substr( $payloadJson, 0, 4096 ) . '…';
+					}
+					$opErr .= "\n\nRequest payload: " . $payloadJson;
 				}
-				if ( strlen( $payloadJson ) > 4096 ) {
-					$payloadJson = substr( $payloadJson, 0, 4096 ) . '…';
-				}
-				$opErr .= "\n\nRequest payload: " . $payloadJson;
 				if ( strlen( $opErr ) > 12000 ) {
 					$opErr = substr( $opErr, 0, 12000 ) . '…';
 				}
