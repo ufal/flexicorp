@@ -633,6 +633,7 @@ window.ttFlexicorpCoreParts.statsrouting = function () {
 				this.searchIntroHtml = sp.body;
 			}
 			if (Array.isArray(state.searchExampleQueries)) this.searchExampleQueries = state.searchExampleQueries;
+			if (typeof state.docsServerFilter === 'boolean') this.docsServerFilter = state.docsServerFilter;
 			if (state.queryBuilder && typeof state.queryBuilder === 'object') {
 				this.queryBuilderConfig = Object.assign({}, state.queryBuilder);
 			}

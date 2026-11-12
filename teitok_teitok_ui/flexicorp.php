@@ -6807,6 +6807,25 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		'corpus_format' => $corpusFormat,
 		'pando_exec' => ! empty( $pandoExec ),
 	);
+	// Autofill for the Documents tab's column filters: the values a text attribute has (about a second
+	// at most: `[]; count by text_<attr>`), as plain JSON. The page keeps them and filters by what is typed.
+	if ( isset( $_REQUEST['ajax'] ) && (string) $_REQUEST['ajax'] === '1' && isset( $_REQUEST['docs_values'] )
+		&& preg_match( '/^text_[A-Za-z0-9_]+$/', (string) $_REQUEST['docs_values'] ) && ! empty( $fcEngineCtx['fqs_eligible'] ) ) {
+		$dvAttr = (string) $_REQUEST['docs_values'];
+		$dvDone = tt_flexicorp_done( tt_fc_engine_search( $fcEngineCtx, '[]; count by ' . $dvAttr . ';', '', '', array(
+			'start' => 0, 'limit' => 1, 'window' => 0, 'context_scope' => '', 'context_format' => '', 'group_limit' => 3000,
+		) ) );
+		$dvValues = array();
+		foreach ( ( isset( $dvDone['result']['rows'] ) && is_array( $dvDone['result']['rows'] ) ) ? $dvDone['result']['rows'] : array() as $dvRow ) {
+			$dvV = is_array( $dvRow ) ? trim( (string) ( $dvRow[ $dvAttr ] ?? '' ) ) : '';
+			if ( $dvV !== '' ) $dvValues[ $dvV ] = true;
+		}
+		$dvValues = array_keys( $dvValues );
+		natcasesort( $dvValues );
+		if ( ! headers_sent() ) header( 'Content-Type: application/json; charset=UTF-8' );
+		print json_encode( array( 'ok' => true, 'attr' => $dvAttr, 'values' => array_values( $dvValues ) ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+		exit;
+	}
 	$kwicCall = null;
 	$queryTimeMs = null;
 	if ( ($run === 'query' || $run === 'kwic') && ( $kwicQuery !== '' || $kwicValue !== '' ) ) {
@@ -7063,10 +7082,12 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			'start' => 0, 'limit' => 1, 'window' => 0, 'context_scope' => '', 'context_format' => '', 'compact_regions' => true,
 		) ) );
 		$docFields = tt_fc_document_fields( isset( $probe['result']['hits'] ) ? $probe['result']['hits'] : array() );
+		// column filters (exact values, from the autofill): {"text_lang": "English", …} as conditions on the texts
+		$docWhere = tt_fc_documents_where( isset( $_REQUEST['docs_where'] ) ? $_REQUEST['docs_where'] : '' );
 		if ( $docFields ) {
 			// the page's default limit (10000) means "the first page"; "Show more" asks for more explicitly
 			$docWant = intval( $docsLimit ) >= 10000 ? 200 : max( 1, intval( $docsLimit ) );
-			$grpDone = tt_flexicorp_done( tt_fc_engine_search( $fcEngineCtx, '[]; count by ' . implode( ', ', $docFields ) . ';', '', '', array(
+			$grpDone = tt_flexicorp_done( tt_fc_engine_search( $fcEngineCtx, tt_fc_documents_condition( $docWhere ) . '; count by ' . implode( ', ', $docFields ) . ';', '', '', array(
 				'start' => 0, 'limit' => 25, 'window' => 0, 'context_scope' => '', 'context_format' => '', 'group_limit' => $docWant,
 			) ) );
 			$grpRes = ( isset( $grpDone['result'] ) && is_array( $grpDone['result'] ) ) ? $grpDone['result'] : array();
@@ -7075,7 +7096,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				$documentsTotal = isset( $grpRes['groups'] ) && is_numeric( $grpRes['groups'] ) ? intval( $grpRes['groups'] ) : count( $documents );
 			}
 		}
-		if ( ! $documents ) {   // nothing from the index: the files on this server, if there are any
+		if ( ! $documents && ! $docWhere ) {   // nothing from the index: the files on this server, if there are any
 			$documents = $localDocs;
 			$documentsTotal = $localTotal;
 		}
@@ -7647,6 +7668,8 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			'freqLimit' => $freqLimit,
 			'contextScopeRegionAllowlist' => array_values( tt_flexicorp_context_scope_region_allowlist_resolved( $projectRoot ) ),
 		),
+		// the Documents tab's column filters (autofill + exact conditions) need the index behind FQS
+		'docsServerFilter' => ! empty( $fcEngineCtx['fqs_eligible'] ),
 		'loadedSections' => array(
 			'overview' => $loadOverview ? true : false,
 			'documents' => $loadDocuments ? true : false,

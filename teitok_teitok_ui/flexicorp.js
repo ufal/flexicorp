@@ -118,7 +118,14 @@ function flexicorpApp() {
 			filter: '',
 			perPage: 20,
 			visibleCount: 20,
+			// column filters: what is typed (draft), what is applied on the server (where, by attribute without text_),
+			// the values each attribute has (for the autofill), and the ones that matched nothing
+			draft: {},
+			where: {},
+			values: {},
+			noMatch: {},
 		},
+		docsServerFilter: false,
 		search: {
 			ran: false,
 			query: '',

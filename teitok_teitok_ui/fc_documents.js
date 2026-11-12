@@ -167,11 +167,73 @@ window.ttFlexicorpCoreParts.documents = function () {
 		},
 
 		getFilteredDocuments() {
-			// For large corpora, skip client-side filtering to avoid loading everything into the browser.
-			if (!this.isSmallCorpus()) return this.documents || [];
 			const needle = (this.documentsUi.filter || '').trim().toLowerCase();
 			if (!needle) return this.documents;
 			return (this.documents || []).filter(doc => this.getDocumentSearchText(doc).includes(needle));
+		},
+
+		/** Autofill: the values of one text attribute, asked for once (on first focus). */
+		async loadDocumentsFilterValues(key) {
+			const ui = this.documentsUi;
+			if (!key || ui.values[key] !== undefined) return;
+			ui.values[key] = [];
+			try {
+				const fd = this.buildCommonRequestData();
+				fd.set('ajax', '1');
+				fd.set('docs_values', 'text_' + key);
+				const res = await fetch(this.getRequestUrl(), { method: 'POST', body: fd, headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+				const data = await res.json();
+				ui.values[key] = Array.isArray(data && data.values) ? data.values.map(String) : [];
+			} catch (_) {
+				ui.values[key] = [];
+			}
+		},
+
+		/** What the autofill offers for what is typed in one column: the values that contain it. */
+		documentsFilterOptions(key) {
+			const vals = (this.documentsUi.values && this.documentsUi.values[key]) || [];
+			const n = String((this.documentsUi.draft && this.documentsUi.draft[key]) || '').trim().toLowerCase();
+			return vals.filter((v) => !n || v.toLowerCase().includes(n)).slice(0, 40);
+		},
+
+		/** A column filter was entered or picked: apply it (exact value) on the server and reload the list. */
+		async applyDocumentsFilter(key) {
+			const ui = this.documentsUi;
+			const typed = String((ui.draft && ui.draft[key]) || '').trim();
+			ui.noMatch[key] = false;
+			if (typed === '') {
+				if (ui.where[key] === undefined) return;
+				delete ui.where[key];
+			} else {
+				await this.loadDocumentsFilterValues(key);
+				const vals = ui.values[key] || [];
+				const hit = vals.find((v) => v === typed) || vals.find((v) => v.toLowerCase() === typed.toLowerCase());
+				if (!hit) { ui.noMatch[key] = true; return; }
+				ui.draft[key] = hit;
+				if (ui.where[key] === hit) return;
+				ui.where[key] = hit;
+			}
+			await this.reloadDocuments();
+		},
+
+		clearDocumentsFilters() {
+			const ui = this.documentsUi;
+			ui.draft = {};
+			ui.where = {};
+			ui.noMatch = {};
+			return this.reloadDocuments();
+		},
+
+		hasDocumentsFilters() {
+			return Object.keys(this.documentsUi.where || {}).length > 0;
+		},
+
+		async reloadDocuments() {
+			const fd = this.buildCommonRequestData();
+			fd.set('active_tab', 'documents');
+			fd.set('docs_limit', '10000');
+			await this.submitAjaxData(fd, 'documents');
+			this.resetDocumentsVisible();
 		},
 
 		getVisibleDocuments() {

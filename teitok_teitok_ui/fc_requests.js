@@ -288,6 +288,10 @@ window.ttFlexicorpCoreParts.requests = function () {
 			formData.set('docs_limit', String(this.settings.docsLimit || 20));
 			formData.set('docs_per_page', String(this.documentsUi.perPage || 20));
 			formData.set('docs_filter', this.documentsUi.filter || '');
+			const where = this.documentsUi && this.documentsUi.where ? this.documentsUi.where : {};
+			const sentWhere = {};
+			Object.keys(where).forEach((k) => { if (String(where[k] || '').trim()) sentWhere['text_' + k] = String(where[k]).trim(); });
+			if (Object.keys(sentWhere).length) formData.set('docs_where', JSON.stringify(sentWhere));
 			let outgoingQuery = this.search.query || '';
 			if (
 				typeof this.isCwbBackend === 'function' &&

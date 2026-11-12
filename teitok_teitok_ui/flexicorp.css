@@ -2445,3 +2445,8 @@ button.flexicorp-search-change-link {
 	background: #26323f; color: #fff; padding: 0.5em 0.7em; border-radius: 0.4em; box-shadow: 0 4px 14px rgba(0,0,0,0.25);
 }
 .fc-tip:hover::after, .fc-tip:focus::after { display: block; }
+
+/* Documents tab: a filter field above each column */
+.flexicorp-docs-filter { width: 100%; box-sizing: border-box; font-size: 0.85rem; padding: 0.15rem 0.3rem; }
+.flexicorp-docs-filter--nomatch { outline: 2px solid #c0392b; }
+.flexicorp-docs-filter-clear { font-size: 0.8rem; font-weight: normal; display: block; }

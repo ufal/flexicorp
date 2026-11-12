@@ -217,6 +217,28 @@
 							<th x-text="getMetaLabel(key)"></th>
 						</template>
 					</tr>
+					<tr class="flexicorp-docs-filters">
+						<th>
+							<input type="search" class="flexicorp-docs-filter" x-model="documentsUi.filter" placeholder="filter the names shown" aria-label="Filter the document names shown">
+							<a href="#" x-show="docsServerFilter && hasDocumentsFilters()" x-on:click.prevent="clearDocumentsFilters()" class="flexicorp-docs-filter-clear">clear filters</a>
+						</th>
+						<template x-for="key in documentMetaKeys()" :key="'f:' + key">
+							<th>
+								<template x-if="docsServerFilter">
+									<span>
+										<input type="text" class="flexicorp-docs-filter" :class="documentsUi.noMatch[key] ? 'flexicorp-docs-filter--nomatch' : ''"
+											:list="'fc-docs-dl-' + key" autocomplete="off" placeholder="type or pick" :aria-label="'Filter by ' + getMetaLabel(key)"
+											x-model="documentsUi.draft[key]"
+											x-on:focus="loadDocumentsFilterValues(key)"
+											x-on:change="applyDocumentsFilter(key)">
+										<datalist :id="'fc-docs-dl-' + key">
+											<template x-for="v in documentsFilterOptions(key)" :key="v"><option :value="v"></option></template>
+										</datalist>
+									</span>
+								</template>
+							</th>
+						</template>
+					</tr>
 				</thead>
 				<tbody>
 					<template x-for="doc in getVisibleDocuments()" :key="doc.__rowKey">
