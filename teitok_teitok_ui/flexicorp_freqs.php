@@ -1522,6 +1522,17 @@
 			}
 			$rows = tt_flexicorp_freq_field_add_pando_time_expr_variants( $rows, $backend );
 			$isPandoBackend = in_array( strtolower( trim( (string) $backend ) ), array( 'pando', 'flexicorp-pando' ), true );
+			// The usual token attributes of a treebank, in a corpus whose settings give them no display
+			// name (a generated UD project): counting by lemma, part of speech or relation is the first
+			// thing asked for. They come first; a display name in the settings still wins.
+			if ( $isPandoBackend && is_array( $candidates ) ) {
+				$haveNames = array_column( $rows, 'name' );
+				$stdRows = array();
+				foreach ( array( 'lemma' => 'Lemma', 'upos' => 'Universal POS', 'deprel' => 'Dependency relation', 'xpos' => 'Language-particular POS', 'feats' => 'Features' ) as $sk => $sl ) {
+					if ( in_array( $sk, $candidates, true ) && ! in_array( $sk, $haveNames, true ) ) $stdRows[] = array( 'name' => $sk, 'label' => $sl );
+				}
+				if ( $stdRows ) $rows = array_merge( $stdRows, $rows );
+			}
 			// the document (text_id: usually not searchable, so not in the settings' list): counts per
 			// document, and the dispersion view (where the hits fall within each text)
 			if ( $isPandoBackend && ! in_array( 'text_id', array_column( $rows, 'name' ), true ) ) {

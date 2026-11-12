@@ -147,6 +147,18 @@ if ( ! function_exists( 'tt_fc_engine_search' ) ) {
 			// A program typed in the search box ("A = …; freq A by x;", coll, count, …) runs on
 			// FQS /run: /query executes only the query statements and silently drops the rest.
 			$route = tt_fc_engine_route( $ctx, 'query', $text );
+			$fqsOpts = array(
+				'program' => $route === 'fqs-run',
+				'group_limit' => 1000,   // a typed freq/coll: the KWIC page size is not a group limit
+				'window' => $window,
+				'context_scope' => $contextScope,
+				'context_format' => $contextFormat,
+				'flexicorp_fragment_kwic_cpos_span' => $cposSpan,
+				'fragment' => ! empty( $opts['fragment'] ),
+				'project_root' => (string) $ctx['project_root'],
+			);
+			// a caller listing regions (r:<text>) asks for them compact: attributes and extent, no text
+			if ( ! empty( $opts['compact_regions'] ) ) $fqsOpts['compact_regions'] = true;
 			$call = tt_flexicorp_fqs_query_call(
 				$ctx['fqs_probe'],
 				$text,
@@ -154,16 +166,7 @@ if ( ! function_exists( 'tt_fc_engine_search' ) ) {
 				$start,
 				$limit,
 				$ctx['fqs_backend_override'],
-				array(
-					'program' => $route === 'fqs-run',
-					'group_limit' => 1000,   // a typed freq/coll: the KWIC page size is not a group limit
-					'window' => $window,
-					'context_scope' => $contextScope,
-					'context_format' => $contextFormat,
-					'flexicorp_fragment_kwic_cpos_span' => $cposSpan,
-					'fragment' => ! empty( $opts['fragment'] ),
-					'project_root' => (string) $ctx['project_root'],
-				)
+				$fqsOpts
 			);
 			return tt_fc_engine_tag( $call, $route );
 		}

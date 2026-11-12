@@ -12,6 +12,7 @@ require_once __DIR__ . '/fc_bin.php';
 require_once __DIR__ . '/fc_proc.php';
 require_once __DIR__ . '/fc_fqs_conn.php';   // the FQS address and secret
 require_once __DIR__ . '/fc_shortcache.php';   // FQS answers kept for a few seconds
+require_once __DIR__ . '/fc_documents.php';   // the Documents tab from the index's text regions (FQS)
 require_once __DIR__ . '/fc_examples.php';   // examples from Resources/cql-example.txt
 require_once __DIR__ . '/fc_public_state.php';   // no server paths for non-admins
 require_once __DIR__ . '/fc_pando_run.php';   // pando's route and languages (tt_fc_pando_languages)
@@ -7047,6 +7048,25 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	$listDone = tt_flexicorp_done($listCall);
 	$documents = ( isset($listDone['result']['docs']) && is_array($listDone['result']['docs']) ) ? array_values($listDone['result']['docs']) : array();
 	$documentsTotal = isset($listDone['result']['total']) ? intval($listDone['result']['total']) : count($documents);
+	// A corpus served by FQS has no XML files here to list: its documents are the index's text
+	// regions (the query r:<text>), with their attributes as the metadata columns.
+	if ( $loadDocuments && ! $documents && $selectionBlockMessage === '' && ! empty( $fcEngineCtx['fqs_eligible'] ) ) {
+		$regCall = tt_fc_engine_search( $fcEngineCtx, 'r:<text>', '', '', array(
+			'start' => max( 0, intval( $_REQUEST['docs_offset'] ?? 0 ) ),
+			// the page's default limit (10000) means "the first page" here; "Show more" asks for more explicitly
+			'limit' => intval( $docsLimit ) >= 10000 ? 200 : max( 1, intval( $docsLimit ) ),
+			'window' => 0,
+			'context_scope' => '',
+			'context_format' => '',
+			'compact_regions' => true,
+		) );
+		$regDone = tt_flexicorp_done( $regCall );
+		$regRes = ( isset( $regDone['result'] ) && is_array( $regDone['result'] ) ) ? $regDone['result'] : array();
+		$documents = tt_fc_documents_from_region_hits( isset( $regRes['hits'] ) ? $regRes['hits'] : array() );
+		if ( $documents && isset( $regRes['total'] ) && is_numeric( $regRes['total'] ) ) {
+			$documentsTotal = intval( $regRes['total'] );
+		}
+	}
 	$kwicDone = tt_flexicorp_done($kwicCall);
 	$promoteQueryFreqToStats = false;
 	// JS Stats subtab hint (freq | coll | other). Sourced from the flexicorp
