@@ -6784,7 +6784,9 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			$infoCall = tt_flexicorp_run( array( 'info', 'corpus' ), $backend, $projectRoot, $backendOverrideArgs, $queryEngine, $queryLanguage, $corpusFormat );
 		}
 	}
-	$listCall = $loadDocuments ? ( $selectionBlockMessage !== '' ? tt_flexicorp_error_call($backend, 'list-docs', $selectionBlockMessage) : tt_flexicorp_run(
+	// A corpus served by FQS lists its documents from the index (below): scanning its XML files here as well
+	// cost a second and about 6 MB of answer for UD 2.19, and said nothing but the paths.
+	$listCall = ( $loadDocuments && empty( $fqsRouteEligible ) ) ? ( $selectionBlockMessage !== '' ? tt_flexicorp_error_call($backend, 'list-docs', $selectionBlockMessage) : tt_flexicorp_run(
 		array('list-docs'),
 		$backend,
 		$projectRoot,
@@ -7075,14 +7077,17 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	// A corpus served by FQS: its documents are the index's texts, grouped by text (count = tokens),
 	// with the text attributes as the metadata columns (the files on this server, if any, only say
 	// their path); when the index gives nothing, the local file list stays.
+	$docFields = array();
 	if ( $loadDocuments && $selectionBlockMessage === '' && ! empty( $fcEngineCtx['fqs_eligible'] ) ) {
-		$localDocs = $documents;
-		$localTotal = $documentsTotal;
 		$documents = array();
-		$probe = tt_flexicorp_done( tt_fc_engine_search( $fcEngineCtx, 'r:<text>', '', '', array(
-			'start' => 0, 'limit' => 1, 'window' => 0, 'context_scope' => '', 'context_format' => '', 'compact_regions' => true,
-		) ) );
-		$docFields = tt_fc_document_fields( isset( $probe['result']['hits'] ) ? $probe['result']['hits'] : array() );
+		// the fields (text attributes) the page already knows are sent back with its requests: no probe then
+		$docFields = tt_fc_documents_fields_from_request( isset( $_REQUEST['docs_fields'] ) ? $_REQUEST['docs_fields'] : '' );
+		if ( ! $docFields ) {
+			$probe = tt_flexicorp_done( tt_fc_engine_search( $fcEngineCtx, 'r:<text>', '', '', array(
+				'start' => 0, 'limit' => 1, 'window' => 0, 'context_scope' => '', 'context_format' => '', 'compact_regions' => true,
+			) ) );
+			$docFields = tt_fc_document_fields( isset( $probe['result']['hits'] ) ? $probe['result']['hits'] : array() );
+		}
 		// column filters (exact values, from the autofill): {"text_lang": "English", …} as conditions on the texts
 		$docWhere = tt_fc_documents_where( isset( $_REQUEST['docs_where'] ) ? $_REQUEST['docs_where'] : '' );
 		if ( $docFields ) {
@@ -7097,9 +7102,15 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 				$documentsTotal = isset( $grpRes['groups'] ) && is_numeric( $grpRes['groups'] ) ? intval( $grpRes['groups'] ) : count( $documents );
 			}
 		}
-		if ( ! $documents && ! $docWhere ) {   // nothing from the index: the files on this server, if there are any
-			$documents = $localDocs;
-			$documentsTotal = $localTotal;
+		if ( $documents && $listCall === null ) {   // the answer the page's overview reads the document count from
+			$listCall = array( 'ok' => true, 'command' => 'fqs:group-by-text', 'error' => '', 'raw' => '',
+				'data' => array( 'success' => true, 'done' => array( 'backend' => 'fqs', 'operation' => 'list-docs',
+					'result' => array( 'docs' => array(), 'total' => $documentsTotal, 'returned' => count( $documents ), 'start' => 0 ) ) ) );
+		}
+		if ( ! $documents && ! $docWhere && function_exists( 'tt_flexicorp_local_docs_from_xmlfiles' ) ) {   // nothing from the index: the files on this server, if there are any
+			$localList = tt_flexicorp_local_docs_from_xmlfiles( $projectRoot, intval( $docsLimit ) >= 10000 ? 200 : max( 1, intval( $docsLimit ) ), 0 );
+			$documents = $localList['docs'];
+			$documentsTotal = intval( $localList['total'] );
 		}
 	}
 	$kwicDone = tt_flexicorp_done($kwicCall);
@@ -7671,6 +7682,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		),
 		// the Documents tab's column filters (autofill + exact conditions) need the index behind FQS
 		'docsServerFilter' => ! empty( $fcEngineCtx['fqs_eligible'] ),
+		'docsFields' => $docFields,
 		'loadedSections' => array(
 			'overview' => $loadOverview ? true : false,
 			'documents' => $loadDocuments ? true : false,

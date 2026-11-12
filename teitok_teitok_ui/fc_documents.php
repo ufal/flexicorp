@@ -90,3 +90,16 @@ if ( ! function_exists( 'tt_fc_documents_where' ) ) {
 		return '[' . implode( ' & ', $parts ) . ']';
 	}
 }
+
+if ( ! function_exists( 'tt_fc_documents_fields_from_request' ) ) {
+
+	/** The text fields a page sends back (docs_fields, a JSON list from an earlier answer): checked, or none. */
+	function tt_fc_documents_fields_from_request( $raw ) {
+		$d = is_array( $raw ) ? $raw : json_decode( (string) $raw, true );
+		$out = array();
+		foreach ( is_array( $d ) ? $d : array() as $f ) {
+			if ( is_string( $f ) && preg_match( '/^text_[A-Za-z0-9_]+$/', $f ) && ! in_array( $f, $out, true ) ) $out[] = $f;
+		}
+		return ( in_array( 'text_id', $out, true ) && count( $out ) <= 10 ) ? $out : array();
+	}
+}

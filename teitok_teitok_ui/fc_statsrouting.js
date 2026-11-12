@@ -634,6 +634,7 @@ window.ttFlexicorpCoreParts.statsrouting = function () {
 			}
 			if (Array.isArray(state.searchExampleQueries)) this.searchExampleQueries = state.searchExampleQueries;
 			if (typeof state.docsServerFilter === 'boolean') this.docsServerFilter = state.docsServerFilter;
+			if (Array.isArray(state.docsFields) && state.docsFields.length) this.documentsUi.fields = state.docsFields.map(String);
 			if (state.queryBuilder && typeof state.queryBuilder === 'object') {
 				this.queryBuilderConfig = Object.assign({}, state.queryBuilder);
 			}

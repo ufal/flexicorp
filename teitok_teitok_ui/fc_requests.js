@@ -294,6 +294,7 @@ window.ttFlexicorpCoreParts.requests = function () {
 				else if (String(v || '').trim()) sentWhere['text_' + k] = String(v).trim();
 			});
 			if (Object.keys(sentWhere).length) formData.set('docs_where', JSON.stringify(sentWhere));
+			if (this.documentsUi && Array.isArray(this.documentsUi.fields) && this.documentsUi.fields.length) formData.set('docs_fields', JSON.stringify(this.documentsUi.fields));
 			let outgoingQuery = this.search.query || '';
 			if (
 				typeof this.isCwbBackend === 'function' &&
