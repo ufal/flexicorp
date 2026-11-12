@@ -19,10 +19,11 @@ if ( ! function_exists( 'tt_fc_documents_from_group_rows' ) ) {
 		$attrs = ( isset( $h['named_regions']['r']['attrs'] ) && is_array( $h['named_regions']['r']['attrs'] ) ) ? $h['named_regions']['r']['attrs'] : array();
 		$names = array();
 		foreach ( array_keys( $attrs ) as $k ) {
-			if ( preg_match( '/^[A-Za-z_][\w]*$/', (string) $k ) ) $names[] = (string) $k;
+			// a path is not metadata (the id already is the file): left out of the columns
+			if ( preg_match( '/^[A-Za-z_][\w]*$/', (string) $k ) && ! preg_match( '/(^|_)(file)?path$/i', (string) $k ) ) $names[] = (string) $k;
 		}
 		if ( ! in_array( 'id', $names, true ) ) return array();
-		$names = array_merge( array( 'id' ), array_slice( array_values( array_diff( $names, array( 'id' ) ) ), 0, 5 ) );
+		$names = array_merge( array( 'id' ), array_slice( array_values( array_diff( $names, array( 'id' ) ) ), 0, 8 ) );
 		return array_map( function ( $n ) { return 'text_' . $n; }, $names );
 	}
 
@@ -41,7 +42,8 @@ if ( ! function_exists( 'tt_fc_documents_from_group_rows' ) ) {
 				if ( strpos( (string) $k, 'text_' ) === 0 && $k !== 'text_id' && is_scalar( $v ) ) $meta[ substr( (string) $k, 5 ) ] = (string) $v;
 			}
 			if ( isset( $r['count'] ) ) $meta['tokens'] = (string) intval( $r['count'] );
-			$docs[] = array( 'id' => $id, 'title' => preg_replace( '/\.(xml|conllu)$/i', '', $id ), 'meta' => $meta );
+			// the name as the region table shows it: the file name, without folders and extension
+			$docs[] = array( 'id' => $id, 'title' => preg_replace( '/\.(xml|conllu)$/i', '', basename( $id ) ), 'meta' => $meta );
 		}
 		usort( $docs, function ( $a, $b ) { return strnatcasecmp( $a['id'], $b['id'] ); } );
 		return $docs;

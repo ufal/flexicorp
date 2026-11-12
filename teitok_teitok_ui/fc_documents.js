@@ -95,11 +95,15 @@ window.ttFlexicorpCoreParts.documents = function () {
 		documentMetaKeys() {
 			const seen = new Set();
 			const docs = this.documents || [];
+			// attributes the project settings mark as not to be shown (noshow)
+			const hidden = new Set(((this.attributeCatalog && this.attributeCatalog.noshow_keys) || []).map(String));
 			for (const doc of docs) {
 				const meta = (doc && typeof doc === 'object' && doc.meta && typeof doc.meta === 'object') ? doc.meta : null;
 				if (!meta) continue;
 				for (const key of Object.keys(meta)) {
 					if (key === 'id' || key === 'title') continue;
+					if (/(^|_)(file)?path$/i.test(key)) continue;   // a path is not metadata
+					if (hidden.has(key) || hidden.has('text_' + key)) continue;
 					seen.add(key);
 				}
 			}
@@ -109,7 +113,7 @@ window.ttFlexicorpCoreParts.documents = function () {
 		getMetaLabel(key) {
 			if (!key) return '';
 			const map = this.docMetaLabels || {};
-			return map[key] || key;
+			return map[key] || map['text_' + key] || key;
 		},
 
 		getDocMetaValue(doc, key) {

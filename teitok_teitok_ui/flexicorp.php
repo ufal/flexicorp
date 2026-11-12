@@ -7052,9 +7052,13 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	$listDone = tt_flexicorp_done($listCall);
 	$documents = ( isset($listDone['result']['docs']) && is_array($listDone['result']['docs']) ) ? array_values($listDone['result']['docs']) : array();
 	$documentsTotal = isset($listDone['result']['total']) ? intval($listDone['result']['total']) : count($documents);
-	// A corpus served by FQS has no XML files here to list: its documents are the index's texts,
-	// grouped by text (count = tokens), with the text attributes as the metadata columns.
-	if ( $loadDocuments && ! $documents && $selectionBlockMessage === '' && ! empty( $fcEngineCtx['fqs_eligible'] ) ) {
+	// A corpus served by FQS: its documents are the index's texts, grouped by text (count = tokens),
+	// with the text attributes as the metadata columns (the files on this server, if any, only say
+	// their path); when the index gives nothing, the local file list stays.
+	if ( $loadDocuments && $selectionBlockMessage === '' && ! empty( $fcEngineCtx['fqs_eligible'] ) ) {
+		$localDocs = $documents;
+		$localTotal = $documentsTotal;
+		$documents = array();
 		$probe = tt_flexicorp_done( tt_fc_engine_search( $fcEngineCtx, 'r:<text>', '', '', array(
 			'start' => 0, 'limit' => 1, 'window' => 0, 'context_scope' => '', 'context_format' => '', 'compact_regions' => true,
 		) ) );
@@ -7070,6 +7074,10 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			if ( $documents ) {
 				$documentsTotal = isset( $grpRes['groups'] ) && is_numeric( $grpRes['groups'] ) ? intval( $grpRes['groups'] ) : count( $documents );
 			}
+		}
+		if ( ! $documents ) {   // nothing from the index: the files on this server, if there are any
+			$documents = $localDocs;
+			$documentsTotal = $localTotal;
 		}
 	}
 	$kwicDone = tt_flexicorp_done($kwicCall);
