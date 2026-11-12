@@ -135,7 +135,7 @@ X
 <?xml version="1.0" encoding="UTF-8"?>
 <TEI><text id="smoke"><s id="s-1" sameAs="#w-1 #w-2 #w-3"/><tok id="w-1" lemma="I" upos="PRON" head="w-2" deprel="nsubj">I</tok> <tok id="w-2" lemma="live" upos="VERB" deprel="root">live</tok> <tok id="w-3" lemma="here" upos="ADV" head="w-2" deprel="advmod">here</tok>
 <s id="s-2" sameAs="#w-4 #w-5"/><tok id="w-4" lemma="they" upos="PRON" head="w-5" deprel="nsubj">They</tok> <tok id="w-5" lemma="leave" upos="VERB" deprel="root">left</tok>
-<s id="s-3" sameAs="#w-6 #w-7"/><tok id="w-6" lemma="home" upos="NOUN" deprel="root">Home</tok> <tok id="w-7" lemma="." upos="PUNCT" head="w-6" deprel="punct">.</tok></text></TEI>
+<s id="s-3" sameAs="#w-6 #w-7 #w-8"/><tok id="w-6" lemma="home" upos="NOUN" deprel="root">Home</tok> <tok id="w-7" lemma="." upos="PUNCT" head="w-6" deprel="punct">.</tok> <tok id="w-8" lemma="有" upos="VERB" deprel="dep">有</tok></text></TEI>
 X
 	system( 'chown', '-R', $webu, $t ) if $< == 0;
 	my $enc = cap( as_u( $webu, "cd " . q_($t) . " && PATH=$fqs_path flexencoder --project-root . --settings settings.xml --searchfolder xmlfiles --output-pando pando --output-xidx xidx 2>&1; echo EXIT=\$?" ) );
@@ -148,6 +148,14 @@ X
 		my $res = cap( as_u( $webu, "PATH=$fqs_path pando " . q_("$t/pando") . " " . q_('[upos="VERB"] > [deprel="nsubj"]') . " --json --total --limit 1" ) );
 		my ($tot) = $res =~ /"total"\s*:\s*(\d+)/;
 		( defined $tot && $tot == 2 ) ? ok('dependency query [upos="VERB"] > [deprel="nsubj"]: 2 hits, as expected') : bad( 'dependency query gave ' . ( $tot // 'no answer' ) . ' hits, expected 2', 'sentence regions or heads are not reaching pando-index' );
+		# Regex engine: with RE2 a character class / '.' match whole UTF-8 characters; a pando built
+		# without RE2 (std::regex) matches bytes, so [沒].+ wrongly matches the 3-byte token 有 (Chinese,
+		# Japanese, Greek, ... frequency lists and regex searches then return garbage)
+		my $u = cap( as_u( $webu, "PATH=$fqs_path pando " . q_("$t/pando") . " " . q_('[form="[沒].+"]') . " --json --total --limit 1" ) );
+		my ($ut) = $u =~ /"total"\s*:\s*(\d+)/;
+		!defined $ut ? wrn( 'UTF-8 regex probe [form="[沒].+"] gave no answer', 'run it by hand: pando <index> \'[form="[沒].+"]\' --json --total' )
+		  : $ut == 0 ? ok('regex engine matches whole UTF-8 characters (RE2)')
+		  : bad( 'pando regexes match bytes, not characters ([form="[沒].+"] matched the single character 有): pando was built without RE2', 'install libre2-dev / re2-devel / brew install re2, then install-stack.pl --only pando (reinstall pando)' );
 	}
 }
 

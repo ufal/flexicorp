@@ -51,6 +51,7 @@ function flexicorpApp() {
 		statsModuleRegistry: [],
 		_statsModuleInstallersRan: false,
 		settingsOpen: false,
+		queryEnterMode: 'enter',   // 'enter' | 'newline' (user preference, localStorage)
 		statusDetailsOpen: false,
 		corporaOpen: false,
 		corporaLoading: false,
@@ -618,6 +619,7 @@ function flexicorpApp() {
 				// applyStoredFlexicorpSelection runs inside applyState (before persist).
 				// So force-reload sends backend/query_engine/query_language in the URL, not only session.
 				this.syncFlexicorpSelectionToUrl();
+				this.fcHistoryInit();
 			} catch (err) {
 				this.rawTitle = 'Failed to parse initial state';
 				this.rawBody = err && err.message ? err.message : String(err);
@@ -810,6 +812,7 @@ function flexicorpApp() {
 					: setTimeout(() => this.initDocumentsDataTable(), 0);
 			}
 			this.syncFlexicorpSelectionToUrl();
+			this.fcHistoryRecord();
 		},
 
 		showDebugTab() {

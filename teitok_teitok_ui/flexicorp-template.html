@@ -23,10 +23,10 @@
 					:class="activeTab === 'overview' ? 'flexicorp-tab--active' : ''"
 					x-on:click.prevent="setTab('overview')"
 				>Engines</button>
-				<button type="button" class="flexicorp-tab" :class="activeTab === 'documents' ? 'flexicorp-tab--active' : ''" x-on:click.prevent="setTab('documents')">{%Documents}</button>
-				<button type="button" class="flexicorp-tab" :class="activeTab === 'search' ? 'flexicorp-tab--active' : ''" x-on:click.prevent="setTab('search')">{%Search}</button>
-				<button type="button" class="flexicorp-tab" :class="activeTab === 'frequency' ? 'flexicorp-tab--active' : ''" x-on:click.prevent="setTab('frequency')">{%Statistics}</button>
-				<button type="button" class="flexicorp-tab" x-show="showDebugTab()" :class="activeTab === 'debug' ? 'flexicorp-tab--active' : ''" x-on:click.prevent="setTab('debug')">Debug</button>
+				<button type="button" class="flexicorp-tab" :class="activeTab === 'documents' ? 'flexicorp-tab--active' : ''" :aria-current="activeTab === 'documents' ? 'page' : null" x-on:click.prevent="setTab('documents')">{%Documents}</button>
+				<button type="button" class="flexicorp-tab" :class="activeTab === 'search' ? 'flexicorp-tab--active' : ''" :aria-current="activeTab === 'search' ? 'page' : null" x-on:click.prevent="onSearchTabClick()">{%Search}</button>
+				<button type="button" class="flexicorp-tab" :class="activeTab === 'frequency' ? 'flexicorp-tab--active' : ''" :aria-current="activeTab === 'frequency' ? 'page' : null" x-on:click.prevent="setTab('frequency')">{%Statistics}</button>
+				<button type="button" class="flexicorp-tab" x-show="showDebugTab()" :class="activeTab === 'debug' ? 'flexicorp-tab--active' : ''" :aria-current="activeTab === 'debug' ? 'page' : null" x-on:click.prevent="setTab('debug')">Debug</button>
 				<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="openHelp()">{%Help}</button>
 				<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="openSettings()">{%Settings}</button>
 				<button type="button" class="btn btn-sm btn-outline-secondary" x-on:click="toggleFullscreen()" x-text="fullscreenButtonLabel()"></button>
@@ -354,8 +354,9 @@
 					</div>
 					<div class="flexicorp-query-wrap" :class="search.queryHighlightEnabled && queryHighlightSupported() ? '' : 'flexicorp-query-wrap--no-highlight'">
 						<pre class="flexicorp-query-highlight" aria-hidden="true" x-show="search.queryHighlightEnabled && queryHighlightSupported()"><code id="fc-query-highlight" class="flexicorp-query-highlight-code" x-html="queryHighlightDisplayHtml()"></code></pre>
-						<textarea id="fc-query" name="query" class="flexicorp-query-input" x-model="search.query" x-on:input="scheduleQueryHighlight()" x-on:scroll="syncQueryHighlightScroll($event)"></textarea>
+						<textarea id="fc-query" name="query" class="flexicorp-query-input" x-model="search.query" x-on:input="scheduleQueryHighlight()" x-on:scroll="syncQueryHighlightScroll($event)" x-on:keydown="onQueryKeydown($event)"></textarea>
 					</div>
+					<p class="flexicorp-query-keyhint" x-text="queryKeyHint()"></p>
 					<p class="wrong flexicorp-query-parse-error" :class="(search.queryHighlightEnabled && !!search.queryHighlightError) ? 'flexicorp-query-parse-error--visible' : ''" x-text="(search.queryHighlightEnabled && !!search.queryHighlightError) ? search.queryHighlightError : ' '"></p>
 				</div>
 				</div>
@@ -1425,6 +1426,13 @@
 							type="checkbox"
 							x-model="settingsDraft.groupHitsBySentence"
 						>
+					</div>
+					<div class="flexicorp-form-row">
+						<label for="fc-settings-enter">Enter key in the query box</label>
+						<select id="fc-settings-enter" x-on:change="setQueryEnterMode($event.target.value)">
+							<option value="enter" :selected="queryEnterMode === 'enter'">Enter runs the search (Shift+Enter: new line)</option>
+							<option value="newline" :selected="queryEnterMode === 'newline'">Enter inserts a new line (Ctrl/Cmd+Enter runs)</option>
+						</select>
 					</div>
 {{STATS_SETTINGS_FREQ_ROW_HTML}}
 					<p class="flexicorp-panel-note">These settings apply to how this page shows and requests results; they do not change the corpus.</p>

@@ -141,6 +141,19 @@
 	font-weight: 600;
 }
 
+/* The page's main tabs: the current one reads as "you are here", not as a button */
+.flexicorp-toolbar-right .flexicorp-tab--active {
+	background: #1a73e8;
+	border-color: #1a73e8;
+	color: #fff;
+}
+
+.flexicorp-query-keyhint {
+	margin: 0.25rem 0 0 0;
+	font-size: 0.8rem;
+	color: #5f6368;
+}
+
 /* Nested tabs inside the Stats (Quantitative analysis) panel */
 .flexicorp-stats-subtabs {
 	display: flex;

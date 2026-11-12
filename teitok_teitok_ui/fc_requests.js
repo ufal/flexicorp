@@ -219,6 +219,10 @@ window.ttFlexicorpCoreParts.requests = function () {
 			});
 			this.search.start = start;
 			this._pendingSearchUiViewMode = uiViewMode;
+			if (!append) {
+				this.fcHistoryRecord({ ran: true });   // the search is about to run
+				this._fcLastRunQuery = String((this.search && this.search.query) || '');
+			}
 			const formData = this.buildCommonRequestData();
 			formData.set('active_tab', 'search');
 			formData.set('run', 'query');
@@ -473,6 +477,112 @@ window.ttFlexicorpCoreParts.requests = function () {
 
 		submitSearchFromButton(element) {
 			this.submitSearchRequest({ append: false });
+		},
+
+		// ── Query box: Enter handling ───────────────────────────────────────────
+		/** Enter in the query box: 'enter' = Enter runs (Shift+Enter: new line); 'newline' = Enter is a new
+		 *  line. Ctrl/Cmd+Enter runs in both. A per-browser preference (Settings), kept in localStorage. */
+		fcLoadEnterMode() {
+			try {
+				const v = window.localStorage.getItem('flexicorp.queryEnterMode');
+				if (v === 'enter' || v === 'newline') return v;
+			} catch (_) {}
+			return 'enter';
+		},
+
+		setQueryEnterMode(mode) {
+			this.queryEnterMode = mode === 'newline' ? 'newline' : 'enter';
+			try { window.localStorage.setItem('flexicorp.queryEnterMode', this.queryEnterMode); } catch (_) {}
+		},
+
+		queryKeyHint() {
+			return this.queryEnterMode === 'newline'
+				? 'Ctrl/Cmd+Enter to search \u00b7 Enter for a new line'
+				: 'Enter to search \u00b7 Shift+Enter for a new line';
+		},
+
+		onQueryKeydown(event) {
+			if (!event || event.key !== 'Enter') return;
+			// An input method (IME: Chinese, Japanese, Korean, ...) uses Enter to confirm the characters it is
+			// composing; that Enter must not run the search. keyCode 229 covers Safari, which reports
+			// isComposing=false on the keydown that ends a composition.
+			if (event.isComposing || event.keyCode === 229) return;
+			const modified = event.ctrlKey || event.metaKey;
+			const runs = modified || (this.queryEnterMode !== 'newline' && !event.shiftKey && !event.altKey);
+			if (!runs) return;
+			event.preventDefault();
+			if (this.isLoading('search') || this.isBusy() || (!this.isAdmin && this.noQueryBackendAvailable())) return;
+			this.submitSearchRequest({ append: false });
+		},
+
+		/** The Search tab while on Search: bring up the query form and put the cursor in it. */
+		onSearchTabClick() {
+			if (this.activeTab !== 'search') this.setTab('search');
+			if (this.search) this.search.showQueryForm = true;
+			const focus = () => {
+				const el = document.getElementById('fc-query');
+				if (!el) return;
+				try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) {}
+				el.focus({ preventScroll: true });
+				const n = el.value.length;
+				try { el.setSelectionRange(n, n); } catch (_) {}
+			};
+			if (this.$nextTick) this.$nextTick(focus); else setTimeout(focus, 0);
+		},
+
+		// ── Browser history: Back goes to the previous search/tab, not out of flexicorp ──
+		fcHistoryState() {
+			return {
+				fc: 1,
+				tab: this.activeTab || 'search',
+				query: String((this.search && this.search.query) || ''),
+				ran: !!(this.search && this.search.ran),
+			};
+		},
+
+		fcHistoryInit() {
+			this.queryEnterMode = this.fcLoadEnterMode();
+			this._fcLastRunQuery = (this.search && this.search.ran) ? String(this.search.query || '') : '';
+			try { window.history.replaceState(this.fcHistoryState(), '', window.location.href); } catch (_) {}
+			if (this._fcPopBound) return;
+			this._fcPopBound = true;
+			window.addEventListener('popstate', (e) => this.fcHistoryPop(e && e.state));
+		},
+
+		/** After a tab change or a new search: add a history entry (or just update the current one when
+		 *  tab and query are the same as in it). Not while restoring an entry or a shared snapshot. */
+		fcHistoryRecord(overrides) {
+			if (this._fcHistoryRestoring || this._snapshotRestoring) return;
+			try {
+				const next = Object.assign(this.fcHistoryState(), overrides || {});
+				const cur = window.history.state;
+				if (cur && cur.fc && cur.tab === next.tab && cur.query === next.query) {
+					window.history.replaceState(next, '', window.location.href);
+				} else {
+					window.history.pushState(next, '', window.location.href);
+				}
+			} catch (_) {}
+		},
+
+		async fcHistoryPop(state) {
+			if (!state || !state.fc) return;
+			this._fcHistoryRestoring = true;
+			try {
+				if (state.tab && state.tab !== this.activeTab) this.setTab(state.tab);
+				if (state.tab === 'search' && this.search) {
+					const q = String(state.query || '');
+					this.search.query = q;
+					if (state.ran && q.trim()) {
+						if (q !== this._fcLastRunQuery) await this.submitSearchRequest({ append: false });
+					} else {
+						this.search.ran = false;
+						this.search.showQueryForm = true;
+					}
+					if (typeof this.scheduleQueryHighlight === 'function') this.scheduleQueryHighlight();
+				}
+			} finally {
+				this._fcHistoryRestoring = false;
+			}
 		},
 
 		canShowMoreSearch() {

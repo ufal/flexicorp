@@ -1041,7 +1041,7 @@ window.ttFlexicorpCoreParts.viewstate = function () {
 				) {
 					url.searchParams.set('query_engine', this.settings.queryEngine);
 				}
-				window.history.replaceState({}, '', url.toString());
+				window.history.replaceState(window.history.state || {}, '', url.toString());
 			} catch (_) {}
 		},
 	};
