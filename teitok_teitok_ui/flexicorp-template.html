@@ -225,15 +225,21 @@
 						<template x-for="key in documentMetaKeys()" :key="'f:' + key">
 							<th>
 								<template x-if="docsServerFilter">
-									<span>
-										<input type="text" class="flexicorp-docs-filter" :class="documentsUi.noMatch[key] ? 'flexicorp-docs-filter--nomatch' : ''"
-											:list="'fc-docs-dl-' + key" autocomplete="off" placeholder="type or pick" :aria-label="'Filter by ' + getMetaLabel(key)"
+									<span class="flexicorp-docs-filterbox">
+										<input type="text" class="flexicorp-docs-filter" :class="documentsUi.noMatch[key] ? 'flexicorp-docs-filter--nomatch' : (documentsUi.where[key] ? 'flexicorp-docs-filter--on' : '')"
+											autocomplete="off" placeholder="all" :aria-label="'Filter by ' + getMetaLabel(key)"
 											x-model="documentsUi.draft[key]"
-											x-on:focus="loadDocumentsFilterValues(key)"
-											x-on:change="applyDocumentsFilter(key)">
-										<datalist :id="'fc-docs-dl-' + key">
-											<template x-for="v in documentsFilterOptions(key)" :key="v"><option :value="v"></option></template>
-										</datalist>
+											x-on:focus="documentsFilterFocus(key)"
+											x-on:input="documentsFilterTyped(key)"
+											x-on:keydown="documentsFilterKey(key, $event)"
+											x-on:blur="documentsFilterBlur(key)">
+										<span class="flexicorp-docs-nomatch-note" x-show="documentsUi.noMatch[key]">no such value</span>
+										<ul class="flexicorp-docs-suggest" x-show="documentsUi.open[key] && documentsFilterShown(key).length">
+											<template x-for="(v, i) in documentsFilterShown(key)" :key="v">
+												<li :class="documentsUi.active[key] === i ? 'flexicorp-docs-suggest--active' : ''" x-text="v" x-on:mousedown.prevent="documentsFilterPick(key, v)"></li>
+											</template>
+											<li class="flexicorp-docs-suggest-more" x-show="documentsFilterOptions(key).length > 12" x-text="'… ' + (documentsFilterOptions(key).length - 12) + ' more: keep typing'"></li>
+										</ul>
 									</span>
 								</template>
 							</th>

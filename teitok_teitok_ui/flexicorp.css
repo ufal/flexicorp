@@ -2446,7 +2446,15 @@ button.flexicorp-search-change-link {
 }
 .fc-tip:hover::after, .fc-tip:focus::after { display: block; }
 
-/* Documents tab: a filter field above each column */
+/* Documents tab: a filter field above each column, with its own suggestion list */
+.flexicorp-docs-filterbox { position: relative; display: block; font-weight: normal; }
 .flexicorp-docs-filter { width: 100%; box-sizing: border-box; font-size: 0.85rem; padding: 0.15rem 0.3rem; }
+.flexicorp-docs-filter--on { background: #eef6ff; border-color: #2b6cb0; }
 .flexicorp-docs-filter--nomatch { outline: 2px solid #c0392b; }
+.flexicorp-docs-nomatch-note { display: block; color: #c0392b; font-size: 0.75rem; }
 .flexicorp-docs-filter-clear { font-size: 0.8rem; font-weight: normal; display: block; }
+.flexicorp-docs-suggest { position: absolute; left: 0; right: 0; top: 100%; z-index: 60; margin: 0; padding: 0; list-style: none;
+	background: #fff; color: #222; border: 1px solid #9aa5b1; border-radius: 0.3rem; max-height: 15rem; overflow: auto; box-shadow: 0 4px 14px rgba(0,0,0,0.18); text-align: left; }
+.flexicorp-docs-suggest li { padding: 0.2rem 0.5rem; cursor: pointer; font-size: 0.85rem; white-space: nowrap; }
+.flexicorp-docs-suggest li:hover, .flexicorp-docs-suggest li.flexicorp-docs-suggest--active { background: #dbeafe; }
+.flexicorp-docs-suggest li.flexicorp-docs-suggest-more { color: #6c757d; cursor: default; font-style: italic; }

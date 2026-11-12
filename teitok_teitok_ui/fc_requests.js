@@ -146,9 +146,7 @@ window.ttFlexicorpCoreParts.requests = function () {
 							: `The search failed: ${message}`],
 					};
 				} else {
-					this.rawTitle = 'Request failed';
-					this.rawBody = message;
-					this.rawOpen = true;
+					this.showFailureDialog('Request failed', message);
 				}
 			} finally {
 				this.loading[loadingKey] = false;

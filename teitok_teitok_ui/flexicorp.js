@@ -124,6 +124,8 @@ function flexicorpApp() {
 			where: {},
 			values: {},
 			noMatch: {},
+			open: {},     // the suggestion list of a column is showing
+			active: {},   // the suggestion picked with the arrow keys
 		},
 		docsServerFilter: false,
 		search: {
@@ -628,9 +630,7 @@ function flexicorpApp() {
 				this.syncFlexicorpSelectionToUrl();
 				this.fcHistoryInit();
 			} catch (err) {
-				this.rawTitle = 'Failed to parse initial state';
-				this.rawBody = err && err.message ? err.message : String(err);
-				this.rawOpen = true;
+				this.showFailureDialog('Failed to parse initial state', err && err.message ? err.message : String(err));
 			}
 			if (loadingEl) loadingEl.remove();
 			this.ensureSearchShareButton();
@@ -1039,6 +1039,7 @@ function flexicorpApp() {
 		},
 
 		openResponse(key, title) {
+			if (!this.isAdmin) return;
 			const payload = this.responses && this.responses[key] ? this.responses[key] : null;
 			if (!payload) return;
 			const parts = [];
@@ -1053,11 +1054,20 @@ function flexicorpApp() {
 			this.rawOpen = true;
 		},
 
+		/** A failure shown in the Raw dialog: the details for administrators, a plain message for everyone else. */
+		showFailureDialog(title, detail) {
+			const admin = !!this.isAdmin;
+			this.rawTitle = admin ? title : 'Something went wrong';
+			this.rawBody = admin ? detail : 'The page could not complete the request. Please try again; if it keeps failing, tell the administrators of this site.';
+			this.rawOpen = true;
+		},
+
 		closeRaw() {
 			this.rawOpen = false;
 		},
 
 		hasRaw(key) {
+			if (!this.isAdmin) return false;   // the raw answers and commands are for administrators
 			const payload = this.responses && this.responses[key] ? this.responses[key] : null;
 			return !!(payload && (payload.raw || payload.command));
 		},

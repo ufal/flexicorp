@@ -193,11 +193,78 @@ window.ttFlexicorpCoreParts.documents = function () {
 		documentsFilterOptions(key) {
 			const vals = (this.documentsUi.values && this.documentsUi.values[key]) || [];
 			const n = String((this.documentsUi.draft && this.documentsUi.draft[key]) || '').trim().toLowerCase();
-			return vals.filter((v) => !n || v.toLowerCase().includes(n)).slice(0, 40);
+			return vals.filter((v) => !n || v.toLowerCase().includes(n));
 		},
 
-		/** A column filter was entered or picked: apply it (exact value) on the server and reload the list. */
-		async applyDocumentsFilter(key) {
+		/** The first few suggestions (the list shows no more than this). */
+		documentsFilterShown(key) {
+			return this.documentsFilterOptions(key).slice(0, 12);
+		},
+
+		/** How long after the last keystroke a typed filter is sent (the query box waits 0.5 s; a filter reloads the list). */
+		documentsFilterDelayMs: 2000,
+
+		/** Typing in a column field: suggestions at once, the filter itself only after a pause. */
+		documentsFilterTyped(key) {
+			const ui = this.documentsUi;
+			ui.noMatch[key] = false;
+			ui.open[key] = true;
+			ui.active[key] = -1;
+			this.loadDocumentsFilterValues(key);
+			this._docsFilterTimers = this._docsFilterTimers || {};
+			clearTimeout(this._docsFilterTimers[key]);
+			this._docsFilterTimers[key] = setTimeout(() => this.applyDocumentsFilter(key), this.documentsFilterDelayMs);
+		},
+
+		documentsFilterFocus(key) {
+			this.documentsUi.open[key] = true;
+			this.documentsUi.active[key] = -1;
+			this.loadDocumentsFilterValues(key);
+		},
+
+		documentsFilterBlur(key) {
+			this.documentsUi.open[key] = false;
+			if (this._docsFilterTimers) clearTimeout(this._docsFilterTimers[key]);
+			this.applyDocumentsFilter(key);
+		},
+
+		/** Arrow keys move through the suggestions, Enter takes the highlighted one (or applies what is typed), Escape closes. */
+		documentsFilterKey(key, event) {
+			const ui = this.documentsUi;
+			const shown = this.documentsFilterShown(key);
+			if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+				event.preventDefault();
+				ui.open[key] = true;
+				const step = event.key === 'ArrowDown' ? 1 : -1;
+				const cur = Number.isInteger(ui.active[key]) ? ui.active[key] : -1;
+				ui.active[key] = shown.length ? (cur + step + shown.length) % shown.length : -1;
+			} else if (event.key === 'Enter') {
+				event.preventDefault();
+				const a = ui.active[key];
+				if (Number.isInteger(a) && a >= 0 && shown[a] !== undefined) this.documentsFilterPick(key, shown[a]);
+				else { if (this._docsFilterTimers) clearTimeout(this._docsFilterTimers[key]); this.applyDocumentsFilter(key, { enter: true }); }
+			} else if (event.key === 'Escape') {
+				ui.open[key] = false;
+			}
+		},
+
+		/** A suggestion was clicked or chosen with Enter: that exact value, applied at once. */
+		documentsFilterPick(key, value) {
+			const ui = this.documentsUi;
+			if (this._docsFilterTimers) clearTimeout(this._docsFilterTimers[key]);
+			ui.draft[key] = value;
+			ui.open[key] = false;
+			ui.noMatch[key] = false;
+			return this.applyDocumentsFilter(key);
+		},
+
+		/**
+		 * Apply what is typed in a column as an exact value on the server and reload the list. An exact
+		 * value (any capitalisation) applies; text that only one value contains completes to that value;
+		 * text several values contain waits (the suggestions show them); only text no value contains is
+		 * marked as not matching.
+		 */
+		async applyDocumentsFilter(key, opts) {
 			const ui = this.documentsUi;
 			const typed = String((ui.draft && ui.draft[key]) || '').trim();
 			ui.noMatch[key] = false;
@@ -207,8 +274,14 @@ window.ttFlexicorpCoreParts.documents = function () {
 			} else {
 				await this.loadDocumentsFilterValues(key);
 				const vals = ui.values[key] || [];
-				const hit = vals.find((v) => v === typed) || vals.find((v) => v.toLowerCase() === typed.toLowerCase());
-				if (!hit) { ui.noMatch[key] = true; return; }
+				let hit = vals.find((v) => v === typed) || vals.find((v) => v.toLowerCase() === typed.toLowerCase());
+				if (!hit) {
+					const some = this.documentsFilterOptions(key);
+					if (some.length === 1) hit = some[0];
+					else if (some.length === 0) { ui.noMatch[key] = true; return; }
+					else if (opts && opts.enter) hit = some[0];
+					else return;   // several values contain it: the suggestions are showing, nothing is sent yet
+				}
 				ui.draft[key] = hit;
 				if (ui.where[key] === hit) return;
 				ui.where[key] = hit;
