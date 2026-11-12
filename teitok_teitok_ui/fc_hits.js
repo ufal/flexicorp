@@ -494,8 +494,14 @@ window.ttFlexicorpCoreParts.hits = function () {
 			if (total !== null && String(totalDisplay).length) {
 				parts.push(countLabel);
 			} else if (this.searchTotalPending(result)) {
-				// the page size is not the number of hits: say that the total is still being counted
-				parts.push(`first ${returned} ${returned === 1 ? 'hit' : 'hits'} · total still being counted`);
+				// the page size is not the number of hits: say that the total is still being counted,
+				// with the count so far when the engine reports it (page.total while page.total_exact is false)
+				const soFar = result && result.page && typeof result.page === 'object' ? Number(result.page.total) : NaN;
+				if (Number.isFinite(soFar) && soFar > returned) {
+					parts.push(`at least ${soFar.toLocaleString('en-US')} hits so far · still counting`);
+				} else {
+					parts.push(`first ${returned} ${returned === 1 ? 'hit' : 'hits'} · total still being counted`);
+				}
 			} else {
 				parts.push(isTable ? `${returned} ${returned === 1 ? 'row' : 'rows'}` : `${returned} ${returned === 1 ? 'hit' : 'hits'}`);
 			}
@@ -562,8 +568,8 @@ window.ttFlexicorpCoreParts.hits = function () {
 
 		/**
 		 * While the total is pending, ask again (the identical search is answered from the engine's
-		 * cache with the finished count) a few times, only when the page still shows just the first
-		 * hits of this query. Called from the result line (x-effect), so it runs after each answer.
+		 * cache with the count so far, then the finished count) with growing delays, for about two
+		 * minutes, only when the page still shows just the first hits of this query. Called from the result line (x-effect), so it runs after each answer.
 		 */
 		schedulePendingTotalRecheck() {
 			const result = this.search && this.search.response ? this.search.response.result : null;
@@ -572,8 +578,10 @@ window.ttFlexicorpCoreParts.hits = function () {
 			const st = this._pendingRecheck;
 			if (st && st.key === key && st.timer) return;
 			const state = st && st.key === key ? st : { key, tries: 0, timer: null };
-			if (state.tries >= 3) { this._pendingRecheck = state; return; }
-			const delay = [2000, 5000, 12000][state.tries];
+			// growing delays: about two minutes in all, then the label stays as it is
+			const delays = [2000, 3000, 5000, 8000, 13000, 20000, 30000, 30000];
+			if (state.tries >= delays.length) { this._pendingRecheck = state; return; }
+			const delay = delays[state.tries];
 			state.timer = setTimeout(() => {
 				state.timer = null;
 				state.tries += 1;
