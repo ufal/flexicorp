@@ -223,6 +223,11 @@ window.ttFlexicorpCoreParts.hitdetail = function () {
 		decodeHtmlEntities(str) {
 			if (typeof str !== 'string' || !str) return str;
 			if (!/&(?:lt|gt|amp|quot|#\d+;|#x[\da-f]+;)/i.test(str)) return str;
+			// Real markup (an element tag is there) keeps its entities: in attribute values and text they
+			// are data (GUM's discourse and entity attributes hold &quot; and &lt;), and decoding them ends
+			// the attribute early and spills the rest of the tag into the text. Only escaped markup
+			// (&lt;tok&gt;…, no real tag) needs decoding.
+			if (/<[A-Za-z]/.test(str)) return this.normalizeContextArtifacts(str);
 			let out = str;
 			let prev = null;
 			let guard = 0;
