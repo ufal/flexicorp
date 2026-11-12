@@ -537,6 +537,7 @@ window.ttFlexicorpCoreParts.requests = function () {
 				tab: this.activeTab || 'search',
 				query: String((this.search && this.search.query) || ''),
 				ran: !!(this.search && this.search.ran),
+				sub: String(this.statsSubTab || ''),
 			};
 		},
 
@@ -547,16 +548,25 @@ window.ttFlexicorpCoreParts.requests = function () {
 			if (this._fcPopBound) return;
 			this._fcPopBound = true;
 			window.addEventListener('popstate', (e) => this.fcHistoryPop(e && e.state));
+			// Tabs also change without setTab() (a search answered on Statistics, Classify, ...): follow
+			// them all, so Back has an entry for every thing the user did here.
+			if (typeof this.$watch === 'function') {
+				const rec = () => this.fcHistoryRecord();
+				this.$watch('activeTab', rec);
+				this.$watch('statsSubTab', rec);
+				this.$watch('search.ran', rec);
+			}
 		},
 
 		/** After a tab change or a new search: add a history entry (or just update the current one when
 		 *  tab and query are the same as in it). Not while restoring an entry or a shared snapshot. */
 		fcHistoryRecord(overrides) {
-			if (this._fcHistoryRestoring || this._snapshotRestoring) return;
+			if (this._fcHistoryRestoring) return;
 			try {
 				const next = Object.assign(this.fcHistoryState(), overrides || {});
 				const cur = window.history.state;
-				if (cur && cur.fc && cur.tab === next.tab && cur.query === next.query) {
+				// restoring a shared link (viz=...) fills the first entry; it must not add entries
+				if (this._snapshotRestoring || (cur && cur.fc && cur.tab === next.tab && cur.query === next.query && (cur.sub || '') === next.sub)) {
 					window.history.replaceState(next, '', window.location.href);
 				} else {
 					window.history.pushState(next, '', window.location.href);
@@ -569,6 +579,7 @@ window.ttFlexicorpCoreParts.requests = function () {
 			this._fcHistoryRestoring = true;
 			try {
 				if (state.tab && state.tab !== this.activeTab) this.setTab(state.tab);
+				if (state.tab === 'frequency' && state.sub) this.statsSubTab = state.sub;
 				if (state.tab === 'search' && this.search) {
 					const q = String(state.query || '');
 					this.search.query = q;
