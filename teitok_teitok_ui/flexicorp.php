@@ -1801,6 +1801,17 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			$offset = max(0, intval($offset));
 			$files = glob($xmlDir . '/*.xml');
 			if ( !is_array($files) ) $files = array();
+			if ( !$files ) {
+				// Nested layouts (xmlfiles/<language>/<treebank>/doc.xml, as in Universal Dependencies)
+				try {
+					$it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $xmlDir, FilesystemIterator::SKIP_DOTS | FilesystemIterator::FOLLOW_SYMLINKS ) );
+					foreach ( $it as $f ) {
+						if ( $f->isFile() && strtolower( $f->getExtension() ) === 'xml' ) $files[] = $f->getPathname();
+					}
+				} catch ( Exception $e ) {
+					$files = array();
+				}
+			}
 			natcasesort($files);
 			$files = array_values($files);
 			$total = count($files);
@@ -1809,7 +1820,7 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 			foreach ( $slice as $filePath ) {
 				$base = basename((string)$filePath);
 				$docId = preg_replace('/\.xml$/i', '', $base);
-				$relPath = 'xmlfiles/' . $base;
+				$relPath = 'xmlfiles/' . ltrim( substr( (string)$filePath, strlen( $xmlDir ) ), '/' );
 				$docs[] = array(
 					'id' => (string)$docId,
 					'title' => (string)$docId,

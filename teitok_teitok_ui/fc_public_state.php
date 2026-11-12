@@ -4,7 +4,7 @@
  *
  * Server paths are for admins (the project folder, the venv, registries, the folder FQS read an
  * index from): a visitor or user gets none of them. The diagnostics that carry them go
- * altogether (the log of the commands the page ran, `bootstrapDiag`); `projectRoot` becomes the
+ * altogether (the log of the commands the page ran, `bootstrapDiag`; the engines' raw answers); `projectRoot` becomes the
  * project's folder name (what the page's own code uses it for); any absolute path left in other
  * data (an engine's status text, FQS's `fqs_meta`) is replaced by `…`. The search results' own
  * text (hits, context, fragments, documents) is left as it is: a corpus may contain such strings.
@@ -44,6 +44,16 @@ if ( ! function_exists( 'tt_fc_strip_server_paths' ) ) {
 		$state['debugEntries'] = array();
 		$state['debugAppend'] = array();
 		unset( $state['bootstrapDiag'] );
+		// the engines' raw answers (only for the admin's "Raw" buttons) repeat the hits and were the
+		// largest part of a result page: about 1.7 MB of 4.4 MB for 'give' in UD 2.19
+		if ( isset( $state['responses'] ) && is_array( $state['responses'] ) ) {
+			foreach ( $state['responses'] as $k => $resp ) {
+				if ( is_array( $resp ) ) unset( $state['responses'][ $k ]['raw'] );
+			}
+		}
+		if ( isset( $state['search']['response'] ) && is_array( $state['search']['response'] ) ) {
+			unset( $state['search']['response']['raw'] );
+		}
 		if ( isset( $state['projectRoot'] ) && is_string( $state['projectRoot'] ) ) {
 			$state['projectRoot'] = basename( rtrim( $state['projectRoot'], '/' ) );
 		}
