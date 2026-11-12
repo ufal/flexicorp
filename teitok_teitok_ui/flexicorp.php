@@ -12,6 +12,7 @@ require_once __DIR__ . '/fc_bin.php';
 require_once __DIR__ . '/fc_proc.php';
 require_once __DIR__ . '/fc_fqs_conn.php';   // the FQS address and secret
 require_once __DIR__ . '/fc_shortcache.php';   // FQS answers kept for a few seconds
+require_once __DIR__ . '/fc_examples.php';   // examples from Resources/cql-example.txt
 require_once __DIR__ . '/fc_public_state.php';   // no server paths for non-admins
 require_once __DIR__ . '/fc_pando_run.php';   // pando's route and languages (tt_fc_pando_languages)
 require_once __DIR__ . '/fc_fqs_warm.php';
@@ -7473,6 +7474,8 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	$exampleRaw = function_exists('getset') ? (string) getset('flexicorp/search_example_queries', '') : '';
 	$exampleMap = tt_flexicorp_parse_search_example_queries_map($exampleRaw);
 	$searchExampleQueries = tt_flexicorp_resolve_search_example_queries_for_language($exampleMap, $queryLanguage);
+	// Resources/cql-example.txt (+ .generated): the creator's own examples, after the settings.xml ones
+	$searchExampleQueries = array_merge( is_array($searchExampleQueries) ? $searchExampleQueries : array(), tt_fc_examples_items( $projectRoot, $queryLanguage ) );
 	$queryBuilderEnabledRaw = function_exists('getset') ? getset('flexicorp/query_builder_enabled', '1') : '1';
 	$queryBuilderEnabledTxt = strtolower(trim((string)$queryBuilderEnabledRaw));
 	$queryBuilderEnabled = !in_array($queryBuilderEnabledTxt, array('0', 'false', 'no', 'off', ''), true);

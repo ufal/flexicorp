@@ -493,10 +493,16 @@ window.ttFlexicorpCoreParts.hits = function () {
 			const parts = [];
 			if (total !== null && String(totalDisplay).length) {
 				parts.push(countLabel);
+			} else if (this.searchTotalPending(result)) {
+				// the page size is not the number of hits: say that the total is still being counted
+				parts.push(`first ${returned} ${returned === 1 ? 'hit' : 'hits'} · total still being counted`);
 			} else {
 				parts.push(isTable ? `${returned} ${returned === 1 ? 'row' : 'rows'}` : `${returned} ${returned === 1 ? 'hit' : 'hits'}`);
 			}
 			let ipm = typeof result.ipm === 'number' && Number.isFinite(result.ipm) ? result.ipm : null;
+			// A rate computed here divides by the whole corpus, whatever the query is limited to
+			// (a language, a treebank): the label says so. A rate from the server (result.ipm) is its own.
+			const ipmFromServer = ipm !== null;
 			let corpusTokens =
 				typeof result.corpus_tokens === 'number' && Number.isFinite(result.corpus_tokens)
 					? result.corpus_tokens
@@ -521,7 +527,7 @@ window.ttFlexicorpCoreParts.hits = function () {
 				const ipmText = this.formatIpmDisplay(ipm, {
 					count: total !== null && Number.isFinite(Number(total)) ? Number(total) : null,
 				});
-				if (ipmText) parts.push(`${ipmText} ipm`);
+				if (ipmText) parts.push(ipmFromServer ? `${ipmText} ipm` : `${ipmText} per million tokens of the whole corpus`);
 			}
 			if (typeof result.time_ms === 'number') {
 				parts.push(`${result.time_ms.toFixed(0)} ms`);
@@ -536,6 +542,51 @@ window.ttFlexicorpCoreParts.hits = function () {
 
 		searchMeta() {
 			return this.searchMetaParts().map(part => part && part.text ? String(part.text) : '');
+		},
+
+		/**
+		 * The page holds the first hits, but the total is not known yet (the engine counts in the
+		 * background): no numeric total, and the answer says the count is not finished.
+		 */
+		searchTotalPending(result) {
+			if (!result || typeof result !== 'object') return false;
+			if (typeof this.searchHasTableResults === 'function' && this.searchHasTableResults()) return false;
+			if (result.total !== null && result.total !== undefined && result.total !== '' && Number.isFinite(Number(result.total))) return false;
+			const job = result.job && typeof result.job === 'object' ? result.job : null;
+			const page = result.page && typeof result.page === 'object' ? result.page : null;
+			if (result.total_pending === true) return true;
+			if (job && (job.finished === false || ['queued', 'running', 'pending'].includes(String(job.status || '').toLowerCase()))) return true;
+			if (page && page.total_exact === false) return true;
+			return result.total_exact === false;
+		},
+
+		/**
+		 * While the total is pending, ask again (the identical search is answered from the engine's
+		 * cache with the finished count) a few times, only when the page still shows just the first
+		 * hits of this query. Called from the result line (x-effect), so it runs after each answer.
+		 */
+		schedulePendingTotalRecheck() {
+			const result = this.search && this.search.response ? this.search.response.result : null;
+			if (!this.searchTotalPending(result)) { this._pendingRecheck = null; return; }
+			const key = String((this.search && this.search.query) || '');
+			const st = this._pendingRecheck;
+			if (st && st.key === key && st.timer) return;
+			const state = st && st.key === key ? st : { key, tries: 0, timer: null };
+			if (state.tries >= 3) { this._pendingRecheck = state; return; }
+			const delay = [2000, 5000, 12000][state.tries];
+			state.timer = setTimeout(() => {
+				state.timer = null;
+				state.tries += 1;
+				const r = this.search && this.search.response ? this.search.response.result : null;
+				const sameQuery = String((this.search && this.search.query) || '') === key;
+				const firstPageOnly = r && Number(r.start || 0) === 0
+					&& Array.isArray(this.search.hits) && this.search.hits.length === Number(r.returned);
+				if (sameQuery && firstPageOnly && this.searchTotalPending(r)
+					&& typeof this.isLoading === 'function' && !this.isLoading('search')) {
+					this.submitSearchRequest({ append: false });
+				}
+			}, delay);
+			this._pendingRecheck = state;
 		},
 
 		searchTotalLooksCapped(result, total, engineHint) {

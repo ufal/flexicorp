@@ -739,7 +739,7 @@
 											type="button"
 											class="btn btn-link btn-sm flexicorp-example-query-btn"
 											x-text="ex && ex.label && String(ex.label).trim() ? String(ex.label).trim() : shortQueryOptionLabel(ex && ex.query ? ex.query : '')"
-											x-on:click="search.query = ex.query; search.showQueryForm = true; scheduleQueryHighlight();"
+											x-on:click="if (ex.url) { window.location.href = ex.url; } else { search.query = ex.query; search.showQueryForm = true; scheduleQueryHighlight(); }"
 										></button>
 									</li>
 								</template>
@@ -825,7 +825,7 @@
 						<span> · </span>
 					</template>
 					<template x-if="searchResultPrimaryLine()">
-						<span x-text="searchResultPrimaryLine()"></span>
+						<span x-text="searchResultPrimaryLine()" x-effect="schedulePendingTotalRecheck()"></span>
 					</template>
 					<template x-if="!search.query && !search.showQueryForm && searchResultPrimaryLine()">
 						<span> · </span>
@@ -1416,7 +1416,7 @@
 						<label for="fc-settings-window">Default KWIC window (tokens per side, 1–50)</label>
 						<input id="fc-settings-window" type="number" min="1" max="50" name="window" x-model="settingsDraft.kwicWindow">
 					</div>
-					<p class="flexicorp-panel-note">Corpus default can be set in TEITOK for all visitors: <code>getset( flexicorp/kwic_window )</code> (empty = 10).</p>
+					<p class="flexicorp-panel-note" x-show="isAdmin">Corpus default for all visitors: the <code>kwic_window</code> attribute of the <code>flexicorp</code> element in the project settings (empty = 10).</p>
 					<div class="flexicorp-form-row">
 						<label for="fc-settings-group-hits">Merge hits in same sentence/context</label>
 						<input

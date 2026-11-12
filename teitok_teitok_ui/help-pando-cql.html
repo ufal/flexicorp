@@ -1,5 +1,5 @@
-<h1>Pando / ClickCQL Search Guide</h1>
-<p>Pando in TEITOK uses <code>clickcql</code>-style token queries. In practice this is close to bracket-based CQL: you search tokens by attributes such as <code>form</code>, <code>lemma</code>, <code>upos</code>, <code>xpos</code>, or other token fields present in the indexed corpus.</p>
+<h1>Pando CQL Search Guide</h1>
+<p>Pando queries are token queries in a CQL-style syntax: close to bracket-based CQL, extended with dependency operators. You search tokens by attributes such as <code>form</code>, <code>lemma</code>, <code>upos</code>, <code>xpos</code>, or other token fields present in the indexed corpus.</p>
 
 <h2>Basic Query Form</h2>
 <p>A token constraint is written between square brackets.</p>
@@ -29,6 +29,24 @@
 [lemma!="be"]</code></pre>
 <p>Use parentheses to group logic when needed.</p>
 <pre><code>[lemma="bank" &amp; (upos="NOUN" | upos="PROPN")]</code></pre>
+
+<h2>Language And Treebank</h2>
+<p>In a corpus that holds several languages or treebanks (such as Universal Dependencies), a search covers all of them unless you restrict it. Name the language, and the treebank, in one of three ways: on the token, after the pattern with <code>within</code>, or as a global condition. The three queries below find the same hits.</p>
+<pre><code>[upos="NOUN" &amp; text_lang="English" &amp; text_project="EWT"]
+[upos="NOUN" &amp; text_project="EWT"] within text_lang="English"
+n:[upos="NOUN"] :: n.text_lang="English" &amp; n.text_project="EWT"</code></pre>
+<ul>
+<li><code>within</code> takes a single condition, written without brackets: <code>within text_lang="English"</code>. <code>within &lt;text_lang="English"&gt;</code> is not valid.</li>
+<li>After <code>::</code>, a condition names a labelled token: <code>label.attribute</code>, joined with <code>&amp;</code>.</li>
+<li>Treebank names are not unique across languages (<code>EWT</code> is also an Estonian treebank), so combine them with the language.</li>
+</ul>
+
+<h2>Dependencies</h2>
+<p>For corpora with dependency annotation, <code>&gt;</code> between two tokens means that the first is the head of the second, and <code>&lt;</code> the reverse. <code>~</code> joins dependents of the same head.</p>
+<pre><code>[upos="VERB"] &gt; [deprel="nsubj"]
+v:[upos="VERB"] &gt; [deprel="nsubj"] ~ [deprel="obj"]</code></pre>
+<p>A token can also carry a condition on its dependents or head, with <code>child</code>, <code>parent</code>, <code>descendant</code> and <code>ancestor</code>:</p>
+<pre><code>[upos="NOUN" &amp; child [upos="DET"]]</code></pre>
 
 <h2>Gaps And Repetition</h2>
 <p>The empty token <code>[]</code> means any token. Repetition operators work as in CQL.</p>
