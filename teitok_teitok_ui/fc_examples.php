@@ -26,13 +26,15 @@ if ( ! function_exists( 'tt_fc_examples_html' ) ) {
 		$lines = array();
 		$url = '';
 		$dialect = '';
-		$flush = function () use ( &$out, &$title, &$lines, &$url, &$dialect ) {
+		$note = '';
+		$flush = function () use ( &$out, &$title, &$lines, &$url, &$dialect, &$note ) {
 			$q = trim( implode( "\n", $lines ) );
-			if ( $title !== '' && $q !== '' ) $out[] = array( $title, $q, $url, $dialect );
+			if ( $title !== '' && $q !== '' ) $out[] = array( $title, $q, $url, $dialect, $note );
 			$title = '';
 			$lines = array();
 			$url = '';
 			$dialect = '';
+			$note = '';
 		};
 		foreach ( preg_split( '/\r\n|\r|\n/', (string) $text ) as $line ) {
 			if ( trim( $line ) === '' ) { $flush(); continue; }
@@ -40,6 +42,7 @@ if ( ! function_exists( 'tt_fc_examples_html' ) ) {
 				// only a relative link into this TEITOK is taken: never another host
 				if ( preg_match( '/^##\s*url:\s*(index\.php\?\S+)\s*$/', $line, $m ) ) $url = $m[1];
 				if ( preg_match( '/^##\s*dialect:\s*([\w.-]+)\s*$/', $line, $m ) ) $dialect = strtolower( $m[1] );
+				if ( preg_match( '/^##\s*note:\s*(.+?)\s*$/', $line, $m ) ) $note = $m[1];
 				continue;
 			}
 			if ( $line[0] === '#' ) { $flush(); $title = trim( substr( $line, 1 ) ); continue; }
@@ -71,6 +74,7 @@ if ( ! function_exists( 'tt_fc_examples_html' ) ) {
 			if ( $ex[3] !== '' && $ql !== '' && $ex[3] !== $ql ) continue;
 			$item = array( 'query' => $ex[1], 'label' => $ex[0] );
 			if ( $ex[2] !== '' ) $item['url'] = $ex[2];
+			if ( $ex[4] !== '' ) $item['note'] = $ex[4];
 			$items[] = $item;
 		}
 		return $items;

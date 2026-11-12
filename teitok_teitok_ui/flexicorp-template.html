@@ -741,6 +741,7 @@
 											x-text="ex && ex.label && String(ex.label).trim() ? String(ex.label).trim() : shortQueryOptionLabel(ex && ex.query ? ex.query : '')"
 											x-on:click="if (ex.url) { window.location.href = ex.url; } else { search.query = ex.query; search.showQueryForm = true; scheduleQueryHighlight(); }"
 										></button>
+										<span class="flexicorp-example-query-note" x-show="ex && ex.note" x-text="ex && ex.note ? String(ex.note) : ''"></span>
 									</li>
 								</template>
 							</ul>

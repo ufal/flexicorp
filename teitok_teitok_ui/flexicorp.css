@@ -2392,3 +2392,6 @@ button.flexicorp-search-change-link {
 .flexicorp-corpus-tree-box {
 	overflow-x: auto;
 }
+
+/* short remark beside an example query (Resources/cql-example.txt: "## note:") */
+.flexicorp-example-query-note { color: #6c757d; font-size: 0.85em; margin-left: 0.4em; }
