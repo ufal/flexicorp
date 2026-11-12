@@ -2395,3 +2395,12 @@ button.flexicorp-search-change-link {
 
 /* short remark beside an example query (Resources/cql-example.txt: "## note:") */
 .flexicorp-example-query-note { color: #6c757d; font-size: 0.85em; margin-left: 0.4em; }
+
+/* instant hover/focus popup (not a title attribute: those take a second to show) */
+.fc-tip { position: relative; border-bottom: 1px dotted currentColor; cursor: help; }
+.fc-tip::after {
+	content: attr(data-tip); display: none; position: absolute; left: 0; top: 1.7em; z-index: 60;
+	width: 22rem; max-width: 80vw; white-space: normal; font-weight: normal; font-size: 0.85rem; line-height: 1.35;
+	background: #26323f; color: #fff; padding: 0.5em 0.7em; border-radius: 0.4em; box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+}
+.fc-tip:hover::after, .fc-tip:focus::after { display: block; }

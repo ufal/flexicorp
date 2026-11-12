@@ -2342,7 +2342,7 @@
 								</template>
 								<template x-if="!$data.frequencyHasCompareQueries()">
 									<th style="cursor:pointer;" x-show="$data.frequencyHasNormalizedIpm()" x-on:click="setFrequencyTableSort('nipm')">
-										<span>Normalized (IPM)</span>
+										<span class="fc-tip" tabindex="0" data-tip="Instances per million tokens of the whole corpus, not of the part of the corpus each row stands for. The relative column gives the rate within each row's own part, where the corpus has one.">Normalized (IPM)</span>
 										<span x-show="frequencyTableSort.col === 'nipm'" x-text="frequencyTableSort.asc ? ' ↑' : ' ↓'"></span>
 									</th>
 								</template>

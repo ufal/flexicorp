@@ -457,9 +457,9 @@ window.ttFlexicorpCoreParts.hits = function () {
 		},
 
 		/** Single stats line under “Search result”: counts · ipm · time (no duplicate QL/engine; those stay in the toolbar). */
-		searchResultPrimaryLine() {
+		searchResultLineParts() {
 			const result = this.search && this.search.response ? this.search.response.result : null;
-			if (!result || typeof result !== 'object') return '';
+			if (!result || typeof result !== 'object') return [];
 			const response = this.search && this.search.response ? this.search.response : null;
 			const selectedEngine =
 				(result.engine && String(result.engine).trim())
@@ -492,23 +492,24 @@ window.ttFlexicorpCoreParts.hits = function () {
 				: `${returned} of ${totalDisplay} ${returned === 1 ? 'hit' : 'hits'}`;
 			const parts = [];
 			if (total !== null && String(totalDisplay).length) {
-				parts.push(countLabel);
+				parts.push({ text: countLabel });
 			} else if (this.searchTotalPending(result)) {
 				// the page size is not the number of hits: say that the total is still being counted,
 				// with the count so far when the engine reports it (page.total while page.total_exact is false)
 				const soFar = result && result.page && typeof result.page === 'object' ? Number(result.page.total) : NaN;
 				if (Number.isFinite(soFar) && soFar > returned) {
-					parts.push(`at least ${soFar.toLocaleString('en-US')} hits so far · still counting`);
+					parts.push({ text: `at least ${soFar.toLocaleString('en-US')} hits so far · still counting` });
 				} else {
-					parts.push(`first ${returned} ${returned === 1 ? 'hit' : 'hits'} · total still being counted`);
+					parts.push({ text: `first ${returned} ${returned === 1 ? 'hit' : 'hits'} · total still being counted` });
 				}
 			} else {
-				parts.push(isTable ? `${returned} ${returned === 1 ? 'row' : 'rows'}` : `${returned} ${returned === 1 ? 'hit' : 'hits'}`);
+				parts.push({ text: isTable ? `${returned} ${returned === 1 ? 'row' : 'rows'}` : `${returned} ${returned === 1 ? 'hit' : 'hits'}` });
 			}
 			let ipm = typeof result.ipm === 'number' && Number.isFinite(result.ipm) ? result.ipm : null;
-			// A rate computed here divides by the whole corpus, whatever the query is limited to
-			// (a language, a treebank): the label says so. A rate from the server (result.ipm) is its own.
-			const ipmFromServer = ipm !== null;
+			// A rate divides by the whole corpus, whatever the query is limited to (a language, a
+			// treebank), unless the engine computed it in a subcorpus: for a region-related query the
+			// line says "corpus-wide" (with the base in a popup). When subcorpora are rolled out these texts
+			// must adapt: see dev/SUBCORPUS-TEXTS-TODO.md.
 			let corpusTokens =
 				typeof result.corpus_tokens === 'number' && Number.isFinite(result.corpus_tokens)
 					? result.corpus_tokens
@@ -533,12 +534,30 @@ window.ttFlexicorpCoreParts.hits = function () {
 				const ipmText = this.formatIpmDisplay(ipm, {
 					count: total !== null && Number.isFinite(Number(total)) ? Number(total) : null,
 				});
-				if (ipmText) parts.push(ipmFromServer ? `${ipmText} ipm` : `${ipmText} per million tokens of the whole corpus`);
+				if (ipmText) {
+					// the engine's own rate counts the whole corpus too, unless the answer names a subcorpus
+					// it was computed in (mode "use"): then the base is that subcorpus
+					const inSubcorpus = result.subcorpus && typeof result.subcorpus === 'object' && String(result.subcorpus.mode || 'use') === 'use';
+					parts.push(inSubcorpus || !this.searchQueryMentionsRegion()
+						? { text: `${ipmText} ipm` }
+						: {
+							text: `${ipmText} ipm corpus-wide`,
+							tip: 'Instances per million tokens of the whole corpus'
+								+ (Number.isFinite(corpusTokens) && corpusTokens > 0 ? ` (${Number(corpusTokens).toLocaleString('en-US')} tokens)` : '')
+								+ `, not of the part of it you limited the search to (${this.searchQueryRegionAttrs().join(', ')}).`
+								+ ' For a rate within that part, count by the same field on the Statistics tab.',
+						});
+				}
 			}
 			if (typeof result.time_ms === 'number') {
-				parts.push(`${result.time_ms.toFixed(0)} ms`);
+				parts.push({ text: `${result.time_ms.toFixed(0)} ms` });
 			}
-			return parts.join(' · ');
+			return parts;
+		},
+
+		/** The result line as one string (the pieces of searchResultLineParts, joined). */
+		searchResultPrimaryLine() {
+			return this.searchResultLineParts().map((p) => p.text).join(' · ');
 		},
 
 		/** @deprecated — prefer searchResultPrimaryLine(); kept for any template that still x-for’s meta. */
@@ -548,6 +567,40 @@ window.ttFlexicorpCoreParts.hits = function () {
 
 		searchMeta() {
 			return this.searchMetaParts().map(part => part && part.text ? String(part.text) : '');
+		},
+
+		/**
+		 * Whether the query names a region attribute (text_lang, s_id …): in a token condition, after
+		 * `within`, or in a `::` condition. Only then can the hits be a part of the corpus whose size is
+		 * not the base of the rate, so only then the rate is labelled "corpus-wide". A region attribute
+		 * is named <region>_<attribute>, the region being text, s, … or one the corpus reports. Quoted
+		 * values and regular expressions are left out, so `feats="Number=Plur"` is no condition.
+		 */
+		searchQueryRegionAttrs() {
+			const text = typeof this.statsBaseQueryText === 'function' ? this.statsBaseQueryText() : String((this.search && this.search.query) || '');
+			if (!text) return [];
+			const regions = new Set(['text', 'doc', 's', 'u', 'p', 'div', 'sent']);
+			(Array.isArray(this.xidxRegionTypes) ? this.xidxRegionTypes : []).forEach((r) => regions.add(String(r)));
+			const sat = typeof window !== 'undefined' && window.satts && typeof window.satts === 'object' ? Object.keys(window.satts) : [];
+			sat.forEach((r) => regions.add(String(r)));
+			const isRegionAttr = (name) => { for (const r of regions) { if (name.startsWith(r + '_')) return true; } return false; };
+			const bare = text.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\/(?:[^\/\\\n]|\\.)+\//g, '""');
+			const re = /([A-Za-z_][\w]*(?:\.[A-Za-z_][\w]*)?)\s*(?:!=|!~|=|~)/g;
+			const found = [];
+			let m;
+			while ((m = re.exec(bare)) !== null) {
+				const name = m[1].includes('.') ? m[1].split('.').pop() : m[1];
+				if (isRegionAttr(name) && !found.includes(name)) found.push(name);
+			}
+			// a region with an attribute: <text lang="…">
+			const tag = /<\s*([A-Za-z][\w-]*)\s+([A-Za-z_][\w]*)\s*=/.exec(bare);
+			if (tag && !found.includes(tag[1] + '_' + tag[2])) found.push(tag[1] + '_' + tag[2]);
+			return found;
+		},
+
+		/** Whether the query is limited by a region attribute (see searchQueryRegionAttrs). */
+		searchQueryMentionsRegion() {
+			return this.searchQueryRegionAttrs().length > 0;
 		},
 
 		/**
