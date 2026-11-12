@@ -149,7 +149,7 @@ if ( ! function_exists( 'tt_fc_engine_search' ) ) {
 			$route = tt_fc_engine_route( $ctx, 'query', $text );
 			$fqsOpts = array(
 				'program' => $route === 'fqs-run',
-				'group_limit' => 1000,   // a typed freq/coll: the KWIC page size is not a group limit
+				'group_limit' => max( 1, intval( $opts['group_limit'] ?? 1000 ) ),   // a typed freq/coll: the KWIC page size is not a group limit
 				'window' => $window,
 				'context_scope' => $contextScope,
 				'context_format' => $contextFormat,

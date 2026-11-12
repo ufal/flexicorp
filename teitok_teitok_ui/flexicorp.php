@@ -7052,23 +7052,24 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 	$listDone = tt_flexicorp_done($listCall);
 	$documents = ( isset($listDone['result']['docs']) && is_array($listDone['result']['docs']) ) ? array_values($listDone['result']['docs']) : array();
 	$documentsTotal = isset($listDone['result']['total']) ? intval($listDone['result']['total']) : count($documents);
-	// A corpus served by FQS has no XML files here to list: its documents are the index's text
-	// regions (the query r:<text>), with their attributes as the metadata columns.
+	// A corpus served by FQS has no XML files here to list: its documents are the index's texts,
+	// grouped by text (count = tokens), with the text attributes as the metadata columns.
 	if ( $loadDocuments && ! $documents && $selectionBlockMessage === '' && ! empty( $fcEngineCtx['fqs_eligible'] ) ) {
-		$regCall = tt_fc_engine_search( $fcEngineCtx, 'r:<text>', '', '', array(
-			'start' => max( 0, intval( $_REQUEST['docs_offset'] ?? 0 ) ),
-			// the page's default limit (10000) means "the first page" here; "Show more" asks for more explicitly
-			'limit' => intval( $docsLimit ) >= 10000 ? 200 : max( 1, intval( $docsLimit ) ),
-			'window' => 0,
-			'context_scope' => '',
-			'context_format' => '',
-			'compact_regions' => true,
-		) );
-		$regDone = tt_flexicorp_done( $regCall );
-		$regRes = ( isset( $regDone['result'] ) && is_array( $regDone['result'] ) ) ? $regDone['result'] : array();
-		$documents = tt_fc_documents_from_region_hits( isset( $regRes['hits'] ) ? $regRes['hits'] : array() );
-		if ( $documents && isset( $regRes['total'] ) && is_numeric( $regRes['total'] ) ) {
-			$documentsTotal = intval( $regRes['total'] );
+		$probe = tt_flexicorp_done( tt_fc_engine_search( $fcEngineCtx, 'r:<text>', '', '', array(
+			'start' => 0, 'limit' => 1, 'window' => 0, 'context_scope' => '', 'context_format' => '', 'compact_regions' => true,
+		) ) );
+		$docFields = tt_fc_document_fields( isset( $probe['result']['hits'] ) ? $probe['result']['hits'] : array() );
+		if ( $docFields ) {
+			// the page's default limit (10000) means "the first page"; "Show more" asks for more explicitly
+			$docWant = intval( $docsLimit ) >= 10000 ? 200 : max( 1, intval( $docsLimit ) );
+			$grpDone = tt_flexicorp_done( tt_fc_engine_search( $fcEngineCtx, '[]; count by ' . implode( ', ', $docFields ) . ';', '', '', array(
+				'start' => 0, 'limit' => 25, 'window' => 0, 'context_scope' => '', 'context_format' => '', 'group_limit' => $docWant,
+			) ) );
+			$grpRes = ( isset( $grpDone['result'] ) && is_array( $grpDone['result'] ) ) ? $grpDone['result'] : array();
+			$documents = tt_fc_documents_from_group_rows( isset( $grpRes['rows'] ) ? $grpRes['rows'] : array() );
+			if ( $documents ) {
+				$documentsTotal = isset( $grpRes['groups'] ) && is_numeric( $grpRes['groups'] ) ? intval( $grpRes['groups'] ) : count( $documents );
+			}
 		}
 	}
 	$kwicDone = tt_flexicorp_done($kwicCall);
