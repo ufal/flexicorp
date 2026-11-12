@@ -591,10 +591,48 @@ window.ttFlexicorpCoreParts.hits = function () {
 					&& Array.isArray(this.search.hits) && this.search.hits.length === Number(r.returned);
 				if (sameQuery && firstPageOnly && this.searchTotalPending(r)
 					&& typeof this.isLoading === 'function' && !this.isLoading('search')) {
-					this.submitSearchRequest({ append: false });
+					// only the count is updated, in place: the hits and the page stay as they are
+					this.refreshPendingTotal().finally(() => this.schedulePendingTotalRecheck());
+				} else {
+					this.schedulePendingTotalRecheck();
 				}
 			}, delay);
 			this._pendingRecheck = state;
+		},
+
+		/**
+		 * Ask for the identical search again and copy only its count fields (total, exactness, the
+		 * count so far, the job) into the result on the page. No applyState: the hits, the scroll
+		 * position and every open panel stay untouched; just the text of the result line changes.
+		 */
+		async refreshPendingTotal() {
+			if (this._pendingRefreshBusy) return;
+			this._pendingRefreshBusy = true;
+			try {
+				const fns = typeof window !== 'undefined' ? window.ttFlexicorpFns : null;
+				if (!fns || typeof fns.runFlexicorpAjaxFetch !== 'function') return;
+				const formData = this.buildCommonRequestData();
+				formData.set('ajax', '1');
+				formData.set('active_tab', 'search');
+				formData.set('run', 'query');
+				formData.set('view_mode', this.canonicalSearchRequestViewMode());
+				formData.set('start', '0');
+				formData.set('kwic_limit', String(this.searchPageSize()));
+				formData.set('record', '0');
+				const out = await fns.runFlexicorpAjaxFetch(formData, this.$root || null);
+				if (!out || !out.response || !out.response.ok || out.parseError) return;
+				const st = out.state && out.state.search && out.state.search.response ? out.state.search.response : null;
+				const fresh = st && st.result && typeof st.result === 'object' ? st.result : null;
+				const cur = this.search && this.search.response && this.search.response.result ? this.search.response.result : null;
+				if (!fresh || !cur) return;
+				['total', 'total_exact', 'total_estimated', 'total_capped', 'page', 'job', 'job_id', 'ipm', 'corpus_tokens'].forEach((k) => {
+					if (fresh[k] !== undefined) cur[k] = fresh[k];
+				});
+			} catch (_) {
+				// a failed recheck leaves the label as it is; the next one tries again
+			} finally {
+				this._pendingRefreshBusy = false;
+			}
 		},
 
 		searchTotalLooksCapped(result, total, engineHint) {
