@@ -54,12 +54,23 @@ if ( ! function_exists( 'tt_fc_documents_from_group_rows' ) ) {
 
 if ( ! function_exists( 'tt_fc_documents_where' ) ) {
 
-	/** The column filters sent with a request: only text attributes, only plain values. */
+	/** The column filters sent with a request: only text attributes; a value, or a list of values (any of them). */
 	function tt_fc_documents_where( $raw ) {
 		$d = is_array( $raw ) ? $raw : json_decode( (string) $raw, true );
 		$out = array();
 		foreach ( is_array( $d ) ? $d : array() as $k => $v ) {
-			if ( ! preg_match( '/^text_[A-Za-z0-9_]+$/', (string) $k ) || ! is_scalar( $v ) ) continue;
+			if ( ! preg_match( '/^text_[A-Za-z0-9_]+$/', (string) $k ) ) continue;
+			if ( is_array( $v ) ) {
+				// a list: any of these values (the page resolved "contains …" to the values that contain it)
+				$list = array();
+				foreach ( array_slice( $v, 0, 300 ) as $one ) {
+					$one = is_scalar( $one ) ? trim( (string) $one ) : '';
+					if ( $one !== '' && strpos( $one, '|' ) === false ) $list[] = mb_substr( $one, 0, 200, 'UTF-8' );
+				}
+				if ( $list ) $out[ (string) $k ] = array_values( array_unique( $list ) );
+				continue;
+			}
+			if ( ! is_scalar( $v ) ) continue;
 			$v = trim( (string) $v );
 			if ( $v !== '' ) $out[ (string) $k ] = mb_substr( $v, 0, 200, 'UTF-8' );
 		}
@@ -69,8 +80,12 @@ if ( ! function_exists( 'tt_fc_documents_where' ) ) {
 	/** [text_lang="English" & text_part="train"] for the filters, [] when there are none. */
 	function tt_fc_documents_condition( $where ) {
 		$parts = array();
+		$q = function ( $k, $v ) { return $k . '="' . addcslashes( (string) $v, "\\\"" ) . '"'; };
 		foreach ( is_array( $where ) ? $where : array() as $k => $v ) {
-			$parts[] = $k . '="' . addcslashes( (string) $v, "\\\"" ) . '"';
+			// several values: any of them, as an OR of exact values ("a|b" inside one value does not work
+			// as the only condition on a text attribute; an OR of conditions does)
+			if ( is_array( $v ) ) $parts[] = '(' . implode( ' | ', array_map( function ( $one ) use ( $q, $k ) { return $q( $k, $one ); }, $v ) ) . ')';
+			else $parts[] = $q( $k, $v );
 		}
 		return '[' . implode( ' & ', $parts ) . ']';
 	}

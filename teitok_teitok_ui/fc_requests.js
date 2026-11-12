@@ -288,7 +288,11 @@ window.ttFlexicorpCoreParts.requests = function () {
 			formData.set('docs_filter', this.documentsUi.filter || '');
 			const where = this.documentsUi && this.documentsUi.where ? this.documentsUi.where : {};
 			const sentWhere = {};
-			Object.keys(where).forEach((k) => { if (String(where[k] || '').trim()) sentWhere['text_' + k] = String(where[k]).trim(); });
+			Object.keys(where).forEach((k) => {
+				const v = where[k];
+				if (Array.isArray(v)) { if (v.length) sentWhere['text_' + k] = v.map(String); }
+				else if (String(v || '').trim()) sentWhere['text_' + k] = String(v).trim();
+			});
 			if (Object.keys(sentWhere).length) formData.set('docs_where', JSON.stringify(sentWhere));
 			let outgoingQuery = this.search.query || '';
 			if (

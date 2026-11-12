@@ -2458,3 +2458,6 @@ button.flexicorp-search-change-link {
 .flexicorp-docs-suggest li { padding: 0.2rem 0.5rem; cursor: pointer; font-size: 0.85rem; white-space: nowrap; }
 .flexicorp-docs-suggest li:hover, .flexicorp-docs-suggest li.flexicorp-docs-suggest--active { background: #dbeafe; }
 .flexicorp-docs-suggest li.flexicorp-docs-suggest-more { color: #6c757d; cursor: default; font-style: italic; }
+.flexicorp-docs-busy { opacity: 0.45; transition: opacity 0.15s; }
+.flexicorp-docs-busy-note { color: #2b6cb0; }
+.flexicorp-docs-contains-note { display: block; color: #2b6cb0; font-size: 0.75rem; }

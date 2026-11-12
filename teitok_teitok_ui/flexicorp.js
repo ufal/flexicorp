@@ -124,6 +124,8 @@ function flexicorpApp() {
 			where: {},
 			values: {},
 			noMatch: {},
+			loadingValues: {},   // the values of a column are being fetched
+			contains: {},        // columns filtered by "contains <typed>": how many values matched
 			open: {},     // the suggestion list of a column is showing
 			active: {},   // the suggestion picked with the arrow keys
 		},

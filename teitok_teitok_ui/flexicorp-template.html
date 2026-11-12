@@ -209,7 +209,8 @@
 			<template x-if="loadedSections && loadedSections.documents && !getFilteredDocuments().length && (documentsUi.filter || '').trim()">
 				<p class="flexicorp-panel-note">No loaded documents match the current filter.</p>
 			</template>
-			<table id="flexicorp-docs-table" class="flexicorp-table" x-show="loadedSections && loadedSections.documents && getFilteredDocuments().length">
+			<p class="flexicorp-panel-note flexicorp-docs-busy-note" x-show="isLoading('documents') && docsServerFilter">Filtering the documents…</p>
+			<table id="flexicorp-docs-table" class="flexicorp-table" :class="isLoading('documents') ? 'flexicorp-docs-busy' : ''" x-show="loadedSections && loadedSections.documents && getFilteredDocuments().length">
 				<thead>
 					<tr>
 						<th>Document</th>
@@ -233,8 +234,10 @@
 											x-on:input="documentsFilterTyped(key)"
 											x-on:keydown="documentsFilterKey(key, $event)"
 											x-on:blur="documentsFilterBlur(key)">
-										<span class="flexicorp-docs-nomatch-note" x-show="documentsUi.noMatch[key]">no such value</span>
-										<ul class="flexicorp-docs-suggest" x-show="documentsUi.open[key] && documentsFilterShown(key).length">
+										<span class="flexicorp-docs-nomatch-note" x-show="documentsUi.noMatch[key]" x-text="documentsFilterOptions(key).length > 300 ? 'too many values: type more' : 'no value contains this'"></span>
+										<span class="flexicorp-docs-contains-note" x-show="documentsUi.contains[key] > 0" x-text="'contains … (' + documentsUi.contains[key] + ' values)'"></span>
+										<ul class="flexicorp-docs-suggest" x-show="documentsUi.open[key] && (documentsFilterShown(key).length || documentsUi.loadingValues[key])">
+											<li class="flexicorp-docs-suggest-more" x-show="documentsUi.loadingValues[key]">loading the values…</li>
 											<template x-for="(v, i) in documentsFilterShown(key)" :key="v">
 												<li :class="documentsUi.active[key] === i ? 'flexicorp-docs-suggest--active' : ''" x-text="v" x-on:mousedown.prevent="documentsFilterPick(key, v)"></li>
 											</template>

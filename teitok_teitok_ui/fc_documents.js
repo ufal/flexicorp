@@ -177,6 +177,7 @@ window.ttFlexicorpCoreParts.documents = function () {
 			const ui = this.documentsUi;
 			if (!key || ui.values[key] !== undefined) return;
 			ui.values[key] = [];
+			ui.loadingValues[key] = true;
 			try {
 				const fd = this.buildCommonRequestData();
 				fd.set('ajax', '1');
@@ -186,6 +187,8 @@ window.ttFlexicorpCoreParts.documents = function () {
 				ui.values[key] = Array.isArray(data && data.values) ? data.values.map(String) : [];
 			} catch (_) {
 				ui.values[key] = [];
+			} finally {
+				ui.loadingValues[key] = false;
 			}
 		},
 
@@ -259,32 +262,39 @@ window.ttFlexicorpCoreParts.documents = function () {
 		},
 
 		/**
-		 * Apply what is typed in a column as an exact value on the server and reload the list. An exact
-		 * value (any capitalisation) applies; text that only one value contains completes to that value;
-		 * text several values contain waits (the suggestions show them); only text no value contains is
-		 * marked as not matching.
+		 * Apply what is typed in a column on the server and reload the list. A value (any capitalisation)
+		 * applies as it is; otherwise the text means "contains it": the values that contain it, as a list
+		 * (any of them), so "fict" finds every text whose genre has fict in it. Only text that no value
+		 * contains is marked as not matching.
+		 * (For an attribute that is a true multi-value field in the index, "contains" should become
+		 * "has this component": revisit this then.)
 		 */
 		async applyDocumentsFilter(key, opts) {
 			const ui = this.documentsUi;
 			const typed = String((ui.draft && ui.draft[key]) || '').trim();
 			ui.noMatch[key] = false;
+			ui.contains[key] = 0;
 			if (typed === '') {
 				if (ui.where[key] === undefined) return;
 				delete ui.where[key];
 			} else {
 				await this.loadDocumentsFilterValues(key);
 				const vals = ui.values[key] || [];
-				let hit = vals.find((v) => v === typed) || vals.find((v) => v.toLowerCase() === typed.toLowerCase());
-				if (!hit) {
-					const some = this.documentsFilterOptions(key);
-					if (some.length === 1) hit = some[0];
-					else if (some.length === 0) { ui.noMatch[key] = true; return; }
-					else if (opts && opts.enter) hit = some[0];
-					else return;   // several values contain it: the suggestions are showing, nothing is sent yet
+				const exact = vals.find((v) => v === typed) || vals.find((v) => v.toLowerCase() === typed.toLowerCase());
+				let want;
+				if (exact) {
+					ui.draft[key] = exact;
+					want = exact;
+				} else {
+					const some = this.documentsFilterOptions(key).filter((v) => !v.includes('|'));
+					if (some.length === 0) { ui.noMatch[key] = true; return; }
+					if (some.length > 300) { ui.noMatch[key] = true; return; }
+					want = some.length === 1 ? some[0] : some;
+					if (some.length === 1) ui.draft[key] = some[0];
+					else ui.contains[key] = some.length;
 				}
-				ui.draft[key] = hit;
-				if (ui.where[key] === hit) return;
-				ui.where[key] = hit;
+				if (JSON.stringify(ui.where[key]) === JSON.stringify(want)) return;
+				ui.where[key] = want;
 			}
 			await this.reloadDocuments();
 		},
@@ -294,6 +304,7 @@ window.ttFlexicorpCoreParts.documents = function () {
 			ui.draft = {};
 			ui.where = {};
 			ui.noMatch = {};
+			ui.contains = {};
 			return this.reloadDocuments();
 		},
 

@@ -6817,7 +6817,8 @@ if ( is_file( __DIR__ . '/custom_layers_names.php' ) ) {
 		) ) );
 		$dvValues = array();
 		foreach ( ( isset( $dvDone['result']['rows'] ) && is_array( $dvDone['result']['rows'] ) ) ? $dvDone['result']['rows'] : array() as $dvRow ) {
-			$dvV = is_array( $dvRow ) ? trim( (string) ( $dvRow[ $dvAttr ] ?? '' ) ) : '';
+			// a grouping by one field names its rows `key` only; by several fields, each field is a column
+			$dvV = is_array( $dvRow ) ? trim( (string) ( $dvRow[ $dvAttr ] ?? ( $dvRow['key'] ?? '' ) ) ) : '';
 			if ( $dvV !== '' ) $dvValues[ $dvV ] = true;
 		}
 		$dvValues = array_keys( $dvValues );
