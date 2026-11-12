@@ -1101,6 +1101,9 @@
 		 */
 		function tt_flexicorp_freq_field_guess_label( $key ) {
 			$key = trim( (string) $key );
+			if ( $key === 'form' ) {
+				return 'Word form';   // always present, so also when the settings give it no display
+			}
 			if ( strpos( $key, '_' ) === false ) {
 				return $key;
 			}
@@ -1270,6 +1273,12 @@
 						$addR( $x );
 					}
 				}
+			}
+
+			// A pando index always has `form` (flexencoder adds it even when the settings or corpus.info
+			// leave it out), so it is always an option, whatever the settings say.
+			if ( $readPandoFile ) {
+				$addP( 'form' );
 			}
 
 			if ( ! count( $positional ) && ! count( $region ) ) {

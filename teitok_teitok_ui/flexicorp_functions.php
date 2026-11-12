@@ -1099,6 +1099,43 @@ if ( ! function_exists( 'tt_flexicorp_fn_cfg_is_noshow' ) ) {
 	}
 }
 
+if ( ! function_exists( 'tt_flexicorp_fn_xmlfile_display' ) ) {
+	/**
+	 * The display an attribute has in /xmlfile (as TEITOK's cqp.php does, an attribute in /cqp need not repeat it):
+	 * token attributes in xmlfile/pattributes (directly or in its groups: forms, tags, ...), region attributes in
+	 * xmlfile/sattributes/<region>/<attr>. '' when xmlfile does not name it.
+	 */
+	function tt_flexicorp_fn_xmlfile_display( $key, $region = '' ) {
+		if ( ! function_exists( 'getset' ) ) return '';
+		$key = trim( (string) $key );
+		if ( $key === '' ) return '';
+		$disp = function ( $node ) {
+			if ( ! is_array( $node ) ) return '';
+			foreach ( array( '@display', 'display' ) as $k ) {
+				if ( isset( $node[ $k ] ) && trim( (string) $node[ $k ] ) !== '' ) return trim( (string) $node[ $k ] );
+			}
+			return '';
+		};
+		if ( $region !== '' ) {
+			$sat = getset( 'xmlfile/sattributes', array() );
+			if ( is_array( $sat ) && isset( $sat[ $region ] ) && is_array( $sat[ $region ] ) && isset( $sat[ $region ][ $key ] ) ) {
+				return $disp( $sat[ $region ][ $key ] );
+			}
+			return '';
+		}
+		$pat = getset( 'xmlfile/pattributes', array() );
+		if ( ! is_array( $pat ) ) return '';
+		if ( isset( $pat[ $key ] ) && is_array( $pat[ $key ] ) && $disp( $pat[ $key ] ) !== '' ) return $disp( $pat[ $key ] );
+		foreach ( $pat as $group ) {
+			if ( is_array( $group ) && isset( $group[ $key ] ) && is_array( $group[ $key ] ) ) {
+				$d = $disp( $group[ $key ] );
+				if ( $d !== '' ) return $d;
+			}
+		}
+		return '';
+	}
+}
+
 if ( ! function_exists( 'tt_flexicorp_fn_attribute_catalog' ) ) {
 	/**
 	 * Canonical attribute catalog from TEITOK CQP settings.
@@ -1206,6 +1243,10 @@ if ( ! function_exists( 'tt_flexicorp_fn_attribute_catalog' ) ) {
 					&& ! tt_flexicorp_fn_cfg_is_meta_attr_key( $k )
 					&& is_array( $v )
 				) {
+					if ( ! tt_flexicorp_fn_cfg_has_display_title( $v ) ) {
+						$xd = tt_flexicorp_fn_xmlfile_display( $k );
+						if ( $xd !== '' ) $v['display'] = $xd;
+					}
 					$add( $k, $v, $k, 'token', '' );
 				}
 			}
@@ -1221,6 +1262,10 @@ if ( ! function_exists( 'tt_flexicorp_fn_attribute_catalog' ) ) {
 					// an attribute named like a settings word (doc.title, doc.type) is an <item key=…>, not a setting
 					if ( tt_flexicorp_fn_cfg_is_meta_attr_key( $attrKey ) && ! isset( $attrNode['key'] ) ) continue;
 					$composite = $regionKey . '_' . $attrKey;
+					if ( ! tt_flexicorp_fn_cfg_has_display_title( $attrNode ) ) {
+						$xd = tt_flexicorp_fn_xmlfile_display( $attrKey, (string) $regionKey );
+						if ( $xd !== '' ) $attrNode['display'] = $xd;
+					}
 					$attrLabel = tt_flexicorp_fn_cfg_meta_label( $attrNode, $attrKey );
 					$label = $prefixSattr ? ( $regionLabel . ': ' . $attrLabel ) : $attrLabel;
 					$kind = ( $regionKey === 'text' ) ? 'documents' : 'region';
