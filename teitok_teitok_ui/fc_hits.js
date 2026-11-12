@@ -347,10 +347,27 @@ window.ttFlexicorpCoreParts.hits = function () {
 			});
 		},
 
+		/**
+		 * The query the current result belongs to: the one that ran (as it was when the search was submitted), then the
+		 * query the answer reports, and only then what is in the box. What is typed in the box after a search does not
+		 * change what the result is about (its groups, legend, language).
+		 */
+		searchRanQueryText() {
+			if (this.search && this.search.ran && typeof this._fcLastRunQuery === 'string' && this._fcLastRunQuery.trim()) {
+				return this._fcLastRunQuery;
+			}
+			const result = this.search && this.search.response ? this.search.response.result : null;
+			const rq = result ? result.query : null;
+			if (typeof rq === 'string' && rq.trim()) return rq;
+			if (rq && typeof rq.text === 'string' && rq.text.trim()) return rq.text;
+			return this.search && typeof this.search.query === 'string' ? this.search.query : '';
+		},
+
 		getExecutedSearchQueryText() {
 			const result = this.search && this.search.response ? this.search.response.result : null;
-			if (this.search && typeof this.search.query === 'string' && this.search.query.trim()) {
-				return this.search.query;
+			const ran = this.searchRanQueryText();
+			if (ran.trim()) {
+				return ran;
 			}
 			if (result && typeof result.query === 'string' && result.query.trim()) {
 				return result.query;

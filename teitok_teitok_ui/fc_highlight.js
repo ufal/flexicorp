@@ -556,7 +556,7 @@ window.ttFlexicorpCoreParts.highlight = function () {
 		_resultQueryLang() {
 			const result = this.search && this.search.response ? this.search.response.result : null;
 			if (result && typeof result.query_lang === 'string' && result.query_lang) return result.query_lang;
-			const q = String((this.search && this.search.query) || '');
+			const q = String(this.searchRanQueryText());
 			if (/^\s*(PMLTQ|PML-TQ)\s+/.test(q)) return 'pmltq';
 			return String((this.settings && this.settings.queryLanguage) || '');
 		},
@@ -808,9 +808,8 @@ window.ttFlexicorpCoreParts.highlight = function () {
 		/** Legend entries for highlight groups: from result.legend / result.groups or derived from first hit. */
 		searchHighlightLegend() {
 			const result = this.search && this.search.response ? this.search.response.result : null;
-			const executedQuery = this.search && typeof this.search.query === 'string' && this.search.query
-				? this.search.query
-				: (result && typeof result.query === 'string' ? result.query : '');
+			// the query the result belongs to, not what is typed in the box now
+			const executedQuery = this.searchRanQueryText();
 			// the language the query ran in: as the answer reports it, else as chosen on the page; a
 			// language word in front of the query (PMLTQ …, CWB …) wins, and is not part of the query
 			let queryLang = result && typeof result.query_lang === 'string' && result.query_lang ? result.query_lang
