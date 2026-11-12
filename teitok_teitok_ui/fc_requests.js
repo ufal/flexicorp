@@ -625,6 +625,26 @@ window.ttFlexicorpCoreParts.requests = function () {
 			return msgs;
 		},
 
+		/**
+		 * The search call's messages for display: a query syntax error as its parts (message, the query with the
+		 * place of the error marked, hint), any other message as plain text. The query is the one that ran.
+		 */
+		searchCallItems() {
+			const query = String(this.searchRanQueryText()).trim();
+			const seen = new Set();
+			const out = [];
+			for (const msg of this.callMessages(this.search && this.search.response)) {
+				const syn = this.parseQuerySyntaxError(String(msg), query);
+				const item = syn ? { syntax: true, ...syn } : { syntax: false, text: String(msg) };
+				const key = syn ? 'S:' + syn.message + '|' + query : 'T:' + item.text;
+				if (!seen.has(key)) {
+					seen.add(key);
+					out.push(item);
+				}
+			}
+			return out;
+		},
+
 		callHasIssues(call) {
 			return this.callMessages(call).length > 0;
 		},
@@ -636,7 +656,7 @@ window.ttFlexicorpCoreParts.requests = function () {
 		 * The payload stays in the debug panel.
 		 */
 		searchCallMessages() {
-			const query = String((this.search && this.search.query) || '').trim();
+			const query = String(this.searchRanQueryText()).trim();
 			const seen = new Set();
 			const out = [];
 			for (const msg of this.callMessages(this.search && this.search.response)) {
@@ -649,9 +669,15 @@ window.ttFlexicorpCoreParts.requests = function () {
 			return out;
 		},
 
-		/** A query syntax error message (pando or CQP parser) made readable, or '' if `msg` is not one. */
-		formatQuerySyntaxError(msg, query) {
-			let text = msg.split(/\n\nRequest payload:/)[0].trim();
+		/**
+		 * A query syntax error (pando or CQP parser) in parts, or null if `msg` is not one:
+		 * { message, before, mark, after, at, hint } where before/mark/after are the query cut at the error
+		 * (mark is what the parser stopped at, '' when it cannot be told) and `at` says where, when known.
+		 * The place comes from "at position N" in the message, else from the identifier the message names
+		 * ("after identifier 'or'": the first such word outside quotes in the query).
+		 */
+		parseQuerySyntaxError(msg, query) {
+			let text = String(msg).split(/\n\nRequest payload:/)[0].trim();
 			// FQS may pass the engine's JSON answer as the error text
 			if (text.startsWith('{')) {
 				try {
@@ -664,15 +690,65 @@ window.ttFlexicorpCoreParts.requests = function () {
 			const syntax = /^(Unexpected|Unterminated|Unclosed|Expected|Invalid number|Unknown (attribute|flag|function|show target|command)|Unsupported)\b/.test(text)
 				|| /\bsyntax error\b/i.test(text)
 				|| /\bat position \d+|\bnear offset \d+/.test(text);
-			if (!syntax) return '';
-			let out = `Query syntax error: ${text}`;
-			if (query) out += `\nYour query: ${query}`;
-			// a bare word (or words) without CQL syntax: show the CQL for it
-			if (/^[\p{L}\p{N}'’-]+(\s+[\p{L}\p{N}'’-]+)*$/u.test(query)) {
-				const words = query.split(/\s+/).map((w) => `"${w.replace(/"/g, '\\"')}"`).join(' ');
-				const first = query.split(/\s+/)[0];
-				out += `\nWords need quotes in CQL: ${words}, or name the attribute: [form="${first}"].`;
+			if (!syntax) return null;
+			const q = String(query || '');
+			let start = -1;
+			let len = 0;
+			const posM = text.match(/\b(?:at position|near offset) (\d+)/);
+			if (posM && q) {
+				// pando counts bytes (UTF-8); with non-ASCII characters in the query that is not the character index
+				let pos = Number(posM[1]);
+				if (/[^\x00-\x7f]/.test(q) && typeof TextEncoder !== 'undefined' && typeof TextDecoder !== 'undefined') {
+					const bytes = new TextEncoder().encode(q);
+					pos = new TextDecoder().decode(bytes.slice(0, Math.min(pos, bytes.length))).length;
+				}
+				start = Math.min(pos, q.length);
+				const tok = q.slice(start).match(/^([\p{L}\p{N}_:.-]+|"[^"]*"?|\S)/u);
+				len = tok ? tok[0].length : 1;
+			} else if (q && /^Unterminated string/i.test(text)) {
+				// the string that was opened and never closed: from its opening quote to the end
+				let open = -1;
+				for (let i = 0; i < q.length; i++) {
+					if (q[i] === '"' && q[i - 1] !== '\\') open = open < 0 ? i : -1;
+				}
+				if (open >= 0) { start = open; len = q.length - open; }
+			} else if (q) {
+				// the identifier the message names, last-named first, as a whole word outside quotes
+				const named = [...text.matchAll(/'([^']+)'/g)].map((m) => m[1]).reverse().filter((w) => /^[\p{L}\p{N}_]+$/u.test(w));
+				const isWord = (c) => !!c && /[\p{L}\p{N}_]/u.test(c);
+				for (const w of named) {
+					let inQuote = false;
+					for (let i = 0; i < q.length && start < 0; i++) {
+						const c = q[i];
+						if (c === '"' && q[i - 1] !== '\\') inQuote = !inQuote;
+						if (!inQuote && q.startsWith(w, i) && !isWord(q[i - 1]) && !isWord(q[i + w.length])) { start = i; len = w.length; }
+					}
+					if (start >= 0) break;
+				}
 			}
+			const out = { message: text, before: q, mark: '', after: '', at: '', hint: '' };
+			if (start >= 0 && q) {
+				out.before = q.slice(0, start);
+				out.mark = q.slice(start, start + len);
+				out.after = q.slice(start + len);
+				out.at = `at character ${start + 1}`;
+			}
+			// a bare word (or words) without CQL syntax: show the CQL for it
+			if (q && /^[\p{L}\p{N}'\u2019-]+(\s+[\p{L}\p{N}'\u2019-]+)*$/u.test(q)) {
+				const words = q.split(/\s+/).map((w) => `"${w.replace(/"/g, '\\"')}"`).join(' ');
+				const first = q.split(/\s+/)[0];
+				out.hint = `Words need quotes in CQL: ${words}, or name the attribute: [form="${first}"].`;
+			}
+			return out;
+		},
+
+		/** A query syntax error message made readable as plain text, or '' if `msg` is not one. */
+		formatQuerySyntaxError(msg, query) {
+			const e = this.parseQuerySyntaxError(msg, query);
+			if (!e) return '';
+			let out = `Query syntax error: ${e.message}`;
+			if (query) out += `\nYour query: ${query}`;
+			if (e.hint) out += `\n${e.hint}`;
 			return out;
 		},
 

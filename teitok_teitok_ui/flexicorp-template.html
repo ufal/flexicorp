@@ -715,8 +715,21 @@
 			</div>
 			<p class="flexicorp-panel-note" x-show="isLoading('search')">executing</p>
 			<div class="flexicorp-call-errors" x-show="search.ran && callHasIssues(search.response)">
-				<template x-for="msg in searchCallMessages()" :key="msg">
-					<p class="wrong" style="white-space: pre-line" x-text="msg"></p>
+				<template x-for="(item, ei) in searchCallItems()" :key="'call-item-' + ei + '-' + (item.syntax ? item.message : item.text)">
+					<div>
+						<template x-if="item.syntax">
+							<div class="flexicorp-syntax-error">
+								<p class="flexicorp-syntax-error__title">Query syntax error</p>
+								<p class="flexicorp-syntax-error__message" x-text="item.message"></p>
+								<pre class="flexicorp-syntax-error__query"><span x-text="item.before"></span><mark x-show="item.mark" x-text="item.mark"></mark><span x-text="item.after"></span></pre>
+								<p class="flexicorp-panel-note" x-show="item.at" x-text="item.at"></p>
+								<p class="flexicorp-panel-note" x-show="item.hint" x-text="item.hint"></p>
+							</div>
+						</template>
+						<template x-if="!item.syntax">
+							<p class="wrong" style="white-space: pre-line" x-text="item.text"></p>
+						</template>
+					</div>
 				</template>
 			</div>
 			<div class="flexicorp-search-intro-slot" x-show="!search.ran && !isLoading('search')">

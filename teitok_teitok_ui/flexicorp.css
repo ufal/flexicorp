@@ -435,6 +435,34 @@
 	margin: 0.35rem 0;
 }
 
+/* a query syntax error: a quiet title, the engine's message, the query with the error place marked */
+.flexicorp-syntax-error {
+	margin: 0.5rem 0;
+	padding: 0.5rem 0.75rem;
+	border-left: 3px solid #c0504d;
+	background: #fbf3f2;
+	border-radius: 0 4px 4px 0;
+}
+.flexicorp-syntax-error p { margin: 0.2rem 0; }
+.flexicorp-syntax-error__title { color: #9b2c2a; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.flexicorp-syntax-error__query {
+	margin: 0.3rem 0;
+	padding: 0.35rem 0.5rem;
+	background: #fff;
+	border: 1px solid #e6d5d3;
+	border-radius: 3px;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+.flexicorp-syntax-error__query mark {
+	background: #f6d5d2;
+	color: inherit;
+	text-decoration: underline wavy #c0504d;
+	text-underline-offset: 3px;
+	padding: 0 1px;
+	border-radius: 2px;
+}
+
 .flexicorp-kv {
 	margin: 0;
 	border: 1px solid #e1e4e8;
